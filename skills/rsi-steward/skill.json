@@ -1,0 +1,58 @@
+{
+  "name": "rsi-steward",
+  "version": "0.1.0",
+  "status": "draft",
+  "description": "RSI 生产线编排器：先判断该不该造技能，再带技能走完十阶段，把证据写进账本。",
+  "triggers": [
+    "新建或改造技能",
+    "评估、晋升或退役技能",
+    "把真实工作沉淀成能力"
+  ],
+  "inputs": [
+    "用户任务与验收要求",
+    "现有技能与账本"
+  ],
+  "outputs": [
+    "技能目录与决策记录",
+    "scorecard 与账本记录"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "Decide 阶段写明造/改/直接做的理由，一次性任务不造技能",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "技能状态只走 draft→candidate→active→retired，无跳步",
+      "check": "assert"
+    },
+    {
+      "id": "a3",
+      "criterion": "失败复盘产出带 case_id 的 failure-fix",
+      "check": "rubric"
+    },
+    {
+      "id": "a4",
+      "criterion": "账本只含白名单字段，无全文/密钥/个人信息",
+      "check": "assert"
+    }
+  ],
+  "requires": [
+    "skill-eval",
+    "creat-skill"
+  ],
+  "handoff": [
+    "skill:directory",
+    "ledger:work"
+  ],
+  "verification": "unverified",
+  "source_level": "design",
+  "created_at": "2026-10-31",
+  "parent": null,
+  "legacy": false,
+  "source": {
+    "path": "rsi-agent/docs/04-技能生产线四层设计.md",
+    "imported_at": "2026-10-31"
+  }
+}

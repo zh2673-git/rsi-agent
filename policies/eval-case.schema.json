@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "rsi-agent/eval-case.schema.json",
+  "title": "evals/cases.jsonl 单条案例",
+  "type": "object",
+  "required": ["id", "input", "expect", "rubric", "signal", "source"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "input": { "type": "string", "minLength": 1 },
+    "expect": { "type": "string", "minLength": 1 },
+    "rubric": { "type": "string", "minLength": 1 },
+    "signal": { "enum": ["assert", "judge", "human", "test"] },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "enum": ["模型认为", "model", "AI"] }
+    },
+    "weight": { "type": "number", "minimum": 0, "default": 1 },
+    "check": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["contains", "not_contains", "regex", "exact", "any_of"] },
+        "value": {},
+        "pattern": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}

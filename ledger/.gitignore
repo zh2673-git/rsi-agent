@@ -1,0 +1,9 @@
+# 运行期账本（只追加，不提交）
+work/
+index.jsonl
+feedback.jsonl
+evidence/
+baseline.json
+reports/
+proposals/
+review/

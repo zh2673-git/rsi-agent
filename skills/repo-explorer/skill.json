@@ -1,0 +1,43 @@
+{
+  "name": "repo-explorer",
+  "version": "0.2.0",
+  "status": "draft",
+  "description": "仓库逆向阅读纪律：改代码前先建图，项目解读走六步深读；不猜目录结构，先读清单与入口。",
+  "triggers": [
+    "熟悉仓库",
+    "解读分析项目",
+    "架构审计"
+  ],
+  "inputs": [
+    "仓库路径"
+  ],
+  "outputs": [
+    "仓库地图",
+    "架构解读报告"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "改动前已读取 README/构建清单并定位入口链路",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "深读报告的问题定位到具体文件/行，不凭猜测",
+      "check": "rubric"
+    }
+  ],
+  "requires": [],
+  "handoff": [
+    "report:audit"
+  ],
+  "verification": "unverified",
+  "source_level": "mixed",
+  "created_at": "2026-10-31",
+  "parent": "tool/project-dev-skill/skills/repo-explorer",
+  "legacy": true,
+  "source": {
+    "path": "d:/ZH/vibe code/skills/tool/project-dev-skill/skills/repo-explorer",
+    "imported_at": "2026-10-31"
+  }
+}

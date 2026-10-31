@@ -1,0 +1,50 @@
+# rsi-agent 阈值与预算（scripts 读取；缺失时用内置默认值）
+
+[lifecycle]
+min_cases = 3
+max_skill_lines = 120
+
+[eval]
+# 晋升最低总分
+pass_threshold = 0.80
+# 允许低于基线的容差
+baseline_tolerance = 0.05
+# judge 案例的通过分
+judge_pass = 0.60
+# 触发测试门槛（Phase 3 使用）
+trigger_threshold = 0.90
+
+[recall]
+# 召回上限（硬上限 5）
+limit = 5
+
+[promotion]
+external_signals = ["E1", "E2", "E3"]
+require_human_for = ["tools", "core"]
+
+# 退役（Phase 3）：命中任一条件进入退役候选；批量执行需 --apply --yes
+[retire]
+min_uses = 5
+min_success_rate = 0.50
+idle_days = 30
+fail_streak = 2
+
+# 例行复盘（Phase 4）：扫描窗口与周期
+[review]
+lookback_days = 30
+correction_days = 7
+interval_days = 30
+
+# A/B 对比（Phase 3）：允许的分数容差与最小修复案例数
+[ab]
+tolerance = 0.05
+min_fixed = 1
+
+# 技能库规模（Phase 4）：超限只告警并进入复盘触发，不自动删技能
+[quota]
+max_active = 8
+max_total = 20
+
+[budget]
+max_rounds = 20
+max_attempts = 3

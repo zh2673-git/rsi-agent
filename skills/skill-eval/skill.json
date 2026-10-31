@@ -1,0 +1,50 @@
+{
+  "name": "skill-eval",
+  "version": "0.1.0",
+  "status": "draft",
+  "description": "技能评测规范：案例设计、rubric、基线对比与判分纪律，结论可用于晋升决策。",
+  "triggers": [
+    "给技能写案例",
+    "给技能评分或建基线",
+    "判断改动是否变好"
+  ],
+  "inputs": [
+    "技能契约",
+    "真实任务案例"
+  ],
+  "outputs": [
+    "evals/cases.jsonl",
+    "scorecard 与晋升建议"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "每条案例含 id/input/expect/rubric/signal/source，assert 案例带 check",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "旧案例退化被判为不通过，并给出 case id",
+      "check": "assert"
+    },
+    {
+      "id": "a3",
+      "criterion": "同模型自评（E5）不作为晋升依据",
+      "check": "rubric"
+    }
+  ],
+  "requires": [],
+  "handoff": [
+    "eval:scorecard",
+    "eval:baseline"
+  ],
+  "verification": "unverified",
+  "source_level": "design",
+  "created_at": "2026-10-31",
+  "parent": null,
+  "legacy": false,
+  "source": {
+    "path": "rsi-agent/docs/05-评测与记忆四层设计.md",
+    "imported_at": "2026-10-31"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "project-dev",
+  "version": "0.2.0",
+  "status": "draft",
+  "description": "项目级方法论编排层：判模式、路由阶段、守收敛；正向先契约后代码，逆向走六步审计，优化走 PLAN 纪律。",
+  "triggers": [
+    "从零开发项目",
+    "解读分析项目",
+    "重构优化存量项目"
+  ],
+  "inputs": [
+    "用户目标与项目现状"
+  ],
+  "outputs": [
+    "program.md / 方案与设计",
+    "解读报告",
+    "可验证的代码改动"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "正向模式无 program.md 时先出草稿并等待用户确认，确认前不动工",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "优化模式在模块目录维护 PLAN.md 演进轨迹与回退点",
+      "check": "assert"
+    },
+    {
+      "id": "a3",
+      "criterion": "验证阶段按 P/Q/I 收敛，测试未全绿不得宣称完成",
+      "check": "rubric"
+    }
+  ],
+  "requires": [
+    "repo-explorer",
+    "tdd",
+    "creat-skill",
+    "skill-eval"
+  ],
+  "handoff": [
+    "plan:program.md",
+    "report:audit"
+  ],
+  "verification": "unverified",
+  "source_level": "mixed",
+  "created_at": "2026-10-31",
+  "parent": "tool/project-dev-skill",
+  "legacy": true,
+  "source": {
+    "path": "d:/ZH/vibe code/skills/tool/project-dev-skill/skills/project-dev",
+    "imported_at": "2026-10-31"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "tdd",
+  "version": "0.2.0",
+  "status": "draft",
+  "description": "测试验证纪律：每完成一个逻辑完整的修改就跑 run_tests，基线先测，红了先修，未全绿不得称完成。",
+  "triggers": [
+    "改完验证",
+    "补测试",
+    "跑测试"
+  ],
+  "inputs": [
+    "代码改动"
+  ],
+  "outputs": [
+    "测试结果与 P/Q/I 结论"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "动手前先跑基线，基线红时显式区分既有失败",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "每完成一个逻辑完整的修改后运行 run_tests",
+      "check": "assert"
+    },
+    {
+      "id": "a3",
+      "criterion": "未全绿时最终回答不使用「完成」表述",
+      "check": "rubric"
+    }
+  ],
+  "requires": [],
+  "handoff": [
+    "artifact:test-report"
+  ],
+  "verification": "unverified",
+  "source_level": "mixed",
+  "created_at": "2026-10-31",
+  "parent": "tool/project-dev-skill/skills/tdd",
+  "legacy": true,
+  "source": {
+    "path": "d:/ZH/vibe code/skills/tool/project-dev-skill/skills/tdd",
+    "imported_at": "2026-10-31"
+  }
+}

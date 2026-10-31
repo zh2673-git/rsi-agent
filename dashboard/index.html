@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>RSI 技能看板</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 32px; background: #0f1115; color: #e6e8ec;
+         font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 12px; color: #9aa4b2; font-weight: 600; }
+  .meta { color: #6b7280; font-size: 12px; }
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+  .card { background: #171a21; border: 1px solid #242936; border-radius: 10px; padding: 14px 16px; }
+  .card .num { font-size: 24px; font-weight: 700; }
+  .card .label { color: #8b93a1; font-size: 12px; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; background: #141821;
+           border: 1px solid #242936; border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid #222734; vertical-align: top; }
+  th { color: #9aa4b2; font-weight: 600; background: #171b24; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px;
+            border: 1px solid #33405a; color: #9db4d6; }
+  .badge.active { border-color: #2f6f4f; color: #6ee7a8; }
+  .badge.retired { border-color: #5a3340; color: #f0a3b4; }
+  .badge.draft { border-color: #3c3f46; color: #b7bdc8; }
+  .badge.warn, .badge.pending { border-color: #7a5a24; color: #f3c777; }
+  .badge.approved { border-color: #2f6f4f; color: #6ee7a8; }
+  .triggers { color: #cbd5e1; }
+</style>
+</head>
+<body>
+<h1>RSI 技能看板</h1>
+<div class="meta">生成于 2026-10-31T22:12:14+08:00 · 只读快照，数据来自 ledger/ 与 skills/</div>
+<div class="cards">
+  <div class="card"><div class="num">6</div><div class="label">技能总数</div></div>
+  <div class="card"><div class="num">0</div><div class="label">active</div></div>
+  <div class="card"><div class="num">0</div><div class="label">退役候选</div></div>
+  <div class="card"><div class="num">0</div><div class="label">提案</div></div>
+</div>
+<h2>技能状态</h2>
+<table>
+<thead><tr><th>技能</th><th>状态</th><th>版本</th><th>验证</th><th>legacy</th>
+<th>使用</th><th>成功率</th><th>闲置天</th><th>评测分</th><th>评测版本</th><th>退役理由</th></tr></thead>
+<tbody>
+<tr><td>creat-skill</td><td><span class='badge draft'>draft</span></td><td>0.3.0</td><td>unverified</td><td>是</td><td>0</td><td>—</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>project-dev</td><td><span class='badge draft'>draft</span></td><td>0.2.0</td><td>unverified</td><td>是</td><td>0</td><td>—</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>repo-explorer</td><td><span class='badge draft'>draft</span></td><td>0.2.0</td><td>unverified</td><td>是</td><td>0</td><td>—</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>rsi-steward</td><td><span class='badge draft'>draft</span></td><td>0.1.0</td><td>unverified</td><td>否</td><td>0</td><td>—</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>skill-eval</td><td><span class='badge draft'>draft</span></td><td>0.1.0</td><td>unverified</td><td>否</td><td>0</td><td>—</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>tdd</td><td><span class='badge draft'>draft</span></td><td>0.2.0</td><td>unverified</td><td>是</td><td>0</td><td>—</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+<h2>最近失败</h2>
+<table>
+<thead><tr><th>时间</th><th>结果</th><th>任务</th><th>技能</th></tr></thead>
+<tbody>
+<tr><td colspan='4'>暂无失败记录</td></tr>
+</tbody>
+</table>
+<h2>待审提案与复盘触发</h2>
+<table>
+<thead><tr><th>ID</th><th>技能</th><th>层</th><th>状态</th><th>摘要</th></tr></thead>
+<tbody>
+<tr><td colspan='5'>暂无提案</td></tr>
+</tbody>
+</table>
+<p class="triggers">最近一次复盘触发：无</p>
+</body>
+</html>

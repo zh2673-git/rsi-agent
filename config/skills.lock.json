@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-31",
+  "policy": "vendored 副本允许本地优化；定期人工比对 source_sha256，避免与上游漂移。drift=true 表示副本已本地修改。",
+  "skills": {
+    "creat-skill": {
+      "source": "d:/ZH/vibe code/skills/tool/creat-skill",
+      "source_sha256": "d0bcc6a5e86178df2dd0a9b437fbd63b1fe2d27dfe4b31200f24321b7fa223b6",
+      "vendored_sha256": "8c66b1e8ebe5e3bb87a8f9064825cc571f4243859307a0ac2c5cef005e5a242d",
+      "version": "0.3.0",
+      "drift": true
+    },
+    "project-dev": {
+      "source": "d:/ZH/vibe code/skills/tool/project-dev-skill/skills/project-dev",
+      "source_sha256": "e8ca1d6dea67ae882345bc5be771a338ecf4901eb3d4be9a956c5c9de74bfa2f",
+      "vendored_sha256": "4ad437188f1080bf001ac021cfd1cbf9c325dbe883b491aafe018ea85916825a",
+      "version": "0.2.0",
+      "drift": true
+    },
+    "repo-explorer": {
+      "source": "d:/ZH/vibe code/skills/tool/project-dev-skill/skills/repo-explorer",
+      "source_sha256": "3820cc0674a05b7c0ffeb27c2f9c6e168da24c3221c688d8583af4d3a3403520",
+      "vendored_sha256": "3820cc0674a05b7c0ffeb27c2f9c6e168da24c3221c688d8583af4d3a3403520",
+      "version": "0.2.0",
+      "drift": false
+    },
+    "tdd": {
+      "source": "d:/ZH/vibe code/skills/tool/project-dev-skill/skills/tdd",
+      "source_sha256": "67abb4c9da8f38f5b9fcd7231c6f5806bc8ef76083d1999f770c2cee71007680",
+      "vendored_sha256": "67abb4c9da8f38f5b9fcd7231c6f5806bc8ef76083d1999f770c2cee71007680",
+      "version": "0.2.0",
+      "drift": false
+    },
+    "rsi-steward": {
+      "source": "rsi-agent/docs/04-技能生产线四层设计.md",
+      "version": "0.1.0",
+      "drift": false
+    },
+    "skill-eval": {
+      "source": "rsi-agent/docs/05-评测与记忆四层设计.md",
+      "version": "0.1.0",
+      "drift": false
+    }
+  }
+}

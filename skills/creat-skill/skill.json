@@ -1,0 +1,55 @@
+{
+  "name": "creat-skill",
+  "version": "0.3.0",
+  "status": "draft",
+  "description": "技能编译器：先还原专业生产体系，再转译成可执行、可校验的 skill；支持新建、逆向审计与存量优化。",
+  "triggers": [
+    "用户要做一个技能",
+    "改造或审计已有技能",
+    "把一次工作沉淀成技能"
+  ],
+  "inputs": [
+    "行业/高手实践材料",
+    "用户真实需求与案例"
+  ],
+  "outputs": [
+    "技能目录（SKILL.md + skill.json + evals/）",
+    "存量技能诊断与改造"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "产出的技能目录通过 skill_validate --mode full（结构/引用/验收段齐全）",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "至少一条可执行的验收判据（evals/cases.jsonl 的 assert 案例带 check）",
+      "check": "assert"
+    },
+    {
+      "id": "a3",
+      "criterion": "没有外部信号的技能标 verification=unverified，不得写成已验证",
+      "check": "rubric"
+    },
+    {
+      "id": "a4",
+      "criterion": "落盘前经过 Decide 门槛：一次性任务或无稳定判据时不造技能",
+      "check": "rubric"
+    }
+  ],
+  "requires": [],
+  "handoff": [
+    "skill:directory",
+    "eval:cases"
+  ],
+  "verification": "unverified",
+  "source_level": "mixed",
+  "created_at": "2026-10-31",
+  "parent": "tool/creat-skill",
+  "legacy": true,
+  "source": {
+    "path": "d:/ZH/vibe code/skills/tool/creat-skill",
+    "imported_at": "2026-10-31"
+  }
+}

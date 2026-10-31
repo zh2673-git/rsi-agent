@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "rsi-agent/ledger.schema.json",
+  "title": "工作账本记录（字段白名单）",
+  "type": "object",
+  "required": ["task"],
+  "additionalProperties": false,
+  "properties": {
+    "work_id": { "type": "string" },
+    "task": { "type": "string", "maxLength": 120 },
+    "task_type": { "type": "string" },
+    "keywords": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 30 } },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "checked": { "type": "boolean" }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "phase": { "type": "string" },
+          "choice": { "type": "string" },
+          "reason": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "outcome": { "enum": ["success", "fail", "partial", "blocked"] },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["user_confirm", "user_correction", "assert", "test", "judge", "human", "real_result", "rollback"] },
+          "value": {}
+        }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "properties": {
+        "rounds": { "type": "integer", "minimum": 0 },
+        "tokens": { "type": "integer", "minimum": 0 },
+        "duration_s": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "decision": { "type": "string" },
+    "lessons": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["failure_fix", "exemplar", "decision"] },
+          "skill": { "type": "string" },
+          "case_id": { "type": "string" },
+          "summary": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "artifacts": { "type": "array", "items": { "type": "string" } },
+    "created_at": { "type": "string" }
+  }
+}
