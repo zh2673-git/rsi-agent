@@ -12,7 +12,7 @@
 - [x] T6 .gitignore
 - [x] T7 README
 - [x] T8 验证
-- [ ] T9 提交与推送
+- [x] T9 提交与推送
 
 ## T1 复制 Rust 运行时
 
