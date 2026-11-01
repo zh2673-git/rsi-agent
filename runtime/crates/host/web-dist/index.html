@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>react-agent</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><span class="logo">R</span><span>react-agent</span><span class="inst-badge" id="inst-badge" hidden></span></div>
+  <button class="newchat" id="newchat">＋ 新建对话</button>
+  <button class="newchat win" id="btn-newwin" title="新建独立窗口：绑定另一个工作区，独立会话/回滚/配置（多实例并行）">▣ 新窗口</button>
+  <div class="sess-label">会话</div>
+  <div class="sessions" id="sessions"></div>
+</aside>
+
+<div class="main">
+  <header>
+    <button class="toggle" id="toggle" title="折叠/展开会话栏">☰</button>
+    <span class="title">react-agent <small id="session-tag">session: -</small><small id="ws-tag" title="当前工作区（文件工具/文件树/产物的根）"></small></span>
+    <span class="spacer"></span>
+    <span class="dot" id="conn"></span>
+    <span class="status" id="status"></span>
+    <button class="treebtn" id="btn-tree" title="工作区文件树（只读预览/下载）">📁 文件</button>
+    <button class="gear" id="gear" title="配置中心：LLM / 工具 / 技能 / Agent">⚙ 设置</button>
+  </header>
+  <div id="stream"><div class="wrap" id="feed"></div></div>
+  <footer>
+    <div class="atts" id="atts" hidden></div>
+    <div class="composer">
+      <button id="attach" class="attach" title="附加图片或文本文件（最多 4 个，单个 ≤2MB）">📎</button>
+      <textarea id="input" placeholder="输入消息，Enter 发送（Shift+Enter 换行；可直接粘贴图片）"></textarea>
+      <button id="stop" hidden style="background: var(--card-2); color: var(--text);">停止</button>
+      <button id="send">发送</button>
+      <input type="file" id="file" multiple hidden
+        accept="image/*,text/*,.md,.markdown,.txt,.log,.json,.csv,.py,.js,.ts,.tsx,.rs,.go,.java,.c,.cpp,.h,.toml,.yaml,.yml,.xml,.html,.css,.sql,.sh">
+    </div>
+  </footer>
+</div>
+
+<aside id="drawer">
+  <div class="dhead"><span>设置</span><button class="close" id="dclose" title="关闭">✕</button></div>
+  <div class="tabs">
+    <button data-tab="llm" class="on">LLM</button>
+    <button data-tab="tools">工具</button>
+    <button data-tab="skills">技能</button>
+    <button data-tab="agent">Agent</button>
+  </div>
+  <div class="body">
+    <div id="tab-llm">
+      <!-- 三区独立折叠：文本/生图/生视频各自填写、各自保存（样式与工具池分组同款 poolhead collapsible） -->
+      <div class="poolhead collapsible"><span class="chev">▾</span><span class="plabel">文本模型（对话）</span><span class="pcnt" id="llm-cnt"></span></div>
+      <div class="poolbody" id="sec-llm">
+        <div class="field"><label>provider</label>
+          <select id="llm-provider">
+            <option value="mock">mock（无外部依赖）</option>
+            <option value="openai">openai 兼容（DeepSeek / Kimi 等）</option>
+            <option value="anthropic">anthropic</option>
+            <option value="ollama">ollama（本地）</option>
+          </select>
+        </div>
+        <div class="field" id="llm-site-field"><label>站点（预设一键切换）</label>
+          <select id="llm-site" style="flex:1"></select>
+          <a id="llm-site-key-url" class="site-link" href="#" target="_blank" rel="noopener" hidden>申请 key ↗</a>
+        </div>
+        <div class="field"><label>model</label><select id="llm-model" style="flex:1"></select><input id="llm-model-custom" placeholder="自定义模型名" style="flex:1; display:none"><button type="button" class="btn ghost" id="llm-fetch-models">拉取模型</button></div>
+        <div class="field"><label>base_url</label><input id="llm-base" placeholder="https://api.deepseek.com/v1"></div>
+        <div class="field"><label>api_key</label><input id="llm-key" type="password" autocomplete="off"></div>
+        <div class="row"><button class="btn" id="llm-save">保存</button><button class="btn ghost" id="llm-reveal" title="在文件管理器中定位 config.json">📂 源文件</button><span class="flash" id="llm-flash"></span></div>
+        <p class="hint">保存即热生效（env 更新 + 落盘 config.json）。api_key 留空 = 不修改；回显只显示尾 4 位。不清楚怎么填？直接在对话里问（如「XX 站怎么配」），我会调研该站点文档并给出可粘贴的配置。</p>
+      </div>
+      <div class="poolhead collapsible"><span class="chev">▾</span><span class="plabel">生图模型</span><span class="pcnt" id="media-img-cnt"></span></div>
+      <div class="poolbody" id="sec-media-img">
+        <p class="hint">media-gen 技能的生图端点（OpenAI 兼容 /v1/images/generations）。保存落盘，重启 host 生效；api_key 留空 = 不修改。不清楚怎么填？直接在对话里问（如「XX 站怎么配」），我会调研该站点文档并给出可粘贴的配置。</p>
+        <div class="field"><label>base_url</label><input id="media-img-base" placeholder="https://api.siliconflow.cn/v1"></div>
+        <div class="field"><label>model</label><input id="media-img-model" placeholder="Kwai-Kolors/Kolors"></div>
+        <div class="field"><label>api_key</label><input id="media-img-key" type="password" autocomplete="off"></div>
+        <div class="row"><button class="btn" id="media-img-save">保存</button><span class="flash" id="media-img-flash"></span></div>
+      </div>
+      <div class="poolhead collapsible"><span class="chev">▾</span><span class="plabel">生视频模型</span><span class="pcnt" id="media-vid-cnt"></span></div>
+      <div class="poolbody" id="sec-media-vid">
+        <p class="hint">media-gen 技能的生视频端点（submit 提交任务 + poll 轮询取片）。保存落盘，重启 host 生效；api_key 留空 = 不修改。</p>
+        <div class="field"><label>base_url</label><input id="media-vid-base" placeholder="https://vid.example.com"></div>
+        <div class="field"><label>model</label><input id="media-vid-model" placeholder="视频模型名"></div>
+        <div class="field"><label>api_key</label><input id="media-vid-key" type="password" autocomplete="off"></div>
+        <div class="field"><label>提交端点 submit_url</label><input id="media-vid-submit" placeholder="/v1/video/submit（相对路径以 base_url 为基）"></div>
+        <div class="field"><label>查询端点 query_url</label><input id="media-vid-query" placeholder="/v1/video/status?id={task_id}"></div>
+        <div class="field"><label>站点默认参数 extra（JSON，选填）</label><input id="media-vid-extra" placeholder='{"mode":"text","size":"720P","model_name":"agnes-video-2.5-flash"}'></div>
+        <p class="hint" id="media-vid-extra-hint" style="margin-top:-2px">站点个性化参数在此声明（submit 请求体默认值 + poll 查询参数），agent 显式传参优先覆盖——如 Agnes 的 mode 必填、size 固定 "720P"。不清楚某站怎么填？直接在对话里问，我会调研该站点文档并给出可粘贴的 extra JSON。</p>
+        <div class="row"><button class="btn" id="media-vid-save">保存</button><span class="flash" id="media-vid-flash"></span></div>
+      </div>
+    </div>
+    <div id="tab-tools" hidden>
+      <p class="hint">勾选启用工具（整体替换白名单，保存即热生效）；点击条目展开配置详情，再点收起。三池组头可整体收起/展开；「MCP 外接」各服务组内含工具勾选与 API Key 配置。</p>
+      <div id="tools-list"></div>
+      <div class="row"><button class="btn" id="tools-save">保存</button><button class="btn ghost" id="tools-reveal" title="打开 plugins/tools 目录（内置工具源码）">📂 源文件</button><span class="flash" id="tools-flash"></span></div>
+    </div>
+    <div id="tab-skills" hidden>
+      <div class="row" style="margin-bottom:12px"><button class="btn ghost" id="skill-new">＋ 新建技能</button><button class="btn ghost" id="skills-reveal" title="打开技能根目录（plugins/assets/skills）">📂 源文件</button></div>
+      <div id="skills-list"></div>
+      <div id="skill-editor" hidden>
+        <div class="field"><label>名称（= 目录名 = frontmatter name）</label><input id="skill-name" placeholder="my-skill"></div>
+        <div class="field"><label>SKILL.md</label><textarea id="skill-content" spellcheck="false"></textarea></div>
+        <div class="row">
+          <button class="btn" id="skill-save">保存</button>
+          <button class="btn danger" id="skill-del" hidden>删除</button>
+          <span class="flash" id="skill-flash"></span>
+        </div>
+        <p class="hint">frontmatter 需含 name（与目录名一致）与非空 description。保存后下轮对话自动可见；模型也可在对话中用 write_file 自建技能（技能自扩展）。</p>
+      </div>
+    </div>
+    <div id="tab-agent" hidden>
+      <p class="hint">agent-loop 运行参数（保存即下轮对话生效 + 落盘 config.json）。0 的语义见各标签。</p>
+      <div class="field"><label>max_rounds（单次对话最大轮次）</label><input id="agent-max-rounds" type="number" min="1" max="64"></div>
+      <div class="field"><label>产物输出目录（agent 产出的成品文件统一写入此目录，工作区内相对路径）</label><input id="agent-output-dir" placeholder="outputs"></div>
+      <div class="field"><label>budget_secs（单次对话总时长预算，秒，支持小数；0=不限）</label><input id="agent-budget-secs" type="number" min="0" step="0.5"></div>
+      <div class="field"><label>token_budget（单次对话 token 预算，input+output 累计；0=不限）</label><input id="agent-token-budget" type="number" min="0"></div>
+      <div class="field"><label>history_limit（发给 LLM 的历史窗口条数；0=不限）</label><input id="agent-history-limit" type="number" min="0"></div>
+      <div class="field"><label>compact_trigger（历史超过此条数触发压缩；0=禁用）</label><input id="agent-compact-trigger" type="number" min="0"></div>
+      <div class="field"><label>compact_keep（压缩后保留最近条数）</label><input id="agent-compact-keep" type="number" min="0"></div>
+      <div class="field"><label>tool_result_limit（单条工具结果回喂字符上限；0=禁用）</label><input id="agent-tool-result-limit" type="number" min="0"></div>
+      <div class="field"><label>retry_attempts（LLM 瞬态失败重试次数，0=不重试）</label><input id="agent-retry-attempts" type="number" min="0" max="6"></div>
+      <div class="field"><label>retry_base_ms（重试退避基数毫秒，指数递增、单次封顶 8s）</label><input id="agent-retry-base-ms" type="number" min="0"></div>
+      <div class="field"><label>llm_context_tokens（模型上下文窗口 token 数；0=禁用 token 闸，仅按条数管理）</label><input id="agent-llm-context-tokens" type="number" min="0"></div>
+      <div class="row" style="margin:-8px 0 14px; justify-content:space-between">
+        <span class="hint" id="ctx-hint" style="margin:0">原生窗口：未拉取模型列表（LLM 页「拉取模型」后可用）</span>
+        <button type="button" class="btn ghost" id="ctx-fill" hidden style="padding:4px 12px; font-size:12px">填入原生值</button>
+      </div>
+      <div class="field"><label>system_prompt（自定义系统提示词，留空 = 用内置组装链）</label><textarea id="agent-system-prompt" style="min-height:110px" spellcheck="false"></textarea></div>
+      <div class="row"><button class="btn" id="agent-save">保存</button><span class="flash" id="agent-flash"></span></div>
+      <p class="hint">PROMPT 具名模板仍由 REPL /prompt 管理；预算耗尽以 K508 收敛（时长/token 分开提示），子代理继承衰减后的剩余预算；上下文超限以 CONTEXT_OVERFLOW 收敛（发送前逐级收紧 → 仍超限即失败，provider 终审超限则降级重试一次）。</p>
+    </div>
+  </div>
+</aside>
+
+<div class="modal-mask" id="win-modal" hidden>
+  <div class="modal">
+    <div class="mhead">▣ 新建窗口（独立实例）</div>
+    <div class="field"><label>已有实例（点「打开」直接进；离线点「启动」按需恢复，会话/配置延续）</label>
+      <div id="inst-list" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto"></div>
+    </div>
+    <div class="field"><label>工作区文件夹（文件工具/文件树/产物均以此为根）</label>
+      <div style="display:flex; gap:8px">
+        <input id="win-ws" readonly placeholder="点击「浏览文件夹…」选择，无需手填路径">
+        <button type="button" class="btn ghost" id="win-browse" style="white-space:nowrap">📂 浏览文件夹…</button>
+      </div>
+    </div>
+    <p class="hint">新窗口 = 独立 host 进程：独立会话/回滚/配置，端口自动分配（8711 起）；实例名自动取文件夹名（同名窗口已开着就直接复用）。首次建窗自动继承当前窗口的模型配置（api_key 免重配）。数据存于代码根 .instances/，不影响目标项目目录。子窗口按需恢复：主窗口重启后不自动拉起，在下表点「启动」即按原工作区复活（换新端口，会话保留）。</p>
+    <div class="row"><button class="btn" id="win-create">创建并打开</button><button class="btn ghost" id="win-cancel">取消</button><span class="flash" id="win-flash"></span></div>
+  </div>
+</div>
+
+<!-- W17 迭代八拆分（原 app.js 单文件 → 五模块，vendor/ 前缀复用既有白名单规则零 Rust 改动；defer 按文档序执行）。
+     顺序约束：events 顶层立即调用 api()/connect()（api 声明在 settings）→ settings 必须先于 events；
+     settings/files 顶层仅赋值与 let 声明，无立即调用，故 core → stream → files → settings → events 安全。 -->
+<script src="/vendor/app-core.js" defer></script>
+<script src="/vendor/app-stream.js" defer></script>
+<script src="/vendor/app-files.js" defer></script>
+<script src="/vendor/app-settings.js" defer></script>
+<script src="/vendor/app-events.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "base_url": "https://api.openai.com/v1",
+    "api_key": ""
+  },
+  "tools": {
+    "enabled": [
+      "read_file",
+      "write_file",
+      "edit_file",
+      "list_dir",
+      "bash",
+      "web_search",
+      "web_read",
+      "grep",
+      "symbols_search",
+      "todo"
+    ]
+  },
+  "agent": {
+    "max_rounds": 20,
+    "system_prompt": null,
+    "history_limit": 0,
+    "compact_trigger": 40,
+    "compact_keep": 10,
+    "tool_result_limit": 4000,
+    "budget_secs": 900,
+    "token_budget": 0,
+    "retry_attempts": 2,
+    "retry_base_ms": 500
+  }
+}

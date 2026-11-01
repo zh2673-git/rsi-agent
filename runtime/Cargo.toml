@@ -1,0 +1,34 @@
+﻿[workspace]
+resolver = "2"
+members = ["crates/agent-loop", "crates/host"]
+
+[workspace.package]
+# 版本号 = react-agent 发布序号（随功能发布 +1，与 git tag v<version> 同步）。
+# 版本线独立于内核（内核 v0.1.x/v0.2.x 演进不影响本序号）；内核兼容性由下方
+# dependency 的 tag 表达（升级内核时单独提交说明）。
+version = "0.1.21"
+edition = "2021"
+
+[workspace.dependencies]
+# 内核（发布版：git 依赖，锁定 v0.1.7 —— 优先级泳道（T8：System/Normal 双闸）+ call_capability_as trace/priority 贯穿（S1））
+agent-kernel-sdk = { git = "https://github.com/zh2673-git/agent-kernel", tag = "v0.1.7" }
+agent-kernel-kernel = { git = "https://github.com/zh2673-git/agent-kernel", tag = "v0.1.7", features = [
+    "process",
+] }
+agent-kernel-process = { git = "https://github.com/zh2673-git/agent-kernel", tag = "v0.1.7" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+async-trait = "0.1"
+base64 = "0.22"
+futures = "0.3"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 本地开发：切换到旁边的内核 checkout（取消注释后 cargo build 即用本地源码）
+# [patch."https://github.com/zh2673-git/agent-kernel"]
+# agent-kernel-sdk = { path = "../agent-kernel/crates/sdk" }
+# agent-kernel-kernel = { path = "../agent-kernel/crates/kernel" }
+# agent-kernel-process = { path = "../agent-kernel/crates/process" }

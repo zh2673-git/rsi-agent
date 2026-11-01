@@ -43,7 +43,11 @@ rsi-agent：skills/ + policies/ + ledger/ + config/
 rsi-agent/
 ├── program.md
 ├── README.md
+├── run.cmd                # 一键启动（默认 Web）
+├── SYSTEM.md              # 工作区系统提示词（WORKSPACE_ROOT/SYSTEM.md）
+├── config.example.json    # 配置样例（无密钥）
 ├── docs/
+├── specs/                 # 规格与任务记录
 ├── policies/              # skill-contract / eval-case / ledger schema + lifecycle + promotion
 ├── config/                # rsi.toml、skills.lock.json
 ├── skills/                # 预置与自产技能（SKILLS_DIR）
@@ -54,21 +58,43 @@ rsi-agent/
 │   ├── repo-explorer/     # project-dev 依赖
 │   └── tdd/               # project-dev 依赖（含 run_tests 工具）
 ├── ledger/                # 工作账本（运行时生成，不进 git；evidence/proposals/reports/review 同）
-└── scripts/               # skill_validate / run_evals / ledger / skill_state / conformance_gate /
-                           # import_skill / skill_ab / usage_report / dashboard / rsi_routine / health_report
+├── scripts/               # skill_validate / run_evals / ledger / skill_state / conformance_gate /
+│                          # import_skill / skill_ab / usage_report / dashboard / rsi_routine / health_report
+└── runtime/               # react-agent 运行时快照（内嵌，勿直接改）
+    ├── crates/            # host + agent-loop（Rust）
+    ├── plugins/           # memory / llm-adapter / tools / assets
+    ├── kernel/            # agent-kernel guest bindings（Python/TS）+ schema/kernel.proto
+    ├── Cargo.toml
+    └── Cargo.lock
 ```
 
-## 快速开始
+## 快速开始（独立运行）
 
-脚本自带 `scripts/vendor/skillkit.py`，单独克隆本仓库即可运行校验/评测/账本等工具；
-接入真实 agent 仍需 [react-agent](https://github.com/zh2673-git/react-agent)（含三处接缝改动）与 agent-kernel。
+本仓库已内嵌运行时快照（`runtime/`），单独克隆即可启动 agent，无需本地 react-agent / agent-kernel 检出。
+
+前置依赖：Rust stable、Node.js 22.6+、Python 3.10+、npm。
+首次构建需要联网：cargo 拉取 agent-kernel 的 git 依赖，`run.cmd` 自动在 `runtime/kernel/bindings/typescript` 执行 `npm install`，并自动安装 Python 依赖 `grpcio httpx`。
 
 ```powershell
-$env:SKILLS_DIR      = "<repo>\rsi-agent\skills"
-$env:WORKSPACE_ROOT  = "<repo>\rsi-agent"
-$env:RSI_LEDGER_DIR  = "<repo>\rsi-agent\ledger"
-react-agent-host
+# 1) 配置（可选；不配置时默认 mock provider）
+Copy-Item config.example.json config.json
+# 编辑 config.json 填 provider / model / base_url / api_key
 
+# 2) 启动（默认 Web：http://127.0.0.1:8710）
+.\run.cmd
+
+# REPL
+set REACT_FRONTEND=repl; .\run.cmd
+
+# 单轮
+.\run.cmd "你好"
+```
+
+`run.cmd` 会设置 `SKILLS_DIR` / `WORKSPACE_ROOT` / `RSI_LEDGER_DIR` / `AGENT_KERNEL_REPO` / `PLUGINS_DIR` / `CONFIG_FILE`，并把 `WORKSPACE_ROOT` 锚定到本仓库根目录（技能目录因此可被 agent 自扩展写入）。
+
+脚本工具（校验 / 评测 / 账本）不依赖 host，可直接运行：
+
+```powershell
 python scripts/skill_validate.py --all --mode full
 python scripts/run_evals.py --skill rsi-steward --set-baseline
 python scripts/skill_ab.py --skill rsi-steward --a 0.1.0 --b 0.2.0
@@ -87,6 +113,20 @@ python scripts/dashboard.py                        # dashboard/index.html
 python -m unittest discover -s tests -v
 ```
 
+## 运行时快照
+
+`runtime/` 是以下版本的运行时代码快照，**请勿直接修改**（升级时按下面的同步流程重放）：
+
+- [react-agent](https://github.com/zh2673-git/react-agent) v0.1.21：`crates/agent-loop`、`crates/host`（含 web-dist）、`plugins`（memory / llm-adapter / tools / assets）。
+- [agent-kernel](https://github.com/zh2673-git/agent-kernel) v0.1.7：`bindings/python`、`bindings/typescript`、`schema/kernel.proto`。
+
+快照仅做 2 处适配：
+
+1. `runtime/plugins/memory/guest_sdk.ts` 的导入路径改为 `../../kernel/bindings/typescript/src/index.ts`；
+2. `runtime/plugins/tools/tools/files.py` 的 `_CORE_BLOCKLIST` 增加 `runtime`（禁止 agent 自改运行体）。
+
+同步方式：从对应版本的 react-agent / agent-kernel 重新复制上述文件，再重放这 2 处适配。
+
 策略钩子默认关闭；需要时显式开启：
 
 ```powershell
@@ -102,6 +142,7 @@ $env:RSI_VERIFY_BEFORE_FINAL = "1"   # 最终答复前逐条核对
 - [x] Phase 2：预置技能 + 校验/评测/账本/状态机 + schema/阈值闭环
 - [x] Phase 3：A/B 对比、使用率/退役、静态看板（`dashboard/index.html`）
 - [x] Phase 4：外部信号驱动的例行复盘、提案审批队列、月度健康报告、技能库配额告警（只告警不自动删）
+- [x] 独立运行：内嵌 `runtime/` 快照（react-agent v0.1.21 + agent-kernel v0.1.7 bindings/schema）+ `run.cmd`
 
 生成的看板是 [dashboard/index.html](dashboard/index.html)，每次运行 `python scripts/dashboard.py` 覆盖更新。
 
