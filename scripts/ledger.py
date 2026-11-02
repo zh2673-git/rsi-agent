@@ -26,7 +26,7 @@ from rsi_common import dumps, emit, ledger_dir, load_config  # noqa: E402
 
 WORK_FIELDS = (
     "work_id", "task", "task_type", "keywords", "acceptance", "skills", "steps",
-    "outcome", "signals", "cost", "decision", "lessons", "artifacts", "created_at",
+    "outcome", "signals", "cost", "decision", "lessons", "artifacts", "llm", "created_at",
 )
 OUTCOMES = ("success", "fail", "partial", "blocked")
 SIGNAL_TYPES = ("user_confirm", "user_correction", "assert", "test", "judge", "human", "real_result", "rollback")

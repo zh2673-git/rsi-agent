@@ -77,6 +77,23 @@
         }
       }
     },
+    "llm": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "models": { "type": "array", "items": { "type": "string" } },
+        "drift": { "type": "boolean" },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "tokens": { "type": "integer", "minimum": 0 },
+            "cost_usd": { "type": "number", "minimum": 0 }
+          }
+        },
+        "evidence": { "type": "string" }
+      }
+    },
     "artifacts": { "type": "array", "items": { "type": "string" } },
     "created_at": { "type": "string" }
   }

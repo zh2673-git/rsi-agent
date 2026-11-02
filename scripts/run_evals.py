@@ -168,6 +168,21 @@ def _score_case(case: dict, item: dict, cfg: dict, judge_cmd: str) -> dict:
     return {**base, "status": "invalid", "score": None, "pass": None, "reason": f"未知 signal: {signal}"}
 
 
+def _llm_provenance(outputs: dict) -> dict:
+    """从产物里收集回答模型：同一轮出现多个模型 = 漂移（基线/晋升不可信）。"""
+    models, providers = set(), set()
+    for item in outputs.values():
+        block = item.get("llm") if isinstance(item, dict) else None
+        if not isinstance(block, dict):
+            continue
+        if block.get("model"):
+            models.add(str(block["model"]))
+        if block.get("provider"):
+            providers.add(str(block["provider"]))
+    return {"models": sorted(models), "providers": sorted(providers),
+            "drift": len(models) > 1, "recorded": bool(models)}
+
+
 def evaluate(skill_dir: Path, suite: Path, outputs_path: Path | None, judge_cmd: str,
              baseline_path: Path, version: str | None) -> dict:
     cfg = load_config()
@@ -189,6 +204,7 @@ def evaluate(skill_dir: Path, suite: Path, outputs_path: Path | None, judge_cmd:
                             "message": f"案例数 {len(cases)} < {min_cases}"}]}
 
     outputs = load_outputs(outputs_path)
+    llm = _llm_provenance(outputs)
     results = []
     for case in cases:
         item = outputs.get(case["id"]) or {}
@@ -212,6 +228,8 @@ def evaluate(skill_dir: Path, suite: Path, outputs_path: Path | None, judge_cmd:
     threshold = float(cfg["eval"].get("pass_threshold", 0.8))
 
     reasons = []
+    if llm["drift"]:
+        reasons.append(f"模型漂移（同一轮出现多个模型）: {llm['models']}")
     if invalid:
         reasons.append(f"存在无效案例: {[r['id'] for r in invalid]}")
     if len(decided) < min_cases:
@@ -227,7 +245,7 @@ def evaluate(skill_dir: Path, suite: Path, outputs_path: Path | None, judge_cmd:
     eligible = not reasons
 
     scorecard = {
-        "ok": not invalid and not regressions and not degraded,
+        "ok": not invalid and not regressions and not degraded and not llm["drift"],
         "skill": name,
         "version": version,
         "suite": str(suite),
@@ -235,6 +253,8 @@ def evaluate(skill_dir: Path, suite: Path, outputs_path: Path | None, judge_cmd:
         "summary": {"total": len(cases), "decided": len(decided), "pending": len(pending),
                     "invalid": len(invalid), "pass_rate": pass_rate},
         "cases": results,
+        "llm": {"provider": llm["providers"][0] if llm["providers"] else "",
+                "models": llm["models"], "drift": llm["drift"], "recorded": llm["recorded"]},
         "baseline": {"path": str(baseline_path),
                      "version": prev.get("version"),
                      "pass_rate": prev.get("pass_rate")},
@@ -293,6 +313,11 @@ def main() -> int:
         return 2
     card["results_path"] = _write_results(skill_dir, card)
     if args.set_baseline:
+        if card["llm"]["drift"]:
+            card["baseline_refused"] = {"code": "E_LLM_DRIFT",
+                                        "message": "同一轮出现多个模型，不能写基线；请固定 actor 路由后重跑"}
+            emit(card)
+            return 2
         _set_baseline(baseline, card)
         card["baseline_written"] = str(baseline)
     emit(card)
