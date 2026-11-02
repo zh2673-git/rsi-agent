@@ -5,6 +5,11 @@
             助手缺失/令牌创建失败 → SANDBOX_FAILED 字段级错误，绝不回退无沙箱直跑；
   直跑路径：仅当 BASH_SANDBOX=off 显式豁免时（宿主不传 SANDBOX_HELPER），描述如实声明无沙箱。
 
+cwd 归一（rsi-agent 快照适配第 3 处）：子进程 cwd 一律走 `_shell_cwd()`——剥 `\\?\` 扩展长度
+前缀再校验可用性，不可用即 fail-closed。原因：宿主 instances.rs 用 `canonicalize()` 写
+WORKSPACE_ROOT 会带该前缀，而 Windows cmd.exe 拒绝 UNC 形态并**静默改在 C:\Windows 执行且
+exit=0**（错目录 + 越界写 + 追溯失效三重危害）。
+
 W16 bash 文件追溯（B 方案，不禁写只留痕）：对「快照区」= WORKSPACE_ROOT −（噪音目录 /
 .stream / 产物目录 / MEMORY_DATA_DIR / .git）执行前 pre-copy、执行后逐文件比对，变更
 （新增/修改/删除）写 undo 快照并随结果返回 changes[]——agent-loop 转发为 op=bash 的
@@ -32,8 +37,38 @@ _SNAP_MAX_FILES = 4_000
 _CHANGES_MAX = 50
 
 # 助手退出码协议（sandbox-run）：0=已执行（stdout 单行 JSON）；2=用法；3=平台不支持；4=沙箱建立失败
-_SANDBOX_HELPER = os.environ.get("SANDBOX_HELPER", "").strip()
-_SANDBOXED = bool(_SANDBOX_HELPER)
+# 惰性读取（不再 import 期固化）：spawn 期 env 已固定，行为不变；可测试注入。
+def _sandbox_helper() -> str:
+    return os.environ.get("SANDBOX_HELPER", "").strip()
+
+
+# 沙箱描述随调用期助手存在性变化（不 import 期固化：宿主装配与运行期 env 可能不同）
+def _sandboxed() -> bool:
+    return bool(_sandbox_helper())
+
+def _shell_cwd() -> str:
+    """shell 子进程 cwd：WORKSPACE_ROOT 的「shell 可用」形态，fail-closed。
+
+    Windows `cmd.exe` 不认 `\\\\?\\` 扩展长度前缀（会打印
+    「UNC paths are not supported. Defaulting to Windows directory」并以
+    **exit=0 在 C:\\Windows 执行**——静默错目录 + 越界写 + 追溯失效）。
+    宿主 instances.rs 用 `canonicalize()` 写 WORKSPACE_ROOT 正好产出该前缀，
+    故在执行点归一：剥前缀、分隔符统一，再校验可用性；不可用即报错，
+    **绝不回落到系统目录**（工具声明的 cwd=WORKSPACE_ROOT 是硬契约）。
+    """
+    ws = str(workspace_root())
+    if ws.startswith("\\\\?\\UNC\\"):  # UNC 的扩展形态 → 普通 UNC
+        ws = "\\\\" + ws[len("\\\\?\\UNC\\"):]
+    elif ws.startswith("\\\\?\\"):
+        ws = ws[len("\\\\?\\"):]
+    ws = ws.replace("/", os.sep)
+    if not os.path.isdir(ws):
+        raise ToolError(
+            f"工作区不可作为 shell cwd: WORKSPACE_ROOT='{ws}' 不存在或不是目录。"
+            "bash 工具不会回落到系统目录执行（fail-closed）；请检查 WORKSPACE_ROOT 配置。",
+            code="BAD_WORKSPACE",
+        )
+    return ws
 
 
 def _trace_enabled() -> bool:
@@ -167,7 +202,7 @@ def _run_direct(command: str, timeout_ms: int) -> dict:
             capture_output=True,
             text=True,
             timeout=timeout_ms / 1000,
-            cwd=str(workspace_root()),
+            cwd=_shell_cwd(),
         )
     except subprocess.TimeoutExpired:
         return _timeout_result(timeout_ms)
@@ -176,12 +211,19 @@ def _run_direct(command: str, timeout_ms: int) -> dict:
 
 
 def _run_sandboxed(command: str, timeout_ms: int) -> dict:
+    helper = _sandbox_helper()
+    if not helper:
+        raise ToolError(
+            "SANDBOX_HELPER 为空（沙箱模式已启用但助手路径缺失）；fail-closed，"
+            "不回退无沙箱执行；如接受直跑请设 BASH_SANDBOX=off",
+            code="SANDBOX_FAILED",
+        )
     try:
         proc = subprocess.run(
-            [_SANDBOX_HELPER, "exec", str(timeout_ms), command],
+            [helper, "exec", str(timeout_ms), command],
             capture_output=True,  # 助手结果走 stdout 单行 JSON；错误细节走 stderr
             timeout=timeout_ms / 1000 + 10.0,  # 助手自身挂死兜底（超时+10s 余量）
-            cwd=str(workspace_root()),
+            cwd=_shell_cwd(),
         )
     except subprocess.TimeoutExpired:
         # fail-closed：助手超限挂死视为沙箱边界不可信，不回退直跑
@@ -231,7 +273,7 @@ def _run_bash(args: dict) -> dict:
     command = require(args, "command")
     timeout_ms = optional_int(args, "timeout_ms", 30_000, 1_000, _MAX_TIMEOUT_MS)
     before = _scan_zone() if _trace_enabled() else None  # 执行前快照（pre-copy 内容缓存）
-    result = _run_sandboxed(command, timeout_ms) if _SANDBOXED else _run_direct(command, timeout_ms)
+    result = _run_sandboxed(command, timeout_ms) if _sandboxed() else _run_direct(command, timeout_ms)
     if before is not None:
         try:
             changes, cut = _diff_zone(*before)
@@ -244,22 +286,25 @@ def _run_bash(args: dict) -> dict:
     return result
 
 
-_DESCRIPTION = (
-    "Run a shell command in the workspace (cwd = WORKSPACE_ROOT) via a restricted-token sandbox helper "
+def _description() -> str:
+    """工具描述：沙箱有无随调用期 env 定形（诚实声明，不 import 期固化）。"""
+    return (
+        "Run a shell command in the workspace (cwd = WORKSPACE_ROOT) via a restricted-token sandbox helper "
         "(reduced privileges, admin groups deny-only; fail-closed). Large output keeps head 40KB + tail 20KB. "
         "Args: command (required), timeout_ms (default 30000, max 60000)."
-        if _SANDBOXED
+        if _sandboxed()
         else (
             "Run a shell command in the workspace (cwd = WORKSPACE_ROOT). "
             "Runs with full user permissions - NOT sandboxed (BASH_SANDBOX=off). "
             "Large output keeps head 40KB + tail 20KB. "
             "Args: command (required), timeout_ms (default 30000, max 60000)."
         )
-)
+    )
+
 
 TOOLS = {
     "bash": {
-        "description": _DESCRIPTION,
+        "description": _description(),
         "parameters": {
             "type": "object",
             "properties": {"command": {"type": "string"}, "timeout_ms": {"type": "integer"}},

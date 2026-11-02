@@ -142,13 +142,15 @@ python -m unittest discover -s tests -v
 - [react-agent](https://github.com/zh2673-git/react-agent) v0.1.21：`crates/agent-loop`、`crates/host`（含 web-dist）、`plugins`（memory / llm-adapter / tools / assets）。
 - [agent-kernel](https://github.com/zh2673-git/agent-kernel) v0.1.7：`bindings/python`、`bindings/typescript`、`schema/kernel.proto`。
 
-快照仅做 3 处适配：
+快照仅做 4 处适配：
 
 1. `runtime/plugins/memory/guest_sdk.ts` 的导入路径改为 `../../kernel/bindings/typescript/src/index.ts`；
 2. `runtime/plugins/tools/tools/files.py` 的 `_CORE_BLOCKLIST` 增加 `runtime`（禁止 agent 自改运行体）。
 3. `runtime/crates/host/src/config.rs` 新增 `apply_rsi_layout_defaults()`（`main.rs` 启动时调用）：检测到内嵌布局（`runtime/kernel/bindings/python` + 上级 `skills/`、`config.json`）时自动补齐 `AGENT_KERNEL_REPO` / `PLUGINS_DIR` / `SKILLS_DIR` / `WORKSPACE_ROOT` / `CONFIG_FILE` / `RSI_LEDGER_DIR`——否则裸 `cargo run` 会因 kernel 与运行时不同级而找不到 `agent_kernel` 模块（K700）。非内嵌布局（独立的 react-agent 快照）不触发，行为不变。
+4. `runtime/plugins/tools/tools/bash.py` 新增 `_shell_cwd()`：子进程 cwd 剥掉 `\\?\` 扩展长度前缀再校验可用性（不可用即 `BAD_WORKSPACE` fail-closed）。原因：宿主 `instances.rs` 用 `canonicalize()` 写 `WORKSPACE_ROOT` 会带该前缀，而 Windows `cmd.exe` 拒绝 UNC 形态并**静默改在 `C:\Windows` 执行且 exit=0**（错目录 + 越界写 + 追溯失效三重危害）。
 
-同步方式：从对应版本的 react-agent / agent-kernel 重新复制上述文件，再重放这 3 处适配。
+同步方式：从对应版本的 react-agent / agent-kernel 重新复制上述文件，再重放这 4 处适配。
+第 4 处漏重放时 `python -m unittest discover -s tests` 会变红（`tests/test_tool_contract.py::ShellCwdTest`）。
 
 ## 可选：magpie 免费模型上游
 

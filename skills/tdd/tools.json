@@ -1,19 +1,23 @@
 [
   {
     "name": "run_tests",
-    "description": "Run the workspace test suite with fixed probes (cargo test / python -m pytest / npm test). Does NOT accept arbitrary commands. Returns exit code, pass flag, duration and output tails.",
+    "description": "Run the workspace test suite with fixed probes (cargo test / python -m unittest / python -m pytest / npm test). Does NOT accept arbitrary commands. Bounded wait: timeout_secs (default 900, max 900) kills the whole process tree and reports timeout=true. Returns exit code, passed flag, timeout flag, duration, profile_reason and output tails.",
     "parameters": {
       "type": "object",
       "properties": {
         "profile": {
           "type": "string",
-          "enum": ["cargo", "pytest", "npm"],
-          "description": "Force a specific runner; omit to auto-detect (first match wins: cargo > pytest > npm)"
+          "enum": ["cargo", "pytest", "unittest", "npm"],
+          "description": "Force a specific runner; omit to auto-detect (first match wins: cargo > pytest > unittest > npm)"
         },
         "extra": {
           "type": "array",
           "items": { "type": "string" },
           "description": "Extra args appended to the test command (e.g. a test-name filter). Max 16 items, each <= 200 chars."
+        },
+        "timeout_secs": {
+          "type": "number",
+          "description": "Bounded wait in seconds (default 900, max 900). On timeout the whole process tree is killed and timeout=true is reported."
         }
       }
     },

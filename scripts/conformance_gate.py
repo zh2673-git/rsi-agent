@@ -22,8 +22,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from rsi_common import TOOL_ROOT, emit, resolve_skill  # noqa: E402
 from skillkit import _tools_errors, parse_frontmatter  # noqa: E402
 
-# 工具名面向模型：沿用内置工具的 snake_case（run_tests / read_file）；不接受任意符号。
-NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+# 工具名口径（与运行时插件闸单一事实来源，防三方漂移）：
+#   runtime/plugins/tools/tools_plugin.py::_SKILL_TOOL_NAME_RE
+#     = [A-Za-z][A-Za-z0-9_-]{0,63}
+# 准入闸必须与插件**同口径**，否则会出现「过闸但插件拒」或反之——闸的权威性即失效。
+# snake_case 是面向模型的可读性建议，降级为 warning（不再作为硬错误）。
+NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
+SNAKE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+MAX_TOOL_NAME = 64
+# 内置工具名（模型已熟悉，技能工具不得占用）——与 tools_plugin 的 ALL_TOOLS 同名清单。
+RESERVED_NAMES = frozenset({
+    "read_file", "write_file", "edit_file", "list_dir", "bash", "web_search", "web_read",
+    "grep", "symbols_search", "todo", "load_skill", "skill_install", "task",
+})
 
 
 def _static_checks(skill_dir: Path) -> tuple[list, list, int, str]:
@@ -48,7 +59,15 @@ def _static_checks(skill_dir: Path) -> tuple[list, list, int, str]:
         name = item.get("name")
         if isinstance(name, str):
             if not NAME_RE.match(name):
-                errors.append({"code": "E_TOOL_NAME", "path": where, "message": f"工具名不是 kebab-case: {name}"})
+                errors.append({"code": "E_TOOL_NAME", "path": where,
+                               "message": f"工具名非法（须 [A-Za-z][A-Za-z0-9_-]{{0,63}}，与运行时插件闸同口径）: {name}"})
+            elif len(name) > MAX_TOOL_NAME:
+                errors.append({"code": "E_TOOL_NAME", "path": where, "message": f"工具名超过 {MAX_TOOL_NAME} 字符: {name}"})
+            if name in RESERVED_NAMES:
+                errors.append({"code": "E_TOOL_NAME_RESERVED", "path": where, "message": f"工具名与内置/保留名冲突（不可覆盖）: {name}"})
+            if NAME_RE.match(name) and not SNAKE_RE.match(name):
+                warnings.append({"code": "W_TOOL_NAME_STYLE", "path": where,
+                                 "message": f"建议用 snake_case（模型更熟悉）: {name}"})
             if name in seen:
                 errors.append({"code": "E_TOOL_DUPLICATE", "path": where, "message": f"工具名重复: {name}"})
             seen.add(name)
