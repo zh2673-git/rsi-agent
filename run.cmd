@@ -40,7 +40,40 @@ if errorlevel 1 (
   )
 )
 
+set "NEED_MAGPIE="
+if exist "%CONFIG_FILE%" (
+  findstr /c:"127.0.0.1:3425" "%CONFIG_FILE%" >nul 2>nul
+  if not errorlevel 1 set "NEED_MAGPIE=1"
+)
+if defined NEED_MAGPIE (
+  python "%REPO%\scripts\magpie_check.py" --gateway-only --quiet
+  if errorlevel 1 (
+    rem -- one-click local gateway: prefer %USERPROFILE%\.local\bin\magpie.exe, then PATH --
+    if exist "%USERPROFILE%\.local\bin\magpie.exe" (
+      echo [rsi] Starting local magpie gateway in a minimized window ...
+      start "magpie serve" /min "%USERPROFILE%\.local\bin\magpie.exe" serve
+    ) else (
+      where magpie >nul 2>nul
+      if not errorlevel 1 (
+        echo [rsi] Starting local magpie gateway in a minimized window ...
+        start "magpie serve" /min magpie serve
+      ) else (
+        echo [rsi] magpie CLI not found; start it manually: magpie serve
+      )
+    )
+    rem -- give the gateway a couple of seconds to bind 127.0.0.1:3425 --
+    timeout /t 3 /nobreak >nul
+  )
+)
+
 echo [rsi] Starting host (frontend=%REACT_FRONTEND%; workspace=%WORKSPACE_ROOT%)
+rem -- web frontend: open browser after 4s; skip in one-shot mode --
+set "ADDR=%WEB_ADDR%"
+if not defined ADDR set "ADDR=127.0.0.1:8710"
+if /i "%REACT_FRONTEND%"=="web" if "%~1"=="" (
+  echo [rsi] Web UI: http://%ADDR% - browser opens in a few seconds; Ctrl+C to stop
+  start "" cmd /c "timeout /t 4 /nobreak >nul & start http://%ADDR%"
+)
 cargo run --manifest-path "%REPO%\runtime\Cargo.toml" -p react-agent-host %*
 
 set "EXIT_CODE=%errorlevel%"

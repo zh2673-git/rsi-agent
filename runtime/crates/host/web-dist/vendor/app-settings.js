@@ -67,6 +67,7 @@ async function loadConfig() {
     if (!$("tab-tools").hidden) renderTools(); // 工具 tab 可见时回填（覆盖 fetch 完成晚于 tab 切换的时序）
     // （MCP key 配置已移入「MCP 外接」各服务组内，随 renderTools 渲染）
     syncLlmFields();
+    refreshUpstream(); // 回环 base_url 时亮出本地网关状态/积分（非回环自动隐藏）
     showInstBadge(c.instance_name ?? ""); // W17：子实例头部徽章（主实例为空不显示）
     const a = c.agent ?? {};
     for (const [id, v] of [
@@ -294,8 +295,16 @@ function applySite(id) {
   if (p.base_url) {
     $("llm-base").value = p.base_url;
     const saved = localStorage.getItem("react-agent:llmkey:" + p.id) || "";
-    $("llm-key").value = saved;
-    $("llm-key").placeholder = saved ? `已记忆该站点 key（尾号 ${saved.slice(-4)}，可覆盖）` : "未保存过该站点 key";
+    if (saved) {
+      $("llm-key").value = saved;
+      $("llm-key").placeholder = `已记忆该站点 key（尾号 ${saved.slice(-4)}，可覆盖）`;
+    } else if (p.key_hint) {
+      $("llm-key").value = p.key_hint; // 免 key 站点：直接预填提示值（如 magpie 本地网关任意令牌）
+      $("llm-key").placeholder = p.key_hint;
+    } else {
+      $("llm-key").value = "";
+      $("llm-key").placeholder = "未保存过该站点 key";
+    }
   } else {
     $("llm-base").value = ""; $("llm-key").value = "";
     $("llm-key").placeholder = "输入该站点 api_key";
@@ -306,7 +315,53 @@ function updateSiteLink(id) {
   const p = siteById(id), link = $("llm-site-key-url");
   if (p && p.key_url) { link.href = p.key_url; link.hidden = false; } else link.hidden = true;
 }
-$("llm-site").addEventListener("change", () => applySite($("llm-site").value));
+$("llm-site").addEventListener("change", () => { applySite($("llm-site").value); refreshUpstream(); });
+// ── 上游本地网关（magpie）：状态灯 + 一键启动 + 积分行 ──
+// base_url 为本机回环时显示网关块；GET /api/upstream/status（探活 + /magpie/quotas），
+// POST /api/upstream/start 幂等 spawn magpie serve。非 magpie 站点无 quotas 端点 → 积分行自然隐藏。
+async function refreshUpstream() {
+  const base = $("llm-base").value.trim();
+  const local = /^https?:\/\/(127\.0\.0\.1|localhost|::1|\[::1\])(:\d+)?/i.test(base);
+  const field = $("upstream-field"), quotas = $("upstream-quotas");
+  if (!local) { field.hidden = true; quotas.hidden = true; return; }
+  field.hidden = false;
+  const st = $("upstream-state");
+  try {
+    renderUpstream(await api("GET", "/api/upstream/status"));
+  } catch (e) {
+    st.textContent = "状态获取失败"; st.className = "up-state down";
+    $("upstream-start").hidden = false; quotas.hidden = true;
+  }
+}
+function renderUpstream(v) {
+  const st = $("upstream-state"), q = $("upstream-quotas");
+  st.textContent = v.up ? `运行中 · ${v.models ?? "?"} 个模型` : "未运行";
+  st.className = "up-state " + (v.up ? "up" : "down");
+  $("upstream-start").hidden = !!v.up;
+  // 积分行：每账户一行（provider 名 + user + 各窗口剩余百分比/额度/重置日）
+  const rows = [];
+  for (const acc of (v.quotas?.data ?? [])) {
+    const wins = (acc.windows ?? []).map((w) => {
+      const reset = w.resetsAt ? `，${w.resetsAt.slice(5, 10)} 重置` : "";
+      const pct = (w.limit > 0 && typeof w.amount === "number") ? Math.round(((w.limit - w.amount) / w.limit) * 100)
+        : ((w.remaining ?? 0) + (w.used ?? 0) > 0 ? Math.round(((w.remaining ?? 0) / ((w.remaining ?? 0) + (w.used ?? 0))) * 100) : null);
+      return pct == null ? `${w.name} ${w.display ?? ""}` : `${w.name} 剩 ${pct}%（${w.display ?? ""}${reset}）`;
+    }).join("；");
+    if (wins) rows.push(`<b>${esc(acc.name ?? acc.provider ?? "")}</b>（${esc(acc.user ?? "")}）：${esc(wins)}`);
+  }
+  if (rows.length) { q.innerHTML = rows.join("<br>"); q.hidden = false; } else q.hidden = true;
+}
+$("upstream-start").onclick = async () => {
+  const btn = $("upstream-start");
+  btn.disabled = true; btn.textContent = "启动中…";
+  try {
+    const v = await api("POST", "/api/upstream/start");
+    if (!v.up) flash("llm-flash", false, "magpie serve 已拉起但未在 10s 内就绪（详情见 config 同目录 .magpie-serve.log）");
+    else flash("llm-flash", true, "本地网关已就绪");
+  } catch (e) { flash("llm-flash", false, e.message); }
+  btn.disabled = false; btn.textContent = "一键启动";
+  refreshUpstream();
+};
 function syncLlmFields() {
   const p = $("llm-provider").value;
   const baseWrap = $("llm-base").closest(".field");

@@ -252,6 +252,10 @@
   .site-link { color: var(--point); font-size: 12px; white-space: nowrap; text-decoration: none; }
   .site-link:hover { text-decoration: underline; }
   .flash { font-size: 12px; } .flash.ok { color: var(--ok); } .flash.err { color: var(--err); }
+  /* 上游本地网关状态灯（magpie） */
+  .up-state { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+  .up-state.up { color: var(--ok); border-color: var(--ok); }
+  .up-state.down { color: var(--warn); border-color: var(--warn); }
   .toolitem { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--border-soft);
     border-radius: 9px; margin-bottom: 6px; background: var(--card); cursor: pointer; }
   .toolitem:hover { border-color: var(--accent); }

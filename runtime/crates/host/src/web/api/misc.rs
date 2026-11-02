@@ -6,6 +6,7 @@ use super::skills::valid_skill_name;
 use crate::config;
 use agent_kernel_kernel::Kernel;
 use serde_json::{json, Value};
+use std::path::PathBuf;
 use tokio::net::TcpStream;
 
 /// GET /api/session-exists?session=：会话归属校验（W17 迭代六，前端存量列表迁移用）。
@@ -215,4 +216,131 @@ pub(crate) async fn delete_instance(stream: &mut TcpStream, name: &str) -> anyho
         )
         .await,
     }
+}
+
+// ───────────────────────── 上游本地网关（magpie serve 一键启动） ─────────────────────────
+
+/// 从 config.json `llm.base_url` 解析上游 (host, port)。仅放行回环地址——
+/// 「一键启动」只对本地网关有意义，防止把外部站点当本地进程误操作。
+fn upstream_hostport() -> Option<(String, u16)> {
+    let base = crate::config::load_config().get("llm")?.get("base_url")?.as_str()?.to_string();
+    let rest = base.strip_prefix("http://").or_else(|| base.strip_prefix("https://"))?;
+    let authority = rest.split('/').next()?;
+    let (host, port) = match authority.rsplit_once(':') {
+        Some((h, p)) => (h.to_string(), p.parse().ok()?),
+        None => (authority.to_string(), if base.starts_with("https") { 443 } else { 80 }),
+    };
+    let loopback = matches!(host.as_str(), "127.0.0.1" | "localhost" | "::1" | "[::1]");
+    loopback.then_some((host, port))
+}
+
+/// GET /api/upstream/status：转发 llm-adapter `upstream.status`
+/// （探活 {base_url}/models + magpie 扩展 /magpie/quotas、/magpie/usage）。
+pub(crate) async fn upstream_status(stream: &mut TcpStream, kernel: &Kernel) -> anyhow::Result<()> {
+    match dispatch_or_err(kernel, "llm-adapter", json!({"op": "upstream.status"})).await {
+        Ok(v) => json_resp(stream, 200, v).await,
+        Err(e) => json_resp(stream, 502, e).await,
+    }
+}
+
+/// 探测 127.0.0.1:port 是否有服务监听（500ms 超时）。
+async fn port_up(port: u16) -> bool {
+    tokio::time::timeout(
+        std::time::Duration::from_millis(500),
+        tokio::net::TcpStream::connect(("127.0.0.1", port)),
+    )
+    .await
+    .map(|r| r.is_ok())
+    .unwrap_or(false)
+}
+
+/// 定位 magpie CLI：MAGPIE_EXE env → %USERPROFILE%\.local\bin\magpie.exe → PATH（where/which）。
+fn find_magpie_exe() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("MAGPIE_EXE") {
+        let p = PathBuf::from(p);
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    if let Ok(profile) = std::env::var("USERPROFILE") {
+        let p = PathBuf::from(&profile).join(".local").join("bin").join("magpie.exe");
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    let (prog, arg) = if cfg!(target_os = "windows") { ("where.exe", "magpie") } else { ("which", "magpie") };
+    std::process::Command::new(prog)
+        .arg(arg)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.lines().next().map(|l| PathBuf::from(l.trim())))
+        .filter(|p| p.is_file())
+}
+
+/// POST /api/upstream/start：一键启动本地网关（magpie serve，幂等）。
+/// 已监听 → 直接返回；未监听 → 定位 magpie.exe → spawn（stdout/stderr 追加到
+/// config 同目录 .magpie-serve.log）→ 轮询 10s 探活。
+pub(crate) async fn upstream_start(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let Some((_host, port)) = upstream_hostport() else {
+        return json_resp(
+            stream,
+            400,
+            json!({"ok": false, "error": {"code": "K400", "message": "当前 llm.base_url 不是本机回环地址，无法一键启动本地网关（请先在站点预设选择 magpie 并保存）"}}),
+        )
+        .await;
+    };
+    if port_up(port).await {
+        return json_resp(stream, 200, json!({"ok": true, "started": false, "up": true, "port": port})).await;
+    }
+    let Some(exe) = tokio::task::spawn_blocking(find_magpie_exe).await.unwrap_or(None) else {
+        return json_resp(
+            stream,
+            404,
+            json!({"ok": false, "error": {"code": "K404", "message": "未找到 magpie CLI（可设 MAGPIE_EXE env，或装到 %USERPROFILE%\\.local\\bin\\magpie.exe）"}}),
+        )
+        .await;
+    };
+    let log_path = crate::config::config_file()
+        .parent()
+        .map(|p| p.join(".magpie-serve.log"));
+    let open_log = || {
+        log_path
+            .as_ref()
+            .and_then(|p| std::fs::OpenOptions::new().create(true).append(true).open(p).ok())
+    };
+    let mut cmd = std::process::Command::new(&exe);
+    cmd.args(["serve"]).stdin(std::process::Stdio::null());
+    match (open_log(), open_log()) {
+        (Some(o), Some(e)) => {
+            cmd.stdout(std::process::Stdio::from(o));
+            cmd.stderr(std::process::Stdio::from(e));
+        }
+        _ => {
+            cmd.stdout(std::process::Stdio::null());
+            cmd.stderr(std::process::Stdio::null());
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    if let Err(e) = cmd.spawn() {
+        return json_resp(
+            stream,
+            500,
+            json!({"ok": false, "error": {"code": "K500", "message": format!("magpie serve 启动失败: {e}")}}),
+        )
+        .await;
+    }
+    for _ in 0..20 {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        if port_up(port).await {
+            return json_resp(stream, 200, json!({"ok": true, "started": true, "up": true, "port": port})).await;
+        }
+    }
+    json_resp(stream, 200, json!({"ok": true, "started": true, "up": false, "port": port})).await
 }

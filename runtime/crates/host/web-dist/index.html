@@ -68,6 +68,13 @@
         <div class="field"><label>base_url</label><input id="llm-base" placeholder="https://api.deepseek.com/v1"></div>
         <div class="field"><label>api_key</label><input id="llm-key" type="password" autocomplete="off"></div>
         <div class="row"><button class="btn" id="llm-save">保存</button><button class="btn ghost" id="llm-reveal" title="在文件管理器中定位 config.json">📂 源文件</button><span class="flash" id="llm-flash"></span></div>
+        <!-- 上游本地网关（magpie）：base_url 为本机回环时可见——状态灯 + 一键启动 + 积分行 -->
+        <div class="field" id="upstream-field" hidden>
+          <label>本地网关</label>
+          <span class="up-state" id="upstream-state">检测中…</span>
+          <button type="button" class="btn ghost" id="upstream-start" hidden>一键启动</button>
+        </div>
+        <p class="hint" id="upstream-quotas" hidden style="margin-top:-2px"></p>
         <p class="hint">保存即热生效（env 更新 + 落盘 config.json）。api_key 留空 = 不修改；回显只显示尾 4 位。不清楚怎么填？直接在对话里问（如「XX 站怎么配」），我会调研该站点文档并给出可粘贴的配置。</p>
       </div>
       <div class="poolhead collapsible"><span class="chev">▾</span><span class="plabel">生图模型</span><span class="pcnt" id="media-img-cnt"></span></div>

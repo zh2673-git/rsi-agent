@@ -9,4 +9,8 @@ runtime/outputs/
 runtime/plugins/memory/data/
 node_modules/
 config.json
+config.magpie.local.json
 *.log
+
+# magpie 分析工作区（上游源码副本，不入库）
+magpie/

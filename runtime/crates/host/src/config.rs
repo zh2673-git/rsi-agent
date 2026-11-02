@@ -155,6 +155,44 @@ pub fn workspace_dir() -> PathBuf {
         .to_path_buf()
 }
 
+/// rsi-agent 发行形态布局自动锚定：裸 `cargo run -p react-agent-host` 也能正确启动。
+///
+/// react-agent 的 kernel 检出与运行时同级（`../agent-kernel`），config 缺省值恰好命中；
+/// rsi-agent 把运行时与 kernel 内嵌在 `runtime/`，缺省值会落到 `runtime/` 下、且
+/// `AGENT_KERNEL_REPO` 指向不存在的 `../agent-kernel`——Python guest 找不到
+/// `agent_kernel` 模块直接退出（K700）。
+///
+/// 仅在检测到内嵌布局（`runtime/kernel/bindings/python` + 上级 `skills/` 与
+/// `config.json`）时，按「仓库根 = runtime 父目录」补齐未设置的 env；
+/// 显式 env 仍最优先。单独复制出的 react-agent 快照（无此布局）行为完全不变。
+///
+/// 返回 true = 命中内嵌布局并完成锚定。
+pub fn apply_rsi_layout_defaults() -> bool {
+    let runtime_root = workspace_dir();
+    let Some(rsi_root) = runtime_root.parent().map(PathBuf::from) else {
+        return false;
+    };
+    if !runtime_root.join("kernel").join("bindings").join("python").is_dir() {
+        return false;
+    }
+    if !rsi_root.join("skills").is_dir() || !rsi_root.join("config.json").is_file() {
+        return false;
+    }
+    let set_if_absent = |key: &str, val: PathBuf| {
+        let absent = std::env::var_os(key).map(|v| v.is_empty()).unwrap_or(true);
+        if absent {
+            std::env::set_var(key, val);
+        }
+    };
+    set_if_absent("AGENT_KERNEL_REPO", runtime_root.join("kernel"));
+    set_if_absent("PLUGINS_DIR", runtime_root.join("plugins"));
+    set_if_absent("SKILLS_DIR", rsi_root.join("skills"));
+    set_if_absent("WORKSPACE_ROOT", rsi_root.clone());
+    set_if_absent("CONFIG_FILE", rsi_root.join("config.json"));
+    set_if_absent("RSI_LEDGER_DIR", rsi_root.join("ledger"));
+    true
+}
+
 /// 流式旁路目录：llm-adapter 边生成边写增量，本进程 tail 后经 SSE 推前端。
 /// 缺省 `<项目根>/.stream`；可用 AGENT_STREAM_DIR 覆盖。
 pub fn stream_dir() -> PathBuf {

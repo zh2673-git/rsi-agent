@@ -271,6 +271,9 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         ("GET", "/api/config") => api::get_config(&mut stream, &kernel).await,
         ("GET", "/api/models") => api::get_models(&mut stream, &kernel, query).await,
         ("GET", "/api/presets") => api::get_presets(&mut stream, &kernel).await,
+        // 上游本地网关（magpie）：状态（探活+积分）/ 一键启动 serve
+        ("GET", "/api/upstream/status") => api::upstream_status(&mut stream, &kernel).await,
+        ("POST", "/api/upstream/start") => api::upstream_start(&mut stream).await,
         ("PUT", "/api/config") => api::put_config(&mut stream, &kernel, &body).await,
         ("GET", "/api/skills") => api::get_skills(&mut stream, &kernel).await,
         ("GET", r) if r.starts_with("/api/skills/") => {
