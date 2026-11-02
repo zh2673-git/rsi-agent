@@ -252,7 +252,13 @@ impl AgentLoopPlugin {
         self.trace(env, &req.session_id, user_event).await;
 
         // 系统提示词 = 组装链（07 §2.1）+ 技能附录（软）
-        let system = format!("{}{}", self.resolve_system_prompt(env, &cfg).await, self.skills_appendix(env, &cfg).await);
+        // B2：技能自扩展长教程按需注入——仅当本轮用户文本明确要求造技能/打包工具。
+        let want_skill_build = Self::user_wants_skill_build(&req.user_text);
+        let system = format!(
+            "{}{}",
+            self.resolve_system_prompt(env, &cfg).await,
+            self.skills_appendix(env, &cfg, want_skill_build).await
+        );
         let mut messages: Vec<MemoryMsg> = vec![MemoryMsg {
             role: "system".into(),
             content: Some(system),
@@ -641,6 +647,31 @@ impl AgentLoopPlugin {
                 "usage": usage.to_value(),
                 "elapsed_ms": llm_ms,
                 "metrics": {"llm_calls": llm_calls, "retries": retries, "tool_failures": tool_failures},
+            }),
+        )
+        .await;
+        // D1 效率可观测：单条 chat_summary 汇总本轮效率画像，脚本无需重扫全部事件。
+        // `calls`/`rounds` 同值（本实现每轮恰一次工具波次），保留两键以便未来分离。
+        // `steps` = 实际执行的工具调用数（含并行波次内多个），是「调用量」真相源。
+        let step_count = steps.len();
+        self.trace(
+            env,
+            session_id,
+            json!({
+                "type": "chat_summary",
+                "calls": step_count,
+                "rounds": rounds,
+                "steps": step_count,
+                "llm_calls": llm_calls,
+                "retries": retries,
+                "failures": tool_failures,
+                "failure_rate": if step_count == 0 { 0.0 } else {
+                    (tool_failures as f64) / (step_count as f64)
+                },
+                "tokens": usage.to_value(),
+                "llm_ms": llm_ms,
+                "budget_secs": cfg.budget.map(|d| d.as_secs()).unwrap_or(0),
+                "max_rounds": cfg.max_rounds,
             }),
         )
         .await;

@@ -134,7 +134,14 @@ const DEFAULT_TEXT_ATTACH_CHARS: usize = 24000;
 const DEFAULT_SYSTEM_PROMPT: &str = "You are a capable agent working in a workspace. \
 Answer the user's request. When tools are provided and useful, call them (one batch per round); \
 after receiving tool results, continue reasoning until you can produce the final answer in plain text. \
-Presemble precise tool arguments: read before writing files, and prefer edit_file over rewriting whole files.";
+Presemble precise tool arguments: read before writing files, and prefer edit_file over rewriting whole files. \
+Efficiency discipline (these bound the tool budget, not the task): \
+(a) BATCH independent calls into one round — if two calls do not depend on each other's result, \
+issue them together instead of spending a round each. \
+(b) PREFER dedicated tools over shell: grep/symbols_search to find content or definitions, read_file to read, \
+list_dir to list; use bash only when a real shell is required (tests, git, build). \
+(c) CONVERGE, do not thrash: if two attempts at the same goal yield no new information, change strategy \
+instead of repeating the call with cosmetic variations.";
 
 pub struct AgentLoopPlugin {
     max_rounds: usize,
@@ -496,19 +503,53 @@ mod tests {
         std::env::set_var("WORKSPACE_ROOT", r"C:\ws");
 
         // root 为空 → 不授权
-        assert!(AgentLoopPlugin::self_extension_section("").is_none());
+        assert!(AgentLoopPlugin::self_extension_section("", false).is_none());
         // skills 根在 workspace 外 → 不授权
-        assert!(AgentLoopPlugin::self_extension_section(r"D:\elsewhere\skills").is_none());
+        assert!(AgentLoopPlugin::self_extension_section(r"D:\elsewhere\skills", false).is_none());
         // skills 根在 workspace 内 → 授权段含路径与 write_file 指引
-        let section = AgentLoopPlugin::self_extension_section(r"C:\ws\skills").expect("in-workspace");
+        let section = AgentLoopPlugin::self_extension_section(r"C:\ws\skills", false)
+            .expect("in-workspace");
         assert!(section.contains(r"C:\ws\skills"));
         assert!(section.contains("write_file"));
         assert!(section.contains("Skill self-extension"));
+        // B2 按需注入：默认 brief 不含完整打包协议，full=true 才含
+        assert!(!section.contains("### Skill packaging with companion tools"), "brief 不得含长教程");
+        let full = AgentLoopPlugin::self_extension_section(r"C:\ws\skills", true).expect("full");
+        assert!(full.contains("### Skill packaging with companion tools"));
+        assert!(full.contains("tools.json") && full.contains("skill_install"));
+        assert!(full.len() > section.len(), "full 必须比 brief 长");
 
         match saved {
             Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
             None => std::env::remove_var("WORKSPACE_ROOT"),
         }
+    }
+
+    /// B2 触发词判定：明确要求造技能才注入长教程，普通请求不触发。
+    #[test]
+    fn want_skill_build_detection() {
+        // 命中：名词 + 动作
+        assert!(AgentLoopPlugin::user_wants_skill_build("帮我做一个技能"));
+        assert!(AgentLoopPlugin::user_wants_skill_build("把这个工作沉淀成技能"));
+        assert!(AgentLoopPlugin::user_wants_skill_build("create a new skill for linting"));
+        assert!(AgentLoopPlugin::user_wants_skill_build("package this as a skill"));
+        // 不命中：无名词，或只有名词无动作
+        assert!(!AgentLoopPlugin::user_wants_skill_build("跑一下测试"));
+        assert!(!AgentLoopPlugin::user_wants_skill_build("读 specs/call-efficiency/tasks.md 继续"));
+        assert!(!AgentLoopPlugin::user_wants_skill_build("有哪些技能可用？"));
+    }
+
+    /// B1 效率约束：内置提示词必须含批量/专用工具/收敛三条，且不删原有纪律。
+    #[test]
+    fn default_prompt_has_efficiency_discipline() {
+        assert!(DEFAULT_SYSTEM_PROMPT.contains("BATCH"), "缺少批量约束");
+        assert!(DEFAULT_SYSTEM_PROMPT.contains("PREFER dedicated tools"), "缺少专用工具优先");
+        assert!(DEFAULT_SYSTEM_PROMPT.contains("CONVERGE"), "缺少收敛约束");
+        // 原有质量纪律不得被效率约束挤掉
+        assert!(DEFAULT_SYSTEM_PROMPT.contains("read before writing files"));
+        assert!(DEFAULT_SYSTEM_PROMPT.contains("edit_file"));
+        // 效率约束必须声明「不缩减任务范围」，防模型以少做换少调
+        assert!(DEFAULT_SYSTEM_PROMPT.contains("not the task"));
     }
 
     #[test]
