@@ -263,7 +263,24 @@ export const memoryPlugin: Plugin = {
             }
           }
           const after = typeof payload.after === "number" && payload.after >= 0 ? Math.floor(payload.after) : 0;
-          return { ok: true, events: all.slice(after), next: all.length };
+          // 分页：一次响应必须远低于 kernel gRPC 解码上限（4MB）。整份大 trace（如 5MB
+          // 会话日志）一次性返回会触发 K700「decoded message length too large」——网关
+          // 每次轮询都报错，前端把错误帧当断线反复重连、feed 反复清空（页面持续闪烁）。
+          // 按「条数 + 字节」双预算切片，next 为已消费游标，网关多批拉取即可追平。
+          // 单条超大事件（极端情况）仍单独放行，避免游标不前进造成死循环。
+          const MAX_EVENTS = 800;
+          const MAX_BYTES = 1_000_000;
+          const events: unknown[] = [];
+          let bytes = 0;
+          let cursor = after;
+          while (cursor < all.length && events.length < MAX_EVENTS) {
+            const size = Buffer.byteLength(JSON.stringify(all[cursor]), "utf8") + 1;
+            if (events.length > 0 && bytes + size > MAX_BYTES) break;
+            events.push(all[cursor]);
+            bytes += size;
+            cursor++;
+          }
+          return { ok: true, events, next: cursor };
         }
         return err(`unknown op: ${String(op)}`);
       }
