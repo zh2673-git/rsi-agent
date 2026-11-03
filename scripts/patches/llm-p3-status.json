@@ -1,0 +1,7 @@
+{
+  "id": "LLM-P3-STATUS",
+  "description": "base.py err_from_resp：HTTP 状态结构化进 error.http_status——下游按数值判定瞬态（429/5xx 可重试）而非正则英文文案；未命中超限的 429/5xx 归 LLM_TRANSIENT，4xx 其余维持 LLM_ERROR",
+  "file": "runtime/plugins/llm_adapter/providers/base.py",
+  "anchor": "    if overflow:\n        error = {\"code\": \"CONTEXT_OVERFLOW\", \"message\": message}\n        ctx = _extract_ctx(resp_text)\n        if ctx:\n            error[\"ctx\"] = ctx\n        return {\"ok\": False, \"error\": error}\n    return err(message)",
+  "patch": "    if overflow:\n        error = {\"code\": \"CONTEXT_OVERFLOW\", \"message\": message}\n        ctx = _extract_ctx(resp_text)\n        if ctx:\n            error[\"ctx\"] = ctx\n        return {\"ok\": False, \"error\": error}\n    # P3：HTTP 状态结构化。瞬态判定过去靠 message 英文文案正则（中文网关/措辞不同即判死），\n    # 现在按数值判定：429/5xx = 瞬态（可重试），其余 4xx = 确定性失败。保留 message 原文透传。\n    if status == 429 or status >= 500:\n        return err(message, code=\"LLM_TRANSIENT\")\n    return err(message)"
+}

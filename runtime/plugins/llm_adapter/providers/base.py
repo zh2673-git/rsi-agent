@@ -150,6 +150,10 @@ def err_from_resp(provider: str, status: int, resp_text: str) -> dict:
         if ctx:
             error["ctx"] = ctx
         return {"ok": False, "error": error}
+    # P3：HTTP 状态结构化。瞬态判定过去靠 message 英文文案正则（中文网关/措辞不同即判死），
+    # 现在按数值判定：429/5xx = 瞬态（可重试），其余 4xx = 确定性失败。保留 message 原文透传。
+    if status == 429 or status >= 500:
+        return err(message, code="LLM_TRANSIENT")
     return err(message)
 
 
