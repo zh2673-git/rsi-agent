@@ -1,0 +1,7 @@
+{
+  "id": "SELF-UPDATE-2",
+  "description": "web/mod.rs 路由表：新增 GET/POST /api/self/update（GET 查状态，POST 触发交接换血；交接等待中的新进程拒绝再次自更新，防递归交接）",
+  "file": "runtime/crates/host/src/web/mod.rs",
+  "anchor": "        (\"GET\", \"/api/upstream/accounts\") => api::upstream_accounts(&mut stream).await,",
+  "patch": "        (\"GET\", \"/api/upstream/accounts\") => api::upstream_accounts(&mut stream).await,\n        // 自更新（SELF-UPDATE-2）：GET 查进度/版本，POST 触发交接换血。交接等待中的新进程\n        // 拒绝再次自更新（409）——递归交接只会叠加等待链，没有意义。\n        (\"GET\", \"/api/self/update\") => api::self_update_status(&mut stream).await,\n        (\"POST\", \"/api/self/update\") => {\n            if std::env::var(\"RSI_HANDOVER\").map(|v| v == \"1\").unwrap_or(false) {\n                json_resp(&mut stream, 409, json!({\"ok\": false, \"error\": {\"code\": \"K409\", \"message\": \"本进程处于自更新交接等待中，拒绝再次自更新\"}})).await\n            } else {\n                api::self_update_start(&mut stream).await\n            }\n        }"
+}
