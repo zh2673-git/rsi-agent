@@ -136,7 +136,8 @@ def _guard_write(real: Path, path_str: str) -> Path:
             "tools.json、config.json 声明 mcp_servers）。"
             "确需修改核心请直接向用户说明，由用户自行修改，或按路径授权：config.json "
             'tools.allow_core_write 填前缀列表（如 ["runtime/crates/agent-loop"]，'
-            "config.json 与 plugins/memory 永不豁免），改后重启 host 生效。",
+            "config.json 与 plugins/memory 永不豁免），改后重启 host 生效；也可把我写好的 "
+            "scripts/patches/*.json 补丁由你执行 python scripts/apply-tool-patches.py 应用。",
             code="CORE_PROTECTED",
             field="path",
         )
