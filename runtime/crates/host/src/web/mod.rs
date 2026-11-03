@@ -43,6 +43,40 @@ impl WebFrontend {
     }
 
     async fn run_inner(&self, kernel: Arc<Kernel>) -> anyhow::Result<()> {
+        // 自更新交接（SELF-UPDATE-1）：RSI_HANDOVER=1 = 新进程等待旧进程退出后再 bind。
+        // Windows 无 SO_REUSEPORT、运行中 exe 镜像被锁，等待-换绑（nginx USR2 的变体）是
+        // 唯一安全形态；亚秒级空窗由前端 SSE 断线 1s 防抖 + after 游标续传覆盖，浏览器无感。
+        if std::env::var("RSI_HANDOVER").map(|v| v == "1").unwrap_or(false) {
+            // 就绪 marker：能走到这里说明内核+插件装配已完成，写盘告知旧进程可以开始排水。
+            let marker = std::env::var("RSI_HANDOVER_MARKER").ok();
+            if let Some(m) = &marker {
+                let _ = std::fs::write(m, std::process::id().to_string());
+            }
+            let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(90);
+            let mut wait = std::time::Duration::from_millis(200);
+            let listener = loop {
+                match TcpListener::bind(&self.addr).await {
+                    Ok(l) => break l,
+                    Err(e) if tokio::time::Instant::now() < deadline => {
+                        tracing::info!("self-update 等待旧进程释放 {}（{e}），{:?} 后重试", self.addr, wait);
+                        tokio::time::sleep(wait).await;
+                        wait = (wait * 2).min(std::time::Duration::from_secs(2));
+                    }
+                    Err(e) => {
+                        tracing::error!("self-update 交接失败：90s 内未拿到 {}（{e}）。请手动重启。", self.addr);
+                        return Err(e.into());
+                    }
+                }
+            };
+            // 接管成功 = commit point。清交接态：本次进程后续可再次触发自更新；marker 文件一并清理。
+            std::env::remove_var("RSI_HANDOVER");
+            std::env::remove_var("RSI_HANDOVER_MARKER");
+            if let Some(m) = marker {
+                let _ = std::fs::remove_file(&m);
+            }
+            tracing::info!("self-update 交接完成：已在 {} 接管（旧进程已退出）", self.addr);
+            return Self::serve_listener(listener, kernel).await;
+        }
         let listener = TcpListener::bind(&self.addr).await?;
         Self::serve_listener(listener, kernel).await
     }
@@ -278,6 +312,16 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         ("POST", "/api/upstream/login") => api::upstream_login(&mut stream, &query).await,
         ("POST", "/api/upstream/checkin") => api::upstream_checkin(&mut stream).await,
         ("GET", "/api/upstream/accounts") => api::upstream_accounts(&mut stream).await,
+        // 自更新（SELF-UPDATE-2）：GET 查进度/版本，POST 触发交接换血。交接等待中的新进程
+        // 拒绝再次自更新（409）——递归交接只会叠加等待链，没有意义。
+        ("GET", "/api/self/update") => api::self_update_status(&mut stream).await,
+        ("POST", "/api/self/update") => {
+            if std::env::var("RSI_HANDOVER").map(|v| v == "1").unwrap_or(false) {
+                json_resp(&mut stream, 409, json!({"ok": false, "error": {"code": "K409", "message": "本进程处于自更新交接等待中，拒绝再次自更新"}})).await
+            } else {
+                api::self_update_start(&mut stream).await
+            }
+        }
         ("PUT", "/api/config") => api::put_config(&mut stream, &kernel, &body).await,
         ("GET", "/api/skills") => api::get_skills(&mut stream, &kernel).await,
         ("GET", r) if r.starts_with("/api/skills/") => {

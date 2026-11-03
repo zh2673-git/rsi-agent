@@ -452,3 +452,158 @@ pub(crate) async fn upstream_accounts(stream: &mut TcpStream) -> anyhow::Result<
     let v: Value = serde_json::from_slice(&o.stdout).unwrap_or(json!([]));
     json_resp(stream, 200, json!({"ok": true, "accounts": v})).await
 }
+
+// ── 自更新（SELF-UPDATE-3）：交接换血 ────────────────────────────────────────
+// Windows 约束：运行中 exe 镜像被锁（不能边跑边替换），无 SO_REUSEPORT（不能共享端口）。
+// 因此：构建进隔离目录（产物路径不同于运行中 exe）；交接用「等待-换绑」——新进程
+// RSI_HANDOVER=1 反复重试 bind（见 web/mod.rs），旧进程确认其就绪后排水退出。
+// fail-safe：任何一步失败 = 旧进程继续服务；日志落 %TEMP%/rsi-selfupdate-<port>.log。
+
+/// 当前运行体构建时间（编译期注入，作为版本指纹与仓库源码时间对比）。
+fn self_build_time() -> Option<std::time::SystemTime> {
+    let exe = std::env::current_exe().ok()?;
+    std::fs::metadata(exe).and_then(|m| m.modified()).ok()
+}
+
+/// GET /api/self/update：版本指纹 + 交接状态（供前端/调用方判断是否需要换血）。
+pub(crate) async fn self_update_status(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let handover = std::env::var("RSI_HANDOVER").map(|v| v == "1").unwrap_or(false);
+    let exe = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
+    let repo = std::path::PathBuf::from(crate::config::workspace_root());
+    let src_mtime = std::fs::metadata(repo.join("runtime/crates/host/src"))
+        .and_then(|m| m.modified())
+        .ok()
+        .map(|t| t.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0));
+    let exe_mtime = self_build_time()
+        .map(|t| t.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0));
+    // 源码比运行体新 = 仓库里有尚未生效的变更
+    let stale = match (src_mtime, exe_mtime) {
+        (Some(s), Some(e)) => s > e,
+        _ => false,
+    };
+    json_resp(
+        stream,
+        200,
+        json!({
+            "ok": true,
+            "exe": exe,
+            "exe_mtime": exe_mtime,
+            "src_mtime": src_mtime,
+            "stale": stale,
+            "handover_waiting": handover,
+        }),
+    )
+    .await
+}
+
+/// POST /api/self/update：隔离构建 → 孵化新进程 → 等就绪 → 排水退出。立即回 202。
+pub(crate) async fn self_update_start(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let addr = std::env::var("WEB_ADDR").unwrap_or_else(|_| "127.0.0.1:8710".into());
+    let port = addr.rsplit(':').next().unwrap_or("8710").to_string();
+    let repo = std::path::PathBuf::from(crate::config::workspace_root());
+    let log_path = std::env::temp_dir().join(format!("rsi-selfupdate-{port}.log"));
+    let log_display = log_path.display().to_string();
+    let stamp = { let lp = log_path.clone(); move |msg: &str| stamp_line(&lp, msg) };
+    stamp("POST /api/self/update 收到，开始自更新流程");
+    tracing::info!("self-update：构建 + 交接开始（日志 {}）", log_display);
+
+    // 后台执行；本请求立即返回 202（浏览器面板随后会经历一次 SSE 断线自动重连）。
+    tokio::spawn(async move {
+        // 1. 隔离构建：CARGO_TARGET_DIR 指 target-selfupdate，产物与运行中 exe 不同路径，
+        //    避开 Windows 运行中镜像锁；同时防止动到开发中 target 目录的构建锁。
+        let out = repo.join("runtime/target-selfupdate");
+        stamp("step1 隔离构建开始（cargo build --release，首次可能数分钟）");
+        let build = tokio::process::Command::new("cargo")
+            .args(["build", "--release", "-p", "react-agent-host"])
+            .current_dir(repo.join("runtime"))
+            .env("CARGO_TARGET_DIR", &out)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .output()
+            .await;
+        let Ok(b) = build else {
+            stamp("ABORT cargo 无法启动（未安装或 PATH 不含 cargo）");
+            tracing::error!("self-update：cargo 启动失败，放弃（旧进程继续服务）");
+            return;
+        };
+        if !b.status.success() {
+            let tail: String = String::from_utf8_lossy(&b.stderr).lines().rev().take(15).collect::<Vec<_>>().join("\\n");
+            stamp(&format!("ABORT 构建失败（保留旧版本继续服务）：{tail}"));
+            tracing::error!("self-update：构建失败，放弃（旧进程继续服务）");
+            return;
+        }
+        let new_exe = out.join("release/react-agent-host.exe");
+        if !new_exe.is_file() {
+            stamp("ABORT 构建产物不存在");
+            return;
+        }
+        stamp("step1 隔离构建完成");
+
+        // 2. 孵化新进程：HANDOVER=1（等待-换绑）+ 就绪 marker（写盘时间戳，供旧进程确认）。
+        let marker = std::env::temp_dir().join(format!("rsi-handover-ready-{port}.flag"));
+        let _ = std::fs::remove_file(&marker);
+        stamp("step2 孵化新进程（RSI_HANDOVER=1，等待-换绑）");
+        let child = tokio::process::Command::new(&new_exe)
+            .env("RSI_HANDOVER", "1")
+            .env("RSI_HANDOVER_MARKER", &marker)
+            .env("REACT_FRONTEND", "web")
+            .env("WEB_ADDR", &addr)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+        let mut child = match child {
+            Ok(c) => c,
+            Err(e) => {
+                stamp(&format!("ABORT 新进程孵化失败：{e}"));
+                tracing::error!("self-update：新进程孵化失败，放弃（旧进程继续服务）");
+                return;
+            }
+        };
+
+        // 3. 等就绪：marker 出现 = 新进程完成装配、正在抢端口；60s 超时则放弃并回收新进程。
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+        let ready = loop {
+            if marker.is_file() {
+                break true;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                break false;
+            }
+            if let Ok(Some(_st)) = child.try_wait() {
+                // 新进程提前退出 = 它自己交接着失败了（如 90s 抢不到端口），旧进程继续。
+                break false;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        };
+        if !ready {
+            stamp("ABORT 新进程 60s 未就绪或提前退出，回收并放弃（旧进程继续服务）");
+            let _ = child.kill().await;
+            let _ = std::fs::remove_file(&marker);
+            return;
+        }
+        stamp("step3 新进程就绪（装配完成，正在接管端口）；排水 2s 后退出");
+        // 4. 排水：停 2s 让在途 HTTP 应答收尾（会话/事件均有持久层与断线续传，不丢状态），
+        //    然后退出——端口随即释放，新进程的下一次 bind 重试即成功（commit point）。
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        stamp("step4 旧进程退出，交出端口");
+        std::process::exit(0);
+    });
+
+    json_resp(stream, 202, json!({"ok": true, "accepted": true, "log": log_display})).await
+}
+
+fn stamp_line(log_path: &std::path::Path, msg: &str) {
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(log_path) {
+        let _ = writeln!(f, "[{}] {msg}", chrono_now());
+    }
+}
+
+fn chrono_now() -> String {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+        .to_string()
+}

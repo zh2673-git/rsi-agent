@@ -3,6 +3,7 @@ __pycache__/
 
 # runtime 快照的构建与运行期产物
 runtime/target/
+runtime/target-selfupdate/
 runtime/.stream/
 runtime/.instances/
 runtime/outputs/

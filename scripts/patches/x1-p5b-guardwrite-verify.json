@@ -1,0 +1,7 @@
+{
+  "id": "P5B-VERIFY",
+  "description": "files.py::_guard_write v7 前缀闸签名验证（原内置 P5b 锚点漂移外迁：目标终态早已生效，本补丁仅作幂等校验，不再改写）",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor": "def _guard_write(real: Path, path_str: str) -> Path:\n    \"\"\"写入闸（write_file/edit_file 专用）：核心黑名单默认拒绝；env ALLOW_CORE_WRITE 为\n    逗号分隔前缀列表时，命中前缀且不在永不豁免项内的路径放行（v7 细粒度授权）。\"\"\"\n    if _is_core_path(real) and not _core_write_allowed(real):",
+  "patch": "def _guard_write(real: Path, path_str: str) -> Path:\n    \"\"\"写入闸（write_file/edit_file 专用）：核心黑名单默认拒绝；env ALLOW_CORE_WRITE 为\n    逗号分隔前缀列表时，命中前缀且不在永不豁免项内的路径放行（v7 细粒度授权）。\"\"\"\n    if _is_core_path(real) and not _core_write_allowed(real):"
+}

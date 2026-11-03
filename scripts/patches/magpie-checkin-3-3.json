@@ -1,7 +1,7 @@
 {
- "id": "MAGPIE-CHECKIN-3",
- "description": "api/mod.rs 导出三个新处理器",
- "file": "runtime/crates/host/src/web/api/mod.rs",
- "anchor": "pub(super) use misc::{\n    create_instance, delete_instance, get_models, get_presets, list_instances, pick_folder,\n    reveal_target, session_exists, upstream_start, upstream_status,\n};",
- "patch": "pub(super) use misc::{\n    create_instance, delete_instance, get_models, get_presets, list_instances, pick_folder,\n    reveal_target, session_exists, upstream_accounts, upstream_checkin, upstream_login,\n    upstream_start, upstream_status,\n};"
+  "id": "MAGPIE-CHECKIN-3",
+  "description": "api/mod.rs 导出（终态演化 v2）：upstream 三处理器 + self_update 两处理器均已并入统一导出列表；本补丁仅作幂等锚点校验",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor": "    reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,\n    upstream_checkin, upstream_login, upstream_start, upstream_status,",
+  "patch": "    reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,\n    upstream_checkin, upstream_login, upstream_start, upstream_status,"
 }

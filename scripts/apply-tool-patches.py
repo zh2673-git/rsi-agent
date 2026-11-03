@@ -265,7 +265,7 @@ PATCHES = (
     ("P4a", "bash.py 描述(沙箱分支) 加单行+替代引导", P4_FILE, P4_ANCHOR, P4_PATCH),
     ("P4b", "bash.py 描述(直跑分支) 加单行+替代引导", P4_FILE, P4_ANCHOR2, P4_PATCH2),
     ("P5a", "files.py 闸解释器 v7（_core_write_allowed + 前缀解析）", P5_FILE, P5_ANCHOR, P5_PATCH),
-    ("P5b", "files.py 写入闸文案 v7（_guard_write + 永不豁免）", P5_FILE, P5_ANCHOR2, P5_PATCH2),
+    # P5b 已退役（2026-11-03）：目标终态早已生效且锚点漂移，验证外迁至外挂 P5B-VERIFY。
     ("P5c", "files.py 黑名单尾注收口（L2 通道已移除）", P5_FILE, P5_ANCHOR3, P5_PATCH3),
     ("P5d", "files.py 模块 docstring 同步 v7（四途径→三途径 + 前缀闸）", P5_FILE, P5_ANCHOR4, P5_PATCH4),
     ("P6", "config.rs allow_core_write 数组/布尔双形态", P6_FILE, P6_ANCHOR, P6_PATCH),
