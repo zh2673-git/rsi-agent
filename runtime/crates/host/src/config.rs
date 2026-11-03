@@ -311,8 +311,18 @@ pub fn apply_config_file_to_env() -> usize {
     }
     // 核心写保护逃生舱（v6 自扩展安全边界）：默认关（核心路径写拒绝），显式开才放行。
     // 持久通道 → env，guest 子进程经 passthrough_env 继承——改后需重启 host。
-    if let Some(allow) = cfg.get("tools").and_then(|t| t.get("allow_core_write")).and_then(Value::as_bool) {
-        set("ALLOW_CORE_WRITE", if allow { "1".to_string() } else { "0".to_string() });
+    // tools.allow_core_write 双形态（v7 细粒度授权）：布尔 false → "0"；字符串数组 →
+    // 逗号分隔的路径前缀列表（如 ["runtime/crates/agent-loop"]）。guests 经
+    // passthrough_env 继承同一 ALLOW_CORE_WRITE 键，files.py 按前缀解释（见 P5）。
+    if let Some(v) = cfg.get("tools").and_then(|t| t.get("allow_core_write")) {
+        if let Some(paths) = v.as_array() {
+            let items: Vec<String> = paths.iter().filter_map(Value::as_str).map(str::to_string).collect();
+            if !items.is_empty() {
+                set("ALLOW_CORE_WRITE", items.join(","));
+            }
+        } else if let Some(false) = v.as_bool() {
+            set("ALLOW_CORE_WRITE", "0".to_string());
+        }
     }
     // MCP server 声明（tools PLAN §八）：整体 JSON 序列化为 MCP_SERVERS env。只走持久通道
     // （server 子进程生命周期归 tools 插件 init/destroy，热改无意义）——改后需重启 host。

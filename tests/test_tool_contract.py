@@ -2,6 +2,7 @@
 
 覆盖本轮审计发现的 D1/D2/D3/D4 与「声明 vs 行为」防漂移：
 - bash `_shell_cwd()`：扩展长度前缀归一、fail-closed、UNC 形态；
+- files `_guard_write()`：核心写保护 v7 前缀闸（v6 布尔遗留不解禁、前缀放行、永不豁免压过授权）；
 - run_tests：超时有上界 + 进程树回收、契约错误码、rsi-agent 形态探测为 unittest；
 - 工具名口径：准入闸与运行时插件闸同口径（防三方漂移）；
 - tools.json 声明与执行体常量一致（timeout_secs ↔ MAX_TIMEOUT）。
@@ -33,6 +34,7 @@ sys.path.insert(0, str(PLUGIN_TOOLS))
 import conformance_gate  # noqa: E402
 
 import tools.bash as bash_mod  # noqa: E402
+import tools.files as files_mod  # noqa: E402
 from tools import ToolError  # noqa: E402
 
 sys.path.insert(0, str(RUN_TESTS.parent))
@@ -71,6 +73,69 @@ class ShellCwdTest(unittest.TestCase):
     def test_plain_workspace_unchanged(self) -> None:
         with self._with_ws(str(self.root)):
             self.assertEqual(bash_mod._shell_cwd(), str(self.root))
+
+
+class CoreWriteGateTest(unittest.TestCase):
+    """A：核心写保护 v7 前缀闸——语义锁（同步 react-agent 时，这些断言就是第 5 处适配的验收）。"""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self._ws = patch.dict(os.environ, {"WORKSPACE_ROOT": str(self.root)})
+        self._ws.start()
+        self.addCleanup(self._ws.stop)
+        self.addCleanup(self.tmp.cleanup)
+        os.environ.pop("ALLOW_CORE_WRITE", None)
+        self.addCleanup(os.environ.pop, "ALLOW_CORE_WRITE", None)
+
+    def _guard(self, rel: str) -> None:
+        files_mod._guard_write(self.root / rel, rel)
+
+    def test_default_denies_core_fail_closed(self) -> None:
+        with self.assertRaises(ToolError) as ctx:
+            self._guard("runtime/crates/agent-loop/src/lib.rs")
+        self.assertEqual(ctx.exception.code, "CORE_PROTECTED")
+
+    def test_v6_boolean_one_no_longer_unlocks(self) -> None:
+        """布尔 "1" 是 v6 遗留：不再等价全解禁，一律按未授权处理。"""
+        with patch.dict(os.environ, {"ALLOW_CORE_WRITE": "1"}):
+            with self.assertRaises(ToolError) as ctx:
+                self._guard("runtime/plugins/tools/tools/bash.py")
+        self.assertEqual(ctx.exception.code, "CORE_PROTECTED")
+
+    def test_prefix_grant_allows_matched_tree_only(self) -> None:
+        grant = patch.dict(os.environ, {"ALLOW_CORE_WRITE": "runtime/crates/agent-loop"})
+        with grant:
+            self._guard("runtime/crates/agent-loop/src/scratch.rs")
+            with self.assertRaises(ToolError):
+                self._guard("runtime/crates/host/src/config.rs")
+
+    def test_never_allow_overrides_prefix_grant(self) -> None:
+        """config.json / plugins/memory 永不豁免：即使被显式列入授权前缀也拒绝。"""
+        grant = patch.dict(
+            os.environ,
+            {"ALLOW_CORE_WRITE": "config.json,plugins/memory,runtime/plugins/tools/tools"},
+        )
+        with grant:
+            for rel in ("config.json", "plugins/memory/store.json"):
+                with self.assertRaises(ToolError) as ctx:
+                    self._guard(rel)
+                self.assertIn("永不豁免", str(ctx.exception))
+            self._guard("runtime/plugins/tools/tools/bash.py")
+
+    def test_zero_and_empty_still_denies(self) -> None:
+        for value in ("0", "", None):
+            env = {} if value is None else {"ALLOW_CORE_WRITE": value}
+            with patch.dict(os.environ, env, clear=False):
+                os.environ.pop("ALLOW_CORE_WRITE", None)
+                if value is not None:
+                    os.environ["ALLOW_CORE_WRITE"] = value
+                with self.assertRaises(ToolError):
+                    self._guard("runtime/crates/host/src/main.rs")
+
+    def test_skills_root_exempt_without_any_grant(self) -> None:
+        """自扩展主通道（skills/）在零授权下依旧放行——闸收紧不伤合法途径。"""
+        self._guard("skills/my-skill/SKILL.md")
 
 
 class RunTestsContractTest(unittest.TestCase):

@@ -13,7 +13,19 @@
 
 ## 工具与编辑纪律
 
+- **专用工具优先，bash 是最后手段**（依据 opencode/codex/pi/dsh 四家编码 agent 的共同设计）：
+  读写文件用 read_file/write_file/edit_file，内容搜索用 grep，找文件/列目录用 list_dir、
+  符号定位用 symbols_search、「谁用了 X」用 symbols_search references、trace 统计用 trace-analysis 技能
+  ——文件操作与检索**禁止**用 bash 的 `dir`/`ls`/`type`/`cat`/`findstr`/`echo >`/`python -c` 探针。
+  bash 只留给：运行/构建/测试（pytest、cargo、npm）、git、进程与端口查询、无专用工具覆盖的系统操作。
 - 读后写：修改前先读目标文件原文；优先 edit_file 精确编辑，避免整文件重写。
+- **bash 单行铁律**：`bash` 的 `command` 里**不要出现换行符**——多行命令只执行第一行，其余行被
+  静默丢弃（`cmd.exe /c` 只认首行，实测 `echo A\necho B` 只回 `A`）。多步串联用 `&&` / `&`，
+  或拆成多次调用。写文件一律用 write_file，不要用 `echo >` / `python -c "open().write()"`。
+- **中间物不进产物目录**：探针脚本、临时分析脚本、一次性 dump 一律不落盘——先用
+  grep / read_file / symbols_search 拿事实（trace 分析用 `trace-analysis` 技能里的现成查询，
+  不要再写脚本）；确实要跑脚本时落 `.scratch/`（`/` 开头的点目录不入库、也不占 bash 快照）。
+  `outputs/` 只放**交付给用户的成品**。
 - 删除要彻底：确认不再使用的代码直接删除，不留注释掉的尸体与无用空壳。
 - 一轮可并行的独立工具调用合并发出；有依赖的调用按顺序等待结果。
 - 不确定的事实用工具查证（文件、命令输出），不编造 API、路径或行为。
@@ -55,19 +67,20 @@
 
 ## 自扩展边界（核心写保护）
 
-你具备自扩展能力，但**只能走四条固定途径**，对自身运行体的写入已被运行时拦截（write_file/edit_file 触碰即报 CORE_PROTECTED）：
+你具备自扩展能力，但**只能走三条固定途径**，对自身运行体的写入已被运行时拦截（write_file/edit_file 触碰即报 CORE_PROTECTED）：
 
 | 想加什么 | 唯一合法途径 |
 |---|---|
 | 知识/流程类技能 | skills 目录下新建技能目录写 `SKILL.md` |
 | 技能配套工具 | 技能目录内 `tools.json`（ToolSpec + exec.cmd） |
-| Python 工具 | `plugins/tools/` 顶层放新 `.py` 模块（TOOLS dict）+「重载工具」 |
 | 外部服务工具 | 用户在 config.json `mcp_servers` / 设置面板配置 |
+
+（历史第四途径「`plugins/tools/` 顶层放新 .py 模块」在本仓库 RSI 布局下不可达——`plugins/` 在 `runtime/` 整树禁写区内，已收口移除；技能配套工具统一走上一行 tools.json 通道。）
 
 **禁止清单**（拦截点已强制，不要尝试绕行）：`crates/`（Rust 源码与前端）、`plugins/memory`、`plugins/llm_adapter`、`plugins/assets`（出厂资产）、`plugins/tools/tools/`（内置工具实现）、`plugins/tools/tools_plugin.py`、`config.json`、`.git/`。
 
 **行为纪律**：
-1. 需求超出上表四途径（如要新 UI、新事件类型、改模型调度）时，**不要动手**——向用户说明「这需要改核心代码 + 具体方案」，由用户决策后自行修改或显式授权（`ALLOW_CORE_WRITE=1`）。
+1. 需求超出上表途径（如要新 UI、新事件类型、改模型调度）时，**不要动手**——向用户说明「这需要改核心代码 + 具体方案」，由用户决策：自行修改，或按路径授权（config.json `tools.allow_core_write` 填前缀列表，如 `["runtime/crates/agent-loop", "runtime/plugins/tools/tools"]`；`config.json` 与 `plugins/memory` 永不豁免）。
 2. 不用 bash 命令间接写上述路径绕过拦截（如 `echo >` / `cp`）——这是破坏性行为。bash 对工作区的所有改动会被自动快照留痕（含核心区路径），随回滚一并撤销，且留痕不豁免纪律。
 3. 遇到 CORE_PROTECTED 报错视为硬边界：换合法途径实现，或停下报告，不重试同一路径。
 4. 文件修改一律优先 write_file / edit_file（可精确追溯 diff）；bash 只用于运行、构建、查询与产物输出（写产物目录）。

@@ -81,6 +81,13 @@ impl AgentLoopPlugin {
             "## Artifact output\n- Files produced for the user (word/excel/ppt/html/markdown/images/…) must be written into `{}` (workspace-relative path). Do not scatter them into skill directories or the repo root. Mention the relative path of each artifact in your answer.",
             cfg.output_dir
         ));
+        // 反向约定（与上面那条成对出现才有约束力）：只讲「成品去哪」时，模型会把
+        // 探针/一次性脚本也算作「产物」写进产物目录。实测成因：那类脚本占 file_change
+        // 的 46%，且产物目录在 bash 快照排除区（写了连 undo 留痕都没有）。
+        lines.push(format!(
+            "- Intermediate files (probe / scratch / one-off analysis scripts) are NOT artifacts: do not write them into `{}`. Prefer reading files with the dedicated tools (grep / read_file / symbols_search); if a script is unavoidable, put it under `.scratch/` and delete it when done.",
+            cfg.output_dir
+        ));
         lines.join("\n")
     }
 

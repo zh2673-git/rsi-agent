@@ -271,6 +271,16 @@ def _result(exit_code, timeout: bool, output: str) -> dict:
 
 def _run_bash(args: dict) -> dict:
     command = require(args, "command")
+    # cmd.exe /c 只执行首行（换行即命令终止，且不尊重引号）：多行命令的其余行会被
+    # **静默丢弃且 exit_code 仍为 0**。静默截断比报错危险得多——模型会基于虚假成功
+    # 继续推理。故此处 fail-loud，把问题挡在入口。
+    if "\n" in command or "\r" in command:
+        raise ToolError(
+            "bash command 含换行符：cmd.exe /c 只执行首行，其余行会被静默丢弃（exit_code 仍为 0）。"
+            "请改用单行 + `&&` / `&` 串联，或拆成多次调用；python 多语句用 `;` 分隔。",
+            code="MULTILINE_UNSUPPORTED",
+            field="command",
+        )
     timeout_ms = optional_int(args, "timeout_ms", 30_000, 1_000, _MAX_TIMEOUT_MS)
     before = _scan_zone() if _trace_enabled() else None  # 执行前快照（pre-copy 内容缓存）
     result = _run_sandboxed(command, timeout_ms) if _sandboxed() else _run_direct(command, timeout_ms)
@@ -291,13 +301,23 @@ def _description() -> str:
     return (
         "Run a shell command in the workspace (cwd = WORKSPACE_ROOT) via a restricted-token sandbox helper "
         "(reduced privileges, admin groups deny-only; fail-closed). Large output keeps head 40KB + tail 20KB. "
-        "Args: command (required), timeout_ms (default 30000, max 60000)."
+        "Args: command (required), timeout_ms (default 30000, max 60000). "
+        "IMPORTANT: command must be a SINGLE line - a newline makes cmd.exe /c run only the first line "
+        "and silently drop the rest with exit_code=0; chain steps with && or & instead. "
+        "This tool is for running/building/testing, git, process and port queries - do NOT use it for "
+        "file operations (reading, writing, editing, searching, listing files); use the dedicated tools "
+        "(read_file/write_file/edit_file/grep/list_dir/symbols_search) instead."
         if _sandboxed()
         else (
             "Run a shell command in the workspace (cwd = WORKSPACE_ROOT). "
             "Runs with full user permissions - NOT sandboxed (BASH_SANDBOX=off). "
             "Large output keeps head 40KB + tail 20KB. "
-            "Args: command (required), timeout_ms (default 30000, max 60000)."
+            "Args: command (required), timeout_ms (default 30000, max 60000). "
+            "IMPORTANT: command must be a SINGLE line - a newline makes cmd.exe /c run only the first line "
+            "and silently drop the rest with exit_code=0; chain steps with && or & instead. "
+            "This tool is for running/building/testing, git, process and port queries - do NOT use it for "
+            "file operations (reading, writing, editing, searching, listing files); use the dedicated tools "
+            "(read_file/write_file/edit_file/grep/list_dir/symbols_search) instead."
         )
     )
 

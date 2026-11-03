@@ -12,5 +12,11 @@ config.json
 config.magpie.local.json
 *.log
 
+# 中间物（探针/一次性分析脚本）：只留痕不入库
+.scratch/
+
+# 补丁回滚备份（scripts/apply-tool-patches.py 自动生成）
+*.patchbak
+
 # magpie 分析工作区（上游源码副本，不入库）
 magpie/
