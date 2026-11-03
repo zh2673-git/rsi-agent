@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-LLM-CALL",
+  "description": "chat.rs LLM 转发：deadline 改用 llm_step_deadline()（env 可调，缺省行为不变）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "        let v = self.call(src, CAP_LLM, payload, LLM_DEADLINE).await?;",
+  "patch": "        let v = self.call(src, CAP_LLM, payload, llm_step_deadline()).await?;"
+}

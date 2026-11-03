@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-FIELDS",
+  "description": "lib.rs 结构体：+session_chats（A1 同会话并发闸）+append_fails（A2 append 连续失败计数）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor": "    /// 已发 sid 的全局下限（A4 卫生）：sid_seq 会话表项在 chat 结束时逐出后，\n    /// 新 seed 取 `max(当前毫秒, floor+1)`——严格大于历史上任何已发 sid，跨回合\n    /// 不碰撞语义在逐出后依然成立。\n    sid_floor: AtomicU64,\n}",
+  "patch": "    /// 已发 sid 的全局下限（A4 卫生）：sid_seq 会话表项在 chat 结束时逐出后，\n    /// 新 seed 取 `max(当前毫秒, floor+1)`——严格大于历史上任何已发 sid，跨回合\n    /// 不碰撞语义在逐出后依然成立。\n    sid_floor: AtomicU64,\n    /// 同会话并发闸（LOOP-P2/A1）：两个并发 chat 用同一 session_id 会互清取消标志、\n    /// 互踩 turn_starts 与流式 sid（低概率、高混淆度）。值是 per-session 的 tokio Mutex，\n    /// chat_body 入口 try_lock——拿不到即 409 拒绝，不排队不阻塞。\n    session_chats: Mutex<std::collections::HashMap<String, Arc<tokio::sync::Mutex<()>>>>,\n    /// memory.append 连续失败计数（LOOP-P2/A2）：持久层与内存工作集开始分叉的信号，\n    /// 成功即清零；达到阈值由关键写入点熔断本轮，防错位静默放大。\n    append_fails: AtomicU64,\n}"
+}

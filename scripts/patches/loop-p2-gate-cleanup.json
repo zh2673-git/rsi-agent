@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-GATE-CLEANUP",
+  "description": "chat.rs chat_body 出口：会话闸表逐出（无并发等待者时），防长驻进程无界增长",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "        self.turn_starts.lock().unwrap().remove(&req.session_id);\n        self.sid_seq.lock().unwrap().remove(&req.session_id);\n        out\n    }",
+  "patch": "        self.turn_starts.lock().unwrap().remove(&req.session_id);\n        self.sid_seq.lock().unwrap().remove(&req.session_id);\n        // 会话闸卫生（LOOP-P2/A1）：strong_count==2（表 + 本链 Arc）= 没有并发等待者，\n        // 安全逐出；有等待者时留着，由最后一链的出口清理（等待中的请求自带 Arc 克隆）。\n        if Arc::strong_count(&gate) == 2 {\n            self.session_chats.lock().unwrap().remove(&req.session_id);\n        }\n        drop(_permit);\n        out\n    }"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-TEST-INIT",
+  "description": "lib.rs 测试构造器补两个新字段（LOOP-P2-FIELDS 的伴生锚点）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor": "            sid_floor: AtomicU64::new(0),\n        };",
+  "patch": "            sid_floor: AtomicU64::new(0),\n            session_chats: Mutex::new(std::collections::HashMap::new()),\n            append_fails: AtomicU64::new(0),\n        };"
+}

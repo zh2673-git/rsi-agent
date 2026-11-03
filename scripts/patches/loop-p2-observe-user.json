@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-OBSERVE-USER",
+  "description": "chat.rs：开局用户消息 append 失败即 K503 熔断（会话记录断档时整轮跑完也接不回历史）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "        let user_msg = build_user_msg(&req.user_text, req.attachments.as_deref(), cfg.text_attach_limit);\n        self.observe(env, &req.session_id, &[user_msg.clone()]).await;",
+  "patch": "        let user_msg = build_user_msg(&req.user_text, req.attachments.as_deref(), cfg.text_attach_limit);\n        // LOOP-P2/A2：开局用户消息都落不了盘 = 会话记录已断档，本轮跑完下一轮也接不回\n        // ——立即熔断（K503），不烧 LLM token。\n        if !self.observe(env, &req.session_id, &[user_msg.clone()]).await {\n            return json!({\"ok\": false, \"error\": {\"code\": \"K503\", \"message\": \"memory.append 失败，已熔断本轮（持久层与工作集会静默分叉）；请检查 memory 插件后重试\"}});\n        }"
+}

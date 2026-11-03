@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-DEADLINE-FN",
+  "description": "lib.rs：LLM 单步 deadline 收敛为单一 env LLM_STEP_DEADLINE_SECS（与 llm_adapter base.py 同读，消除跨语言三处常量人工配对）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor": "const MEM_DEADLINE: Duration = Duration::from_secs(5);\nconst TOOLS_DEADLINE: Duration = Duration::from_secs(60);\nconst LLM_DEADLINE: Duration = Duration::from_secs(600);\nconst ASSETS_DEADLINE: Duration = Duration::from_secs(5);",
+  "patch": "const MEM_DEADLINE: Duration = Duration::from_secs(5);\nconst TOOLS_DEADLINE: Duration = Duration::from_secs(60);\nconst LLM_DEADLINE: Duration = Duration::from_secs(600);\nconst ASSETS_DEADLINE: Duration = Duration::from_secs(5);\n\n/// LLM 单步 deadline 单一事实源（LOOP-P2/A4）：agent-loop 总闸与 llm_adapter 的\n/// PROVIDER_DEADLINE（= 总闸 - 10s 余量）同读 env `LLM_STEP_DEADLINE_SECS`（缺省 600），\n/// 配对关系由代码保证，不再依赖两侧注释互指人工同步（改其一漏其余 → 涓流占坑/K502\n/// 雪崩复发的历史不再可能）。env < 30s 视为误配回退缺省；CHAT_BUDGET_SECS（整轮预算）\n/// 仍独立配置，需 ≥ 本闸（文档约束不变）。\nfn llm_step_deadline() -> Duration {\n    std::env::var(\"LLM_STEP_DEADLINE_SECS\")\n        .ok()\n        .and_then(|v| v.trim().parse::<u64>().ok())\n        .filter(|s| *s >= 30)\n        .map(Duration::from_secs)\n        .unwrap_or(LLM_DEADLINE)\n}"
+}

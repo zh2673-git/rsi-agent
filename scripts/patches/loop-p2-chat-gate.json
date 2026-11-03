@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-CHAT-GATE",
+  "description": "chat.rs chat_body：同 session 并发 chat try_lock 闸，冲突即 409（防互清取消标志/互踩流式 sid）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "        // 开局清残留取消标志（chat 结束时也会清理——双保险，防误杀同 session 下轮对话）\n        self.cancels.lock().unwrap().remove(&req.session_id);\n        let out = self.chat_run(env, &req).await;",
+  "patch": "        // 开局清残留取消标志（chat 结束时也会清理——双保险，防误杀同 session 下轮对话）\n        self.cancels.lock().unwrap().remove(&req.session_id);\n        // 同会话并发闸（LOOP-P2/A1）：拿不到闸 = 该 session 已有进行中的 chat。直接 409\n        // 而非排队——排队会把两次对话串成隐式顺序，用户在另一窗口看到的还是错乱。\n        let gate = {\n            let mut m = self.session_chats.lock().unwrap();\n            m.entry(req.session_id.clone())\n                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))\n                .clone()\n        };\n        let _permit = match gate.try_lock() {\n            Ok(p) => p,\n            Err(_) => {\n                return json!({\"ok\": false, \"error\": {\"code\": \"K409\", \"message\": \"该会话已有进行中的对话，拒绝并发 chat（会互踩取消/流式/回滚定位）；请等待完成或先停止当前回合\"}});\n            }\n        };\n        let out = self.chat_run(env, &req).await;"
+}

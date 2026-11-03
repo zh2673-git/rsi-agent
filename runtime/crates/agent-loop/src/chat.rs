@@ -123,7 +123,7 @@ impl AgentLoopPlugin {
             payload["stream_path"] = json!(path);
             payload["sid"] = json!(sid);
         }
-        let v = self.call(src, CAP_LLM, payload, LLM_DEADLINE).await?;
+        let v = self.call(src, CAP_LLM, payload, llm_step_deadline()).await?;
         Ok(serde_json::from_value(v).unwrap_or(LlmChatResp {
             ok: false,
             content: None,
@@ -203,13 +203,24 @@ impl AgentLoopPlugin {
         }
     }
 
-    /// 观察：写入记忆（尽力而为，失败不致命）。
-    pub(super) async fn observe(&self, src: &Envelope, session_id: &str, msgs: &[MemoryMsg]) {
-        if let Err(e) = self
+    /// 观察：写入记忆。返回是否成功——LOOP-P2/A2：append 失败意味着持久层与内存工作集
+    /// 开始分叉（下一轮 perceive 拉到的历史缺这段），继续跑只会放大错位。由调用方在
+    /// 关键写入点（开局用户消息 / 每轮工具结果）按连续失败计数熔断；提醒与最终答案
+    /// 仍尽力而为（失败只告警——在最终答案上熔断会把已生成的答案整个丢掉，更糟）。
+    pub(super) async fn observe(&self, src: &Envelope, session_id: &str, msgs: &[MemoryMsg]) -> bool {
+        match self
             .call(src, CAP_MEMORY, json!({"op": "append", "session_id": session_id, "messages": msgs}), MEM_DEADLINE)
             .await
         {
-            tracing::warn!(target: ID, "memory append failed: {e}");
+            Ok(_) => {
+                self.append_fails.store(0, Ordering::SeqCst);
+                true
+            }
+            Err(e) => {
+                let n = self.append_fails.fetch_add(1, Ordering::SeqCst) + 1;
+                tracing::warn!(target: ID, "memory append failed（连续 {n} 次）: {e}");
+                false
+            }
         }
     }
 
@@ -221,6 +232,20 @@ impl AgentLoopPlugin {
         };
         // 开局清残留取消标志（chat 结束时也会清理——双保险，防误杀同 session 下轮对话）
         self.cancels.lock().unwrap().remove(&req.session_id);
+        // 同会话并发闸（LOOP-P2/A1）：拿不到闸 = 该 session 已有进行中的 chat。直接 409
+        // 而非排队——排队会把两次对话串成隐式顺序，用户在另一窗口看到的还是错乱。
+        let gate = {
+            let mut m = self.session_chats.lock().unwrap();
+            m.entry(req.session_id.clone())
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+                .clone()
+        };
+        let _permit = match gate.try_lock() {
+            Ok(p) => p,
+            Err(_) => {
+                return json!({"ok": false, "error": {"code": "K409", "message": "该会话已有进行中的对话，拒绝并发 chat（会互踩取消/流式/回滚定位）；请等待完成或先停止当前回合"}});
+            }
+        };
         let out = self.chat_run(env, &req).await;
         self.cancels.lock().unwrap().remove(&req.session_id);
         // 空间卫生（A4）：会话级瞬态表逐出，防长驻进程无界增长。
@@ -229,6 +254,12 @@ impl AgentLoopPlugin {
         // 跨回合 sid 不碰撞语义不变。
         self.turn_starts.lock().unwrap().remove(&req.session_id);
         self.sid_seq.lock().unwrap().remove(&req.session_id);
+        // 会话闸卫生（LOOP-P2/A1）：strong_count==2（表 + 本链 Arc）= 没有并发等待者，
+        // 安全逐出；有等待者时留着，由最后一链的出口清理（等待中的请求自带 Arc 克隆）。
+        if Arc::strong_count(&gate) == 2 {
+            self.session_chats.lock().unwrap().remove(&req.session_id);
+        }
+        drop(_permit);
         out
     }
 
@@ -243,7 +274,11 @@ impl AgentLoopPlugin {
         // 用户消息先入记忆（持久化），随后拉取全量历史。
         // R3：文本附件拼入 content，图片附件走结构化字段（llm-adapter 按 provider 映射）。
         let user_msg = build_user_msg(&req.user_text, req.attachments.as_deref(), cfg.text_attach_limit);
-        self.observe(env, &req.session_id, &[user_msg.clone()]).await;
+        // LOOP-P2/A2：开局用户消息都落不了盘 = 会话记录已断档，本轮跑完下一轮也接不回
+        // ——立即熔断（K503），不烧 LLM token。
+        if !self.observe(env, &req.session_id, &[user_msg.clone()]).await {
+            return json!({"ok": false, "error": {"code": "K503", "message": "memory.append 失败，已熔断本轮（持久层与工作集会静默分叉）；请检查 memory 插件后重试"}});
+        }
         // trace 带全量原始附件（含文本 b64）：UI 重放展示缩略图/文件条，重新生成需原始 data_b64 重发
         let mut user_event = json!({"type": "user", "text": req.user_text});
         if let Some(att) = req.attachments.as_deref() {
@@ -554,8 +589,14 @@ impl AgentLoopPlugin {
                     tools.extend(self.session_skill_tools(env, &newly).await);
                 }
             }
-            self.observe(env, &req.session_id, &round_msgs).await;
-            messages.extend(round_msgs);
+            // LOOP-P2/A2：每轮工具/观察结果必须落持久层，否则下一轮 perceive 的历史缺这段；
+        // 连续失败 ≥3 才熔断（容忍偶发抖动），已产出内容仍在 trace 与前端可见。
+        if !self.observe(env, &req.session_id, &round_msgs).await
+            && self.append_fails.load(Ordering::SeqCst) >= 3
+        {
+            return json!({"ok": false, "error": {"code": "K503", "message": "memory.append 连续失败 3 次，熔断本轮（防工作集与持久层静默分叉）"}});
+        }
+        messages.extend(round_msgs);
             // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）
             if let Some(reason) = self.check_budget(&budget, &usage) {
                 if reason.is_hard() {

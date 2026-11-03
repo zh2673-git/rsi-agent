@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-INIT",
+  "description": "lib.rs new_with_policy：初始化 session_chats 与 append_fails",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor": "        sid_floor: AtomicU64::new(0),\n    })",
+  "patch": "        sid_floor: AtomicU64::new(0),\n        session_chats: Mutex::new(std::collections::HashMap::new()),\n        append_fails: AtomicU64::new(0),\n    })"
+}

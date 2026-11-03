@@ -122,6 +122,20 @@ const TOOLS_DEADLINE: Duration = Duration::from_secs(60);
 const LLM_DEADLINE: Duration = Duration::from_secs(600);
 const ASSETS_DEADLINE: Duration = Duration::from_secs(5);
 
+/// LLM 单步 deadline 单一事实源（LOOP-P2/A4）：agent-loop 总闸与 llm_adapter 的
+/// PROVIDER_DEADLINE（= 总闸 - 10s 余量）同读 env `LLM_STEP_DEADLINE_SECS`（缺省 600），
+/// 配对关系由代码保证，不再依赖两侧注释互指人工同步（改其一漏其余 → 涓流占坑/K502
+/// 雪崩复发的历史不再可能）。env < 30s 视为误配回退缺省；CHAT_BUDGET_SECS（整轮预算）
+/// 仍独立配置，需 ≥ 本闸（文档约束不变）。
+fn llm_step_deadline() -> Duration {
+    std::env::var("LLM_STEP_DEADLINE_SECS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|s| *s >= 30)
+        .map(Duration::from_secs)
+        .unwrap_or(LLM_DEADLINE)
+}
+
 /// 工具结果回喂上限（字符数，PLAN R2）：防止单条大结果撑爆上下文与 memory。
 /// 0 = 禁用截断。可用 `TOOL_RESULT_LIMIT` 覆盖。
 const DEFAULT_TOOL_RESULT_CHARS: usize = 8000;
@@ -171,6 +185,13 @@ pub struct AgentLoopPlugin {
     /// 新 seed 取 `max(当前毫秒, floor+1)`——严格大于历史上任何已发 sid，跨回合
     /// 不碰撞语义在逐出后依然成立。
     sid_floor: AtomicU64,
+    /// 同会话并发闸（LOOP-P2/A1）：两个并发 chat 用同一 session_id 会互清取消标志、
+    /// 互踩 turn_starts 与流式 sid（低概率、高混淆度）。值是 per-session 的 tokio Mutex，
+    /// chat_body 入口 try_lock——拿不到即 409 拒绝，不排队不阻塞。
+    session_chats: Mutex<std::collections::HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    /// memory.append 连续失败计数（LOOP-P2/A2）：持久层与内存工作集开始分叉的信号，
+    /// 成功即清零；达到阈值由关键写入点熔断本轮，防错位静默放大。
+    append_fails: AtomicU64,
 }
 
 /// 构造插件实例（`Arc<dyn Plugin>`）：策略钩子按 env 解析（缺省关闭）。
@@ -214,6 +235,8 @@ pub fn new_with_policy(max_rounds: usize, policy: LoopPolicy) -> PluginInstance 
         sid_seq: Mutex::new(std::collections::HashMap::new()),
         mirrors: Mutex::new(std::collections::HashMap::new()),
         sid_floor: AtomicU64::new(0),
+        session_chats: Mutex::new(std::collections::HashMap::new()),
+        append_fails: AtomicU64::new(0),
     })
 }
 
@@ -454,6 +477,8 @@ mod tests {
             sid_seq: Mutex::new(std::collections::HashMap::new()),
             mirrors: Mutex::new(std::collections::HashMap::new()),
             sid_floor: AtomicU64::new(0),
+            session_chats: Mutex::new(std::collections::HashMap::new()),
+            append_fails: AtomicU64::new(0),
         };
         let s1 = p.next_sid("s-x");
         let s2 = p.next_sid("s-x");

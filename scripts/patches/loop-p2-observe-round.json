@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-OBSERVE-ROUND",
+  "description": "chat.rs：每轮工具/观察结果 append 连续失败 ≥3 即 K503 熔断本轮（阈值容忍偶发抖动）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "        self.observe(env, &req.session_id, &round_msgs).await;\n            messages.extend(round_msgs);",
+  "patch": "        // LOOP-P2/A2：每轮工具/观察结果必须落持久层，否则下一轮 perceive 的历史缺这段；\n        // 连续失败 ≥3 才熔断（容忍偶发抖动），已产出内容仍在 trace 与前端可见。\n        if !self.observe(env, &req.session_id, &round_msgs).await\n            && self.append_fails.load(Ordering::SeqCst) >= 3\n        {\n            return json!({\"ok\": false, \"error\": {\"code\": \"K503\", \"message\": \"memory.append 连续失败 3 次，熔断本轮（防工作集与持久层静默分叉）\"}});\n        }\n        messages.extend(round_msgs);"
+}

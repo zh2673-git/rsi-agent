@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-OBSERVE",
+  "description": "chat.rs observe：返回是否成功并维护连续失败计数（A2 熔断的信号源；成功清零）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "    /// 观察：写入记忆（尽力而为，失败不致命）。\n    pub(super) async fn observe(&self, src: &Envelope, session_id: &str, msgs: &[MemoryMsg]) {\n        if let Err(e) = self\n            .call(src, CAP_MEMORY, json!({\"op\": \"append\", \"session_id\": session_id, \"messages\": msgs}), MEM_DEADLINE)\n            .await\n        {\n            tracing::warn!(target: ID, \"memory append failed: {e}\");\n        }\n    }",
+  "patch": "    /// 观察：写入记忆。返回是否成功——LOOP-P2/A2：append 失败意味着持久层与内存工作集\n    /// 开始分叉（下一轮 perceive 拉到的历史缺这段），继续跑只会放大错位。由调用方在\n    /// 关键写入点（开局用户消息 / 每轮工具结果）按连续失败计数熔断；提醒与最终答案\n    /// 仍尽力而为（失败只告警——在最终答案上熔断会把已生成的答案整个丢掉，更糟）。\n    pub(super) async fn observe(&self, src: &Envelope, session_id: &str, msgs: &[MemoryMsg]) -> bool {\n        match self\n            .call(src, CAP_MEMORY, json!({\"op\": \"append\", \"session_id\": session_id, \"messages\": msgs}), MEM_DEADLINE)\n            .await\n        {\n            Ok(_) => {\n                self.append_fails.store(0, Ordering::SeqCst);\n                true\n            }\n            Err(e) => {\n                let n = self.append_fails.fetch_add(1, Ordering::SeqCst) + 1;\n                tracing::warn!(target: ID, \"memory append failed（连续 {n} 次）: {e}\");\n                false\n            }\n        }\n    }"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "LOOP-P2-PY-DEADLINE",
+  "description": "llm_adapter/providers/base.py：PROVIDER_DEADLINE 改为同读 LLM_STEP_DEADLINE_SECS（=总闸-10s，代码级配对）",
+  "file": "runtime/plugins/llm_adapter/providers/base.py",
+  "anchor": "PROVIDER_DEADLINE = 590.0",
+  "patch": "# LOOP-P2/A4：与 agent-loop 总闸同读单一 env（缺省 600-10=590），配对关系由代码保证，\n# 不再依赖两侧注释互指人工同步；env 缺失/非法回退 590（历史行为不变）。\ntry:\n    PROVIDER_DEADLINE = max(60.0, float(os.environ.get(\"LLM_STEP_DEADLINE_SECS\", \"600\")) - 10.0)\nexcept ValueError:\n    PROVIDER_DEADLINE = 590.0"
+}

@@ -37,7 +37,12 @@ import time
 # PROVIDER_DEADLINE（= 总闸 - 10s 余量），干净业务错误（message 含 timeout）→ T3 正常重试。
 # 深度思考模型长推理是常态，110s 曾误伤（用户实测）——两侧常量必须配对修改，
 # 且整轮预算 CHAT_BUDGET_SECS 缺省 900s 需 ≥ 总闸。
-PROVIDER_DEADLINE = 590.0
+# LOOP-P2/A4：与 agent-loop 总闸同读单一 env（缺省 600-10=590），配对关系由代码保证，
+# 不再依赖两侧注释互指人工同步；env 缺失/非法回退 590（历史行为不变）。
+try:
+    PROVIDER_DEADLINE = max(60.0, float(os.environ.get("LLM_STEP_DEADLINE_SECS", "600")) - 10.0)
+except ValueError:
+    PROVIDER_DEADLINE = 590.0
 
 
 # ── 取消（R1 停止失效修复）──────────────────────────────────────────────
