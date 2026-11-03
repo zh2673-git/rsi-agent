@@ -1,0 +1,17 @@
+[
+  {
+    "name": "repo_query",
+    "description": "Read-only git repo state queries for the rsi-agent workspace (no writes, no network): status (branch + porcelain dirty list), diff_stat (working tree+staged vs HEAD, i.e. what would be committed), log (last 10 oneline), remote (remotes with urls), branch (current + upstream). Use before committing to verify exactly what will be committed.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "status | diff_stat | log | remote | branch; default 'status'"
+        }
+      },
+      "required": ["query"]
+    },
+    "exec": {"cmd": ["python", "exec_query.py"], "timeout_secs": 30}
+  }
+]
