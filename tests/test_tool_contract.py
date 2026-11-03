@@ -289,5 +289,68 @@ class DeclarationDriftTest(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], "BAD_PROFILE")
 
 
+class ExternalPatchTest(unittest.TestCase):
+    """v8 外挂补丁语义锁：scripts/patches/*.json 的加载、容错与执行语义。"""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "apply_tool_patches", SCRIPTS / "apply-tool-patches.py"
+        )
+        self.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mod)
+
+    def test_load_external_picks_up_json(self):
+        """真实外挂文件被加载为合法补丁元组。"""
+        with patch.object(self.mod, "ROOT", RSI_ROOT):
+            ext = self.mod._load_external()
+        self.assertTrue(ext, "scripts/patches/ 下应有外挂补丁")
+        for pid, desc, path, anchor, patch_text in ext:
+            self.assertTrue(str(pid))
+            self.assertTrue(str(anchor))
+            self.assertTrue(str(patch_text))
+            self.assertTrue(str(path))
+
+    def test_corrupt_external_skipped_not_fatal(self):
+        """单个外挂 JSON 损坏 → 跳过并提示，不拖垮补丁流程。"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            fake_root = Path(td)
+            (fake_root / "scripts" / "patches").mkdir(parents=True)
+            (fake_root / "scripts" / "patches" / "bad.json").write_text("{oops", encoding="utf-8")
+            with patch.object(self.mod, "ROOT", fake_root):
+                self.assertEqual(self.mod._load_external(), [])
+            # 内置清单不受影响
+            self.assertEqual(len(self.mod.PATCHES), 11)
+
+    def test_external_patch_applies_and_reverts(self):
+        """外挂补丁走与内置一致的 apply/--revert 语义（锚点替换 + 备份还原）。"""
+        import shutil
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            fake_root = Path(td)
+            target = fake_root / "target.txt"
+            anchor = "hello world"
+            patch_text = "hello patched"
+            target.write_text("say " + anchor + " now", encoding="utf-8")
+            (fake_root / "scripts" / "patches").mkdir(parents=True)
+            (fake_root / "scripts" / "patches" / "t1.json").write_text(json.dumps({
+                "id": "T1", "description": "临时验证", "file": "target.txt",
+                "anchor": anchor, "patch": patch_text,
+            }), encoding="utf-8")
+            with patch.object(self.mod, "ROOT", fake_root):
+                rc_apply = self.mod.apply(dry=False)
+                self.assertEqual(rc_apply, 0)
+                self.assertIn(patch_text, target.read_text(encoding="utf-8"))
+                # 幂等：再跑一遍不重复替换
+                self.assertEqual(self.mod.apply(dry=False), 0)
+                self.assertEqual(target.read_text(encoding="utf-8").count(patch_text), 1)
+                # 回滚：--revert 还原到最初态
+                self.assertEqual(self.mod.revert(), 0)
+                self.assertEqual(target.read_text(encoding="utf-8"), "say hello world now")
+                self.assertFalse((fake_root / "target.txt.patchbak").exists())
+            shutil.rmtree(td, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

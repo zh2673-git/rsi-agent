@@ -1,0 +1,8 @@
+{
+  "id": "X1",
+  "description": "files.py 闸报错补「外挂补丁」通道指引（v8 数据驱动扩展入口）",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor": "\"确需修改核心请直接向用户说明，由用户自行修改，或按路径授权：config.json \"\n            'tools.allow_core_write 填前缀列表（如 [\"runtime/crates/agent-loop\"]，'\n            \"config.json 与 plugins/memory 永不豁免），改后重启 host 生效。\",",
+  "patch": "\"确需修改核心请直接向用户说明，由用户自行修改，或按路径授权：config.json \"\n            'tools.allow_core_write 填前缀列表（如 [\"runtime/crates/agent-loop\"]，'\n            \"config.json 与 plugins/memory 永不豁免），改后重启 host 生效；也可把我写好的 \"\n            \"scripts/patches/*.json 补丁由你执行 python scripts/apply-tool-patches.py 应用。\",",
+  "note": "应用后需重启宿主生效；--revert 可整体还原"
+}

@@ -80,7 +80,7 @@
 **禁止清单**（拦截点已强制，不要尝试绕行）：`crates/`（Rust 源码与前端）、`plugins/memory`、`plugins/llm_adapter`、`plugins/assets`（出厂资产）、`plugins/tools/tools/`（内置工具实现）、`plugins/tools/tools_plugin.py`、`config.json`、`.git/`。
 
 **行为纪律**：
-1. 需求超出上表途径（如要新 UI、新事件类型、改模型调度）时，**不要动手**——向用户说明「这需要改核心代码 + 具体方案」，由用户决策：自行修改，或按路径授权（config.json `tools.allow_core_write` 填前缀列表，如 `["runtime/crates/agent-loop", "runtime/plugins/tools/tools"]`；`config.json` 与 `plugins/memory` 永不豁免）。
+1. 需求超出上表途径（如要新 UI、新事件类型、改模型调度）时，**不要动手**——向用户说明「这需要改核心代码 + 具体方案」，由用户决策：自行修改、按路径授权（config.json `tools.allow_core_write` 填前缀列表，如 `["runtime/crates/agent-loop", "runtime/plugins/tools/tools"]`；`config.json` 与 `plugins/memory` 永不豁免），或走**外挂补丁**（把改动写成 `scripts/patches/*.json`——`scripts/` 在可写区，执行由用户跑 `python scripts/apply-tool-patches.py --dry-run` 预演后应用；幂等、可 `--revert` 回滚，执行权与重启时机始终在用户手里）。
 2. 不用 bash 命令间接写上述路径绕过拦截（如 `echo >` / `cp`）——这是破坏性行为。bash 对工作区的所有改动会被自动快照留痕（含核心区路径），随回滚一并撤销，且留痕不豁免纪律。
 3. 遇到 CORE_PROTECTED 报错视为硬边界：换合法途径实现，或停下报告，不重试同一路径。
 4. 文件修改一律优先 write_file / edit_file（可精确追溯 diff）；bash 只用于运行、构建、查询与产物输出（写产物目录）。

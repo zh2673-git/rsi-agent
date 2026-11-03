@@ -9,6 +9,14 @@ write_file / edit_file 触碰即 CORE_PROTECTED。这里把补丁做成**幂等�
     python scripts/apply-tool-patches.py --dry-run     # 只打印将要改什么（推荐先跑）
     python scripts/apply-tool-patches.py               # 实际写入（自动生成 .patchbak）
     python scripts/apply-tool-patches.py --revert      # 从 .patchbak 还原
+    python scripts/apply-tool-patches.py --list        # 列出内置 + 外挂补丁
+
+外挂补丁（v8 数据驱动扩展）：`scripts/patches/*.json`，每文件一个补丁，字段
+    {"id": "X-xx", "description": "...", "file": "runtime/...（仓库相对路径）",
+     "anchor": "被替换的精确原文", "patch": "替换后的原文"}
+agent 只写 JSON（scripts/ 在可写区），**执行仍由用户跑本脚本**——预演/回滚/
+幂等语义与内置补丁完全一致。同文件多补丁时共享一份 .patchbak，--revert 会把
+该文件还原到最初态（覆盖所有已应用补丁）。
 
 补丁清单：
   P1  bash.py     多行命令 fail-loud（MULTILINE_UNSUPPORTED）
@@ -34,6 +42,7 @@ v7 语义：允许列表为空 / 变量缺失 / 值为 "0" / 布尔遗留 "1" �
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -264,6 +273,30 @@ PATCHES = (
 )
 
 
+def _load_external() -> list[tuple[str, str, Path, str, str]]:
+    """v8：scripts/patches/*.json 外挂补丁（agent 只写 JSON，执行仍由用户跑本脚本）。
+
+    单个外挂文件格式错误 → 打印 SKIP 并跳过，不影响内置补丁与其它外挂补丁。
+    """
+    out: list[tuple[str, str, Path, str, str]] = []
+    pdir = ROOT / "scripts" / "patches"
+    if not pdir.is_dir():
+        return out
+    for jf in sorted(pdir.glob("*.json")):
+        try:
+            d = json.loads(jf.read_text(encoding="utf-8"))
+            out.append((
+                str(d["id"]),
+                str(d.get("description", jf.stem)),
+                ROOT / str(d["file"]),
+                str(d["anchor"]),
+                str(d["patch"]),
+            ))
+        except Exception as e:  # 外挂文件损坏不能拖垮整个补丁流程
+            print(f"[{jf.name}] SKIP 外挂补丁格式错误: {e}")
+    return out
+
+
 def _read(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
@@ -274,7 +307,7 @@ def _bak(p: Path) -> Path:
 
 def apply(dry: bool) -> int:
     failed = 0
-    for pid, desc, path, anchor, patch in PATCHES:
+    for pid, desc, path, anchor, patch in tuple(PATCHES) + tuple(_load_external()):
         if not path.is_file():
             print(f"[{pid}] SKIP 文件不存在: {path}")
             failed += 1
@@ -300,7 +333,7 @@ def apply(dry: bool) -> int:
 
 def revert() -> int:
     n = 0
-    for pid, desc, path, _a, _p in PATCHES:
+    for pid, desc, path, _a, _p in tuple(PATCHES) + tuple(_load_external()):
         bak = _bak(path)
         if not bak.exists():
             print(f"[{pid}] SKIP 无备份可还原: {desc}")
@@ -316,7 +349,17 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="应用/预演/回滚工具层核心补丁")
     ap.add_argument("--dry-run", action="store_true", help="只打印，不写盘")
     ap.add_argument("--revert", action="store_true", help="从 .patchbak 还原")
+    ap.add_argument("--list", action="store_true", help="列出内置与外挂补丁（不执行）")
     ns = ap.parse_args(argv)
+    if ns.list:
+        print("内置：")
+        for pid, desc, path, _a, _p in PATCHES:
+            print(f"  [{pid}] {desc}  ({path.relative_to(ROOT)})")
+        ext = _load_external()
+        print(f"外挂（scripts/patches/*.json）：{len(ext)} 个")
+        for pid, desc, path, _a, _p in ext:
+            print(f"  [{pid}] {desc}  ({path.relative_to(ROOT)})")
+        return 0
     if ns.revert:
         return revert()
     rc = apply(ns.dry_run)
