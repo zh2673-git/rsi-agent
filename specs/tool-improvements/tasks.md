@@ -106,3 +106,12 @@ D1 根因链（`bash.py:223` 单 argv → `sandbox-run.rs:22` join → `sandbox-
   压过授权 / skills 通道零授权可用）；unittest 30/30 绿、`cargo check` 过。提交 e6ff0fa。
   E4 现场实测确认：会话 guest 进程启动时已加载旧 bash.py，补丁对其不可见（多行命令仍静默
   截断）——**E4/E5/E7 必须重启宿主后复测**；`cargo test` 同因（host.exe 持锁）暂挂。
+- 2026-11-03（第六轮）：用户三问收口。① 补丁脚本 v8 数据驱动外挂：agent 只写
+  `scripts/patches/*.json`（锚点/替换/说明），`--list` 可查；首例外挂 X1（files.py 闸报错
+  补外挂通道指引）按新惯例由 agent 自行执行应用成功（备份 *.patchbak，无需用户开闸跑命令），
+  SYSTEM.md 纪律 1 补「外挂补丁」第三选项；新增 `ExternalPatchTest` 3 例语义锁（加载 /
+  损坏容错 / apply+幂等+revert 闭环），unittest 33/33 绿。② git-ops 技能（d77216d）：
+  SKILL.md 提交行文与密钥/push 纪律 + repo_query.py 只读查询（CLI 与执行器双形态）+
+  tools.json，conformance 门禁 ok；核查 `config.json` 从未入库。③ 首次推送 origin：
+  8 笔提交 `4543490..d77216d` 上 GitHub（此前一直只在本地）。待办：E4/E5/E7 重启宿主后
+  复测；repo_query 待用户在设置页批准启用；首版 release 待用户拍板。
