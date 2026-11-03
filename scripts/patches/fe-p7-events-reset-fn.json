@@ -1,0 +1,7 @@
+{
+  "id": "FE-P7-EVENTS-RESET-FN",
+  "description": "app-events.js：resetSessionFeed() 集中重置入口——DOM 清空 → 各模块 reset → 本模块事件状态，消灭 connect(0) 的一长串跨模块手工赋值",
+  "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+  "anchor": "let es = null, lastAfter = 0, reconnectTimer = null;\nfunction connect(after) {",
+  "patch": "let es = null, lastAfter = 0, reconnectTimer = null;\n\n// P7 会话重置集中化：首屏/切换会话/回滚后的全量清场，过去是 connect(0) 里一行 20+ 变量的\n// 手工链（跨模块直改 app-stream/app-files 内部状态），任何一处漏登记就是串台 bug。\n// 现在各模块只暴露一个 reset 入口，这里按依赖序调用；新增状态在本模块 reset 内登记。\nfunction resetSessionFeed() {\n  feed.innerHTML = \"\";\n  pending.clear();\n  lastAfter = 0;\n  doneSids.clear();\n  resetStreamState();   // app-stream.js：流式句柄 + 过程框 + 回合卡 + 子代理框 + 缓冲\n  resetFileChanges();   // app-files.js：文件变更视图\n  userTurns = [];\n  turnArtifacts = [];\n  turnSourceBox = null;\n  turnSourceUrls.clear();\n  turnArtifactPaths.clear();\n  turnTail = null;\n  turnFcBox = null;\n}\n\nfunction connect(after) {"
+}

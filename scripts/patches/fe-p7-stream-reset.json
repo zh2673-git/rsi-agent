@@ -1,0 +1,7 @@
+{
+  "id": "FE-P7-STREAM-RESET",
+  "description": "app-stream.js：暴露 resetStreamState() 统一重置入口——补上从未被 connect(0) 清理的 streamBuf 与 roundCards（跨会话泄漏：旧回合卡缓冲串台到新会话）",
+  "file": "runtime/crates/host/web-dist/vendor/app-stream.js",
+  "anchor": "const subBoxes = new Map(); // R11 子代理实时框：key = sub 标签（\"sub-1\"），value = {box, body, think, text}",
+  "patch": "const subBoxes = new Map(); // R11 子代理实时框：key = sub 标签（\"sub-1\"），value = {box, body, think, text}\n\n// P7 会话重置集中化（stream 侧）：过去 events 的 connect(0) 跨模块手工逐变量清理，\n// 新增状态忘记登记就跨会话泄漏（streamBuf / roundCards 即漏网者）。本模块状态只由\n// 本模块的 reset 入口清——新增变量时在同处登记即可，不再依赖外部清单同步。\nfunction resetStreamState() {\n  streamSid = streamCard = streamBody = streamStats = null;\n  streamBuf.reasoning = \"\";\n  streamBuf.text = \"\";\n  processBox = processBody = processThink = null;\n  roundCards = [];\n  subBoxes.clear();\n}"
+}

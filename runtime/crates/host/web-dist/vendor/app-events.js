@@ -161,11 +161,31 @@ function render(ev) {
 // host 在重放阶段只推持久 trace 事件、不推流式旁路（最终 assistant 已含完整内容），catch up 后才推 stream_*。
 // 这样刷新/重连都只补增量：既不叠加重复气泡，也不整段重绘。
 let es = null, lastAfter = 0, reconnectTimer = null;
+
+// P7 会话重置集中化：首屏/切换会话/回滚后的全量清场，过去是 connect(0) 里一行 20+ 变量的
+// 手工链（跨模块直改 app-stream/app-files 内部状态），任何一处漏登记就是串台 bug。
+// 现在各模块只暴露一个 reset 入口，这里按依赖序调用；新增状态在本模块 reset 内登记。
+function resetSessionFeed() {
+  feed.innerHTML = "";
+  pending.clear();
+  lastAfter = 0;
+  doneSids.clear();
+  resetStreamState();   // app-stream.js：流式句柄 + 过程框 + 回合卡 + 子代理框 + 缓冲
+  resetFileChanges();   // app-files.js：文件变更视图
+  userTurns = [];
+  turnArtifacts = [];
+  turnSourceBox = null;
+  turnSourceUrls.clear();
+  turnArtifactPaths.clear();
+  turnTail = null;
+  turnFcBox = null;
+}
+
 function connect(after) {
   after = after || 0;
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (es) es.close();
-  if (after === 0) { feed.innerHTML = ""; pending.clear(); lastAfter = 0; doneSids.clear(); processBox = processBody = processThink = null; subBoxes.clear(); userTurns = []; turnArtifacts = []; turnSourceBox = null; turnSourceUrls.clear(); turnArtifactPaths.clear(); turnTail = null; turnFcBox = null; resetFileChanges(); } // 首屏/切换/回滚后：清空后全量重放
+  if (after === 0) resetSessionFeed(); // 首屏/切换/回滚后：集中重置（P7），清空后全量重放
   // 清 DOM 后流式句柄一并失效，避免继续写入已移除的气泡
   streamSid = streamCard = streamBody = streamStats = null;
   es = new EventSource(`/api/events?session=${encodeURIComponent(session)}&after=${after}`);

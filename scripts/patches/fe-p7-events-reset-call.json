@@ -1,0 +1,7 @@
+{
+  "id": "FE-P7-EVENTS-RESET-CALL",
+  "description": "app-events.js connect(0)：20+ 变量手工清理链替换为 resetSessionFeed() 一次调用",
+  "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+  "anchor": "  if (after === 0) { feed.innerHTML = \"\"; pending.clear(); lastAfter = 0; doneSids.clear(); processBox = processBody = processThink = null; subBoxes.clear(); userTurns = []; turnArtifacts = []; turnSourceBox = null; turnSourceUrls.clear(); turnArtifactPaths.clear(); turnTail = null; turnFcBox = null; resetFileChanges(); } // 首屏/切换/回滚后：清空后全量重放",
+  "patch": "  if (after === 0) resetSessionFeed(); // 首屏/切换/回滚后：集中重置（P7），清空后全量重放"
+}
