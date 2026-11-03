@@ -117,7 +117,47 @@
 
 → 该问题属「正确性/可验证性」而非「效率」，应**单独立项 `specs/plan-completion`**
 （按 `project-development-prompt.md:346`「先规则层再时间层」，它应排在本 spec 之前）。
-本 spec 只登记，不实施。
+**已立项**（2026-11-03）：`specs/plan-completion/spec.md` + `tasks.md`。本 spec 只登记，不实施。
+
+立项时补核了两条事实（比原描述更硬）：
+1. 全仓 `findstr /S /C:"tasks.md" *.rs` **只命中 `lib.rs:538` 一条测试字符串** →
+   **代码里没有任何一处真正读取计划文件**，计划目前纯属「给模型看的文本」。
+2. `has_acceptance_marker`（`lib.rs:104`）是**纯关键词扫描**（`验收`/`acceptance`/
+   `checklist`/`核对清单`），答复里出现这四个词之一即算「已核对」。
+
+### E7（P0，2026-11-03 新增）终止即失忆：护栏被当成处罚
+
+**用户原话**：`✗ [budget] chat 预算耗尽：时长超限。这个还是不合理的。就比如这次任务还没完成，
+就提示这个。`
+
+**根因**（`budget.rs:check_stop`）：墙钟与 token 都直接 `return K508`，**丢弃本轮全部
+工具成果、思考与部分答案**。触发条件是阶段 A 把 `budget_secs` 从 0 改为 900——
+护栏一装上，就把「未完成」升级成「什么都没留下」。
+
+**语义缺陷**：预算耗尽有两种完全不同的含义，被同一个错误码糊住了：
+
+| 类型 | 含义 | 正确处置 |
+|---|---|---|
+| token 超限 | **成本**上限，不能再花钱 | 硬停（K508），可接受 |
+| 墙钟超时 | **时间**到了，但钱还能花 | 软收敛：剥工具 + 要一份进度报告 |
+
+护栏的目的应是**帮任务安全落地**，不是**让已完成的工作凭空消失**。
+
+**修复**（`budget.rs` + `chat.rs`）：
+- `StopReason::{Tokens, Deadline}` + `is_hard()` + `tag()`；`check_stop` 拆为纯判定 `check_budget`
+- 墙钟到点 → `wrap_up` 状态：**收敛轮剥掉 tools**（手里有工具模型必然继续探索，
+  预算就形同虚设）、注入一次性 `WRAP_UP_DEADLINE` 指令、模型若仍想调工具则**就地**
+  交 `wrap_up_report`（已完成 / 未完成 / 下一步），**绝不落回再调一次 LLM**（那是多花钱）
+- 只有 token 超限才 `budget_stop` → K508
+
+**回归**：`react_mocks` 新增 2 条 ——
+`wall_clock_budget_soft_converges_instead_of_aborting`（断言 ok:true / 成果保留 /
+仅一次收敛轮 / 收敛轮无 tools / 指令已注入）与
+`wall_clock_budget_without_answer_still_reports_progress`（模型完全不配合时仍交进度报告）。
+总测试 63 → **64 全绿**。
+
+**仍未解决（转 `specs/plan-completion`）**：中止/收敛的 chat 必须写 `chat_summary`，
+否则事后无法判断「掐断时做到哪」。见 tasks.md §E2「D1 观测缺口」。
 
 ## 4. 目标与非目标
 

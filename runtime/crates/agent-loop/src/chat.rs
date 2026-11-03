@@ -5,7 +5,7 @@
 //! P8 超限降级）、`max_rounds`（生效轮次上限）、用户消息装配（`build_user_msg` /
 //! `text_attach_limit` / `base64_decode_utf8`）与历史窗口（`apply_history_limit`）。
 
-use super::budget::{is_transient_kernel_err, is_transient_llm_error, ChatBudget, UsageAcc};
+use super::budget::{is_transient_kernel_err, is_transient_llm_error, ChatBudget, StopReason, UsageAcc, WRAP_UP_DEADLINE};
 use super::config::AgentLoopConfig;
 use super::subagent::task_spec;
 use super::tools_exec::truncate_chars;
@@ -332,6 +332,9 @@ impl AgentLoopPlugin {
         let mut llm_calls: u32 = 0;
         let mut retries: u32 = 0;
         let mut tool_failures: u32 = 0;
+        // 墙钟到点后的「强制收敛」状态（T4 语义修正）：置位后不再发起新工具，
+        // 由下一轮 LLM 以 wrap-up 指令交出「已完成 / 未完成 / 下一步」。None = 未触发。
+        let mut wrap_up: Option<StopReason> = None;
         // 总预算（T4）：顶层取配置缺省；子代理继承父链衰减后的剩余（req.*_left）。
         let budget = ChatBudget {
             deadline: req
@@ -343,9 +346,16 @@ impl AgentLoopPlugin {
         let max_rounds = cfg.max_rounds;
         for _round in 0..max_rounds {
             rounds += 1;
-            // 停车检查点①：每轮开头（取消 > 时长 > token）
-            if let Some(v) = self.check_stop(env, &req.session_id, &budget, &usage).await {
+            // 停车检查点①：每轮开头——取消（硬中止，用户意愿最高）优先，
+            // 其次预算：token 硬停，墙钟软收敛（见 budget::StopReason）。
+            if let Some(v) = self.check_cancel(env, &req.session_id).await {
                 return v;
+            }
+            if let Some(reason) = self.check_budget(&budget, &usage) {
+                if reason.is_hard() {
+                    return self.budget_stop(env, &req.session_id, reason).await;
+                }
+                self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;
             }
             let sid = self.next_sid(&req.session_id); // 单调唯一（跨回合不碰撞），形状不变
             let stream = stream_path.as_deref().map(|p| (p, sid.as_str()));
@@ -360,8 +370,11 @@ impl AgentLoopPlugin {
                     return v;
                 }
             };
+            // 收敛轮必须剥掉工具：手里还有工具，模型一定继续探索——预算就形同虚设。
+            // 剥掉后它只剩「说话」这一个动作，被迫交出已完成/未完成。
+            let round_tools: Option<&[ToolSpec]> = if wrap_up.is_some() { None } else { Some(&tools[..]) };
             let resp = match self
-                .plan_with_retry(env, &req.session_id, &mut messages, Some(&tools), stream, &cfg, &mut retries)
+                .plan_with_retry(env, &req.session_id, &mut messages, round_tools, stream, &cfg, &mut retries)
                 .await
             {
                 Ok(r) => r,
@@ -407,6 +420,23 @@ impl AgentLoopPlugin {
                 messages.push(reminder);
                 continue;
             }
+            // 墙钟已到点而模型仍想调工具：不再执行——这是收敛轮的「不配合」，
+            // 不能落回尾部再调一次 LLM（那是多花一次钱）。就地交进度报告收尾：
+            // 已回喂的工具结果与思考都留在 messages 里，成果不丢。
+            if let Some(reason) = wrap_up {
+                if !resp.tool_calls.is_empty() {
+                    let mut resp = resp;
+                    resp.content = Some(Self::wrap_up_report(rounds, &steps, reason, &cfg));
+                    resp.tool_calls.clear();
+                    return self
+                        .finish(
+                            env, &req.session_id, resp, rounds, steps, sid, usage, llm_ms,
+                            std::mem::take(&mut round_reasonings), &cfg, llm_calls, retries, tool_failures,
+                            wrap_up,
+                        )
+                        .await;
+                }
+            }
             if resp.tool_calls.is_empty() {
                 // verify_before_final（默认关闭）：非平凡任务（有工具步骤或验收痕迹）最终答复前
                 // 需逐条核对验收清单；只提醒一次，答复后无论是否核对均收敛（防死循环）。
@@ -434,6 +464,7 @@ impl AgentLoopPlugin {
                     .finish(
                         env, &req.session_id, resp, rounds, steps, sid, usage, llm_ms,
                         std::mem::take(&mut round_reasonings), &cfg, llm_calls, retries, tool_failures,
+                        wrap_up,
                     )
                     .await;
             }
@@ -526,14 +557,20 @@ impl AgentLoopPlugin {
             self.observe(env, &req.session_id, &round_msgs).await;
             messages.extend(round_msgs);
             // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）
-            if let Some(v) = self.check_stop(env, &req.session_id, &budget, &usage).await {
-                return v;
+            if let Some(reason) = self.check_budget(&budget, &usage) {
+                if reason.is_hard() {
+                    return self.budget_stop(env, &req.session_id, reason).await;
+                }
+                self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;
             }
         }
 
         // 停车检查点③：轮次耗尽前的强制收敛轮（预算可能恰在此间耗尽）
-        if let Some(v) = self.check_stop(env, &req.session_id, &budget, &usage).await {
-            return v;
+        if let Some(reason) = self.check_budget(&budget, &usage) {
+            if reason.is_hard() {
+                return self.budget_stop(env, &req.session_id, reason).await;
+            }
+            wrap_up = Some(reason);
         }
         // 轮次耗尽：最后一轮不带工具，强制收敛（同样先过发送前收紧）
         rounds += 1;
@@ -565,11 +602,102 @@ impl AgentLoopPlugin {
                 .finish(
                     env, &req.session_id, resp, rounds, steps, sid, usage, llm_ms,
                     std::mem::take(&mut round_reasonings), &cfg, llm_calls, retries, tool_failures,
+                    wrap_up,
+                )
+                .await;
+        }
+        // 收敛轮没交出答案（模型仍在发工具调用 / LLM 失败）：预算已到点，
+        // 宁可交一份「进度报告」也不把本轮成果整批丢掉。
+        if let Some(reason) = wrap_up {
+            let report = Self::wrap_up_report(rounds, &steps, reason, &cfg);
+            let mut resp = resp;
+            resp.content = Some(report);
+            resp.tool_calls.clear();
+            return self
+                .finish(
+                    env, &req.session_id, resp, rounds, steps, sid, usage, llm_ms,
+                    std::mem::take(&mut round_reasonings), &cfg, llm_calls, retries, tool_failures,
+                    wrap_up,
                 )
                 .await;
         }
         self.trace(env, &req.session_id, json!({"type": "error", "where": "max_rounds", "message": format!("agent loop exhausted max_rounds={max_rounds}")})).await;
         json!({"ok": false, "error": {"code": "K502", "message": format!("agent loop exhausted max_rounds={max_rounds}")}})
+    }
+
+    /// 预算硬停（仅 token）：成本上限已到，不再花任何一次 LLM 调用。
+    /// 与旧实现一致地返回 K508——调用方（宿主/子代理）据此判断「被预算掐断」。
+    async fn budget_stop(&self, env: &Envelope, session_id: &str, reason: StopReason) -> Value {
+        let msg = match reason {
+            StopReason::Tokens => "chat 预算耗尽：token 超限",
+            StopReason::Deadline => "chat 预算耗尽：时长超限",
+        };
+        self.trace(env, session_id, json!({"type": "error", "where": "budget", "message": msg})).await;
+        json!({"ok": false, "error": {"code": "K508", "message": msg}})
+    }
+
+    /// 墙钟到点：插入一次性 wrap-up 指令并置位软停状态（之后不再执行工具）。
+    /// 只提醒一次（`wrap_up` 已置位即返回），防重复注入。
+    async fn wrap_up_once(
+        &self,
+        env: &Envelope,
+        session_id: &str,
+        messages: &mut Vec<MemoryMsg>,
+        wrap_up: &mut Option<StopReason>,
+        reason: StopReason,
+    ) {
+        if wrap_up.is_some() {
+            return;
+        }
+        *wrap_up = Some(reason);
+        self.trace(
+            env,
+            session_id,
+            json!({"type": "policy", "where": "budget_wrap_up", "message": "墙钟预算到点，转入强制收敛轮（成果保留）"}),
+        )
+        .await;
+        let reminder = MemoryMsg {
+            role: "user".into(),
+            content: Some(WRAP_UP_DEADLINE.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        self.observe(env, session_id, &[reminder.clone()]).await;
+        messages.push(reminder);
+    }
+
+    /// 进度报告兜底：收敛轮没能给出答案时，用已记录的步骤自述进度。
+    /// 宁可交一份可续做的清单，也不让本轮成果随中止消失。
+    fn wrap_up_report(rounds: u32, steps: &[StepRecord], reason: StopReason, cfg: &AgentLoopConfig) -> String {
+        let mut by_tool: Vec<(String, usize)> = Vec::new();
+        for s in steps {
+            match by_tool.iter_mut().find(|(t, _)| t == &s.tool) {
+                Some((_, n)) => *n += 1,
+                None => by_tool.push((s.tool.clone(), 1)),
+            }
+        }
+        let detail = if by_tool.is_empty() {
+            "（本次未执行工具调用）".to_string()
+        } else {
+            by_tool
+                .iter()
+                .map(|(t, n)| format!("{t}×{n}"))
+                .collect::<Vec<_>>()
+                .join("、")
+        };
+        format!(
+            "[预算到点，自动收敛] 原因：{}。\n\
+             已完成：{} 轮、{} 个工具调用（{detail}）。\n\
+             未完成：任务尚未收尾，模型未在收敛轮交出答案。\n\
+             下一步：按上述进度从断点续做；如需更长单轮时长，调大 agent.budget_secs。",
+            match reason {
+                StopReason::Tokens => "token 预算耗尽".to_string(),
+                StopReason::Deadline => format!("墙钟预算 {}s 到点", cfg.budget.map(|d| d.as_secs()).unwrap_or(0)),
+            },
+            rounds,
+            steps.len(),
+        )
     }
 
     /// 收敛：最终答案入记忆并返回（含 steps）。
@@ -595,8 +723,13 @@ impl AgentLoopPlugin {
         llm_calls: u32,
         retries: u32,
         tool_failures: u32,
+        wrap_up: Option<StopReason>,
     ) -> Value {
-        let answer = resp.content.clone().unwrap_or_default();
+        let mut answer = resp.content.clone().unwrap_or_default();
+        if answer.trim().is_empty() && wrap_up.is_some() {
+            // 预算软停：模型没给答案也要交进度报告（不能把成果随空答案一起丢掉）
+            answer = Self::wrap_up_report(rounds, &steps, wrap_up.unwrap_or(StopReason::Deadline), cfg);
+        }
         if answer.trim().is_empty() {
             // PLAN R4：空答案视为失败——ok:true + answer:"" 是假收敛；不落 memory、
             // 不发 assistant 事件，按错误 payload 收敛。
@@ -672,6 +805,9 @@ impl AgentLoopPlugin {
                 "llm_ms": llm_ms,
                 "budget_secs": cfg.budget.map(|d| d.as_secs()).unwrap_or(0),
                 "max_rounds": cfg.max_rounds,
+                // 预算停车原因（None = 自然收敛）：`tokens` 硬停 / `deadline` 软收敛。
+                // 观测口径：前端不渲染，脚本据此区分「任务做完了」与「被时长掐断」。
+                "stopped_by": wrap_up.map(|r| r.tag()),
             }),
         )
         .await;

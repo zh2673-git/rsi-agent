@@ -1,0 +1,17 @@
+[
+  {
+    "name": "trace_query_tool",
+    "description": "Query the current session's agent trace jsonl without writing probe scripts: tool-call distribution, file-write locations (outputs/ pollution check), failed calls, multiline-bash suspects, bash-substitutability ratio, per-round call sequence. Args: query = '<sub> [--trace <session-id>] [--round N]'; sub in summary|toolmix|writes|errors|multiline|calls|substitutability; --trace omitted means the latest .jsonl in the traces dir.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "e.g. 'substitutability' / 'toolmix --trace s-mvzz0e2s' / 'calls --round 40'; default 'summary'"
+        }
+      },
+      "required": ["query"]
+    },
+    "exec": {"cmd": ["python", "exec_query.py"], "timeout_secs": 60}
+  }
+]

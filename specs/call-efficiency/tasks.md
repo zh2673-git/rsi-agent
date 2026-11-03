@@ -30,12 +30,19 @@
 
 ## 剩余待办（本 spec 未覆盖，需单独立项）
 
-- [ ] **`specs/plan-completion`（停前自检）**：`tasks.md` 有未勾选项时不禁止停，但要求
-      `finish()` 写一条 `plan_mismatch` 并提醒一次。理由：本次实测证明「模型自认为做完」
-      与「tasks.md 实际勾选」会不一致（见 spec §3 E6）。
-- [ ] **重启验证 A1+B1+B2 的实际收益**：`agent.*` 与 Rust 改动都要重启才生效。
-      重启后用同等工作量任务复测 `calls/rounds/cd /d 外壳率/grep 使用数`。
-- [ ] **`compact_keep` 的量化复核**：改成 30 后应观察到压缩次数显著下降（基线 7 次）。
+- [x] **`specs/plan-completion`（停前自检）** —— **已立项**（2026-11-03）：
+      `specs/plan-completion/spec.md` + `tasks.md`（阶段 A 解析器 / B 挂载 / C 观测 / D 配置）。
+      设计定调：**不做闸门**——有未勾选项不等于不许停，硬拦会把「未完成」升级成
+      「什么都交不出」，正是 §E7 的错误重演。只**提醒一次** + 把 `plan_unchecked`
+      记进 `chat_summary`。顺带承接 §E7 的观测遗留（§E2）：任何终止路径都必须写 `chat_summary`。
+- [x] **重启验证 A1+B1+B2 的实际收益** —— **结论：配置已生效，Rust 未生效，Q 项未达标**（§E2）。
+      `agent.*` **已生效**（`compaction.kept` 194→30 实证，见 §E3）；
+      但 **Rust 改动未生效**（`chat_summary` 事件 0 条 —— 宿主进程 23:06 启动，早于 23:1x 的改动）。
+      复测数据又被「预算硬中止」事故污染，**不能作为 Q 项判据**。
+- [x] **`compact_keep` 的量化复核** —— **结论：已生效，但「压缩次数下降」的预期被证伪**（§E3）。
+      真压缩从 `keep=194 > trigger=40`（split=8，几乎不生效）变为 `keep=30 < trigger=40`
+      （split≈history-30）；首次真压缩一次摘掉 **603 条**。
+      但压缩**次数**仍为每 chat 1 次、未下降——触发源是「单 chat 内历史 >40」而非跨 chat 累积。
 
 ---
 
@@ -197,6 +204,82 @@ Efficiency discipline (these bound the tool budget, not the task):
 **正确跑法**：跑测试前清空这些 env（见 `_p/final_tests.bat` 模板）。
 这不是代码缺陷，但**会让「测试全红」误判成回归**——本次差点误判。
 
+## 阶段 E2：重启后收益复测（2026-11-03）
+
+### 测量方法
+
+trace `memory/traces/s-mvz75po6.jsonl`（2.03 MB / 2042 事件）。**按 `user` 事件分段**
+（每段 = 一次 chat），比按 `assistant` 分段更准（中止的 chat 不写 assistant 事件）。
+
+### 分阶段对比
+
+| 阶段 | 段数 | tool_call | bash 占比 | `cd /d` 率 | grep | symbols_search |
+|---|---|---|---|---|---|---|
+| `keep=194`（旧，段 1–8） | 8 | 397 | 259 / 397 = 65% | **253 / 259 = 97.7%** | 4 | **0** |
+| `keep=30`（新，段 9–12） | 4 | 479 | 286 / 479 = 60% | **285 / 286 = 99.7%** | 11 | **0** |
+
+### 三条硬结论（必须诚实记录）
+
+1. **`agent.*` 配置确实生效**。`compaction` 事件的 `kept` 字段：前 8 次恒为 `194`，
+   23:08 之后 3 次恒为 `30`。这是配置生效的**直接物证**，不依赖任何推断。
+
+2. **Rust 改动（B1 提示词 / C3 脱敏 / D1 观测）在此 trace 内未生效**。
+   **且比「启动早于改动」更严重：二进制本身就是旧的**。实测（2026-11-03 07:0x）：
+   `target/debug/react-agent-host.exe` 的 **mtime = 2026-11-02 23:06:26**，与两个在跑进程
+   （PID 34032 @ 23:06:26、PID 37204 @ 23:06:45）的启动时间**完全吻合**——即该二进制自
+   23:06:26 之后**从未重新编译过**。更直接的证据：`cargo test` 报
+   `failed to remove file ...react-agent-host.exe` / `sandbox-run.exe`（os error 5 拒绝访问），
+   说明 cargo 想 relink 但被进程的文件锁挡住。
+   → **「重启」不是充分条件**。正确顺序是：**停进程 → `cargo build` → 启动**。
+   只重启不重编译，跑的还是 23:06:26 那个旧二进制。
+   决定性证据：`chat_summary` 事件 **0 条**。宿主 `react-agent-host.exe` 启动时间
+   **23:06:26**，而上述 Rust 改动完成于 **23:1x 之后**——进程跑的是改动前的二进制。
+   `grep` 工具越界（报 `PATH_OUTSIDE_WORKSPACE`）、`cd /d` 率仍 99.7%，与此一致
+   （B1 的「PREFER dedicated tools」和 D1 的 cwd 修复都还没加载）。
+
+3. **Q 项（≤100 调用 / ≤80 轮）本次不可判定，且数据被污染**。
+   - 段 10（115 调用）与段 11（67 调用）期间发生了 `budget_secs=900` **墙钟硬中止**，
+     任务被中途掐断 → 调用数**偏低**，不代表效率改善。
+   - 段 12（69 调用）是**当前会话本身**（含本次复测、改测试、跑回归）→ 调用数**偏高**。
+   - 段 9（228 调用）是「完成所有待办」的大任务，工作量大，不宜直接对比基线 217。
+
+### 复测暴露的 D1 观测缺口（新发现）
+
+`budget_stop`（中止路径）**只写一条 `error` 事件，不写 `chat_summary`**。后果：
+
+- 中止型 chat 在 trace 里**完全没有效率指标**，无法事后判断「掐断时已完成多少」；
+- 本次复测正是因为这一点，才不得不靠 `user` 分段 + 人工判读。
+
+→ 已并入 `specs/plan-completion` 的观测要求：**任何终止路径（正常 / 预算 / 取消 /
+轮次耗尽）都必须写 `chat_summary`**。
+
+## 阶段 E3：`compact_keep` 量化复核
+
+`compaction` 事件共 11 条，字段为 `{type, ts, kept, summarized, summary}`：
+
+| 序号 | 时间 | kept | summarized | 判读 |
+|---|---|---|---|---|
+| 1 | 21:01:55 | 194 | 186 | keep>trigger 的「假压缩」：历史 380 → split=186 |
+| 2 | 21:20:51 | 194 | 131 | 同上 |
+| 3 | 21:47:55 | 194 | 25 | 历史仅 219，split=25 |
+| 4–8 | 21:59 – 22:23 | 194 | 81/16/43/22/12 | 每 chat 各触发 1 次 |
+| 9 | **23:08:30** | **30** | **603** | **新配置首次真压缩**：一次摘掉 603 条 |
+| 10 | 23:24:44 | 30 | 199 | 生效 |
+| 11 | 06:25:43 | 30 | 120 | 生效 |
+
+**结论修正**：原预期「压缩次数显著下降」**不成立**。次数仍是每 chat 约 1 次。
+真实改善在**压缩质量**而非次数：
+
+- 旧：`keep=194 > trigger=40` → `split = 历史 - 194`，摘要只覆盖极少数尾部；
+  历史长期维持 190+ 条，**同一份上下文被反复摘要、且摘要几乎不减少体积**。
+- 新：`keep=30 < trigger=40` → `split = 历史 - 30`，**首次即摘掉 603 条**，上下文真正瘦身。
+
+触发源是「单个 chat 内历史条数 > trigger(40)」，不是「跨 chat 累积」——所以次数不会因
+`keep` 改变而下降。这是对 spec §3 E4 的**修正**：E4 的问题描述（「假压缩」）正确，
+但「压到 10 会减少压缩次数」的隐含预期错误。
+
+---
+
 ## 迭代记录
 
 - 2026-11-02 21:21：spec 立项。基线 chat#3 = 217 调用 / 160 轮；69% 轮次只发 1 个调用；
@@ -207,6 +290,18 @@ Efficiency discipline (these bound the tool budget, not the task):
 - 2026-11-02 23:0x：C1/C2 实测**推翻**原假设，撤销；C3 定位到 `secrets.rs` 并修复。
 - 2026-11-02 23:1x：B1/B2 完成；D1 完成并处理**冻结事件契约**冲突；D2 评估结论「不做」。
 - 2026-11-02 23:2x：真实仓库同步 + 63 测试全绿 + 技能/gate/ledger 验收通过。
+- 2026-11-03 06:2x：**修正 `budget.rs` 语义缺陷**（用户核心不满的直接根因）——
+  墙钟到点不再 `return K508` 丢弃全部成果，改为「软收敛轮」：剥工具 + 注入 wrap-up
+  指令 + 没答案时自述进度报告。`StopReason::{Tokens(硬停), Deadline(软收敛)}` 分离。
+  测试 63 → **64 全绿**（新增 2 条预算语义用例，改写 1 条）。
+- 2026-11-03 06:5x：**修掉一条环境依赖型假红**（`secrets.rs:275`）。
+  `config_mtime_is_zero_for_missing_file` 断言裸 `config_mtime() == 0`，但宿主任一实例在跑
+  都会把 `CONFIG_FILE` 指向真实 config.json（实测 env 值 = `runtime/.instances/1102/config.json`，
+  mtime=1793632057932）→ 该测试「宿主在跑就红、不在跑就绿」。改为显式把 `CONFIG_FILE`
+  指向一个不存在的临时路径再断言 0。**这条不是本轮 Rust 改动引入的，属既有缺陷**，
+  但它会让 Q/I 验收恒假红，故一并修。**全量 64 项复归全绿**（23+1+2+38）。
+- 2026-11-03 06:3x：**重启后收益复测**（§E2）。结论：配置生效、Rust 未生效、Q 项未达标；
+  发现 D1 观测缺口：`budget_stop` 中止路径**不写 `chat_summary`**，故中止型 chat 不可观测。
 
 ## 快照同步必重放项
 
@@ -217,6 +312,10 @@ Efficiency discipline (these bound the tool budget, not the task):
 3. **`skills.rs`**：`self_extension_section(root, full)` 双段 + `user_wants_skill_build`（B2）
 4. **`chat.rs`**：`chat_summary` 事件（D1）+ `want_skill_build` 调用点
 5. **`tests/contract_conformance.rs`**：`FROZEN_EVENT_TYPES` 增 `chat_summary`
+6. **`budget.rs`**：`StopReason`（`Tokens` 硬停 / `Deadline` 软收敛）+ `is_hard()` /
+   `tag()` + `WRAP_UP_DEADLINE`；`check_stop` → 纯判定 `check_budget`（不含取消逻辑）
+7. **`chat.rs`**：`wrap_up` 软收敛状态 + 收敛轮**剥工具** + `budget_stop`（仅 token 返 K508）+
+   `wrap_up_once`（一次性注入）+ `wrap_up_report`（按 `steps` 生成进度报告）
 
 > 这五处必须随每次 `runtime/` 同步重放，否则效率约束与可观测性会在下次快照更新后静默消失。
 > 阶段 A 是纯配置（`config.json`），不在重放范围内。

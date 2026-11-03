@@ -269,9 +269,18 @@ mod tests {
         assert_eq!(out, vec!["long-key-1".to_string(), "long-key-2".to_string()]);
     }
 
+    /// CONFIG_FILE 未配置 / 指向不存在的路径 → 0（仅 env 兜底键参与收集，不 panic）。
+    ///
+    /// 必须显式指定一个**不存在**的路径：宿主任一实例运行时都会把 CONFIG_FILE 指到真实
+    /// config.json，此时 mtime 必然非 0——旧写法断言裸 `config_mtime()` 等于 0，
+    /// 结果「宿主在跑就红、不在跑就绿」，是典型的环境依赖型假红。
     #[test]
     fn config_mtime_is_zero_for_missing_file() {
-        // CONFIG_FILE 未配置/文件不存在 → 0（仅 env 兜底键参与收集，不 panic）
+        let missing = std::env::temp_dir().join("rsi-agent-no-such-config-9f2c.json");
+        assert!(!missing.exists(), "前置：临时路径不应存在 {missing:?}");
+        std::env::set_var("CONFIG_FILE", &missing);
+        assert_eq!(config_mtime(), 0);
+        std::env::remove_var("CONFIG_FILE");
         assert_eq!(config_mtime(), 0);
     }
 
