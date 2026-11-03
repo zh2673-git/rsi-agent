@@ -160,16 +160,33 @@ function render(ev) {
 // ── SSE：增量续传。after=0=全量重放（首屏/切换会话，清空 feed）；after>0=断线续传（保留历史，只补新增）。
 // host 在重放阶段只推持久 trace 事件、不推流式旁路（最终 assistant 已含完整内容），catch up 后才推 stream_*。
 // 这样刷新/重连都只补增量：既不叠加重复气泡，也不整段重绘。
-let es = null, lastAfter = 0;
+let es = null, lastAfter = 0, reconnectTimer = null;
 function connect(after) {
   after = after || 0;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (es) es.close();
   if (after === 0) { feed.innerHTML = ""; pending.clear(); lastAfter = 0; doneSids.clear(); processBox = processBody = processThink = null; subBoxes.clear(); userTurns = []; turnArtifacts = []; turnSourceBox = null; turnSourceUrls.clear(); turnArtifactPaths.clear(); turnTail = null; turnFcBox = null; resetFileChanges(); } // 首屏/切换/回滚后：清空后全量重放
   // 清 DOM 后流式句柄一并失效，避免继续写入已移除的气泡
   streamSid = streamCard = streamBody = streamStats = null;
   es = new EventSource(`/api/events?session=${encodeURIComponent(session)}&after=${after}`);
   es.onopen = () => { connEl.classList.add("live"); setStatus(""); };
-  es.onerror = () => { connEl.classList.remove("live"); setStatus("连接断开，重连中…"); connect(lastAfter); }; // 增量续传，不清空
+  // onerror 同时会收到「连接错误」和「服务端 event: error 帧」：带 data 的是业务错误帧，
+  // 只渲染横幅，绝不能在这里重连——否则每条 trace.read 失败都会关连接重建、清空 feed，
+  // 页面表现为持续闪烁。真断线则延迟 1s 用当前游标续传（保留已渲染内容，防重连风暴）。
+  es.onerror = (e) => {
+    if (e && typeof e.data === "string" && e.data) {
+      let ev; try { ev = JSON.parse(e.data); } catch { return; }
+      try { render(ev); } catch (err) { console.warn("render failed:", ev?.type, err); }
+      return;
+    }
+    connEl.classList.remove("live"); setStatus("连接断开，重连中…");
+    if (reconnectTimer) return; // 已有排队重连：避免同一故障触发多次重建
+    const dead = es;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      if (es === dead) connect(lastAfter);
+    }, 1000);
+  };
   es.onmessage = (m) => {
     let ev; try { ev = JSON.parse(m.data); } catch { return; }
     if (ev && ev.type && !String(ev.type).startsWith("stream_")) lastAfter++; // 持久事件数 ≈ trace 游标
