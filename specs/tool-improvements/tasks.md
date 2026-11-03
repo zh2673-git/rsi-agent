@@ -99,3 +99,10 @@ D1 根因链（`bash.py:223` 单 argv → `sandbox-run.rs:22` join → `sandbox-
   C bash P1/P4 缺陷修复（等 allow_core_write 授权）、D 适配重放机制化（apply-tool-patches.py
   升格为差异集重放工具，未来收编 README 现存 4 处适配）。自我修正一处：§7.4「授权后删补丁
   脚本」作废——改源码后 P1/P4 即是适配第 5/6 处，脚本 = 下次同步的还原态，必须保留。
+- 2026-11-03（第五轮）：用户质疑布尔闸全解禁 → 不开闸、先升闸：A/B/D 全部编入补丁脚本
+  （P5a-d / P6 / D5，B 的 SYSTEM.md 部分直改），`--dry-run` 十一锚点全过 → 真实应用 →
+  `--revert` → 重放，幂等与回滚闭环验证；修 P2 落点一处 Rust 续行转义缺陷后单行化。
+  新增 `CoreWriteGateTest` 6 例语义锁（默认拒绝 / 布尔遗留不放行 / 前缀放行边界 / 永不豁免
+  压过授权 / skills 通道零授权可用）；unittest 30/30 绿、`cargo check` 过。提交 e6ff0fa。
+  E4 现场实测确认：会话 guest 进程启动时已加载旧 bash.py，补丁对其不可见（多行命令仍静默
+  截断）——**E4/E5/E7 必须重启宿主后复测**；`cargo test` 同因（host.exe 持锁）暂挂。
