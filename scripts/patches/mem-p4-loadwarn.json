@@ -1,0 +1,7 @@
+{
+  "id": "MEM-P4-LOADWARN",
+  "description": "loadIfAbsent：会话文件解析失败响亮告警（过去静默当空会话，数据丢失无感知），保持可用不阻断",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor": "  const file = sessionFile(sessionId);\n  try {\n    msgs = JSON.parse(fs.readFileSync(file, \"utf8\")) as Msg[];\n  } catch {\n    msgs = [];\n  }\n  sessions.set(sessionId, msgs);\n  return msgs;\n}",
+  "patch": "  const file = sessionFile(sessionId);\n  let text = \"\";\n  try {\n    text = fs.readFileSync(file, \"utf8\");\n  } catch {\n    /* 尚无会话文件：正常路径 */\n  }\n  if (text) {\n    try {\n      msgs = JSON.parse(text) as Msg[];\n    } catch (e) {\n      // P4：半文件/损坏——过去静默当空会话，数据丢失无告警。响亮提示但保持可用\n      // （配 persist 的 tmp+rename 原子写后，新数据不应再出现此路径）。\n      console.error(`[memory] 会话文件解析失败（可能为历史半文件），按空会话继续: ${file} (${e})`);\n      msgs = [];\n    }\n  } else {\n    msgs = [];\n  }\n  sessions.set(sessionId, msgs);\n  return msgs;\n}"
+}

@@ -41,7 +41,7 @@
 | P1b | host | 版本化 `bin/host-vN.exe` + 极简 watchdog（commit point 后新进程崩溃的兜底）；借鉴 claude code versions/ 布局 | ☐ | | | |
 | P2 | agent-loop | 稳定性包：A1 per-session 互斥（409）；A2 append 失败阈值熔断；A4 deadline 收敛为单一 env `LLM_STEP_DEADLINE_SECS` | ☑ 11 补丁（loop-p2-*，含 test-init 伴生锚点） | cargo check + cargo test 46/46 + py_compile + dry-run 0 FAIL | 同会话双击拒绝并发（K409）；持久层故障熔断不再静默烧 token；deadline 改 env 即两侧同步 | ☑ |
 | P3 | llm_adapter | 健壮性包：错误结构化（error.code 携带 HTTP 状态/异常类型）；provider 内指数退避重试（429/5xx，上限 2 次）；借鉴 codex 错误分类 | ☐ | | | |
-| P4 | memory | 检索升级：trace.offset 索引（行号→字节偏移 sidecar，追加式）；persist 原子 tmp+rename；空会话读到半文件时告警而非静默 | ☐ | | | |
+| P4 | memory | 检索升级：trace.offset 索引（行号→字节偏移 sidecar，追加式）；persist 原子 tmp+rename；空会话读到半文件时告警而非静默 | ☑ 5 补丁（mem-p4-*）：trace.read 改 size+mtime 索引偏移直读（稳态 O(页)，替代每 300ms 全量重解析）；persist tmp+rename 原子写；损坏会话文件响亮告警 | node --check + dry-run 0 FAIL（活体行为随 host 重启验证） | 大 trace 轮询 CPU 消耗从 O(全文件) 降至 O(页)；崩溃不再产生无告警的半文件 | ☑ |
 | P5 | tools | 快照成本：bash 前后双遍历改 mtime 缓存增量对比；清理 *.patchbak 残留；技能工具输出过 secrets 脱敏后再回传 | ☐ | | | |
 | P6 | kernel | 协议演进（大，跨语言）：deadline 字段接线；错误码枚举扩展；大 payload 自动分片约定（联动 P4） | ☐ | | | |
 | P7 | 前端 | session-reset 集中化（一个 resetSession() 清全部状态，消灭手工清 N 变量）；innerHTML 全量 esc 审计脚本化 | ☐ | | | |

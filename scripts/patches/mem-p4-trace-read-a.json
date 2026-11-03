@@ -1,0 +1,7 @@
+{
+  "id": "MEM-P4-TRACE-READ-A",
+  "description": "trace.read 头部：全文件重读+全行解析改索引偏移直读（命中 sidecar 时 O(页)）",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor": "        if (op === \"trace.read\") {\n          // 只追加文件整体重读，按行切事件；after=N 返回第 N 条之后的事件（UI 增量拉取）\n          let text = \"\";\n          try {\n            text = fs.readFileSync(traceFile(sessionId), \"utf8\");\n          } catch {\n            /* 尚无日志 → 空事件 */\n          }\n          const all: unknown[] = [];\n          for (const line of text.split(\"\\n\")) {\n            const t = line.trim();\n            if (!t) continue;\n            try {\n              all.push(JSON.parse(t));\n            } catch {\n              /* 半行写入容忍：跳过损坏行 */\n            }\n          }\n          const after = typeof payload.after === \"number\" && payload.after >= 0 ? Math.floor(payload.after) : 0;",
+  "patch": "        if (op === \"trace.read\") {\n          // P4：按索引偏移直读（traceOffsets 内部 size+mtime 命中缓存 / 未命中重建一次）。\n          // after=N 返回第 N 条之后的事件（UI 增量拉取）——语义与全量扫描版完全一致。\n          const file = traceFile(sessionId);\n          let offsets: number[] = [];\n          let total = 0;\n          try {\n            offsets = traceOffsets(file);\n            total = offsets.length;\n          } catch {\n            /* 尚无日志 → 空事件 */\n          }\n          const after = typeof payload.after === \"number\" && payload.after >= 0 ? Math.floor(payload.after) : 0;"
+}

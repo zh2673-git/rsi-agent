@@ -1,0 +1,7 @@
+{
+  "id": "MEM-P4-PERSIST",
+  "description": "persist 原子写：tmp+rename 替代整文件直写——进程崩溃/断电时直写可留半文件，读侧静默当空会话（数据丢失无告警）",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor": "  fs.writeFileSync(file, JSON.stringify(msgs), \"utf8\");\n}",
+  "patch": "  // P4：原子写（tmp + rename）——writeFileSync 直写在崩溃/断电时可能留下半文件，\n  // 读侧解析失败会静默当空会话（整段会话记忆蒸发且无告警）。同目录 tmp 保证同盘 rename。\n  const tmp = `${file}.tmp-${process.pid}`;\n  fs.writeFileSync(tmp, JSON.stringify(msgs), \"utf8\");\n  fs.renameSync(tmp, file);\n}"
+}

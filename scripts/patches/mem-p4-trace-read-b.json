@@ -1,0 +1,7 @@
+{
+  "id": "MEM-P4-TRACE-READ-B",
+  "description": "trace.read 分页循环：改按偏移直读事件（损坏行游标前进跳过，语义与全量扫描版一致）",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor": "          while (cursor < all.length && events.length < MAX_EVENTS) {\n            const size = Buffer.byteLength(JSON.stringify(all[cursor]), \"utf8\") + 1;\n            if (events.length > 0 && bytes + size > MAX_BYTES) break;\n            events.push(all[cursor]);\n            bytes += size;\n            cursor++;\n          }",
+  "patch": "          while (cursor < total && events.length < MAX_EVENTS) {\n            const ev = readEventLine(file, offsets[cursor]);\n            if (ev === null) {\n              cursor++;\n              continue;\n            }\n            const size = Buffer.byteLength(JSON.stringify(ev), \"utf8\") + 1;\n            if (events.length > 0 && bytes + size > MAX_BYTES) break;\n            events.push(ev);\n            bytes += size;\n            cursor++;\n          }"
+}
