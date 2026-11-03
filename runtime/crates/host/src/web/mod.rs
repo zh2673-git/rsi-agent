@@ -274,6 +274,10 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         // 上游本地网关（magpie）：状态（探活+积分）/ 一键启动 serve
         ("GET", "/api/upstream/status") => api::upstream_status(&mut stream, &kernel).await,
         ("POST", "/api/upstream/start") => api::upstream_start(&mut stream).await,
+        // 账号签到扩展：弹登录窗（CLI 子进程，长阻塞由每连接 tokio::spawn 吸收）/ 全量签到 / 账号清单
+        ("POST", "/api/upstream/login") => api::upstream_login(&mut stream, &query).await,
+        ("POST", "/api/upstream/checkin") => api::upstream_checkin(&mut stream).await,
+        ("GET", "/api/upstream/accounts") => api::upstream_accounts(&mut stream).await,
         ("PUT", "/api/config") => api::put_config(&mut stream, &kernel, &body).await,
         ("GET", "/api/skills") => api::get_skills(&mut stream, &kernel).await,
         ("GET", r) if r.starts_with("/api/skills/") => {

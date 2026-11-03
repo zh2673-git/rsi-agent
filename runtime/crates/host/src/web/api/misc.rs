@@ -344,3 +344,111 @@ pub(crate) async fn upstream_start(stream: &mut TcpStream) -> anyhow::Result<()>
     }
     json_resp(stream, 200, json!({"ok": true, "started": true, "up": false, "port": port})).await
 }
+
+
+// ───────────────────── 账号签到（magpie accounts login/checkin/list） ─────────────────────
+
+/// 解析查询串里 url 编码的 provider 参数（只放行四个内置签到渠道）。
+fn checkin_provider(query: &str) -> Option<&'static str> {
+    for pair in query.split('&') {
+        let (k, v) = pair.split_once('=')?;
+        if k != "provider" {
+            continue;
+        }
+        return match v {
+            "workbuddy" => Some("workbuddy"),
+            "trae-cn" => Some("trae-cn"),
+            "trae-global" => Some("trae-global"),
+            "qoder" => Some("qoder"),
+            "minimax" => Some("minimax"),
+            "kiro" => Some("kiro"),
+            _ => None,
+        };
+    }
+    None
+}
+
+/// Windows 下隐藏 CLI 子进程窗口（与 upstream_start 同款）。
+fn checkin_spawn(command: &mut std::process::Command) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    let _ = command;
+}
+
+/// POST /api/upstream/login?provider=workbuddy：弹 magpie 登录窗（CLI 子进程跑
+/// `magpie plugin login <provider>`，GUI 完成 OTP 后子进程自然退出）。请求会阻塞到
+/// 登录窗关闭——前端按钮自行 disable + 等待；宿主每连接独立 spawn，不会卡其它请求。
+pub(crate) async fn upstream_login(stream: &mut TcpStream, query: &str) -> anyhow::Result<()> {
+    let Some(provider) = checkin_provider(query) else {
+        return json_resp(stream, 400, json!({"ok": false, "error": {"code": "K400", "message": "缺少或非法 provider（支持 workbuddy/trae/qoder/minimax）"}})).await;
+    };
+    let exe = tokio::task::spawn_blocking(find_magpie_exe).await.unwrap_or(None);
+    let Some(exe) = exe else {
+        return json_resp(stream, 404, json!({"ok": false, "error": {"code": "K404", "message": "未找到 magpie CLI（可设 MAGPIE_EXE env，或装到 %USERPROFILE%\\.local\\bin\\magpie.exe）"}})).await;
+    };
+    let r = tokio::task::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args(["plugin", "login", provider]).stdin(std::process::Stdio::null());
+        checkin_spawn(&mut cmd);
+        cmd.output()
+    })
+    .await;
+    match r {
+        Ok(Ok(o)) if o.status.success() => {
+            json_resp(stream, 200, json!({"ok": true, "provider": provider})).await
+        }
+        Ok(Ok(o)) => {
+            let msg = String::from_utf8_lossy(&o.stderr);
+            let msg = msg.lines().next().unwrap_or("CLI 退出非 0").to_string();
+            json_resp(stream, 502, json!({"ok": false, "error": {"code": "K502", "message": format!("{provider} 登录未完成: {msg}")}})).await
+        }
+        _ => json_resp(stream, 500, json!({"ok": false, "error": {"code": "K500", "message": "magpie CLI 执行失败"}})).await,
+    }
+}
+
+/// POST /api/upstream/checkin：全量签到（跑 `magpie accounts checkin`，幂等），返回可读结果行。
+pub(crate) async fn upstream_checkin(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let exe = tokio::task::spawn_blocking(find_magpie_exe).await.unwrap_or(None);
+    let Some(exe) = exe else {
+        return json_resp(stream, 404, json!({"ok": false, "error": {"code": "K404", "message": "未找到 magpie CLI"}})).await;
+    };
+    let r = tokio::task::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args(["accounts", "checkin"]).stdin(std::process::Stdio::null());
+        checkin_spawn(&mut cmd);
+        cmd.output()
+    })
+    .await;
+    match r {
+        Ok(Ok(o)) => {
+            let text = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+            let lines: Vec<String> = text.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect();
+            json_resp(stream, 200, json!({"ok": o.status.success(), "lines": lines})).await
+        }
+        _ => json_resp(stream, 500, json!({"ok": false, "error": {"code": "K500", "message": "magpie CLI 执行失败"}})).await,
+    }
+}
+
+/// GET /api/upstream/accounts：转发 magpie accounts list --json（账号清单，供前端显示账号数）。
+pub(crate) async fn upstream_accounts(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let exe = tokio::task::spawn_blocking(find_magpie_exe).await.unwrap_or(None);
+    let Some(exe) = exe else {
+        return json_resp(stream, 404, json!({"ok": false, "error": {"code": "K404", "message": "未找到 magpie CLI"}})).await;
+    };
+    let r = tokio::task::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args(["accounts", "--json"]).stdin(std::process::Stdio::null());
+        checkin_spawn(&mut cmd);
+        cmd.output()
+    })
+    .await;
+    let Ok(Ok(o)) = r else {
+        return json_resp(stream, 500, json!({"ok": false, "error": {"code": "K500", "message": "magpie CLI 执行失败"}})).await;
+    };
+    let v: Value = serde_json::from_slice(&o.stdout).unwrap_or(json!([]));
+    json_resp(stream, 200, json!({"ok": true, "accounts": v})).await
+}

@@ -1,0 +1,7 @@
+{
+ "id": "MAGPIE-CHECKIN-F9",
+ "description": "app-settings.js 修复：回环网关时展开签到按钮区（原来没有任何代码把它 hidden=false，区块永远不显示）",
+ "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+ "anchor": "  if (!local) { field.hidden = true; quotas.hidden = true; return; }\n  field.hidden = false;",
+ "patch": "  if (!local) {\n    field.hidden = true; quotas.hidden = true;\n    const ck = $(\"upstream-checkin-field\"); if (ck) ck.hidden = true;\n    return;\n  }\n  field.hidden = false;\n  const ckf = $(\"upstream-checkin-field\"); if (ckf) ckf.hidden = false;\n  refreshCheckinAccounts();"
+}

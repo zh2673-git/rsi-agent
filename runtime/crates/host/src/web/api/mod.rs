@@ -13,7 +13,8 @@ mod skills;
 pub(super) use config::{get_config, put_config};
 pub(super) use misc::{
     create_instance, delete_instance, get_models, get_presets, list_instances, pick_folder,
-    reveal_target, session_exists, upstream_start, upstream_status,
+    reveal_target, session_exists, upstream_accounts, upstream_checkin, upstream_login,
+    upstream_start, upstream_status,
 };
 pub(super) use skills::{delete_skill, get_skill, get_skills, put_skill};
 

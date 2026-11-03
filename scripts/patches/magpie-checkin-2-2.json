@@ -1,0 +1,7 @@
+{
+ "id": "MAGPIE-CHECKIN-2",
+ "description": "mod.rs 注册 login/checkin/accounts 三条路由",
+ "file": "runtime/crates/host/src/web/mod.rs",
+ "anchor": "        (\"POST\", \"/api/upstream/start\") => api::upstream_start(&mut stream).await,",
+ "patch": "        (\"POST\", \"/api/upstream/start\") => api::upstream_start(&mut stream).await,\n        // 账号签到扩展：弹登录窗（CLI 子进程，长阻塞由每连接 tokio::spawn 吸收）/ 全量签到 / 账号清单\n        (\"POST\", \"/api/upstream/login\") => api::upstream_login(&mut stream, &query).await,\n        (\"POST\", \"/api/upstream/checkin\") => api::upstream_checkin(&mut stream).await,\n        (\"GET\", \"/api/upstream/accounts\") => api::upstream_accounts(&mut stream).await,"
+}

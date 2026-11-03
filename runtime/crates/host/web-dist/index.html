@@ -75,6 +75,16 @@
           <button type="button" class="btn ghost" id="upstream-start" hidden>一键启动</button>
         </div>
         <p class="hint" id="upstream-quotas" hidden style="margin-top:-2px"></p>
+        <div class="field" id="upstream-checkin-field" hidden>
+          <label>账号签到</label>
+          <button type="button" class="btn ghost" id="upstream-login-workbuddy">登录 WorkBuddy 账号</button>
+          <button type="button" class="btn ghost" id="upstream-login-trae">登录 Trae 账号</button>
+          <button type="button" class="btn ghost" id="upstream-login-qoder">登录 Qoder 账号</button>
+          <button type="button" class="btn ghost" id="upstream-login-minimax">登录 MiniMax 账号</button>
+          <button type="button" class="btn" id="upstream-checkin">一键领取积分</button>
+          <span class="up-state" id="checkin-state">账号状态：检测中…</span>
+        </div>
+        <p class="hint" id="upstream-checkin-log" hidden style="margin-top:-2px"></p>
         <p class="hint">保存即热生效（env 更新 + 落盘 config.json）。api_key 留空 = 不修改；回显只显示尾 4 位。不清楚怎么填？直接在对话里问（如「XX 站怎么配」），我会调研该站点文档并给出可粘贴的配置。</p>
       </div>
       <div class="poolhead collapsible"><span class="chev">▾</span><span class="plabel">生图模型</span><span class="pcnt" id="media-img-cnt"></span></div>

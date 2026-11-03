@@ -1,0 +1,7 @@
+{
+ "id": "MAGPIE-CHECKIN-1",
+ "description": "index.html 网关块下加登录/签到按钮区",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor": "<p class=\"hint\" id=\"upstream-quotas\" hidden style=\"margin-top:-2px\"></p>",
+ "patch": "<p class=\"hint\" id=\"upstream-quotas\" hidden style=\"margin-top:-2px\"></p>\n        <div class=\"field\" id=\"upstream-checkin-field\" hidden>\n          <label>账号签到</label>\n          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-workbuddy\">登录 WorkBuddy 账号</button>\n          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-trae\">登录 Trae 账号</button>\n          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-qoder\">登录 Qoder 账号</button>\n          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-minimax\">登录 MiniMax 账号</button>\n          <button type=\"button\" class=\"btn\" id=\"upstream-checkin\">一键领取积分</button>\n          <span class=\"up-state\" id=\"checkin-state\">账号状态：检测中…</span>\n        </div>\n        <p class=\"hint\" id=\"upstream-checkin-log\" hidden style=\"margin-top:-2px\"></p>"
+}

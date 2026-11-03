@@ -323,8 +323,14 @@ async function refreshUpstream() {
   const base = $("llm-base").value.trim();
   const local = /^https?:\/\/(127\.0\.0\.1|localhost|::1|\[::1\])(:\d+)?/i.test(base);
   const field = $("upstream-field"), quotas = $("upstream-quotas");
-  if (!local) { field.hidden = true; quotas.hidden = true; return; }
+  if (!local) {
+    field.hidden = true; quotas.hidden = true;
+    const ck = $("upstream-checkin-field"); if (ck) ck.hidden = true;
+    return;
+  }
   field.hidden = false;
+  const ckf = $("upstream-checkin-field"); if (ckf) ckf.hidden = false;
+  refreshCheckinAccounts();
   const st = $("upstream-state");
   try {
     renderUpstream(await api("GET", "/api/upstream/status"));
@@ -351,6 +357,58 @@ function renderUpstream(v) {
   }
   if (rows.length) { q.innerHTML = rows.join("<br>"); q.hidden = false; } else q.hidden = true;
 }
+// ── 账号签到（magpie 内置渠道）：登录弹窗 / 一键领取 / 状态行 ──
+const CHECKIN_PROVIDERS = [["workbuddy","WorkBuddy","workbuddy"],["trae","Trae","trae-cn"],["qoder","Qoder","qoder"],["minimax","MiniMax","minimax"]];
+function renderCheckinState(text, cls) {
+  const st = $("checkin-state");
+  st.textContent = text;
+  st.className = "up-state " + (cls ?? "");
+}
+async function refreshCheckinAccounts() {
+  const field = $("upstream-checkin-field");
+  if (field.hidden) return;
+  try {
+    const v = await api("GET", "/api/upstream/accounts");
+    const list = Array.isArray(v.accounts) ? v.accounts : (v.accounts?.accounts ?? []);
+      const PN = { workbuddy: "WorkBuddy", "trae-cn": "Trae CN", qoder: "Qoder", minimax: "MiniMax", kiro: "Kiro" };
+      const f = x => (typeof x === "number" ? Math.round(x * 10) / 10 : x);
+      const log = $("upstream-checkin-log");
+      log.style.whiteSpace = "pre-wrap";
+      log.textContent = list.map(a => {
+        const name = `${PN[a.agent] ?? a.agent} ${a.user}${a.active ? "" : "（未激活）"}`;
+        const qs = (a.windows ?? []).map(w => `${w.name ?? "积分"} 剩 ${f(w.remaining) ?? "?"}`).join("，");
+        return `· ${name}：${qs || "暂无积分数据"}`;
+      }).join("\n");
+      log.hidden = list.length === 0;
+    const withQuota = list.filter(a => (a.windows?.length ?? 0) > 0);
+    renderCheckinState(`已登录 ${list.length} 个账号${withQuota.length ? `（${withQuota.length} 个有积分）` : ""}`, "up");
+  } catch { renderCheckinState("账号状态获取失败", "down"); }
+}
+for (const [prov, label, pid] of CHECKIN_PROVIDERS) {
+  $(`upstream-login-${prov}`).onclick = async () => {
+    const btn = $(`upstream-login-${prov}`);
+    btn.disabled = true; btn.textContent = `${label} 登录中…（在弹窗完成登录后自动恢复）`;
+    flash("llm-flash", true, `${label} 登录窗已弹出——在窗口里完成验证，关窗后自动刷新账号。`);
+    try { await api("POST", `/api/upstream/login?provider=${pid}`); flash("llm-flash", true, `${label} 登录流程结束，正在刷新账号…`); }
+    catch (e) { flash("llm-flash", false, `${label} 登录流程提前退出：${e.message}（若窗口里已完成登录，稍后自动刷新即可确认）`); }
+    btn.disabled = false; btn.textContent = `登录 ${label} 账号`;
+    refreshCheckinAccounts(); refreshUpstream();
+  };
+}
+$("upstream-checkin").onclick = async () => {
+  const btn = $("upstream-checkin");
+  btn.disabled = true; btn.textContent = "领取中…";
+  renderCheckinState("正在为全部账号签到…", "up");
+  try {
+    const v = await api("POST", "/api/upstream/checkin");
+    const log = $("upstream-checkin-log");
+    log.textContent = (v.lines ?? []).join("\n") || "（无输出）";
+    log.hidden = false;
+    flash("llm-flash", true, v.ok ? "签到完成（幂等：当天重复点只显示 already）" : "签到命令退出非 0，详情见结果行");
+  } catch (e) { flash("llm-flash", false, `签到失败：${e.message}`); renderCheckinState("签到失败", "down"); }
+  btn.disabled = false; btn.textContent = "一键领取积分";
+  refreshCheckinAccounts(); refreshUpstream();
+};
 $("upstream-start").onclick = async () => {
   const btn = $("upstream-start");
   btn.disabled = true; btn.textContent = "启动中…";

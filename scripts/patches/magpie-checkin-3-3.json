@@ -1,0 +1,7 @@
+{
+ "id": "MAGPIE-CHECKIN-3",
+ "description": "api/mod.rs 导出三个新处理器",
+ "file": "runtime/crates/host/src/web/api/mod.rs",
+ "anchor": "pub(super) use misc::{\n    create_instance, delete_instance, get_models, get_presets, list_instances, pick_folder,\n    reveal_target, session_exists, upstream_start, upstream_status,\n};",
+ "patch": "pub(super) use misc::{\n    create_instance, delete_instance, get_models, get_presets, list_instances, pick_folder,\n    reveal_target, session_exists, upstream_accounts, upstream_checkin, upstream_login,\n    upstream_start, upstream_status,\n};"
+}
