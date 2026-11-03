@@ -18,5 +18,8 @@ config.magpie.local.json
 # 补丁回滚备份（scripts/apply-tool-patches.py 自动生成）
 *.patchbak
 
+# Magpie 账号台账（含邮箱等 PII，仅本机）
+config/magpie-accounts.json
+
 # magpie 分析工作区（上游源码副本，不入库）
 magpie/
