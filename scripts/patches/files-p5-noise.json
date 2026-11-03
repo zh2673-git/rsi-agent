@@ -1,0 +1,7 @@
+{
+  "id": "FILES-P5-NOISE",
+  "description": "files.py _NOISE_DIRS：+target-selfupdate（P1 自更新隔离构建目录）——一处剪枝三处受益：list_dir/grep 递归剪枝、bash 快照区排除（否则隔离构建产物数千文件 + 约 20MB exe 会进 pre-copy 缓存与每次全树扫描）",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor": "_NOISE_DIRS = frozenset(\n    {\".git\", \"node_modules\", \"target\", \"__pycache__\", \".venv\", \"venv\", \"dist\", \"build\", \".idea\"}\n)",
+  "patch": "_NOISE_DIRS = frozenset(\n    {\".git\", \"node_modules\", \"target\", \"target-selfupdate\", \"__pycache__\", \".venv\", \"venv\", \"dist\", \"build\", \".idea\"}\n)"
+}

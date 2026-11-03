@@ -34,7 +34,7 @@ _MAX_LIST_ENTRIES = 5000
 
 # 递归遍历（list_dir recursive / grep）默认剪枝的噪音目录
 _NOISE_DIRS = frozenset(
-    {".git", "node_modules", "target", "__pycache__", ".venv", "venv", "dist", "build", ".idea"}
+    {".git", "node_modules", "target", "target-selfupdate", "__pycache__", ".venv", "venv", "dist", "build", ".idea"}
 )
 
 # ── 核心写保护（v6）：禁止 write_file/edit_file 触碰的路径（相对 WORKSPACE_ROOT，normcase
