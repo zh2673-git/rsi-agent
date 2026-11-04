@@ -1,0 +1,33 @@
+{
+  "id": "kids-education",
+  "name": "儿童教育",
+  "beats": [
+    { "id": "meet", "name": "角色引入", "note": "一个圆润友好的主角", "function": "emotion" },
+    { "id": "explore1", "name": "探索一", "note": "第一个知识点", "function": "inform" },
+    { "id": "explore2", "name": "探索二", "note": "第二个知识点", "function": "inform" },
+    { "id": "play", "name": "游戏/互动", "note": "提问让孩子回答", "function": "emotion" },
+    { "id": "song", "name": "儿歌总结", "note": "唱一遍学过的内容", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "meet", "visualIntent": "圆形主角居中挥手，暖色", "emotionGoal": "亲近", "counterpoint": "emotion" },
+    { "beatId": "explore1", "visualIntent": "大字号高对比，一个知识点一屏", "emotionGoal": "好奇", "counterpoint": "metaphor" },
+    { "beatId": "explore2", "visualIntent": "同构画面 + 新元素", "emotionGoal": "发现", "counterpoint": "metaphor" },
+    { "beatId": "play", "visualIntent": "提问大字 + 停顿（等孩子回答）", "emotionGoal": "参与", "counterpoint": "emotion" },
+    { "beatId": "song", "visualIntent": "角色群舞，节奏变快", "emotionGoal": "欢乐", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["pixar-2d"],
+    "rationale": "儿童内容依赖形体语言（圆=友善）与慢速清晰节奏；3D 工艺不可（B 级预期）"
+  },
+  "pacing": { "curve": "gentle", "shotLenMs": [2500, 4500], "breathEvery": 3, "comedyBeat": false },
+  "density": "low",
+  "subtitles": "大字号高对比",
+  "headTail": { "head": "角色引入", "tail": "角色挥手尾" },
+  "sound": { "bgmArc": "明亮童趣", "sfxSet": ["boing", "sparkle"] },
+  "templates": ["typography", "comic-symbol", "atmosphere"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 100, "structure": "引入-探索-再见", "chapters": 0 },
+    "5-10": { "wordsPerMin": 110, "structure": "引入-探索×2-互动-再见", "chapters": 2 },
+    "10+": { "wordsPerMin": 120, "structure": "系列小故事合集", "chapters": 3 }
+  }
+}

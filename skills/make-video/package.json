@@ -1,0 +1,29 @@
+{
+  "name": "make-video",
+  "version": "0.1.0",
+  "description": "代码绘制优先的视频编译器：主题/讲稿/素材 → 电影部门制流水线 → 成片 mp4",
+  "type": "module",
+  "bin": {
+    "make-video": "dist/interfaces/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/interfaces/cli.ts",
+    "test": "vitest run",
+    "doctor": "tsx src/interfaces/cli.ts doctor",
+    "smoke": "tsx src/interfaces/cli.ts run --project smoke-demo"
+  },
+  "dependencies": {
+    "commander": "12.1.0",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.7.5",
+    "tsx": "4.19.0",
+    "typescript": "5.5.4",
+    "vitest": "2.1.9"
+  }
+}

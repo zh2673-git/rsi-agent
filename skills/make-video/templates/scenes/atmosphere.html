@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: {{FONT}}; background: linear-gradient(180deg, {{PRIMARY}} 0%, {{NEUTRAL_0}} 130%); }
+  .stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  .sky { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 78%, {{ACCENT}}55, transparent 55%); }
+  .sun { position: absolute; left: 50%; top: 62%; width: 18vmin; height: 18vmin; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, {{ACCENT}} 0%, {{ACCENT}}88 45%, transparent 72%); filter: blur({{BLOOM}}px); }
+  .cloud { position: absolute; border-radius: 999px; background: {{NEUTRAL_3}}; opacity: 0.7; filter: blur({{DOF}}px); }
+  .c1 { width: 46%; height: 12%; left: -10%; top: 18%; }
+  .c2 { width: 34%; height: 9%; right: -8%; top: 30%; }
+  .c3 { width: 52%; height: 14%; left: 10%; top: 46%; opacity: 0.45; }
+  .subject { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); color: #fff; font-size: {{TITLE_SIZE}}px; font-weight: 700; text-shadow: 0 2px 24px rgba(0,0,0,0.45); text-align: center; }
+  .hint { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); color: {{NEUTRAL_4}}; font-size: {{BODY_SIZE}}px; opacity: 0.7; }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="sky"></div>
+    <div class="cloud c1"></div>
+    <div class="cloud c2"></div>
+    <div class="cloud c3"></div>
+    <div class="sun"></div>
+    <div class="subject">{{TITLE}}</div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 45%, #000 140%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}} * 1.5, from: { opacity: 0, y: 50 } });
+      MV.enter('.sun', { easing: '{{EASING}}', duration: 2000, from: { opacity: 0, scale: 0.6 } });
+      MV.enter('.cloud', { easing: 'none', duration: 2000, stagger: 600, from: { xPercent: -20, opacity: 0 } });
+      MV.idle('.sun', { delay: 2000 });
+      MV.camera('.stage', { move: 'push-in', zoom: '{{ZOOM}}' });
+    });
+  </script>
+</body>
+</html>

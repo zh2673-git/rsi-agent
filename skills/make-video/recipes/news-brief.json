@@ -1,0 +1,33 @@
+{
+  "id": "news-brief",
+  "name": "新闻资讯",
+  "beats": [
+    { "id": "headline", "name": "头条", "note": "一句话新闻", "function": "inform" },
+    { "id": "point1", "name": "要点一", "note": "最关键信息", "function": "inform" },
+    { "id": "point2", "name": "要点二", "note": "次关键信息", "function": "inform" },
+    { "id": "point3", "name": "要点三", "note": "补充信息", "function": "inform" },
+    { "id": "outlook", "name": "展望", "note": "后续影响", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "headline", "visualIntent": "标题卡 + 关键数字特写", "emotionGoal": "警觉", "counterpoint": "emotion" },
+    { "beatId": "point1", "visualIntent": "卡片式排版，一个要点一屏", "emotionGoal": "清晰", "counterpoint": "evidence" },
+    { "beatId": "point2", "visualIntent": "同构卡片 + 序号推进", "emotionGoal": "跟读", "counterpoint": "evidence" },
+    { "beatId": "point3", "visualIntent": "同构卡片 + 序号推进", "emotionGoal": "饱和", "counterpoint": "evidence" },
+    { "beatId": "outlook", "visualIntent": "展望：一个开放构图", "emotionGoal": "余韵", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["bass-graphic", "cyber-neon"],
+    "rationale": "新闻需要高密度卡片与快节奏，图形/霓虹的硬切节奏最适配"
+  },
+  "pacing": { "curve": "rapid", "shotLenMs": [1200, 2200], "breathEvery": 6, "comedyBeat": false },
+  "density": "high",
+  "subtitles": "卡片式",
+  "headTail": { "head": "头条标题卡", "tail": "台标尾" },
+  "sound": { "bgmArc": "紧凑单弧", "sfxSet": ["tick", "swoosh"] },
+  "templates": ["typography", "flow", "comparison"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 150, "structure": "头条 + 3 要点", "chapters": 0 },
+    "5-10": { "wordsPerMin": 170, "structure": "头条 + 分组要点", "chapters": 2 },
+    "10+": { "wordsPerMin": 180, "structure": "深度报道 + 多方视角", "chapters": 3 }
+  }
+}

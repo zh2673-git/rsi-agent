@@ -1,0 +1,35 @@
+{
+  "id": "product-promo",
+  "name": "产品说明广告",
+  "beats": [
+    { "id": "pain", "name": "痛点", "note": "一个具体的难受场景", "function": "emotion" },
+    { "id": "solution", "name": "方案亮相", "note": "产品作为答案出现", "function": "inform" },
+    { "id": "feature1", "name": "特性一", "note": "最强卖点单屏", "function": "inform" },
+    { "id": "feature2", "name": "特性二", "note": "支撑卖点", "function": "inform" },
+    { "id": "feature3", "name": "特性三", "note": "差异化", "function": "inform" },
+    { "id": "cta", "name": "行动召唤", "note": "一句话 + 品牌收尾", "function": "advance" }
+  ],
+  "directorialNotes": [
+    { "beatId": "pain", "visualIntent": "痛点场景的真实感呈现（用户素材优先）", "emotionGoal": "共鸣", "counterpoint": "evidence" },
+    { "beatId": "solution", "visualIntent": "产品揭幕：黑场 + 光扫 + 单主语", "emotionGoal": "惊艳", "counterpoint": "emotion" },
+    { "beatId": "feature1", "visualIntent": "一屏一特性，大字 + 一个证据细节", "emotionGoal": "清晰", "counterpoint": "evidence" },
+    { "beatId": "feature2", "visualIntent": "与特性一同构的排版（序列感）", "emotionGoal": "信任", "counterpoint": "evidence" },
+    { "beatId": "feature3", "visualIntent": "对比构图：旧方式 vs 新方式", "emotionGoal": "说服", "counterpoint": "evidence" },
+    { "beatId": "cta", "visualIntent": "品牌收尾：slogan + logo 安全区", "emotionGoal": "行动", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["keynote-minimal"],
+    "rationale": "产品片的工业标杆是发布会极简：一屏一事、留白、唯一强调色"
+  },
+  "pacing": { "curve": "beat-pause", "shotLenMs": [2000, 4000], "breathEvery": 3, "comedyBeat": false },
+  "density": "medium",
+  "subtitles": "特性卡",
+  "headTail": { "head": "痛点场景", "tail": "强 CTA 尾" },
+  "sound": { "bgmArc": "沉稳→揭幕→上扬", "sfxSet": ["reveal", "whoosh"] },
+  "templates": ["typography", "comparison", "atmosphere"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 120, "structure": "痛点-方案-CTA 三段", "chapters": 0 },
+    "5-10": { "wordsPerMin": 140, "structure": "完整特性序列", "chapters": 2 },
+    "10+": { "wordsPerMin": 150, "structure": "故事化长版（痛点-旅程-方案）", "chapters": 3 }
+  }
+}

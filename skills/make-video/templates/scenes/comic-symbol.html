@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8%; box-sizing: border-box; }
+  .frame { position: relative; width: 72%; aspect-ratio: 4/3; background: linear-gradient(160deg, {{PRIMARY}} 0%, {{NEUTRAL_0}} 120%); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; }
+  .hero { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: #fff; text-align: center; padding: 0 8%; line-height: 1.2; text-shadow: 0 4px 0 rgba(0,0,0,0.25); }
+  .symbol { position: absolute; font-weight: 700; color: {{ACCENT}}; }
+  .sym-bang { top: 8%; right: 10%; font-size: {{TITLE_SIZE}}px; }
+  .sym-sweat { bottom: 14%; left: 8%; font-size: {{BODY_SIZE}}px; color: #7ec8ff; }
+  .sym-q { top: 10%; left: 8%; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_3}}; }
+  .sub { margin-top: 5%; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; text-align: center; }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="frame">
+      <div class="hero">{{TITLE}}</div>
+      <div class="symbol sym-bang">!</div>
+      <div class="symbol sym-sweat">💧</div>
+      <div class="symbol sym-q">?</div>
+    </div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.frame', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, scale: 0.7, rotation: -3 } });
+      MV.performance('.hero', { stiffness: {{SPRING_STIFFNESS}}, damping: {{SPRING_DAMPING}} });
+      MV.enter('.symbol', { easing: '{{EASING}}', duration: 300, stagger: {{STAGGER}}, from: { opacity: 0, scale: 2.4 } });
+      MV.emphasis('.sym-bang', { duration: 1200 });
+      MV.camera('.stage', { move: '{{CAMERA}}', zoom: 'CU' });
+    });
+  </script>
+</body>
+</html>

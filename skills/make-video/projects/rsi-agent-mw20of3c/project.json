@@ -1,0 +1,2266 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "id": "rsi-agent-mw20of3c",
+    "title": "rsi-agent",
+    "topic": "rsi-agent",
+    "aspect": "16:9",
+    "durationTier": "0-5",
+    "fps": 30,
+    "genre": "product-promo",
+    "assetPolicy": "auto",
+    "aiConsent": false
+  },
+  "stage": "compose",
+  "script": {
+    "fullText": "它跑过两百万次，没人给它升过职。因为晋升不靠资历，靠证据。技能在这里是产品，不是脚本：有契约，有案例，有状态机，有账本。第一步，进场。一个技能要进门，得先说清它能干什么、什么时候该被叫醒、输入什么、交什么活。说不清，不许进。第二步，回放。历史上干过的活被重新翻出来：哪次干对了，哪次崩了，崩在哪一枪。第三步，裁决。该造新技能，还是修旧技能，还是不造。不造也是结论，能省下的都得省。第四步，写。按专业生产体系还原这个行当：角色、工件、验收、裁决。写出来的不是一段提示词，是一套能判对错的规矩。第五步，验。静态校验先过一道：契约齐不齐，验收段有没有，工具声明对不对。这一道卡掉一半的草稿。第六步，评。可复现的案例、盲评的分数、建好的基线。旧的案例不许退化，同模型自评不算数。第七步，跑。拉到真实任务上跑一遍，看它是不是真能干活，还是只会背词。第八步，验。用测试闸门收口：红了不算完成，修好再交付。第九步，复盘。这一趟哪里慢、哪里绕、哪里白干，全记账上。第十步，晋升。证据够了才升级，不够就退回草稿，或者直接退役。十步走完，一个技能才算活过来。而这一整套判断，不靠一个更聪明的模型，靠一条不会说谎的流水线。它不生产答案，它生产可靠性。",
+    "segments": [
+      {
+        "id": "seg-01",
+        "text": "它跑过两百万次，没人给它升过职。",
+        "function": "emotion",
+        "beat": "pain",
+        "mood": "tense",
+        "emphasis": [
+          "两百万次",
+          "升过职"
+        ]
+      },
+      {
+        "id": "seg-02",
+        "text": "因为晋升不靠资历，靠证据。",
+        "function": "emotion",
+        "beat": "pain",
+        "mood": "awe",
+        "emphasis": [
+          "证据"
+        ]
+      },
+      {
+        "id": "seg-03",
+        "text": "技能在这里是产品，不是脚本：有契约，有案例，有状态机，有账本。",
+        "function": "inform",
+        "beat": "solution",
+        "mood": "neutral",
+        "emphasis": [
+          "产品",
+          "账本"
+        ]
+      },
+      {
+        "id": "seg-04",
+        "text": "第一步，进场。一个技能要进门，得先说清它能干什么、什么时候该被叫醒、输入什么、交什么活。",
+        "function": "inform",
+        "beat": "solution",
+        "mood": "neutral",
+        "emphasis": [
+          "进场"
+        ]
+      },
+      {
+        "id": "seg-05",
+        "text": "说不清，不许进。",
+        "function": "emotion",
+        "beat": "solution",
+        "mood": "tense",
+        "emphasis": [
+          "不许进"
+        ]
+      },
+      {
+        "id": "seg-06",
+        "text": "第二步，回放。历史上干过的活被重新翻出来：哪次干对了，哪次崩了，崩在哪一枪。",
+        "function": "inform",
+        "beat": "feature1",
+        "mood": "curious",
+        "emphasis": [
+          "回放"
+        ]
+      },
+      {
+        "id": "seg-07",
+        "text": "第三步，裁决。该造新技能，还是修旧技能，还是不造。",
+        "function": "inform",
+        "beat": "feature1",
+        "mood": "neutral",
+        "emphasis": [
+          "裁决",
+          "不造"
+        ]
+      },
+      {
+        "id": "seg-08",
+        "text": "不造也是结论，能省下的都得省。",
+        "function": "emotion",
+        "beat": "feature1",
+        "mood": "warm",
+        "emphasis": [
+          "不造"
+        ]
+      },
+      {
+        "id": "seg-09",
+        "text": "第四步，写。按专业生产体系还原这个行当：角色、工件、验收、裁决。",
+        "function": "inform",
+        "beat": "feature2",
+        "mood": "neutral",
+        "emphasis": [
+          "行当"
+        ]
+      },
+      {
+        "id": "seg-10",
+        "text": "写出来的不是一段提示词，是一套能判对错的规矩。",
+        "function": "emotion",
+        "beat": "feature2",
+        "mood": "awe",
+        "emphasis": [
+          "规矩"
+        ]
+      },
+      {
+        "id": "seg-11",
+        "text": "第五步，验。静态校验先过一道：契约齐不齐，验收段有没有，工具声明对不对。",
+        "function": "inform",
+        "beat": "feature2",
+        "mood": "neutral",
+        "emphasis": [
+          "静态校验"
+        ]
+      },
+      {
+        "id": "seg-12",
+        "text": "这一道，卡掉一半的草稿。",
+        "function": "inform",
+        "beat": "feature2",
+        "mood": "tense",
+        "emphasis": [
+          "一半"
+        ]
+      },
+      {
+        "id": "seg-13",
+        "text": "第六步，评。可复现的案例、盲评的分数、建好的基线。",
+        "function": "inform",
+        "beat": "feature3",
+        "mood": "neutral",
+        "emphasis": [
+          "盲评",
+          "基线"
+        ]
+      },
+      {
+        "id": "seg-14",
+        "text": "旧的案例不许退化，同模型自评不算数。",
+        "function": "emotion",
+        "beat": "feature3",
+        "mood": "tense",
+        "emphasis": [
+          "不许退化",
+          "不算数"
+        ]
+      },
+      {
+        "id": "seg-15",
+        "text": "第七步，跑。拉到真实任务上跑一遍，看它是不是真能干活，还是只会背词。",
+        "function": "inform",
+        "beat": "feature3",
+        "mood": "curious",
+        "emphasis": [
+          "真实任务",
+          "背词"
+        ]
+      },
+      {
+        "id": "seg-16",
+        "text": "第八步，验。用测试闸门收口：红了不算完成，修好再交付。",
+        "function": "inform",
+        "beat": "cta",
+        "mood": "urgent",
+        "emphasis": [
+          "测试闸门",
+          "红了"
+        ]
+      },
+      {
+        "id": "seg-17",
+        "text": "第九步，复盘。这一趟哪里慢、哪里绕、哪里白干，全记账上。",
+        "function": "inform",
+        "beat": "cta",
+        "mood": "neutral",
+        "emphasis": [
+          "复盘"
+        ]
+      },
+      {
+        "id": "seg-18",
+        "text": "第十步，晋升。证据够了才升级，不够就退回草稿，或者直接退役。",
+        "function": "inform",
+        "beat": "cta",
+        "mood": "awe",
+        "emphasis": [
+          "晋升",
+          "退役"
+        ]
+      },
+      {
+        "id": "seg-19",
+        "text": "十步走完，一个技能才算活过来。",
+        "function": "emotion",
+        "beat": "cta",
+        "mood": "warm",
+        "emphasis": [
+          "活过来"
+        ]
+      },
+      {
+        "id": "seg-20",
+        "text": "而这一整套判断，不靠一个更聪明的模型，靠一条不会说谎的流水线。",
+        "function": "emotion",
+        "beat": "cta",
+        "mood": "awe",
+        "emphasis": [
+          "流水线"
+        ]
+      },
+      {
+        "id": "seg-21",
+        "text": "它不生产答案，它生产可靠性。",
+        "function": "emotion",
+        "beat": "cta",
+        "mood": "warm",
+        "emphasis": [
+          "可靠性"
+        ]
+      }
+    ]
+  },
+  "directorNotes": [
+    {
+      "segmentId": "seg-01",
+      "visualIntent": "s01（ELS）它跑过两百万次，没人给它升过职。",
+      "emotionGoal": "压迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-02",
+      "visualIntent": "s02（LS）因为晋升不靠资历，靠证据。",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-03",
+      "visualIntent": "s03（MS）技能在这里是产品，不是脚本：有契约，有案",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-04",
+      "visualIntent": "s04（LS）第一步，进场。一个技能要进门，得先说清它",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-05",
+      "visualIntent": "s05（MS）说不清，不许进。",
+      "emotionGoal": "压迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-06",
+      "visualIntent": "s06（MS）第二步，回放。历史上干过的活被重新翻出来",
+      "emotionGoal": "好奇",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-07",
+      "visualIntent": "s07（LS）第三步，裁决。该造新技能，还是修旧技能，",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-08",
+      "visualIntent": "s08（CU）不造也是结论，能省下的都得省。",
+      "emotionGoal": "温热",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-09",
+      "visualIntent": "s09（LS）第四步，写。按专业生产体系还原这个行当：",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-10",
+      "visualIntent": "s10（MS）写出来的不是一段提示词，是一套能判对错的",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-11",
+      "visualIntent": "s11（LS）第五步，验。静态校验先过一道：契约齐不齐",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-12",
+      "visualIntent": "s12（ECU）这一道，卡掉一半的草稿。",
+      "emotionGoal": "压迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-13",
+      "visualIntent": "s13（MS）第六步，评。可复现的案例、盲评的分数、建",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-14",
+      "visualIntent": "s14（LS）旧的案例不许退化，同模型自评不算数。",
+      "emotionGoal": "压迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-15",
+      "visualIntent": "s15（CU）第七步，跑。拉到真实任务上跑一遍，看它是",
+      "emotionGoal": "好奇",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-16",
+      "visualIntent": "s16（LS）第八步，验。用测试闸门收口：红了不算完成",
+      "emotionGoal": "紧迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-17",
+      "visualIntent": "s17（MS）第九步，复盘。这一趟哪里慢、哪里绕、哪里",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-18",
+      "visualIntent": "s18（MS）第十步，晋升。证据够了才升级，不够就退回",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-19",
+      "visualIntent": "s19（ELS）十步走完，一个技能才算活过来。",
+      "emotionGoal": "温热",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-20",
+      "visualIntent": "s20（ELS）而这一整套判断，不靠一个更聪明的模型，靠",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-21",
+      "visualIntent": "s21（ECU）它不生产答案，它生产可靠性。",
+      "emotionGoal": "温热",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s01",
+      "segmentId": "seg-01",
+      "narration": "它跑过两百万次，没人给它升过职。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实机房：两百万次运行的物理现场",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\bright_photo_datacenter.jpg",
+        "params": {
+          "material": {
+            "tags": [
+              "机房",
+              "服务器",
+              "两百万次运行"
+            ],
+            "reason": "真实机房：两百万次运行的物理现场"
+          }
+        }
+      },
+      "zoom": "ELS",
+      "camera": "push-in",
+      "motivation": "定场：让巨构先于人物出现，情绪压场",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\bright_photo_datacenter.jpg",
+        "width": 1920,
+        "height": 1077,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实机房：两百万次运行的物理现场",
+          "tags": [
+            "机房",
+            "服务器",
+            "两百万次运行"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s01.wav",
+        "durationMs": 3680,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s02",
+      "segmentId": "seg-02",
+      "narration": "因为晋升不靠资历，靠证据。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s02 程序化画面：因为晋升不靠资历，靠证据。",
+        "template": "canvas:s02",
+        "params": {
+          "scene": "s02",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "景别跳：从巨构收到三件原语的结构陈列",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s02.html",
+        "meta": {
+          "scene": "s02"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s02.wav",
+        "durationMs": 2560,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s03",
+      "segmentId": "seg-03",
+      "narration": "技能在这里是产品，不是脚本：有契约，有案例，有状态机，有账本。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s03 程序化画面：技能在这里是产品，不是脚本：有契约，有案例，有状",
+        "template": "canvas:s03",
+        "params": {
+          "scene": "s03",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "情绪：手工作坊的混乱要压进来才难受",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "smash-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s03.html",
+        "meta": {
+          "scene": "s03"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s03.wav",
+        "durationMs": 6160,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s04",
+      "segmentId": "seg-04",
+      "narration": "第一步，进场。一个技能要进门，得先说清它能干什么、什么时候该被叫醒、输入什么、交什么活。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s04 程序化画面：第一步，进场。一个技能要进门，得先说清它能干什么",
+        "template": "canvas:s04",
+        "params": {
+          "scene": "s04",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "static",
+      "motivation": "动作：七处红点依次亮起的节拍切",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "hard-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s04.html",
+        "meta": {
+          "scene": "s04"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s04.wav",
+        "durationMs": 8560,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s05",
+      "segmentId": "seg-05",
+      "narration": "说不清，不许进。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s05 程序化画面：说不清，不许进。",
+        "template": "canvas:s05",
+        "params": {
+          "scene": "s05",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "pan",
+      "motivation": "动作：一刀剖开画面的动作接下一个镜头",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "hard-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s05.html",
+        "meta": {
+          "scene": "s05"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s05.wav",
+        "durationMs": 2080,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s06",
+      "segmentId": "seg-06",
+      "narration": "第二步，回放。历史上干过的活被重新翻出来：哪次干对了，哪次崩了，崩在哪一枪。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s06 程序化画面：第二步，回放。历史上干过的活被重新翻出来：哪次干",
+        "template": "canvas:s06",
+        "params": {
+          "scene": "s06",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "同构：核心立方与前后镜的圆形结构接住",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s06.html",
+        "meta": {
+          "scene": "s06"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s06.wav",
+        "durationMs": 8000,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s07",
+      "segmentId": "seg-07",
+      "narration": "第三步，裁决。该造新技能，还是修旧技能，还是不造。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s07 程序化画面：第三步，裁决。该造新技能，还是修旧技能，还是不造",
+        "template": "canvas:s07",
+        "params": {
+          "scene": "s07",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "景别跳：从单核心拉到卫星群，说明层级",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s07.html",
+        "meta": {
+          "scene": "s07"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s07.wav",
+        "durationMs": 5600,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s08",
+      "segmentId": "seg-08",
+      "narration": "不造也是结论，能省下的都得省。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s08 程序化画面：不造也是结论，能省下的都得省。",
+        "template": "canvas:s08",
+        "params": {
+          "scene": "s08",
+          "side": "center"
+        }
+      },
+      "zoom": "CU",
+      "camera": "push-in",
+      "motivation": "情绪：一句话必须用一扇小窗来收窄",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "smash-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s08.html",
+        "meta": {
+          "scene": "s08"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s08.wav",
+        "durationMs": 4320,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s09",
+      "segmentId": "seg-09",
+      "narration": "第四步，写。按专业生产体系还原这个行当：角色、工件、验收、裁决。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实源码：runtime/agent-loop",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\code_rsi_runtime.png",
+        "params": {
+          "material": {
+            "tags": [
+              "真实源码",
+              "运行时",
+              "规矩"
+            ],
+            "reason": "真实源码：runtime/agent-loop"
+          }
+        }
+      },
+      "zoom": "LS",
+      "camera": "static",
+      "motivation": "情绪：门开的停顿就是这句的悬念",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\code_rsi_runtime.png",
+        "width": 1920,
+        "height": 1080,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实源码：runtime/agent-loop",
+          "tags": [
+            "真实源码",
+            "运行时",
+            "规矩"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s09.wav",
+        "durationMs": 9040,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s10",
+      "segmentId": "seg-10",
+      "narration": "写出来的不是一段提示词，是一套能判对错的规矩。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s10 程序化画面：写出来的不是一段提示词，是一套能判对错的规矩。",
+        "template": "canvas:s10",
+        "params": {
+          "scene": "s10",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "景别跳：从门收到三层同心壳的结构图",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s10.html",
+        "meta": {
+          "scene": "s10"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s10.wav",
+        "durationMs": 5680,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s11",
+      "segmentId": "seg-11",
+      "narration": "第五步，验。静态校验先过一道：契约齐不齐，验收段有没有，工具声明对不对。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实测试输出：静态校验闸门",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\term_tests.png",
+        "params": {
+          "material": {
+            "tags": [
+              "真实测试",
+              "校验",
+              "闸门"
+            ],
+            "reason": "真实测试输出：静态校验闸门"
+          }
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "动作：三线汇流的动势带出协议",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "neutral",
+      "transition": "wipe",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\term_tests.png",
+        "width": 1920,
+        "height": 1080,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实测试输出：静态校验闸门",
+          "tags": [
+            "真实测试",
+            "校验",
+            "闸门"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s11.wav",
+        "durationMs": 9680,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s12",
+      "segmentId": "seg-12",
+      "narration": "这一道，卡掉一半的草稿。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s12 程序化画面：这一道，卡掉一半的草稿。",
+        "template": "canvas:s12",
+        "params": {
+          "scene": "s12",
+          "side": "center"
+        }
+      },
+      "zoom": "ECU",
+      "camera": "static",
+      "motivation": "情绪：屏息，一秒的静默比任何运动都响",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "smash-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s12.html",
+        "meta": {
+          "scene": "s12"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s12.wav",
+        "durationMs": 3680,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s13",
+      "segmentId": "seg-13",
+      "narration": "第六步，评。可复现的案例、盲评的分数、建好的基线。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s13 程序化画面：第六步，评。可复现的案例、盲评的分数、建好的基线",
+        "template": "canvas:s13",
+        "params": {
+          "scene": "s13",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "pan",
+      "motivation": "动作：交接的换位动作直接接到下一镜",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "hard-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s13.html",
+        "meta": {
+          "scene": "s13"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s13.wav",
+        "durationMs": 5360,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s14",
+      "segmentId": "seg-14",
+      "narration": "旧的案例不许退化，同模型自评不算数。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s14 程序化画面：旧的案例不许退化，同模型自评不算数。",
+        "template": "canvas:s14",
+        "params": {
+          "scene": "s14",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "push-in",
+      "motivation": "景别跳：从交接现场拉到事务全程",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s14.html",
+        "meta": {
+          "scene": "s14"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s14.wav",
+        "durationMs": 4400,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s15",
+      "segmentId": "seg-15",
+      "narration": "第七步，跑。拉到真实任务上跑一遍，看它是不是真能干活，还是只会背词。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s15 程序化画面：第七步，跑。拉到真实任务上跑一遍，看它是不是真能",
+        "template": "canvas:s15",
+        "params": {
+          "scene": "s15",
+          "side": "center"
+        }
+      },
+      "zoom": "CU",
+      "camera": "static",
+      "motivation": "情绪：换刀的刃口反光要停住一拍",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "smash-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s15.html",
+        "meta": {
+          "scene": "s15"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s15.wav",
+        "durationMs": 7680,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s16",
+      "segmentId": "seg-16",
+      "narration": "第八步，验。用测试闸门收口：红了不算完成，修好再交付。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实渲染日志：红了不算完成",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\term_render.png",
+        "params": {
+          "material": {
+            "tags": [
+              "真实渲染",
+              "日志",
+              "交付"
+            ],
+            "reason": "真实渲染日志：红了不算完成"
+          }
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "动作：拦停的火花接规则段落",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "hard-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\term_render.png",
+        "width": 1920,
+        "height": 1080,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实渲染日志：红了不算完成",
+          "tags": [
+            "真实渲染",
+            "日志",
+            "交付"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s16.wav",
+        "durationMs": 7120,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s17",
+      "segmentId": "seg-17",
+      "narration": "第九步，复盘。这一趟哪里慢、哪里绕、哪里白干，全记账上。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s17 程序化画面：第九步，复盘。这一趟哪里慢、哪里绕、哪里白干，全",
+        "template": "canvas:s17",
+        "params": {
+          "scene": "s17",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "视线：机械臂指向哪里，镜头就看向哪里",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s17.html",
+        "meta": {
+          "scene": "s17"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s17.wav",
+        "durationMs": 6480,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s18",
+      "segmentId": "seg-18",
+      "narration": "第十步，晋升。证据够了才升级，不够就退回草稿，或者直接退役。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s18 程序化画面：第十步，晋升。证据够了才升级，不够就退回草稿，或",
+        "template": "canvas:s18",
+        "params": {
+          "scene": "s18",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "static",
+      "motivation": "节拍：三枚印章的落点是鼓点",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "neutral",
+      "transition": "hard-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s18.html",
+        "meta": {
+          "scene": "s18"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s18.wav",
+        "durationMs": 8320,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s19",
+      "segmentId": "seg-19",
+      "narration": "十步走完，一个技能才算活过来。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s19 程序化画面：十步走完，一个技能才算活过来。",
+        "template": "canvas:s19",
+        "params": {
+          "scene": "s19",
+          "side": "center"
+        }
+      },
+      "zoom": "ELS",
+      "camera": "tilt-up",
+      "motivation": "景别跳：从印章拉到承载一切的地基",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s19.html",
+        "meta": {
+          "scene": "s19"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s19.wav",
+        "durationMs": 4160,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s20",
+      "segmentId": "seg-20",
+      "narration": "而这一整套判断，不靠一个更聪明的模型，靠一条不会说谎的流水线。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s20 程序化画面：而这一整套判断，不靠一个更聪明的模型，靠一条不会",
+        "template": "canvas:s20",
+        "params": {
+          "scene": "s20",
+          "side": "center"
+        }
+      },
+      "zoom": "ELS",
+      "camera": "pull-out",
+      "motivation": "情绪：收束，拉远留白",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s20.html",
+        "meta": {
+          "scene": "s20"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s20.wav",
+        "durationMs": 6160,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s21",
+      "segmentId": "seg-21",
+      "narration": "它不生产答案，它生产可靠性。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s21 程序化画面：它不生产答案，它生产可靠性。",
+        "template": "canvas:s21",
+        "params": {
+          "scene": "s21",
+          "side": "center"
+        }
+      },
+      "zoom": "ECU",
+      "camera": "static",
+      "motivation": "情绪：最后一句用最静的一镜压住",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "dissolve",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\scenes\\Scene_s21.html",
+        "meta": {
+          "scene": "s21"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\audio\\vo\\s21.wav",
+        "durationMs": 3200,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    }
+  ],
+  "materialDecisions": {
+    "s01": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\bright_photo_datacenter.jpg",
+      "reason": "真实机房：两百万次运行的物理现场"
+    },
+    "s09": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\code_rsi_runtime.png",
+      "reason": "真实源码：runtime/agent-loop"
+    },
+    "s11": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\term_tests.png",
+      "reason": "真实测试输出：静态校验闸门"
+    },
+    "s16": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\rsi-agent-mw20of3c\\materials\\term_render.png",
+      "reason": "真实渲染日志：红了不算完成"
+    }
+  },
+  "style": {
+    "id": "bright-paper",
+    "source": "user-specified",
+    "rationale": "用户反馈暗调太压，改亮调纸感：米白基底 + 墨蓝结构 + 青×琥珀强调；遮幅与颗粒保留电影骨架，情绪靠明度与留白推进而非压黑",
+    "lineage": {},
+    "overrides": {
+      "transitions": [
+        "hard-cut",
+        "smash-cut",
+        "dissolve",
+        "wipe"
+      ]
+    }
+  },
+  "timeline": {
+    "shots": [
+      {
+        "shotId": "s01",
+        "startMs": 0,
+        "durationMs": 3680,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s02",
+        "startMs": 3680,
+        "durationMs": 2560,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s03",
+        "startMs": 6240,
+        "durationMs": 6160,
+        "transition": "smash-cut",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s04",
+        "startMs": 12400,
+        "durationMs": 8560,
+        "transition": "hard-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 4451
+          }
+        ],
+        "camera": "static",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s05",
+        "startMs": 20960,
+        "durationMs": 2080,
+        "transition": "hard-cut",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s06",
+        "startMs": 23040,
+        "durationMs": 8000,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "match-cut",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s07",
+        "startMs": 31040,
+        "durationMs": 5600,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s08",
+        "startMs": 36640,
+        "durationMs": 4320,
+        "transition": "smash-cut",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s09",
+        "startMs": 40960,
+        "durationMs": 9040,
+        "transition": "dissolve",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 4701
+          }
+        ],
+        "camera": "static",
+        "motivation": "emotion",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s10",
+        "startMs": 50000,
+        "durationMs": 5680,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s11",
+        "startMs": 55680,
+        "durationMs": 9680,
+        "transition": "wipe",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s12",
+        "startMs": 65360,
+        "durationMs": 3680,
+        "transition": "smash-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 1914
+          }
+        ],
+        "camera": "static",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s13",
+        "startMs": 69040,
+        "durationMs": 5360,
+        "transition": "hard-cut",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s14",
+        "startMs": 74400,
+        "durationMs": 4400,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s15",
+        "startMs": 78800,
+        "durationMs": 7680,
+        "transition": "smash-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 3994
+          }
+        ],
+        "camera": "static",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s16",
+        "startMs": 86480,
+        "durationMs": 7120,
+        "transition": "hard-cut",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s17",
+        "startMs": 93600,
+        "durationMs": 6480,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "eye-line",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s18",
+        "startMs": 100080,
+        "durationMs": 8320,
+        "transition": "hard-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 4326
+          }
+        ],
+        "camera": "static",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s19",
+        "startMs": 108400,
+        "durationMs": 4160,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "tilt-up",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s20",
+        "startMs": 112560,
+        "durationMs": 6160,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "pull-out",
+        "motivation": "emotion",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s21",
+        "startMs": 118720,
+        "durationMs": 3200,
+        "transition": "dissolve",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 1664
+          }
+        ],
+        "camera": "static",
+        "motivation": "emotion",
+        "audioShiftMs": -90
+      }
+    ],
+    "subtitles": [
+      {
+        "shotId": "s01",
+        "startMs": 0,
+        "endMs": 3680,
+        "text": "它跑过两百万次，没人给它升过职。",
+        "keywords": [
+          "两百万次",
+          "升过职",
+          "它跑过两百万次"
+        ],
+        "emphasis": [
+          "两百万次",
+          "升过职"
+        ]
+      },
+      {
+        "shotId": "s02",
+        "startMs": 3680,
+        "endMs": 6240,
+        "text": "因为晋升不靠资历，靠证据。",
+        "keywords": [
+          "证据",
+          "因为晋升不靠资历",
+          "靠证据"
+        ],
+        "emphasis": [
+          "证据"
+        ]
+      },
+      {
+        "shotId": "s03",
+        "startMs": 6240,
+        "endMs": 12400,
+        "text": "技能在这里是产品，不是脚本：有契约，有案例，有状态机，有账本。",
+        "keywords": [
+          "产品",
+          "账本",
+          "技能在这里是产品"
+        ],
+        "emphasis": [
+          "产品",
+          "账本"
+        ]
+      },
+      {
+        "shotId": "s04",
+        "startMs": 12400,
+        "endMs": 13762,
+        "text": "第一步，进场。",
+        "keywords": [
+          "进场",
+          "第一步"
+        ],
+        "emphasis": [
+          "进场"
+        ]
+      },
+      {
+        "shotId": "s04",
+        "startMs": 13762,
+        "endMs": 20960,
+        "text": "一个技能要进门，得先说清它能干什么、什么时候该被叫醒、输入什么、交什么活。",
+        "keywords": [
+          "一个技能要进门",
+          "得先说清它能干什么",
+          "什么时候该被叫醒"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s05",
+        "startMs": 20960,
+        "endMs": 23040,
+        "text": "说不清，不许进。",
+        "keywords": [
+          "不许进",
+          "说不清"
+        ],
+        "emphasis": [
+          "不许进"
+        ]
+      },
+      {
+        "shotId": "s06",
+        "startMs": 23040,
+        "endMs": 24514,
+        "text": "第二步，回放。",
+        "keywords": [
+          "回放",
+          "第二步"
+        ],
+        "emphasis": [
+          "回放"
+        ]
+      },
+      {
+        "shotId": "s06",
+        "startMs": 24514,
+        "endMs": 31040,
+        "text": "历史上干过的活被重新翻出来：哪次干对了，哪次崩了，崩在哪一枪。",
+        "keywords": [
+          "历史上干过的活被重新翻出来",
+          "哪次干对了",
+          "哪次崩了"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s07",
+        "startMs": 31040,
+        "endMs": 32608,
+        "text": "第三步，裁决。",
+        "keywords": [
+          "裁决",
+          "第三步"
+        ],
+        "emphasis": [
+          "裁决"
+        ]
+      },
+      {
+        "shotId": "s07",
+        "startMs": 32608,
+        "endMs": 36640,
+        "text": "该造新技能，还是修旧技能，还是不造。",
+        "keywords": [
+          "不造",
+          "该造新技能",
+          "还是修旧技能"
+        ],
+        "emphasis": [
+          "不造"
+        ]
+      },
+      {
+        "shotId": "s08",
+        "startMs": 36640,
+        "endMs": 40960,
+        "text": "不造也是结论，能省下的都得省。",
+        "keywords": [
+          "不造",
+          "不造也是结论",
+          "能省下的都得省"
+        ],
+        "emphasis": [
+          "不造"
+        ]
+      },
+      {
+        "shotId": "s09",
+        "startMs": 40960,
+        "endMs": 42655,
+        "text": "第四步，写。",
+        "keywords": [
+          "第四步"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s09",
+        "startMs": 42655,
+        "endMs": 50000,
+        "text": "按专业生产体系还原这个行当：角色、工件、验收、裁决。",
+        "keywords": [
+          "行当",
+          "按专业生产体系还原这个行当",
+          "角色"
+        ],
+        "emphasis": [
+          "行当"
+        ]
+      },
+      {
+        "shotId": "s10",
+        "startMs": 50000,
+        "endMs": 55680,
+        "text": "写出来的不是一段提示词，是一套能判对错的规矩。",
+        "keywords": [
+          "规矩",
+          "写出来的不是一段提示词",
+          "是一套能判对错的规矩"
+        ],
+        "emphasis": [
+          "规矩"
+        ]
+      },
+      {
+        "shotId": "s11",
+        "startMs": 55680,
+        "endMs": 57293,
+        "text": "第五步，验。",
+        "keywords": [
+          "第五步"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s11",
+        "startMs": 57293,
+        "endMs": 65360,
+        "text": "静态校验先过一道：契约齐不齐，验收段有没有，工具声明对不对。",
+        "keywords": [
+          "静态校验",
+          "静态校验先过一道",
+          "契约齐不齐"
+        ],
+        "emphasis": [
+          "静态校验"
+        ]
+      },
+      {
+        "shotId": "s12",
+        "startMs": 65360,
+        "endMs": 69040,
+        "text": "这一道，卡掉一半的草稿。",
+        "keywords": [
+          "一半",
+          "这一道",
+          "卡掉一半的草稿"
+        ],
+        "emphasis": [
+          "一半"
+        ]
+      },
+      {
+        "shotId": "s13",
+        "startMs": 69040,
+        "endMs": 70326,
+        "text": "第六步，评。",
+        "keywords": [
+          "第六步"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s13",
+        "startMs": 70326,
+        "endMs": 74400,
+        "text": "可复现的案例、盲评的分数、建好的基线。",
+        "keywords": [
+          "盲评",
+          "基线",
+          "可复现的案例"
+        ],
+        "emphasis": [
+          "盲评",
+          "基线"
+        ]
+      },
+      {
+        "shotId": "s14",
+        "startMs": 74400,
+        "endMs": 78800,
+        "text": "旧的案例不许退化，同模型自评不算数。",
+        "keywords": [
+          "不许退化",
+          "不算数",
+          "旧的案例不许退化"
+        ],
+        "emphasis": [
+          "不许退化",
+          "不算数"
+        ]
+      },
+      {
+        "shotId": "s15",
+        "startMs": 78800,
+        "endMs": 80155,
+        "text": "第七步，跑。",
+        "keywords": [
+          "第七步"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s15",
+        "startMs": 80155,
+        "endMs": 86480,
+        "text": "拉到真实任务上跑一遍，看它是不是真能干活，还是只会背词。",
+        "keywords": [
+          "真实任务",
+          "背词",
+          "拉到真实任务上跑一遍"
+        ],
+        "emphasis": [
+          "真实任务",
+          "背词"
+        ]
+      },
+      {
+        "shotId": "s16",
+        "startMs": 86480,
+        "endMs": 88062,
+        "text": "第八步，验。",
+        "keywords": [
+          "第八步"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s16",
+        "startMs": 88062,
+        "endMs": 93600,
+        "text": "用测试闸门收口：红了不算完成，修好再交付。",
+        "keywords": [
+          "测试闸门",
+          "红了",
+          "用测试闸门收口"
+        ],
+        "emphasis": [
+          "测试闸门",
+          "红了"
+        ]
+      },
+      {
+        "shotId": "s17",
+        "startMs": 93600,
+        "endMs": 95220,
+        "text": "第九步，复盘。",
+        "keywords": [
+          "复盘",
+          "第九步"
+        ],
+        "emphasis": [
+          "复盘"
+        ]
+      },
+      {
+        "shotId": "s17",
+        "startMs": 95220,
+        "endMs": 100080,
+        "text": "这一趟哪里慢、哪里绕、哪里白干，全记账上。",
+        "keywords": [
+          "这一趟哪里慢",
+          "哪里绕",
+          "哪里白干"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s18",
+        "startMs": 100080,
+        "endMs": 102021,
+        "text": "第十步，晋升。",
+        "keywords": [
+          "晋升",
+          "第十步"
+        ],
+        "emphasis": [
+          "晋升"
+        ]
+      },
+      {
+        "shotId": "s18",
+        "startMs": 102021,
+        "endMs": 108400,
+        "text": "证据够了才升级，不够就退回草稿，或者直接退役。",
+        "keywords": [
+          "退役",
+          "证据够了才升级",
+          "不够就退回草稿"
+        ],
+        "emphasis": [
+          "退役"
+        ]
+      },
+      {
+        "shotId": "s19",
+        "startMs": 108400,
+        "endMs": 112560,
+        "text": "十步走完，一个技能才算活过来。",
+        "keywords": [
+          "活过来",
+          "十步走完",
+          "一个技能才算活过来"
+        ],
+        "emphasis": [
+          "活过来"
+        ]
+      },
+      {
+        "shotId": "s20",
+        "startMs": 112560,
+        "endMs": 118720,
+        "text": "而这一整套判断，不靠一个更聪明的模型，靠一条不会说谎的流水线。",
+        "keywords": [
+          "流水线",
+          "而这一整套判断",
+          "不靠一个更聪明的模型"
+        ],
+        "emphasis": [
+          "流水线"
+        ]
+      },
+      {
+        "shotId": "s21",
+        "startMs": 118720,
+        "endMs": 121920,
+        "text": "它不生产答案，它生产可靠性。",
+        "keywords": [
+          "可靠性",
+          "它不生产答案",
+          "它生产可靠性"
+        ],
+        "emphasis": [
+          "可靠性"
+        ]
+      }
+    ],
+    "bgm": "audio/mix/bgm.wav",
+    "sfx": [
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 0,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 3680,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 6240,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 20960,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 36640,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 50000,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/whoosh.wav",
+        "atMs": 55680,
+        "kind": "whoosh",
+        "leadMs": -60
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 65360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 74400,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 78800,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 100080,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 112560,
+        "kind": "hit",
+        "leadMs": 0
+      }
+    ]
+  },
+  "continuity": {
+    "generatedAt": "2026-11-04T13:04:04.937Z",
+    "items": []
+  },
+  "mixPlan": {
+    "generatedAt": "2026-11-04T13:04:06.322Z",
+    "tracks": [
+      {
+        "kind": "vo",
+        "file": "audio\\mix\\vo-mix.wav",
+        "gainDb": 0
+      },
+      {
+        "kind": "bgm",
+        "file": "audio\\mix\\bgm.wav",
+        "gainDb": 0
+      },
+      {
+        "kind": "sfx",
+        "file": "audio\\mix\\sfx\\whoosh.wav",
+        "gainDb": -6
+      }
+    ],
+    "duckRatio": 0.175,
+    "sfxCues": [
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 0,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 3680,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 6240,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 20960,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 36640,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 50000,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/whoosh.wav",
+        "atMs": 55680,
+        "kind": "whoosh",
+        "leadMs": -60
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 65360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 74400,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 78800,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 100080,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 112560,
+        "kind": "hit",
+        "leadMs": 0
+      }
+    ]
+  },
+  "subtitlePolicy": "full",
+  "confirmed": true
+}

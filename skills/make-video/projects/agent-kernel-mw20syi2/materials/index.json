@@ -1,0 +1,60 @@
+{
+  "items": [
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\agent-kernel-mw20syi2\\materials\\bright_p_keyboard.jpg",
+      "type": "image",
+      "width": 1920,
+      "height": 1282,
+      "tags": [
+        "真实键盘",
+        "手工活",
+        "焊死"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    },
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\agent-kernel-mw20syi2\\materials\\code_rsi_runtime.png",
+      "type": "image",
+      "width": 1920,
+      "height": 1080,
+      "tags": [
+        "真实源码",
+        "Rust",
+        "契约"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    },
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\agent-kernel-mw20syi2\\materials\\bright_photo_light_trail.jpg",
+      "type": "image",
+      "width": 1920,
+      "height": 1283,
+      "tags": [
+        "真实长曝光",
+        "交接",
+        "接管"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    },
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\agent-kernel-mw20syi2\\materials\\bright_p_bridge.jpg",
+      "type": "image",
+      "width": 1920,
+      "height": 1280,
+      "tags": [
+        "真实桥梁",
+        "地基",
+        "承重"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    }
+  ]
+}

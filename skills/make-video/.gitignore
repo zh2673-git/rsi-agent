@@ -1,0 +1,22 @@
+node_modules/
+*.tsbuildinfo
+project-development-prompt.md
+.codebuddy/
+.DS_Store
+Thumbs.db
+
+# 个人资产（头像/嗓音配置）：只存本地，绝不入库
+personal/
+templates/canvas/personal/
+
+# 项目目录：保留创作源码（IR/讲稿/画布库/场景/字幕），忽略可再生的渲染产物
+projects/*/remotion/
+projects/*/audio/
+projects/*/assets/
+projects/*/cache/
+projects/*/materials/*.jpg
+projects/*/materials/*.png
+projects/*/materials/*.mp4
+projects/*/.render.lock
+projects/*/out/*.mp4
+projects/*/*.hf-transaction-*

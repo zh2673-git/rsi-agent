@@ -1,0 +1,129 @@
+{
+  "id": "bright-paper",
+  "name": "亮调纸感",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "亮调纸感",
+    "aliases": [
+      "亮色",
+      "明亮",
+      "纸感",
+      "日间",
+      "bright",
+      "light"
+    ],
+    "vibe": "米白纸面，墨蓝结构线，青×琥珀双强调，柔光渗染；宽幅遮幅保留胶片骨架",
+    "bestFor": [
+      "product-promo",
+      "documentary-mood",
+      "science-explainer"
+    ]
+  },
+  "anatomy": {
+    "script": "钩子-展开-收束；每镜一个语义单元，句读即剪切点",
+    "directing": "对位以 metaphor 为主；母题贯穿全片，情绪靠明度与留白推进而非压黑",
+    "art": "米白基底（#f4efe4）；墨蓝结构（#2b333d）；青/琥珀用于强调；禁用大面纯黑",
+    "camera": "缓推缓拉为主；相机层与元素层严格分离",
+    "performance": "主体呼吸微动；重音节拍 pulse；禁死寂长镜",
+    "sourcing": "代码绘制为主，关键证据镜插入真实素材（真实源码/真实运行输出/真实照片）",
+    "sound": "木质+弦乐垫底 BGM + 转场 whoosh + 重音 hit；旁白区间 ducking",
+    "editing": "句读剪切；溶解 0.5s；每 2-3s 一次视觉变化"
+  },
+  "palette": {
+    "primary": "#0f7b96",
+    "accent": "#f0a83c",
+    "neutral": [
+      "#2b333d",
+      "#5c6672",
+      "#9aa4b0",
+      "#ddd4c2",
+      "#f4efe4"
+    ],
+    "colorArc": "清亮→收紧→开阔→温柔落地"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC',sans-serif"
+    ],
+    "scale": {
+      "title": 0.082,
+      "body": 0.032
+    },
+    "tracking": {
+      "title": 0.06
+    }
+  },
+  "layout": {
+    "density": 0.38,
+    "maxElementsPerShot": 3,
+    "whitespace": 0.42
+  },
+  "motion": {
+    "easing": "sine.inOut",
+    "intensity": 0.4,
+    "staggerMs": 130,
+    "spring": {
+      "stiffness": 120,
+      "damping": 22
+    }
+  },
+  "pacing": {
+    "curve": "three-act",
+    "shotLenMs": [
+      1500,
+      3200
+    ],
+    "breathEvery": 7
+  },
+  "effects": {
+    "grain": 0.07,
+    "vignette": 0.12,
+    "letterbox": true,
+    "dof": 0,
+    "bloom": 0.06
+  },
+  "transitions": [
+    "hard-cut",
+    "smash-cut",
+    "dissolve",
+    "wipe"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "CU"
+  ],
+  "caption": {
+    "plate": "rgba(32,36,42,0.74)",
+    "text": "#fdfaf3",
+    "accent": "#f5bd5e"
+  },
+  "provenance": {
+    "source": "manual",
+    "from": "日间纪录/产品发布会亮调传统（纸面基底 + 墨色结构 + 高亮度宽容）",
+    "version": "1.0",
+    "absorbedAt": "2026-11-04",
+    "review": "v1 亮调对拍验收"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": [
+      "paper-grain",
+      "ink-structure",
+      "soft-haze"
+    ],
+    "sceneBias": [
+      "typography",
+      "comparison",
+      "chart"
+    ],
+    "sceneDeny": [],
+    "texture": [
+      "paper",
+      "soft-haze"
+    ],
+    "note": "亮底上一切结构必须靠墨色对比立住；强调色只做点，不做面"
+  }
+}

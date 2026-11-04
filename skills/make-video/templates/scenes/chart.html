@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8% 10%; box-sizing: border-box; }
+  .title { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; margin-bottom: 6%; }
+  .chart { display: flex; align-items: flex-end; gap: 6%; height: 46%; border-bottom: 2px solid {{NEUTRAL_3}}; padding-bottom: 2%; }
+  .bar { flex: 1; background: {{PRIMARY}}; border-radius: 6px 6px 0 0; position: relative; }
+  .bar.accent { background: {{ACCENT}}; }
+  .bar .val { position: absolute; top: -1.6em; left: 0; right: 0; text-align: center; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_1}}; font-weight: 700; }
+  .xlabels { display: flex; gap: 6%; margin-top: 2%; }
+  .xlabels span { flex: 1; text-align: center; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; }
+  .note { margin-top: 5%; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="title">{{TITLE}}</div>
+    <div class="chart">
+      <div class="bar" style="height:38%"></div>
+      <div class="bar" style="height:62%"></div>
+      <div class="bar accent" style="height:88%"></div>
+      <div class="bar" style="height:54%"></div>
+    </div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.title', { easing: '{{EASING}}', duration: {{DURATION}} });
+      MV.enter('.bar', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, scaleY: 0, transformOrigin: 'bottom' } });
+      MV.emphasis('.bar.accent', { duration: 1400 });
+      MV.idle('.chart', { delay: 1200 });
+      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: {{FONT}}; background: radial-gradient(ellipse at 50% 30%, {{NEUTRAL_1}} 0%, {{NEUTRAL_0}} 70%); }
+  /* 舞台提供透视：子层的 translateZ/旋转才有纵深，而不是简单的缩放 */
+  .stage { position: relative; width: 100%; height: 100%; overflow: hidden; perspective: 1200px; transform-style: preserve-3d; }
+  .floor { position: absolute; left: -60%; right: -60%; top: 34%; bottom: -60%; transform: rotateX(66deg); transform-origin: 50% 0;
+           background-image: linear-gradient({{ACCENT}}44 1px, transparent 1px), linear-gradient(90deg, {{ACCENT}}44 1px, transparent 1px);
+           background-size: 72px 72px; opacity: 0.5; }
+  .halo { position: absolute; left: 50%; top: 30%; width: 44vmin; height: 44vmin; margin: -22vmin 0 0 -22vmin;
+          border-radius: 50%; background: radial-gradient(circle, {{ACCENT}}66 0%, transparent 68%); filter: blur({{BLOOM}}px); opacity: 0.7; }
+  /* 卡阵：本体不带静态 transform，旋转全部交给 3D 原语，保证渲染器逐帧 seek 可复现 */
+  .deck { position: absolute; left: 50%; top: 40%; width: 42%; height: 34%; margin-left: -21%; transform-style: preserve-3d; }
+  .panel { position: absolute; top: 0; width: 30%; height: 62%; border-radius: 10px;
+           background: linear-gradient(160deg, {{PRIMARY}}cc, {{NEUTRAL_1}}cc); border: 1px solid {{ACCENT}}66;
+           box-shadow: 0 24px 60px rgba(0,0,0,0.45); }
+  .p1 { left: 0; } .p2 { left: 35%; } .p3 { left: 70%; }
+  .subject { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); color: {{NEUTRAL_4}};
+             font-size: {{TITLE_SIZE}}px; font-weight: 700; text-align: center; text-shadow: 0 2px 24px rgba(0,0,0,0.5); }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="halo"></div>
+    <div class="floor"></div>
+    <div class="deck">
+      <div class="panel p1" data-depth="0.35"></div>
+      <div class="panel p2" data-depth="0.7"></div>
+      <div class="panel p3" data-depth="1"></div>
+    </div>
+    <div class="subject">{{TITLE}}</div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 45%, #000 140%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, y: 40 } });
+      MV.enter('.halo', { easing: 'none', duration: 2000, from: { opacity: 0, scale: 0.7 } });
+      /* 镜内 3D：转台 + 分层景深 + 主体呼吸，三者都作用于不同元素，不抢属性 */
+      MV.orbit('.deck', { step: 18 });
+      MV.depth('.panel', { strength: 1.1 });
+      MV.idle('.subject', { delay: 2000 });
+      MV.camera('.stage', { move: 'push-in', zoom: '{{ZOOM}}' });
+    });
+  </script>
+</body>
+</html>

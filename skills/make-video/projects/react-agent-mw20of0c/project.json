@@ -1,0 +1,2189 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "id": "react-agent-mw20of0c",
+    "title": "react-agent",
+    "topic": "react-agent",
+    "aspect": "16:9",
+    "durationTier": "0-5",
+    "fps": 30,
+    "genre": "product-promo",
+    "assetPolicy": "auto",
+    "aiConsent": false
+  },
+  "stage": "compose",
+  "script": {
+    "fullText": "一台机器醒了。它第一眼没有看向世界，它看向自己的手。这只手握得住工具，也改写得了自己。感知，读记忆；规划，列清单；行动，调工具；观察，写回去。四拍一行，一行一轮，一轮比一轮更接近答案。听起来简单。难的是这四拍之间，每一拍都可能崩：模型不听话，工具越权，上下文爆掉，一轮卡死。所以这里没有一处是黑箱。工具不是越能越好，是要能管住：九个生产级工具，三个执行池，一条统一白名单。写文件、改文件、删文件，每一次落笔都留痕，每一次落痕都回滚得回去。bash 里偷改的东西，也跑不掉：它和直接编辑走同一条追溯路。模型不是接得越多越好，是要接得住：OpenAI 兼容、Anthropic、Ollama、外加一个离线的 mock。断网也能跑，没有 key 也能跑。上下文不是越大越好，是要记得住：会话写进日志，刷新即重放，第几次改的、改成了什么，全都在。它不是一个人在干活。给它一个子任务，它开一个新的自己，深度受限，绝不套娃。它也不是只能干活。它能在对话里给自己造工具：说一句要什么，技能就长出来了；装载不等于启用，启用才可见。三个人的活它一个人干：编排、执行、观测。而它脚下的地基，是另一个仓库。它不碰内核一行代码，只调用契约。这不是一个更聪明的助手，这是第一台自己给自己加装零件的机器。",
+    "segments": [
+      {
+        "id": "seg-01",
+        "text": "一台机器醒了。它第一眼没有看向世界，它看向自己的手。",
+        "function": "emotion",
+        "beat": "pain",
+        "mood": "awe",
+        "emphasis": [
+          "自己的手"
+        ]
+      },
+      {
+        "id": "seg-02",
+        "text": "这只手握得住工具，也改写得了自己。",
+        "function": "emotion",
+        "beat": "pain",
+        "mood": "awe",
+        "emphasis": [
+          "工具"
+        ]
+      },
+      {
+        "id": "seg-03",
+        "text": "感知，读记忆；规划，列清单；行动，调工具；观察，写回去。",
+        "function": "inform",
+        "beat": "solution",
+        "mood": "neutral",
+        "emphasis": [
+          "感知",
+          "规划",
+          "行动",
+          "观察"
+        ]
+      },
+      {
+        "id": "seg-04",
+        "text": "四拍一行，一行一轮，一轮比一轮更接近答案。",
+        "function": "inform",
+        "beat": "solution",
+        "mood": "curious",
+        "emphasis": [
+          "四拍"
+        ]
+      },
+      {
+        "id": "seg-05",
+        "text": "听起来简单。难的是这四拍之间，每一拍都可能崩。",
+        "function": "emotion",
+        "beat": "solution",
+        "mood": "tense",
+        "emphasis": [
+          "崩"
+        ]
+      },
+      {
+        "id": "seg-06",
+        "text": "模型不听话，工具越权，上下文爆掉，一轮卡死。",
+        "function": "inform",
+        "beat": "feature1",
+        "mood": "tense",
+        "emphasis": [
+          "越权",
+          "卡死"
+        ]
+      },
+      {
+        "id": "seg-07",
+        "text": "所以这里没有一处是黑箱。",
+        "function": "emotion",
+        "beat": "feature1",
+        "mood": "awe",
+        "emphasis": [
+          "黑箱"
+        ]
+      },
+      {
+        "id": "seg-08",
+        "text": "工具不是越能越好，是要能管住：九个生产级工具，三个执行池，一条统一白名单。",
+        "function": "inform",
+        "beat": "feature2",
+        "mood": "neutral",
+        "emphasis": [
+          "白名单",
+          "三个执行池"
+        ]
+      },
+      {
+        "id": "seg-09",
+        "text": "写文件、改文件、删文件，每一次落笔都留痕，每一次留痕都回滚得回去。",
+        "function": "inform",
+        "beat": "feature2",
+        "mood": "neutral",
+        "emphasis": [
+          "留痕",
+          "回滚"
+        ]
+      },
+      {
+        "id": "seg-10",
+        "text": "bash 里偷改的东西也跑不掉：它和直接编辑走同一条追溯路。",
+        "function": "inform",
+        "beat": "feature2",
+        "mood": "tense",
+        "emphasis": [
+          "同一条"
+        ]
+      },
+      {
+        "id": "seg-11",
+        "text": "模型不是接得越多越好，是要接得住：OpenAI 兼容、Anthropic、Ollama，外加一个离线的 mock。",
+        "function": "inform",
+        "beat": "feature3",
+        "mood": "neutral",
+        "emphasis": [
+          "OpenAI",
+          "Ollama",
+          "mock"
+        ]
+      },
+      {
+        "id": "seg-12",
+        "text": "断网也能跑，没有 key 也能跑。",
+        "function": "emotion",
+        "beat": "feature3",
+        "mood": "warm",
+        "emphasis": [
+          "断网"
+        ]
+      },
+      {
+        "id": "seg-13",
+        "text": "上下文不是越大越好，是要记得住：会话写进日志，刷新即重放。",
+        "function": "inform",
+        "beat": "feature3",
+        "mood": "neutral",
+        "emphasis": [
+          "重放"
+        ]
+      },
+      {
+        "id": "seg-14",
+        "text": "第几次改的、改成了什么，全都在。",
+        "function": "inform",
+        "beat": "feature3",
+        "mood": "curious",
+        "emphasis": [
+          "全都在"
+        ]
+      },
+      {
+        "id": "seg-15",
+        "text": "它不是一个人在干活。给它一个子任务，它开一个新的自己，深度受限，绝不套娃。",
+        "function": "emotion",
+        "beat": "cta",
+        "mood": "curious",
+        "emphasis": [
+          "子任务",
+          "套娃"
+        ]
+      },
+      {
+        "id": "seg-16",
+        "text": "它也不是只能干活。它能在对话里给自己造工具。",
+        "function": "emotion",
+        "beat": "cta",
+        "mood": "awe",
+        "emphasis": [
+          "造工具"
+        ]
+      },
+      {
+        "id": "seg-17",
+        "text": "说一句要什么，技能就长出来了；装载不等于启用，启用才可见。",
+        "function": "inform",
+        "beat": "cta",
+        "mood": "neutral",
+        "emphasis": [
+          "技能",
+          "启用"
+        ]
+      },
+      {
+        "id": "seg-18",
+        "text": "三个人的活它一个人干：编排、执行、观测。",
+        "function": "inform",
+        "beat": "cta",
+        "mood": "neutral",
+        "emphasis": [
+          "编排",
+          "观测"
+        ]
+      },
+      {
+        "id": "seg-19",
+        "text": "而它脚下的地基，是另一个仓库。它不碰内核一行代码，只调用契约。",
+        "function": "emotion",
+        "beat": "cta",
+        "mood": "awe",
+        "emphasis": [
+          "地基",
+          "契约"
+        ]
+      },
+      {
+        "id": "seg-20",
+        "text": "这不是一个更聪明的助手，这是第一台自己给自己加装零件的机器。",
+        "function": "emotion",
+        "beat": "cta",
+        "mood": "awe",
+        "emphasis": [
+          "加装零件"
+        ]
+      }
+    ]
+  },
+  "directorNotes": [
+    {
+      "segmentId": "seg-01",
+      "visualIntent": "s01（ELS）一台机器醒了。它第一眼没有看向世界，它看",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-02",
+      "visualIntent": "s02（LS）这只手握得住工具，也改写得了自己。",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-03",
+      "visualIntent": "s03（MS）感知，读记忆；规划，列清单；行动，调工具",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-04",
+      "visualIntent": "s04（LS）四拍一行，一行一轮，一轮比一轮更接近答案",
+      "emotionGoal": "好奇",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-05",
+      "visualIntent": "s05（MS）听起来简单。难的是这四拍之间，每一拍都可",
+      "emotionGoal": "压迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-06",
+      "visualIntent": "s06（MS）模型不听话，工具越权，上下文爆掉，一轮卡",
+      "emotionGoal": "压迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-07",
+      "visualIntent": "s07（LS）所以这里没有一处是黑箱。",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-08",
+      "visualIntent": "s08（CU）工具不是越能越好，是要能管住：九个生产级",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-09",
+      "visualIntent": "s09（LS）写文件、改文件、删文件，每一次落笔都留痕",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-10",
+      "visualIntent": "s10（MS）bash 里偷改的东西也跑不掉：它和直接",
+      "emotionGoal": "压迫",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-11",
+      "visualIntent": "s11（LS）模型不是接得越多越好，是要接得住：Ope",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-12",
+      "visualIntent": "s12（ECU）断网也能跑，没有 key 也能跑。",
+      "emotionGoal": "温热",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    },
+    {
+      "segmentId": "seg-13",
+      "visualIntent": "s13（MS）上下文不是越大越好，是要记得住：会话写进",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-14",
+      "visualIntent": "s14（LS）第几次改的、改成了什么，全都在。",
+      "emotionGoal": "好奇",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-15",
+      "visualIntent": "s15（CU）它不是一个人在干活。给它一个子任务，它开",
+      "emotionGoal": "好奇",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-16",
+      "visualIntent": "s16（LS）它也不是只能干活。它能在对话里给自己造工",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-17",
+      "visualIntent": "s17（MS）说一句要什么，技能就长出来了；装载不等于",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-18",
+      "visualIntent": "s18（MS）三个人的活它一个人干：编排、执行、观测。",
+      "emotionGoal": "稳定",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "evidence"
+    },
+    {
+      "segmentId": "seg-19",
+      "visualIntent": "s19（ELS）而它脚下的地基，是另一个仓库。它不碰内核",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "metaphor"
+    },
+    {
+      "segmentId": "seg-20",
+      "visualIntent": "s20（ELS）这不是一个更聪明的助手，这是第一台自己给",
+      "emotionGoal": "敬畏",
+      "referenceMood": "电影级暗调纪录：单光源、硬边剪影、体积雾",
+      "counterpoint": "emotion"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s01",
+      "segmentId": "seg-01",
+      "narration": "一台机器醒了。它第一眼没有看向世界，它看向自己的手。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实工作台：它第一眼看向自己的手",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_desk.jpg",
+        "params": {
+          "material": {
+            "tags": [
+              "真实工作台",
+              "醒来",
+              "手"
+            ],
+            "reason": "真实工作台：它第一眼看向自己的手"
+          }
+        }
+      },
+      "zoom": "ELS",
+      "camera": "push-in",
+      "motivation": "定场：让巨构先于人物出现，情绪压场",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_desk.jpg",
+        "width": 1920,
+        "height": 1278,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实工作台：它第一眼看向自己的手",
+          "tags": [
+            "真实工作台",
+            "醒来",
+            "手"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s01.wav",
+        "durationMs": 5360,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s02",
+      "segmentId": "seg-02",
+      "narration": "这只手握得住工具，也改写得了自己。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s02 程序化画面：这只手握得住工具，也改写得了自己。",
+        "template": "canvas:s02",
+        "params": {
+          "scene": "s02",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "景别跳：从巨构收到三件原语的结构陈列",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s02.html",
+        "meta": {
+          "scene": "s02"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s02.wav",
+        "durationMs": 4080,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s03",
+      "segmentId": "seg-03",
+      "narration": "感知，读记忆；规划，列清单；行动，调工具；观察，写回去。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s03 程序化画面：感知，读记忆；规划，列清单；行动，调工具；观察，",
+        "template": "canvas:s03",
+        "params": {
+          "scene": "s03",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "情绪：手工作坊的混乱要压进来才难受",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "smash-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s03.html",
+        "meta": {
+          "scene": "s03"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s03.wav",
+        "durationMs": 6560,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s04",
+      "segmentId": "seg-04",
+      "narration": "四拍一行，一行一轮，一轮比一轮更接近答案。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s04 程序化画面：四拍一行，一行一轮，一轮比一轮更接近答案。",
+        "template": "canvas:s04",
+        "params": {
+          "scene": "s04",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "static",
+      "motivation": "动作：七处红点依次亮起的节拍切",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "hard-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s04.html",
+        "meta": {
+          "scene": "s04"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s04.wav",
+        "durationMs": 5760,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s05",
+      "segmentId": "seg-05",
+      "narration": "听起来简单。难的是这四拍之间，每一拍都可能崩。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s05 程序化画面：听起来简单。难的是这四拍之间，每一拍都可能崩。",
+        "template": "canvas:s05",
+        "params": {
+          "scene": "s05",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "pan",
+      "motivation": "动作：一刀剖开画面的动作接下一个镜头",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "hard-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s05.html",
+        "meta": {
+          "scene": "s05"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s05.wav",
+        "durationMs": 4720,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s06",
+      "segmentId": "seg-06",
+      "narration": "模型不听话，工具越权，上下文爆掉，一轮卡死。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s06 程序化画面：模型不听话，工具越权，上下文爆掉，一轮卡死。",
+        "template": "canvas:s06",
+        "params": {
+          "scene": "s06",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "同构：核心立方与前后镜的圆形结构接住",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s06.html",
+        "meta": {
+          "scene": "s06"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s06.wav",
+        "durationMs": 5920,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s07",
+      "segmentId": "seg-07",
+      "narration": "所以这里没有一处是黑箱。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s07 程序化画面：所以这里没有一处是黑箱。",
+        "template": "canvas:s07",
+        "params": {
+          "scene": "s07",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "景别跳：从单核心拉到卫星群，说明层级",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s07.html",
+        "meta": {
+          "scene": "s07"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s07.wav",
+        "durationMs": 3120,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s08",
+      "segmentId": "seg-08",
+      "narration": "工具不是越能越好，是要能管住：九个生产级工具，三个执行池，一条统一白名单。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s08 程序化画面：工具不是越能越好，是要能管住：九个生产级工具，三",
+        "template": "canvas:s08",
+        "params": {
+          "scene": "s08",
+          "side": "center"
+        }
+      },
+      "zoom": "CU",
+      "camera": "push-in",
+      "motivation": "情绪：一句话必须用一扇小窗来收窄",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "smash-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s08.html",
+        "meta": {
+          "scene": "s08"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s08.wav",
+        "durationMs": 8560,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s09",
+      "segmentId": "seg-09",
+      "narration": "写文件、改文件、删文件，每一次落笔都留痕，每一次留痕都回滚得回去。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实键盘：每一次落笔都留痕",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_keyboard.jpg",
+        "params": {
+          "material": {
+            "tags": [
+              "真实键盘",
+              "落笔",
+              "留痕"
+            ],
+            "reason": "真实键盘：每一次落笔都留痕"
+          }
+        }
+      },
+      "zoom": "LS",
+      "camera": "static",
+      "motivation": "情绪：门开的停顿就是这句的悬念",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_keyboard.jpg",
+        "width": 1920,
+        "height": 1282,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实键盘：每一次落笔都留痕",
+          "tags": [
+            "真实键盘",
+            "落笔",
+            "留痕"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s09.wav",
+        "durationMs": 8160,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s10",
+      "segmentId": "seg-10",
+      "narration": "bash 里偷改的东西也跑不掉：它和直接编辑走同一条追溯路。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s10 程序化画面：bash 里偷改的东西也跑不掉：它和直接编辑走同",
+        "template": "canvas:s10",
+        "params": {
+          "scene": "s10",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "景别跳：从门收到三层同心壳的结构图",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s10.html",
+        "meta": {
+          "scene": "s10"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s10.wav",
+        "durationMs": 6160,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s11",
+      "segmentId": "seg-11",
+      "narration": "模型不是接得越多越好，是要接得住：OpenAI 兼容、Anthropic、Ollama，外加一个离线的 mock。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s11 程序化画面：模型不是接得越多越好，是要接得住：OpenAI ",
+        "template": "canvas:s11",
+        "params": {
+          "scene": "s11",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "动作：三线汇流的动势带出协议",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "neutral",
+      "transition": "wipe",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s11.html",
+        "meta": {
+          "scene": "s11"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s11.wav",
+        "durationMs": 8960,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s12",
+      "segmentId": "seg-12",
+      "narration": "断网也能跑，没有 key 也能跑。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s12 程序化画面：断网也能跑，没有 key 也能跑。",
+        "template": "canvas:s12",
+        "params": {
+          "scene": "s12",
+          "side": "center"
+        }
+      },
+      "zoom": "ECU",
+      "camera": "static",
+      "motivation": "情绪：屏息，一秒的静默比任何运动都响",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "smash-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s12.html",
+        "meta": {
+          "scene": "s12"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s12.wav",
+        "durationMs": 3440,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s13",
+      "segmentId": "seg-13",
+      "narration": "上下文不是越大越好，是要记得住：会话写进日志，刷新即重放。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实光轨：会话写进日志，刷新即重放",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_light_trail.jpg",
+        "params": {
+          "material": {
+            "tags": [
+              "真实长曝光",
+              "光轨",
+              "重放"
+            ],
+            "reason": "真实光轨：会话写进日志，刷新即重放"
+          }
+        }
+      },
+      "zoom": "MS",
+      "camera": "pan",
+      "motivation": "动作：交接的换位动作直接接到下一镜",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "hard-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_light_trail.jpg",
+        "width": 1920,
+        "height": 1283,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实光轨：会话写进日志，刷新即重放",
+          "tags": [
+            "真实长曝光",
+            "光轨",
+            "重放"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s13.wav",
+        "durationMs": 6960,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s14",
+      "segmentId": "seg-14",
+      "narration": "第几次改的、改成了什么，全都在。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s14 程序化画面：第几次改的、改成了什么，全都在。",
+        "template": "canvas:s14",
+        "params": {
+          "scene": "s14",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "push-in",
+      "motivation": "景别跳：从交接现场拉到事务全程",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s14.html",
+        "meta": {
+          "scene": "s14"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s14.wav",
+        "durationMs": 3600,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s15",
+      "segmentId": "seg-15",
+      "narration": "它不是一个人在干活。给它一个子任务，它开一个新的自己，深度受限，绝不套娃。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s15 程序化画面：它不是一个人在干活。给它一个子任务，它开一个新的",
+        "template": "canvas:s15",
+        "params": {
+          "scene": "s15",
+          "side": "center"
+        }
+      },
+      "zoom": "CU",
+      "camera": "static",
+      "motivation": "情绪：换刀的刃口反光要停住一拍",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "smash-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s15.html",
+        "meta": {
+          "scene": "s15"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s15.wav",
+        "durationMs": 7760,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s16",
+      "segmentId": "seg-16",
+      "narration": "它也不是只能干活。它能在对话里给自己造工具。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s16 程序化画面：它也不是只能干活。它能在对话里给自己造工具。",
+        "template": "canvas:s16",
+        "params": {
+          "scene": "s16",
+          "side": "center"
+        }
+      },
+      "zoom": "LS",
+      "camera": "pan",
+      "motivation": "动作：拦停的火花接规则段落",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "hard-cut",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s16.html",
+        "meta": {
+          "scene": "s16"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s16.wav",
+        "durationMs": 4480,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s17",
+      "segmentId": "seg-17",
+      "narration": "说一句要什么，技能就长出来了；装载不等于启用，启用才可见。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s17 程序化画面：说一句要什么，技能就长出来了；装载不等于启用，启",
+        "template": "canvas:s17",
+        "params": {
+          "scene": "s17",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "push-in",
+      "motivation": "视线：机械臂指向哪里，镜头就看向哪里",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "warm",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s17.html",
+        "meta": {
+          "scene": "s17"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s17.wav",
+        "durationMs": 6880,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s18",
+      "segmentId": "seg-18",
+      "narration": "三个人的活它一个人干：编排、执行、观测。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s18 程序化画面：三个人的活它一个人干：编排、执行、观测。",
+        "template": "canvas:s18",
+        "params": {
+          "scene": "s18",
+          "side": "center"
+        }
+      },
+      "zoom": "MS",
+      "camera": "static",
+      "motivation": "节拍：三枚印章的落点是鼓点",
+      "counterpoint": "evidence",
+      "gag": false,
+      "colorTemp": "neutral",
+      "transition": "hard-cut",
+      "coverage": [
+        {
+          "at": 0.52,
+          "kind": "punch-in",
+          "scale": 1.13,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0,
+          "motivation": "emphasis"
+        }
+      ],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s18.html",
+        "meta": {
+          "scene": "s18"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s18.wav",
+        "durationMs": 6080,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s19",
+      "segmentId": "seg-19",
+      "narration": "而它脚下的地基，是另一个仓库。它不碰内核一行代码，只调用契约。",
+      "visual": {
+        "kind": "user-material",
+        "prompt": "真实车间：脚下的地基是另一个仓库",
+        "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_factory.jpg",
+        "params": {
+          "material": {
+            "tags": [
+              "真实车间",
+              "地基",
+              "生产"
+            ],
+            "reason": "真实车间：脚下的地基是另一个仓库"
+          }
+        }
+      },
+      "zoom": "ELS",
+      "camera": "tilt-up",
+      "motivation": "景别跳：从印章拉到承载一切的地基",
+      "counterpoint": "metaphor",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "sourced",
+      "asset": {
+        "kind": "user-material",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_factory.jpg",
+        "width": 1920,
+        "height": 1281,
+        "meta": {
+          "kenBurns": true,
+          "reason": "真实车间：脚下的地基是另一个仓库",
+          "tags": [
+            "真实车间",
+            "地基",
+            "生产"
+          ],
+          "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s19.wav",
+        "durationMs": 7200,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    },
+    {
+      "id": "s20",
+      "segmentId": "seg-20",
+      "narration": "这不是一个更聪明的助手，这是第一台自己给自己加装零件的机器。",
+      "visual": {
+        "kind": "code-scene",
+        "prompt": "s20 程序化画面：这不是一个更聪明的助手，这是第一台自己给自己加装",
+        "template": "canvas:s20",
+        "params": {
+          "scene": "s20",
+          "side": "center"
+        }
+      },
+      "zoom": "ELS",
+      "camera": "pull-out",
+      "motivation": "情绪：收束，拉远留白",
+      "counterpoint": "emotion",
+      "gag": false,
+      "colorTemp": "cool",
+      "transition": "dissolve",
+      "coverage": [],
+      "enterAnchor": "",
+      "exitAnchor": "",
+      "audioShiftMs": 0,
+      "state": "voiced",
+      "asset": {
+        "kind": "code-scene",
+        "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\scenes\\Scene_s20.html",
+        "meta": {
+          "scene": "s20"
+        }
+      },
+      "voice": {
+        "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\audio\\vo\\s20.wav",
+        "durationMs": 6320,
+        "voice": "qwen3",
+        "rate": 1,
+        "source": "tts",
+        "estimated": false
+      }
+    }
+  ],
+  "materialDecisions": {
+    "s01": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_desk.jpg",
+      "reason": "真实工作台：它第一眼看向自己的手"
+    },
+    "s09": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_keyboard.jpg",
+      "reason": "真实键盘：每一次落笔都留痕"
+    },
+    "s13": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_light_trail.jpg",
+      "reason": "真实光轨：会话写进日志，刷新即重放"
+    },
+    "s19": {
+      "kind": "user-material",
+      "source": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_factory.jpg",
+      "reason": "真实车间：脚下的地基是另一个仓库"
+    }
+  },
+  "style": {
+    "id": "bright-paper",
+    "source": "user-specified",
+    "rationale": "用户反馈暗调太压，改亮调纸感：米白基底 + 墨蓝结构 + 青×琥珀强调；遮幅与颗粒保留电影骨架，情绪靠明度与留白推进而非压黑",
+    "lineage": {},
+    "overrides": {
+      "transitions": [
+        "hard-cut",
+        "smash-cut",
+        "dissolve",
+        "wipe"
+      ]
+    }
+  },
+  "timeline": {
+    "shots": [
+      {
+        "shotId": "s01",
+        "startMs": 0,
+        "durationMs": 5360,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s02",
+        "startMs": 5360,
+        "durationMs": 4080,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s03",
+        "startMs": 9440,
+        "durationMs": 6560,
+        "transition": "smash-cut",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s04",
+        "startMs": 16000,
+        "durationMs": 5760,
+        "transition": "hard-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 2995
+          }
+        ],
+        "camera": "static",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s05",
+        "startMs": 21760,
+        "durationMs": 4720,
+        "transition": "hard-cut",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s06",
+        "startMs": 26480,
+        "durationMs": 5920,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "match-cut",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s07",
+        "startMs": 32400,
+        "durationMs": 3120,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s08",
+        "startMs": 35520,
+        "durationMs": 8560,
+        "transition": "smash-cut",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s09",
+        "startMs": 44080,
+        "durationMs": 8160,
+        "transition": "dissolve",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 4243
+          }
+        ],
+        "camera": "static",
+        "motivation": "emotion",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s10",
+        "startMs": 52240,
+        "durationMs": 6160,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s11",
+        "startMs": 58400,
+        "durationMs": 8960,
+        "transition": "wipe",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s12",
+        "startMs": 67360,
+        "durationMs": 3440,
+        "transition": "smash-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 1789
+          }
+        ],
+        "camera": "static",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s13",
+        "startMs": 70800,
+        "durationMs": 6960,
+        "transition": "hard-cut",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s14",
+        "startMs": 77760,
+        "durationMs": 3600,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s15",
+        "startMs": 81360,
+        "durationMs": 7760,
+        "transition": "smash-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 4035
+          }
+        ],
+        "camera": "static",
+        "motivation": "emotion",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s16",
+        "startMs": 89120,
+        "durationMs": 4480,
+        "transition": "hard-cut",
+        "coverage": [],
+        "camera": "pan",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s17",
+        "startMs": 93600,
+        "durationMs": 6880,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "push-in",
+        "motivation": "eye-line",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s18",
+        "startMs": 100480,
+        "durationMs": 6080,
+        "transition": "hard-cut",
+        "coverage": [
+          {
+            "kind": "punch-in",
+            "scale": 1.13,
+            "xPercent": 0,
+            "yPercent": 0,
+            "rotation": 0,
+            "motivation": "emphasis",
+            "atMs": 3162
+          }
+        ],
+        "camera": "static",
+        "motivation": "action",
+        "audioShiftMs": 0
+      },
+      {
+        "shotId": "s19",
+        "startMs": 106560,
+        "durationMs": 7200,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "tilt-up",
+        "motivation": "zoom-jump",
+        "audioShiftMs": -90
+      },
+      {
+        "shotId": "s20",
+        "startMs": 113760,
+        "durationMs": 6320,
+        "transition": "dissolve",
+        "coverage": [],
+        "camera": "pull-out",
+        "motivation": "emotion",
+        "audioShiftMs": -90
+      }
+    ],
+    "subtitles": [
+      {
+        "shotId": "s01",
+        "startMs": 0,
+        "endMs": 1443,
+        "text": "一台机器醒了。",
+        "keywords": [
+          "一台机器醒了"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s01",
+        "startMs": 1443,
+        "endMs": 5360,
+        "text": "它第一眼没有看向世界，它看向自己的手。",
+        "keywords": [
+          "自己的手",
+          "它第一眼没有看向世界",
+          "它看向自己的手"
+        ],
+        "emphasis": [
+          "自己的手"
+        ]
+      },
+      {
+        "shotId": "s02",
+        "startMs": 5360,
+        "endMs": 9440,
+        "text": "这只手握得住工具，也改写得了自己。",
+        "keywords": [
+          "工具",
+          "这只手握得住工具",
+          "也改写得了自己"
+        ],
+        "emphasis": [
+          "工具"
+        ]
+      },
+      {
+        "shotId": "s03",
+        "startMs": 9440,
+        "endMs": 11080,
+        "text": "感知，读记忆；",
+        "keywords": [
+          "感知",
+          "读记忆"
+        ],
+        "emphasis": [
+          "感知"
+        ]
+      },
+      {
+        "shotId": "s03",
+        "startMs": 11080,
+        "endMs": 12720,
+        "text": "规划，列清单；",
+        "keywords": [
+          "规划",
+          "列清单"
+        ],
+        "emphasis": [
+          "规划"
+        ]
+      },
+      {
+        "shotId": "s03",
+        "startMs": 12720,
+        "endMs": 14360,
+        "text": "行动，调工具；",
+        "keywords": [
+          "行动",
+          "调工具"
+        ],
+        "emphasis": [
+          "行动"
+        ]
+      },
+      {
+        "shotId": "s03",
+        "startMs": 14360,
+        "endMs": 16000,
+        "text": "观察，写回去。",
+        "keywords": [
+          "观察",
+          "写回去"
+        ],
+        "emphasis": [
+          "观察"
+        ]
+      },
+      {
+        "shotId": "s04",
+        "startMs": 16000,
+        "endMs": 21760,
+        "text": "四拍一行，一行一轮，一轮比一轮更接近答案。",
+        "keywords": [
+          "四拍",
+          "四拍一行",
+          "一行一轮"
+        ],
+        "emphasis": [
+          "四拍"
+        ]
+      },
+      {
+        "shotId": "s05",
+        "startMs": 21760,
+        "endMs": 22991,
+        "text": "听起来简单。",
+        "keywords": [
+          "听起来简单"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s05",
+        "startMs": 22991,
+        "endMs": 26480,
+        "text": "难的是这四拍之间，每一拍都可能崩。",
+        "keywords": [
+          "崩",
+          "难的是这四拍之间",
+          "每一拍都可能崩"
+        ],
+        "emphasis": [
+          "崩"
+        ]
+      },
+      {
+        "shotId": "s06",
+        "startMs": 26480,
+        "endMs": 32400,
+        "text": "模型不听话，工具越权，上下文爆掉，一轮卡死。",
+        "keywords": [
+          "越权",
+          "卡死",
+          "模型不听话"
+        ],
+        "emphasis": [
+          "越权",
+          "卡死"
+        ]
+      },
+      {
+        "shotId": "s07",
+        "startMs": 32400,
+        "endMs": 35520,
+        "text": "所以这里没有一处是黑箱。",
+        "keywords": [
+          "黑箱",
+          "所以这里没有一处是黑箱"
+        ],
+        "emphasis": [
+          "黑箱"
+        ]
+      },
+      {
+        "shotId": "s08",
+        "startMs": 35520,
+        "endMs": 44080,
+        "text": "工具不是越能越好，是要能管住：九个生产级工具，三个执行池，一条统一白名单。",
+        "keywords": [
+          "白名单",
+          "三个执行池",
+          "工具不是越能越好"
+        ],
+        "emphasis": [
+          "白名单",
+          "三个执行池"
+        ]
+      },
+      {
+        "shotId": "s09",
+        "startMs": 44080,
+        "endMs": 52240,
+        "text": "写文件、改文件、删文件，每一次落笔都留痕，每一次留痕都回滚得回去。",
+        "keywords": [
+          "留痕",
+          "回滚",
+          "写文件"
+        ],
+        "emphasis": [
+          "留痕",
+          "回滚"
+        ]
+      },
+      {
+        "shotId": "s10",
+        "startMs": 52240,
+        "endMs": 58400,
+        "text": "bash 里偷改的东西也跑不掉：它和直接编辑走同一条追溯路。",
+        "keywords": [
+          "同一条",
+          "bash",
+          "里偷改的东西也跑不掉"
+        ],
+        "emphasis": [
+          "同一条"
+        ]
+      },
+      {
+        "shotId": "s11",
+        "startMs": 58400,
+        "endMs": 67360,
+        "text": "模型不是接得越多越好，是要接得住：OpenAI 兼容、Anthropic、Ollama，外加一个离线的 mock。",
+        "keywords": [
+          "OpenAI",
+          "Ollama",
+          "mock"
+        ],
+        "emphasis": [
+          "OpenAI",
+          "Ollama",
+          "mock"
+        ]
+      },
+      {
+        "shotId": "s12",
+        "startMs": 67360,
+        "endMs": 70800,
+        "text": "断网也能跑，没有 key 也能跑。",
+        "keywords": [
+          "断网",
+          "断网也能跑",
+          "没有"
+        ],
+        "emphasis": [
+          "断网"
+        ]
+      },
+      {
+        "shotId": "s13",
+        "startMs": 70800,
+        "endMs": 77760,
+        "text": "上下文不是越大越好，是要记得住：会话写进日志，刷新即重放。",
+        "keywords": [
+          "重放",
+          "上下文不是越大越好",
+          "是要记得住"
+        ],
+        "emphasis": [
+          "重放"
+        ]
+      },
+      {
+        "shotId": "s14",
+        "startMs": 77760,
+        "endMs": 81360,
+        "text": "第几次改的、改成了什么，全都在。",
+        "keywords": [
+          "全都在",
+          "第几次改的",
+          "改成了什么"
+        ],
+        "emphasis": [
+          "全都在"
+        ]
+      },
+      {
+        "shotId": "s15",
+        "startMs": 81360,
+        "endMs": 83457,
+        "text": "它不是一个人在干活。",
+        "keywords": [
+          "它不是一个人在干活"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s15",
+        "startMs": 83457,
+        "endMs": 89120,
+        "text": "给它一个子任务，它开一个新的自己，深度受限，绝不套娃。",
+        "keywords": [
+          "子任务",
+          "套娃",
+          "给它一个子任务"
+        ],
+        "emphasis": [
+          "子任务",
+          "套娃"
+        ]
+      },
+      {
+        "shotId": "s16",
+        "startMs": 89120,
+        "endMs": 90953,
+        "text": "它也不是只能干活。",
+        "keywords": [
+          "它也不是只能干活"
+        ],
+        "emphasis": []
+      },
+      {
+        "shotId": "s16",
+        "startMs": 90953,
+        "endMs": 93600,
+        "text": "它能在对话里给自己造工具。",
+        "keywords": [
+          "造工具",
+          "它能在对话里给自己造工具"
+        ],
+        "emphasis": [
+          "造工具"
+        ]
+      },
+      {
+        "shotId": "s17",
+        "startMs": 93600,
+        "endMs": 97159,
+        "text": "说一句要什么，技能就长出来了；",
+        "keywords": [
+          "技能",
+          "说一句要什么",
+          "技能就长出来了"
+        ],
+        "emphasis": [
+          "技能"
+        ]
+      },
+      {
+        "shotId": "s17",
+        "startMs": 97159,
+        "endMs": 100480,
+        "text": "装载不等于启用，启用才可见。",
+        "keywords": [
+          "启用",
+          "装载不等于启用",
+          "启用才可见"
+        ],
+        "emphasis": [
+          "启用"
+        ]
+      },
+      {
+        "shotId": "s18",
+        "startMs": 100480,
+        "endMs": 106560,
+        "text": "三个人的活它一个人干：编排、执行、观测。",
+        "keywords": [
+          "编排",
+          "观测",
+          "三个人的活它一个人干"
+        ],
+        "emphasis": [
+          "编排",
+          "观测"
+        ]
+      },
+      {
+        "shotId": "s19",
+        "startMs": 106560,
+        "endMs": 110044,
+        "text": "而它脚下的地基，是另一个仓库。",
+        "keywords": [
+          "地基",
+          "而它脚下的地基",
+          "是另一个仓库"
+        ],
+        "emphasis": [
+          "地基"
+        ]
+      },
+      {
+        "shotId": "s19",
+        "startMs": 110044,
+        "endMs": 113760,
+        "text": "它不碰内核一行代码，只调用契约。",
+        "keywords": [
+          "契约",
+          "它不碰内核一行代码",
+          "只调用契约"
+        ],
+        "emphasis": [
+          "契约"
+        ]
+      },
+      {
+        "shotId": "s20",
+        "startMs": 113760,
+        "endMs": 120080,
+        "text": "这不是一个更聪明的助手，这是第一台自己给自己加装零件的机器。",
+        "keywords": [
+          "加装零件",
+          "这不是一个更聪明的助手",
+          "这是第一台自己给自己加装零件的机器"
+        ],
+        "emphasis": [
+          "加装零件"
+        ]
+      }
+    ],
+    "bgm": "audio/mix/bgm.wav",
+    "sfx": [
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 0,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 5360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 9440,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 21760,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 26480,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 32400,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 35520,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 52240,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/whoosh.wav",
+        "atMs": 58400,
+        "kind": "whoosh",
+        "leadMs": -60
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 67360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 81360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 89120,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 106560,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 113760,
+        "kind": "hit",
+        "leadMs": 0
+      }
+    ]
+  },
+  "continuity": {
+    "generatedAt": "2026-11-04T13:04:06.498Z",
+    "items": []
+  },
+  "mixPlan": {
+    "generatedAt": "2026-11-04T13:04:07.836Z",
+    "tracks": [
+      {
+        "kind": "vo",
+        "file": "audio\\mix\\vo-mix.wav",
+        "gainDb": 0
+      },
+      {
+        "kind": "bgm",
+        "file": "audio\\mix\\bgm.wav",
+        "gainDb": 0
+      },
+      {
+        "kind": "sfx",
+        "file": "audio\\mix\\sfx\\whoosh.wav",
+        "gainDb": -6
+      }
+    ],
+    "duckRatio": 0.175,
+    "sfxCues": [
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 0,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 5360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 9440,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 21760,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 26480,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 32400,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 35520,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 52240,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/whoosh.wav",
+        "atMs": 58400,
+        "kind": "whoosh",
+        "leadMs": -60
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 67360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 81360,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 89120,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 106560,
+        "kind": "hit",
+        "leadMs": 0
+      },
+      {
+        "file": "audio/sfx/hit.wav",
+        "atMs": 113760,
+        "kind": "hit",
+        "leadMs": 0
+      }
+    ]
+  },
+  "subtitlePolicy": "full",
+  "confirmed": true
+}

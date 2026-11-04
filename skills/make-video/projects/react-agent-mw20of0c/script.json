@@ -1,0 +1,25 @@
+{
+  "fullText": "一台机器醒了。它第一眼没有看向世界，它看向自己的手。这只手握得住工具，也改写得了自己。感知，读记忆；规划，列清单；行动，调工具；观察，写回去。四拍一行，一行一轮，一轮比一轮更接近答案。听起来简单。难的是这四拍之间，每一拍都可能崩：模型不听话，工具越权，上下文爆掉，一轮卡死。所以这里没有一处是黑箱。工具不是越能越好，是要能管住：九个生产级工具，三个执行池，一条统一白名单。写文件、改文件、删文件，每一次落笔都留痕，每一次落痕都回滚得回去。bash 里偷改的东西，也跑不掉：它和直接编辑走同一条追溯路。模型不是接得越多越好，是要接得住：OpenAI 兼容、Anthropic、Ollama、外加一个离线的 mock。断网也能跑，没有 key 也能跑。上下文不是越大越好，是要记得住：会话写进日志，刷新即重放，第几次改的、改成了什么，全都在。它不是一个人在干活。给它一个子任务，它开一个新的自己，深度受限，绝不套娃。它也不是只能干活。它能在对话里给自己造工具：说一句要什么，技能就长出来了；装载不等于启用，启用才可见。三个人的活它一个人干：编排、执行、观测。而它脚下的地基，是另一个仓库。它不碰内核一行代码，只调用契约。这不是一个更聪明的助手，这是第一台自己给自己加装零件的机器。",
+  "segments": [
+    { "id": "seg-01", "text": "一台机器醒了。它第一眼没有看向世界，它看向自己的手。", "function": "emotion", "beat": "pain", "mood": "awe", "emphasis": ["自己的手"] },
+    { "id": "seg-02", "text": "这只手握得住工具，也改写得了自己。", "function": "emotion", "beat": "pain", "mood": "awe", "emphasis": ["工具"] },
+    { "id": "seg-03", "text": "感知，读记忆；规划，列清单；行动，调工具；观察，写回去。", "function": "inform", "beat": "solution", "mood": "neutral", "emphasis": ["感知", "规划", "行动", "观察"] },
+    { "id": "seg-04", "text": "四拍一行，一行一轮，一轮比一轮更接近答案。", "function": "inform", "beat": "solution", "mood": "curious", "emphasis": ["四拍"] },
+    { "id": "seg-05", "text": "听起来简单。难的是这四拍之间，每一拍都可能崩。", "function": "emotion", "beat": "solution", "mood": "tense", "emphasis": ["崩"] },
+    { "id": "seg-06", "text": "模型不听话，工具越权，上下文爆掉，一轮卡死。", "function": "inform", "beat": "feature1", "mood": "tense", "emphasis": ["越权", "卡死"] },
+    { "id": "seg-07", "text": "所以这里没有一处是黑箱。", "function": "emotion", "beat": "feature1", "mood": "awe", "emphasis": ["黑箱"] },
+    { "id": "seg-08", "text": "工具不是越能越好，是要能管住：九个生产级工具，三个执行池，一条统一白名单。", "function": "inform", "beat": "feature2", "mood": "neutral", "emphasis": ["白名单", "三个执行池"] },
+    { "id": "seg-09", "text": "写文件、改文件、删文件，每一次落笔都留痕，每一次留痕都回滚得回去。", "function": "inform", "beat": "feature2", "mood": "neutral", "emphasis": ["留痕", "回滚"] },
+    { "id": "seg-10", "text": "bash 里偷改的东西也跑不掉：它和直接编辑走同一条追溯路。", "function": "inform", "beat": "feature2", "mood": "tense", "emphasis": ["同一条"] },
+    { "id": "seg-11", "text": "模型不是接得越多越好，是要接得住：OpenAI 兼容、Anthropic、Ollama，外加一个离线的 mock。", "function": "inform", "beat": "feature3", "mood": "neutral", "emphasis": ["OpenAI", "Ollama", "mock"] },
+    { "id": "seg-12", "text": "断网也能跑，没有 key 也能跑。", "function": "emotion", "beat": "feature3", "mood": "warm", "emphasis": ["断网"] },
+    { "id": "seg-13", "text": "上下文不是越大越好，是要记得住：会话写进日志，刷新即重放。", "function": "inform", "beat": "feature3", "mood": "neutral", "emphasis": ["重放"] },
+    { "id": "seg-14", "text": "第几次改的、改成了什么，全都在。", "function": "inform", "beat": "feature3", "mood": "curious", "emphasis": ["全都在"] },
+    { "id": "seg-15", "text": "它不是一个人在干活。给它一个子任务，它开一个新的自己，深度受限，绝不套娃。", "function": "emotion", "beat": "cta", "mood": "curious", "emphasis": ["子任务", "套娃"] },
+    { "id": "seg-16", "text": "它也不是只能干活。它能在对话里给自己造工具。", "function": "emotion", "beat": "cta", "mood": "awe", "emphasis": ["造工具"] },
+    { "id": "seg-17", "text": "说一句要什么，技能就长出来了；装载不等于启用，启用才可见。", "function": "inform", "beat": "cta", "mood": "neutral", "emphasis": ["技能", "启用"] },
+    { "id": "seg-18", "text": "三个人的活它一个人干：编排、执行、观测。", "function": "inform", "beat": "cta", "mood": "neutral", "emphasis": ["编排", "观测"] },
+    { "id": "seg-19", "text": "而它脚下的地基，是另一个仓库。它不碰内核一行代码，只调用契约。", "function": "emotion", "beat": "cta", "mood": "awe", "emphasis": ["地基", "契约"] },
+    { "id": "seg-20", "text": "这不是一个更聪明的助手，这是第一台自己给自己加装零件的机器。", "function": "emotion", "beat": "cta", "mood": "awe", "emphasis": ["加装零件"] }
+  ]
+}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8% 8%; box-sizing: border-box; }
+  .title { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; margin-bottom: 7%; text-align: center; }
+  .versus { display: flex; gap: 4%; align-items: stretch; }
+  .side { flex: 1; background: {{NEUTRAL_3}}; border-radius: 16px; padding: 6% 5%; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+  .side.right { border: 2px solid {{ACCENT}}; }
+  .side h3 { margin: 0 0 1em; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; font-weight: 600; }
+  .side.right h3 { color: {{ACCENT}}; }
+  .side p { margin: 0; font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; line-height: 1.3; }
+  .vs { align-self: center; font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{PRIMARY}}; }
+  .note { margin-top: 7%; text-align: center; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="title">{{TITLE}}</div>
+    <div class="versus">
+      <div class="side left"><p>◯</p></div>
+      <div class="vs">VS</div>
+      <div class="side right"><p>●</p></div>
+    </div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.title', { easing: '{{EASING}}', duration: {{DURATION}} });
+      MV.enter('.side', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, y: 60 } });
+      MV.enter('.vs', { easing: '{{EASING}}', duration: 400, delay: {{STAGGER}} * 2, from: { opacity: 0, scale: 2 } });
+      MV.performance('.side.right', { stiffness: {{SPRING_STIFFNESS}}, damping: {{SPRING_DAMPING}} });
+    });
+  </script>
+</body>
+</html>

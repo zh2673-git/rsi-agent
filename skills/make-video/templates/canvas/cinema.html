@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: #04060f; height: 100%; overflow: hidden; }
+  [data-scene-id] { position: relative; width: 100%; height: 100%; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* 纪录片式 lower-third 标题：小字号、大字距、左侧竖线，2s 入 9s 出 */
+  .lt { position: absolute; left: 7%; bottom: 22%; display: flex; align-items: center; gap: 18px; opacity: 0; }
+  .lt .bar { width: 4px; height: 54px; background: #fbbf24; }
+  .lt .t1 { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; font-size: 58px; font-weight: 700; color: #f1f5f9; letter-spacing: 0.12em; text-shadow: 0 2px 14px rgba(0,0,0,0.8); }
+  .lt .t2 { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; font-size: 24px; color: #94a3b8; letter-spacing: 0.4em; margin-bottom: 10px; }
+  .lt .col { display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<div data-scene-id="{{SCENE_ID}}" data-beats="{{BEATS}}">
+  <canvas width="1920" height="1080"></canvas>
+  <div class="lt"><div class="bar"></div><div class="col"><div class="t2">BLACK HOLE</div><div class="t1">{{KICKER}}</div></div></div>
+</div>
+<script src="../motion/gsap.min.js"></script>
+<script src="../motion/motion-lib.js"></script>
+<script src="../canvas/canvas-lib.js"></script>
+<script src="../canvas/canvas-programs.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  MV.use('scene-{{SCENE_ID}}');
+  var tl = MV.timeline();
+  var cv = document.querySelector('canvas');
+  var ctx = cv.getContext('2d');
+  var prog = window.CinemaPrograms['{{SCENE_PROGRAM}}'];
+  var stars = CV.makeStars({{STAR_SEED}}, 260, 1920, 1080);
+  var disk = CV.makeDisk({{STAR_SEED}} + 5, 420);
+  var opts = { stars: stars, disk: disk };
+  var st = prog.state();
+  // 时长自适应：镜头不足 20s 时按比例压缩全部节拍位置（K 缩放，节拍密度不降）
+  var D = window.__shotDurationS || 20;
+  var K = D / 20;
+  prog.tweens(window.scaleCinemaTl(tl, K), st);
+  // seek 驱动：每次时间线寻址同步重绘（确定性渲染）
+  tl.eventCallback('onUpdate', function () { prog.draw(ctx, st, opts, tl.time() / K); });
+  prog.draw(ctx, st, opts, 0);
+  // V-RHY-004 重音三联动之主体 pulse：画布整体微缩放脉冲（字幕高亮由合成层负责，相机微推由程序内推镜承担）
+  tl.to(cv, { scale: 1.015, duration: 0.9, ease: 'sine.inOut', yoyo: true, repeat: 2, transformOrigin: '50% 50%' }, D * 0.45);
+  // lower-third 标题时序（占镜长 8%-46%）
+  var lt = document.querySelector('.lt');
+  if (lt && '{{KICKER}}') {
+    tl.to(lt, { opacity: 1, duration: 0.8, ease: 'sine.out' }, D * 0.08);
+    tl.to(lt, { opacity: 0, duration: 0.8, ease: 'sine.in' }, D * 0.46);
+  }
+});
+</script>
+</body>
+</html>

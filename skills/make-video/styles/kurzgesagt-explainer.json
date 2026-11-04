@@ -1,0 +1,119 @@
+{
+  "id": "kurzgesagt-explainer",
+  "name": "Kurzgesagt 科普",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "Kurzgesagt 科普",
+    "aliases": [
+      "科普",
+      "扁平插画",
+      "信息图",
+      "kurzgesagt"
+    ],
+    "vibe": "鲜艳扁平矢量，糖果色板，几何形态，把复杂系统画成一只看得见的鸟",
+    "bestFor": [
+      "science-explainer",
+      "kids-education"
+    ]
+  },
+  "anatomy": {
+    "script": "钩子-展开-收束；概念必须配一个视觉隐喻（鸟/星球/细胞）",
+    "directing": "对位以 metaphor 为主；数据用 evidence 图表（Tufte 纪律）",
+    "art": "糖果色板（橙/青/紫）；扁平无渐变主体；几何归纳；粗描边",
+    "camera": "平移动效多；相机以揭示性推镜为主；禁无意义漂移",
+    "performance": "小元素群飞入（stagger）；主体弹性落定；循环呼吸",
+    "sourcing": "代码绘制为主；真实照片仅作证据镜",
+    "sound": "轻快电子 + 俏皮音效；旁白亲和",
+    "editing": "2-3s 一次视觉变化；转场以滑动/飞入为主"
+  },
+  "palette": {
+    "primary": "#f43f5e",
+    "accent": "#0ea5e9",
+    "neutral": [
+      "#1e1b4b",
+      "#4c1d95",
+      "#8b5cf6",
+      "#fbcfe8",
+      "#fff7ed"
+    ],
+    "colorArc": "好奇→缤纷→警醒→希望"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC',sans-serif"
+    ],
+    "scale": {
+      "title": 0.1,
+      "body": 0.035
+    },
+    "tracking": {
+      "title": -0.01
+    }
+  },
+  "layout": {
+    "density": 0.45,
+    "maxElementsPerShot": 4,
+    "whitespace": 0.3
+  },
+  "motion": {
+    "easing": "power3.out",
+    "intensity": 0.7,
+    "staggerMs": 70,
+    "spring": {
+      "stiffness": 180,
+      "damping": 18
+    }
+  },
+  "pacing": {
+    "curve": "three-act",
+    "shotLenMs": [
+      1500,
+      3000
+    ],
+    "breathEvery": 5
+  },
+  "effects": {
+    "grain": 0.05,
+    "vignette": 0.08,
+    "letterbox": false,
+    "dof": 4,
+    "bloom": 0.1
+  },
+  "transitions": [
+    "slide",
+    "dissolve"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "CU"
+  ],
+  "provenance": {
+    "source": "manual",
+    "from": "Kurzgesagt/Vox explainer 传统",
+    "version": "1.0",
+    "absorbedAt": "2026-10-24",
+    "review": "v1 对拍验收"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": [
+      "flat-vector",
+      "bold-outline",
+      "candy-palette"
+    ],
+    "sceneBias": [
+      "flow",
+      "chart",
+      "comparison"
+    ],
+    "sceneDeny": [
+      "iso-stage",
+      "depth-layers"
+    ],
+    "texture": [],
+    "note": "扁平矢量、粗描边、糖果色；禁写实材质与立体装饰"
+  }
+}

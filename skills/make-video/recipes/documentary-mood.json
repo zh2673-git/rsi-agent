@@ -1,0 +1,31 @@
+{
+  "id": "documentary-mood",
+  "name": "纪录氛围",
+  "beats": [
+    { "id": "space", "name": "时空", "note": "大空间/大时间定场", "function": "emotion" },
+    { "id": "panorama", "name": "群像", "note": "环境中的主体们", "function": "inform" },
+    { "id": "detail", "name": "细节", "note": "一个特写承载主题", "function": "emotion" },
+    { "id": "sublime", "name": "升华", "note": "拉远收束", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "space", "visualIntent": "极简氛围空镜，慢燃入场", "emotionGoal": "敬畏", "counterpoint": "emotion" },
+    { "beatId": "panorama", "visualIntent": "多层次视差群像", "emotionGoal": "沉浸", "counterpoint": "metaphor" },
+    { "beatId": "detail", "visualIntent": "唯一细节特写 + 大字留白", "emotionGoal": "凝视", "counterpoint": "emotion" },
+    { "beatId": "sublime", "visualIntent": "拉远至空镜呼应开场", "emotionGoal": "释然", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["ghibli-painterly", "shinkai-atmosphere"],
+    "rationale": "纪录氛围依赖纸感/大气层调性（B 级预期）+ 极慢 pacing（借 tarkovsky）"
+  },
+  "pacing": { "curve": "tarkovsky", "shotLenMs": [4000, 7000], "breathEvery": 2, "comedyBeat": false },
+  "density": "low",
+  "subtitles": "极少",
+  "headTail": { "head": "空镜定场", "tail": "留白尾" },
+  "sound": { "bgmArc": "长音铺底", "sfxSet": ["ambient"] },
+  "templates": ["atmosphere", "typography"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 100, "structure": "单线氛围", "chapters": 0 },
+    "5-10": { "wordsPerMin": 120, "structure": "双段式", "chapters": 1 },
+    "10+": { "wordsPerMin": 130, "structure": "章节式长卷", "chapters": 3 }
+  }
+}

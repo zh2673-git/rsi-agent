@@ -1,0 +1,122 @@
+{
+  "id": "noir-contrast",
+  "name": "黑色电影",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "黑色电影",
+    "aliases": [
+      "黑色电影",
+      "noir",
+      "暗调",
+      "悬疑",
+      "明暗对比"
+    ],
+    "vibe": "低 key 布光，明暗对比，百叶窗阴影，单光源，一半画面在影子里",
+    "bestFor": [
+      "story-narrative",
+      "opinion-essay",
+      "documentary-mood"
+    ]
+  },
+  "anatomy": {
+    "script": "冷峻短句；悬念前置；结论压到最后",
+    "directing": "对位以 emotion/metaphor 为主；信息在暗处逐格揭示",
+    "art": "黑白灰阶 + 单色暖强调；百叶窗条纹投影；硬边阴影",
+    "camera": "缓慢推镜；固定低角度；烟雾体积感",
+    "performance": "元素如侦探般迟疑入场；停顿即悬念",
+    "sourcing": "代码绘制的暗调场景；用户照片统一压暗调色",
+    "sound": "低音铺 + 雨声；旁白压低声线",
+    "editing": "慢切；叠化；留白长"
+  },
+  "palette": {
+    "primary": "#b91c1c",
+    "accent": "#fbbf24",
+    "neutral": [
+      "#0a0a0a",
+      "#262626",
+      "#737373",
+      "#d4d4d4",
+      "#fafafa"
+    ],
+    "colorArc": "疑云→逼近→真相一线"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC',serif"
+    ],
+    "scale": {
+      "title": 0.11,
+      "body": 0.032
+    },
+    "tracking": {
+      "title": 0.02
+    }
+  },
+  "layout": {
+    "density": 0.25,
+    "maxElementsPerShot": 2,
+    "whitespace": 0.45
+  },
+  "motion": {
+    "easing": "power2.out",
+    "intensity": 0.35,
+    "staggerMs": 140,
+    "spring": {
+      "stiffness": 100,
+      "damping": 20
+    }
+  },
+  "pacing": {
+    "curve": "slow-burn",
+    "shotLenMs": [
+      2500,
+      5000
+    ],
+    "breathEvery": 3
+  },
+  "effects": {
+    "grain": 0.18,
+    "vignette": 0.35,
+    "letterbox": true,
+    "dof": 8,
+    "bloom": 0.15
+  },
+  "transitions": [
+    "dissolve",
+    "fade-black"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "CU"
+  ],
+  "provenance": {
+    "source": "manual",
+    "from": "黑色电影/德国表现主义传统",
+    "version": "1.0",
+    "absorbedAt": "2026-10-24",
+    "review": "v1 对拍验收"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": [
+      "silhouette",
+      "venetian-shadow",
+      "hard-key"
+    ],
+    "sceneBias": [
+      "atmosphere",
+      "typography"
+    ],
+    "sceneDeny": [
+      "comic-symbol"
+    ],
+    "texture": [
+      "grain",
+      "vignette"
+    ],
+    "note": "黑白硬光剪影、百叶窗阴影，一半画面藏在暗部"
+  }
+}

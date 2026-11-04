@@ -1,0 +1,33 @@
+{
+  "id": "opinion-essay",
+  "name": "观点演说",
+  "beats": [
+    { "id": "thesis", "name": "立论", "note": "一句话观点", "function": "advance" },
+    { "id": "arg1", "name": "论证一", "note": "最强论据", "function": "inform" },
+    { "id": "arg2", "name": "论证二", "note": "支撑论据", "function": "inform" },
+    { "id": "counter", "name": "反方观点", "note": "先承认再反驳", "function": "advance" },
+    { "id": "punchline", "name": "金句收尾", "note": "可被截图传播的一句", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "thesis", "visualIntent": "观点大字卡，停顿两秒", "emotionGoal": "立场", "counterpoint": "emotion" },
+    { "beatId": "arg1", "visualIntent": "论据配一个视觉证据（图表/场景）", "emotionGoal": "信服", "counterpoint": "evidence" },
+    { "beatId": "arg2", "visualIntent": "同构论据卡", "emotionGoal": "加固", "counterpoint": "evidence" },
+    { "beatId": "counter", "visualIntent": "对比构图：反方 vs 我方", "emotionGoal": "张力", "counterpoint": "emotion" },
+    { "beatId": "punchline", "visualIntent": "金句定格 + 慢推", "emotionGoal": "传播欲", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["bass-graphic", "noir-contrast"],
+    "rationale": "观点需要立场感与金句定格，图形/暗调的强对比最有力"
+  },
+  "pacing": { "curve": "argument", "shotLenMs": [2000, 3500], "breathEvery": 4, "comedyBeat": false },
+  "density": "low",
+  "subtitles": "大字金句卡",
+  "headTail": { "head": "观点大字卡", "tail": "互动提问尾" },
+  "sound": { "bgmArc": "克制→上扬→收束", "sfxSet": ["hit", "riser"] },
+  "templates": ["typography", "comparison"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 130, "structure": "立论-论证-金句", "chapters": 0 },
+    "5-10": { "wordsPerMin": 150, "structure": "完整论证链", "chapters": 2 },
+    "10+": { "wordsPerMin": 160, "structure": "长篇论述 + 回应质疑", "chapters": 3 }
+  }
+}

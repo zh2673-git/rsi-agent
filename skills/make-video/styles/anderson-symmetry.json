@@ -1,0 +1,121 @@
+{
+  "id": "anderson-symmetry",
+  "name": "韦斯·安德森",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "韦斯·安德森",
+    "aliases": [
+      "对称",
+      "童话感",
+      "韦斯安德森",
+      "玩具盒",
+      "pastel"
+    ],
+    "vibe": "完美居中对称，pastel 色板，正面平面构图，像一盒会动的玩具",
+    "bestFor": [
+      "story-narrative",
+      "kids-education",
+      "documentary-mood"
+    ]
+  },
+  "anatomy": {
+    "script": "温柔旁白像在念绘本；段落如卡片一幕",
+    "directing": "对位以 emotion 为主；每镜一个居中构图的小世界",
+    "art": "pastel 色板（粉/鹅黄/薄荷）；对称布局；平面无透视；细描边绘本感",
+    "camera": "正面前置平面构图；横移像翻页；禁手持感",
+    "performance": "元素像木偶剧演员：直线滑入、定格、齐步",
+    "sourcing": "代码绘制的扁平小场景为主",
+    "sound": "室内乐 + 木琴；旁白念白感",
+    "editing": "对称硬切；翻页式转场；节奏均匀如八音盒"
+  },
+  "palette": {
+    "primary": "#e11d48",
+    "accent": "#f59e0b",
+    "neutral": [
+      "#44403c",
+      "#78716c",
+      "#a8a29e",
+      "#fde68a",
+      "#fdf2f8"
+    ],
+    "colorArc": "甜暖→微酸→回甘"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC',serif"
+    ],
+    "scale": {
+      "title": 0.1,
+      "body": 0.034
+    },
+    "tracking": {
+      "title": 0
+    }
+  },
+  "layout": {
+    "density": 0.35,
+    "maxElementsPerShot": 3,
+    "whitespace": 0.4
+  },
+  "motion": {
+    "easing": "power2.inOut",
+    "intensity": 0.4,
+    "staggerMs": 110,
+    "spring": {
+      "stiffness": 120,
+      "damping": 18
+    }
+  },
+  "pacing": {
+    "curve": "even",
+    "shotLenMs": [
+      2200,
+      4000
+    ],
+    "breathEvery": 4
+  },
+  "effects": {
+    "grain": 0.06,
+    "vignette": 0.12,
+    "letterbox": true,
+    "dof": 2,
+    "bloom": 0
+  },
+  "transitions": [
+    "dissolve",
+    "page-turn"
+  ],
+  "shotScaleBias": [
+    "LS",
+    "MS"
+  ],
+  "provenance": {
+    "source": "manual",
+    "from": "韦斯·安德森场面调度传统",
+    "version": "1.0",
+    "absorbedAt": "2026-10-24",
+    "review": "v1 对拍验收"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": [
+      "symmetric-layout",
+      "pastel",
+      "paper-cut"
+    ],
+    "sceneBias": [
+      "comparison",
+      "typography"
+    ],
+    "sceneDeny": [
+      "depth-layers"
+    ],
+    "texture": [
+      "paper"
+    ],
+    "note": "正面平面对称、pastel 绘本质感；禁透视纵深与手持感"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "science-explainer",
+  "name": "科普讲解",
+  "beats": [
+    { "id": "hook", "name": "钩子", "note": "反直觉事实或问题前置", "function": "emotion" },
+    { "id": "concept", "name": "核心概念", "note": "一个可视觉化的定义", "function": "inform" },
+    { "id": "mechanism", "name": "机制拆解", "note": "流程/因果链，配图表", "function": "inform" },
+    { "id": "case", "name": "案例/证据", "note": "一个具体例子锚定抽象", "function": "inform" },
+    { "id": "summary", "name": "总结收束", "note": "回到钩子的问题", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "hook", "visualIntent": "一个问题占满屏幕的大字排版，停顿", "emotionGoal": "好奇", "counterpoint": "emotion" },
+    { "beatId": "concept", "visualIntent": "一个视觉隐喻承载概念（隐喻优先于图解）", "emotionGoal": "恍然", "counterpoint": "metaphor" },
+    { "beatId": "mechanism", "visualIntent": "流程节点逐个揭示，关键变量高亮", "emotionGoal": "清晰", "counterpoint": "evidence" },
+    { "beatId": "case", "visualIntent": "真实/拟真场景切片作为证据", "emotionGoal": "确信", "counterpoint": "evidence" },
+    { "beatId": "summary", "visualIntent": "回到钩子画面做变形呼应", "emotionGoal": "满足", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["kurzgesagt-explainer", "vox-explainer"],
+    "rationale": "科普需要复杂系统可视化 + 故事化人格，explainer 系色板与图表模板最成熟"
+  },
+  "pacing": { "curve": "three-act", "shotLenMs": [1800, 3200], "breathEvery": 5, "comedyBeat": false },
+  "density": "high",
+  "subtitles": "关键词高亮（Mayer 信号原则）",
+  "headTail": { "head": "钩子大字卡", "tail": "订阅引导尾" },
+  "sound": { "bgmArc": "轻快→专注→明亮", "sfxSet": ["whoosh", "pop"] },
+  "templates": ["typography", "chart", "flow", "comparison", "atmosphere"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 130, "structure": "钩子前置，单章节", "chapters": 0 },
+    "5-10": { "wordsPerMin": 150, "structure": "完整三幕，2-4 章节标记", "chapters": 3 },
+    "10+": { "wordsPerMin": 160, "structure": "多章节 + 回顾锚点", "chapters": 5 }
+  }
+}

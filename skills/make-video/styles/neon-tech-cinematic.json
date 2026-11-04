@@ -1,0 +1,124 @@
+{
+  "id": "neon-tech-cinematic",
+  "name": "霓虹科技产品片",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "霓虹科技产品片",
+    "aliases": [
+      "科技产品",
+      "暗调霓虹",
+      "数据产品",
+      "tech promo"
+    ],
+    "vibe": "深色底 + 青色数据光 + 琥珀证据点，真实界面与程序化数据流同权混合",
+    "bestFor": [
+      "product-promo",
+      "tech-product-story"
+    ]
+  },
+  "anatomy": {
+    "script": "品牌直入-痛点证据-能力拆解-结论-行动；每镜一个语义单元，句读即剪切点",
+    "directing": "真实素材承担证据，程序化画面承担结构；头像以卡片形式担任讲解员",
+    "art": "深色基底 + 青色主光 + 琥珀强调；真实截图不做过度调色",
+    "camera": "缓推与横移为主，关键结论用短促推近；相机层与元素层分离",
+    "performance": "头像轻微浮动 + 声波律动；重音节拍 pulse；禁死寂长镜",
+    "sourcing": "用户真实素材（UI/Excel/Word/关键帧）× canvas 程序化绘制",
+    "sound": "冷启动即律动，四四拍电子床垫；旁白区间 sidechain ducking",
+    "editing": "句读剪切；溶解 0.4s；每 2-3s 一次视觉变化"
+  },
+  "palette": {
+    "primary": "#22d3ee",
+    "accent": "#fbbf24",
+    "neutral": [
+      "#f8fafc",
+      "#cbd5e1",
+      "#94a3b8",
+      "#1e293b",
+      "#05070f"
+    ],
+    "colorArc": "压抑→接入→证据→评分→释然"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC',sans-serif"
+    ],
+    "scale": {
+      "title": 0.085,
+      "body": 0.032
+    },
+    "tracking": {
+      "title": 0.12
+    }
+  },
+  "layout": {
+    "density": 0.5,
+    "maxElementsPerShot": 4,
+    "whitespace": 0.35
+  },
+  "motion": {
+    "easing": "sine.inOut",
+    "intensity": 0.55,
+    "staggerMs": 110,
+    "spring": {
+      "stiffness": 140,
+      "damping": 20
+    }
+  },
+  "pacing": {
+    "curve": "beat-pause",
+    "shotLenMs": [
+      1800,
+      4200
+    ],
+    "breathEvery": 4
+  },
+  "effects": {
+    "grain": 0.1,
+    "vignette": 0.55,
+    "letterbox": false,
+    "dof": 0,
+    "bloom": 0.32
+  },
+  "transitions": [
+    "dissolve"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "CU"
+  ],
+  "provenance": {
+    "source": "absorbed",
+    "from": "projects/datadone-纪检监察数据分析-mvq31773",
+    "version": "1.0",
+    "absorbedAt": "2026-10-27",
+    "review": "成片 v4 验收后沉淀"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": [
+      "data-stream",
+      "grid-scan",
+      "ticker",
+      "evidence-card",
+      "presenter-card"
+    ],
+    "sceneBias": [
+      "typography",
+      "comparison",
+      "flow"
+    ],
+    "sceneDeny": [
+      "iso-stage",
+      "css3d"
+    ],
+    "texture": [
+      "grain",
+      "vignette",
+      "scanline"
+    ],
+    "note": "真实界面截图与程序化数据流同权混合；头像为不透明圆角卡片，不抠透明"
+  }
+}

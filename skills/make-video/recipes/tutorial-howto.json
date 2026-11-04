@@ -1,0 +1,35 @@
+{
+  "id": "tutorial-howto",
+  "name": "教程",
+  "beats": [
+    { "id": "goal", "name": "目标声明", "note": "学会什么 + 最终效果预览", "function": "inform" },
+    { "id": "prereq", "name": "前置条件", "note": "需要准备什么", "function": "inform" },
+    { "id": "step1", "name": "步骤一", "note": "第一个动作", "function": "inform" },
+    { "id": "step2", "name": "步骤二", "note": "第二个动作", "function": "inform" },
+    { "id": "checkpoint", "name": "检查点", "note": "验证做对了", "function": "advance" },
+    { "id": "result", "name": "成果展示", "note": "完成态", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "goal", "visualIntent": "最终成果先亮相（倒叙钩子）", "emotionGoal": "期待", "counterpoint": "evidence" },
+    { "beatId": "prereq", "visualIntent": "清单式排版，编号常驻", "emotionGoal": "有序", "counterpoint": "evidence" },
+    { "beatId": "step1", "visualIntent": "操作画面 + 编号徽标 + 高亮热区", "emotionGoal": "清晰", "counterpoint": "evidence" },
+    { "beatId": "step2", "visualIntent": "同构画面，进度指示推进", "emotionGoal": "跟做", "counterpoint": "evidence" },
+    { "beatId": "checkpoint", "visualIntent": "对错对比构图", "emotionGoal": "确认", "counterpoint": "evidence" },
+    { "beatId": "result", "visualIntent": "回到开场成果做完整呼应", "emotionGoal": "成就", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["keynote-minimal", "bass-graphic"],
+    "rationale": "教程需要清晰的信息层级与进度指示，极简/图形排版最利落"
+  },
+  "pacing": { "curve": "steady", "shotLenMs": [2000, 3500], "breathEvery": 4, "comedyBeat": false },
+  "density": "medium",
+  "subtitles": "步骤编号常驻",
+  "headTail": { "head": "成果预览", "tail": "成果展示尾" },
+  "sound": { "bgmArc": "平稳低音量", "sfxSet": ["tick", "confirm"] },
+  "templates": ["typography", "flow", "comparison"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 130, "structure": "目标-步骤-成果", "chapters": 0 },
+    "5-10": { "wordsPerMin": 150, "structure": "带检查点的完整步骤", "chapters": 2 },
+    "10+": { "wordsPerMin": 160, "structure": "多模块 + 常见错误附录", "chapters": 4 }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "note": "基础设计令牌；风格包 palette/type/layout/effects 组覆盖这些值（见 11 schema）",
+  "primary": "#2563eb",
+  "accent": "#f59e0b",
+  "neutral": ["#0f172a", "#334155", "#64748b", "#cbd5e1", "#f8fafc"],
+  "fontFamily": "'PingFang SC','Microsoft YaHei',sans-serif",
+  "titleScale": 0.1,
+  "bodyScale": 0.035,
+  "easing": "power3.out",
+  "durationMs": 600,
+  "staggerMs": 80,
+  "spring": { "stiffness": 180, "damping": 20 }
+}

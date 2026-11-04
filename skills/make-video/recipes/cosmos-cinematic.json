@@ -1,0 +1,45 @@
+{
+  "id": "cosmos-cinematic",
+  "name": "宇宙电影级解说",
+  "beats": [
+    { "id": "hook", "name": "深渊", "note": "反直觉事实或问题前置", "function": "emotion" },
+    { "id": "concept", "name": "视界", "note": "一个可视觉化的定义", "function": "inform" },
+    { "id": "mechanism", "name": "坍缩", "note": "流程/因果链", "function": "inform" },
+    { "id": "case", "name": "实证", "note": "一个具体例子锚定抽象", "function": "inform" },
+    { "id": "summary", "name": "终幕", "note": "回到钩子的问题", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "hook", "visualIntent": "星群被无形引力拖入黑暗，光束弯曲", "emotionGoal": "敬畏", "counterpoint": "emotion" },
+    { "beatId": "concept", "visualIntent": "事件视界剪影与光子环，光粒有去无回", "emotionGoal": "恍然", "counterpoint": "metaphor" },
+    { "beatId": "mechanism", "visualIntent": "时空网格下陷与恒星坍缩爆发的因果链", "emotionGoal": "清晰", "counterpoint": "evidence" },
+    { "beatId": "case", "visualIntent": "双星物质流与吸积盘实证镜", "emotionGoal": "确信", "counterpoint": "evidence" },
+    { "beatId": "summary", "visualIntent": "黑洞剪影拉远，星场重归宁静", "emotionGoal": "释然", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["cinematic-dark", "kurzgesagt-explainer"],
+    "rationale": "宇宙题材需要暗调高对比与程序化粒子画面，代码绘制主线"
+  },
+  "pacing": { "curve": "three-act", "shotLenMs": [1500, 3200], "breathEvery": 7, "comedyBeat": false },
+  "density": "high",
+  "subtitles": "关键词高亮（重音词优先）",
+  "headTail": { "head": "深渊凝视开场", "tail": "剪影拉远收束" },
+  "sound": { "bgmArc": "压抑→揭示→震撼→释然", "sfxSet": ["whoosh", "hit"] },
+  "templates": [
+    "canvas:s01",
+    "canvas:s02",
+    "canvas:s03",
+    "canvas:s04",
+    "canvas:s05",
+    "canvas:s06",
+    "canvas:s07",
+    "canvas:s08",
+    "chart",
+    "comparison",
+    "flow"
+  ],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 240, "structure": "钩子前置，单章节，句读密集", "chapters": 0 },
+    "5-10": { "wordsPerMin": 250, "structure": "完整三幕，2-4 章节标记", "chapters": 3 },
+    "10+": { "wordsPerMin": 250, "structure": "多章节 + 回顾锚点", "chapters": 5 }
+  }
+}

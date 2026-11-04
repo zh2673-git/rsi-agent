@@ -1,0 +1,120 @@
+{
+  "id": "cinematic-dark",
+  "name": "电影级暗调纪录",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "电影级暗调纪录",
+    "aliases": [
+      "电影感",
+      "暗调",
+      "宇宙纪录",
+      "cinematic"
+    ],
+    "vibe": "深空暗调，高对比剪影，程序化粒子宇宙，胶片暗角与宽幅黑边",
+    "bestFor": [
+      "science-explainer",
+      "documentary-mood",
+      "cosmos-cinematic"
+    ]
+  },
+  "anatomy": {
+    "script": "钩子-展开-收束；每镜一个语义单元，句读即剪切点",
+    "directing": "对位以 metaphor 为主；宇宙题材用引力/光作为贯穿视觉母题",
+    "art": "深空色板（#05070f 基底）；剪影主体；高对比；辉光粒子",
+    "camera": "Ken Burns 缓推拉为主；相机层与元素层严格分离",
+    "performance": "主体呼吸微动；重音节拍 pulse；禁死寂长镜",
+    "sourcing": "纯代码绘制（canvas 程序化画面）",
+    "sound": "低沉 pad 式 BGM + 转场 whoosh + 重音 hit；旁白区间 ducking",
+    "editing": "句读剪切；交叉溶解 0.5s；每 2-3s 一次视觉变化"
+  },
+  "palette": {
+    "primary": "#7dd3fc",
+    "accent": "#fbbf24",
+    "neutral": [
+      "#f8fafc",
+      "#cbd5e1",
+      "#94a3b8",
+      "#1e293b",
+      "#05070f"
+    ],
+    "colorArc": "压抑→揭示→震撼→释然"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC',sans-serif"
+    ],
+    "scale": {
+      "title": 0.085,
+      "body": 0.032
+    },
+    "tracking": {
+      "title": 0.12
+    }
+  },
+  "layout": {
+    "density": 0.35,
+    "maxElementsPerShot": 3,
+    "whitespace": 0.45
+  },
+  "motion": {
+    "easing": "sine.inOut",
+    "intensity": 0.4,
+    "staggerMs": 150,
+    "spring": {
+      "stiffness": 120,
+      "damping": 22
+    }
+  },
+  "pacing": {
+    "curve": "three-act",
+    "shotLenMs": [
+      1500,
+      3200
+    ],
+    "breathEvery": 7
+  },
+  "effects": {
+    "grain": 0.12,
+    "vignette": 0.5,
+    "letterbox": true,
+    "dof": 0,
+    "bloom": 0.2
+  },
+  "transitions": [
+    "dissolve"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "CU"
+  ],
+  "provenance": {
+    "source": "manual",
+    "from": "宇宙纪录影像传统（BBC Space / EHT 发布片）",
+    "version": "1.0",
+    "absorbedAt": "2026-10-24",
+    "review": "v1 程序化画面验收"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "mixed",
+    "motifs": [
+      "depth-layers",
+      "volumetric-particle",
+      "silhouette"
+    ],
+    "sceneBias": [
+      "depth-layers",
+      "atmosphere",
+      "typography"
+    ],
+    "sceneDeny": [],
+    "texture": [
+      "grain",
+      "halation",
+      "vignette"
+    ],
+    "note": "深空暗调、体积粒子与真实纵深；立体感用来压空间，不做炫技"
+  }
+}

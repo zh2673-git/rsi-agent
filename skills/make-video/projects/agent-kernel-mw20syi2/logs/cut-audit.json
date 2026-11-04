@@ -1,0 +1,329 @@
+[
+  {
+    "cut": "s01→s02",
+    "atMs": 4160,
+    "transition": "dissolve",
+    "motivation": "zoom-jump",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s02→s03",
+    "atMs": 9920,
+    "transition": "smash-cut",
+    "motivation": "emotion",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s03→s04",
+    "atMs": 18800,
+    "transition": "hard-cut",
+    "motivation": "action",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s04→s05",
+    "atMs": 24000,
+    "transition": "hard-cut",
+    "motivation": "action",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [
+      {
+        "atMs": 21504,
+        "kind": "punch-in",
+        "scale": 1.14,
+        "motivation": "emphasis"
+      }
+    ],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s05→s06",
+    "atMs": 30000,
+    "transition": "dissolve",
+    "motivation": "match-cut",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s06→s07",
+    "atMs": 37280,
+    "transition": "dissolve",
+    "motivation": "zoom-jump",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s07→s08",
+    "atMs": 44960,
+    "transition": "smash-cut",
+    "motivation": "emotion",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s08→s09",
+    "atMs": 48160,
+    "transition": "dissolve",
+    "motivation": "emotion",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s09→s10",
+    "atMs": 54160,
+    "transition": "dissolve",
+    "motivation": "zoom-jump",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [
+      {
+        "atMs": 51760,
+        "kind": "punch-in",
+        "scale": 1.12,
+        "motivation": "emphasis"
+      }
+    ],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s10→s11",
+    "atMs": 64320,
+    "transition": "wipe",
+    "motivation": "action",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s11→s12",
+    "atMs": 72720,
+    "transition": "smash-cut",
+    "motivation": "emotion",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s12→s13",
+    "atMs": 77760,
+    "transition": "hard-cut",
+    "motivation": "action",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [
+      {
+        "atMs": 75492,
+        "kind": "punch-in",
+        "scale": 1.16,
+        "motivation": "emphasis"
+      }
+    ],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s13→s14",
+    "atMs": 86400,
+    "transition": "dissolve",
+    "motivation": "zoom-jump",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s14→s15",
+    "atMs": 93520,
+    "transition": "smash-cut",
+    "motivation": "emotion",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s15→s16",
+    "atMs": 97120,
+    "transition": "hard-cut",
+    "motivation": "action",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [
+      {
+        "atMs": 95320,
+        "kind": "punch-in",
+        "scale": 1.15,
+        "motivation": "emphasis"
+      }
+    ],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s16→s17",
+    "atMs": 106560,
+    "transition": "dissolve",
+    "motivation": "eye-line",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s17→s18",
+    "atMs": 113760,
+    "transition": "hard-cut",
+    "motivation": "action",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": 0,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s18→s19",
+    "atMs": 121840,
+    "transition": "dissolve",
+    "motivation": "zoom-jump",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [
+      {
+        "atMs": 117800,
+        "kind": "punch-in",
+        "scale": 1.12,
+        "motivation": "emphasis"
+      }
+    ],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化",
+      "切点动机"
+    ]
+  },
+  {
+    "cut": "s19→s20",
+    "atMs": 126320,
+    "transition": "dissolve",
+    "motivation": "emotion",
+    "motiveSource": "text",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "切点动机"
+    ]
+  }
+]

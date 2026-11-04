@@ -1,0 +1,120 @@
+{
+  "id": "bass-graphic",
+  "name": "Saul Bass 图形片头",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "Saul Bass 图形片头",
+    "aliases": [
+      "片头",
+      "图形字",
+      "动态排版",
+      "saul bass"
+    ],
+    "vibe": "网格化字体运动与图形条带，高对比，图形即叙事",
+    "bestFor": [
+      "news-brief",
+      "opinion-essay",
+      "tutorial-howto"
+    ]
+  },
+  "anatomy": {
+    "script": "短句如电报；关键词即画面主语",
+    "directing": "对位以 emotion 为主；文字是主角不是配角",
+    "art": "高对比双色；粗图形条带；网格系统；大字号排印",
+    "camera": "固定机位 + 图形内部视差；运动发生在排版层",
+    "performance": "文字逐条切入；条带扫过；节奏如鼓点",
+    "sourcing": "纯代码图形；无需真实素材",
+    "sound": "打击乐 + 低频；音效落点即剪辑点",
+    "editing": "硬切优先；卡点感；每个剪切有'形状理由'"
+  },
+  "palette": {
+    "primary": "#dc2626",
+    "accent": "#fbbf24",
+    "neutral": [
+      "#0c0a09",
+      "#292524",
+      "#a8a29e",
+      "#e7e5e4",
+      "#fafaf9"
+    ],
+    "colorArc": "冷静→张力→决断"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC','Arial Black',sans-serif"
+    ],
+    "scale": {
+      "title": 0.14,
+      "body": 0.03
+    },
+    "tracking": {
+      "title": -0.04
+    }
+  },
+  "layout": {
+    "density": 0.3,
+    "maxElementsPerShot": 3,
+    "whitespace": 0.35
+  },
+  "motion": {
+    "easing": "power4.inOut",
+    "intensity": 0.6,
+    "staggerMs": 90,
+    "spring": {
+      "stiffness": 200,
+      "damping": 22
+    }
+  },
+  "pacing": {
+    "curve": "staccato",
+    "shotLenMs": [
+      1200,
+      2200
+    ],
+    "breathEvery": 6
+  },
+  "effects": {
+    "grain": 0.12,
+    "vignette": 0.1,
+    "letterbox": true,
+    "dof": 0,
+    "bloom": 0
+  },
+  "transitions": [
+    "hard-cut",
+    "wipe"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "ECU"
+  ],
+  "provenance": {
+    "source": "manual",
+    "from": "Saul Bass 片头设计传统",
+    "version": "1.0",
+    "absorbedAt": "2026-10-24",
+    "review": "v1 对拍验收"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": [
+      "cutout",
+      "bold-type",
+      "graphic-band"
+    ],
+    "sceneBias": [
+      "typography",
+      "flow"
+    ],
+    "sceneDeny": [
+      "depth-layers"
+    ],
+    "texture": [
+      "paper"
+    ],
+    "note": "高对比剪纸与图形条带，运动发生在排版层而非镜头里"
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "id": "comedy-pop",
+  "name": "周星驰式无厘头",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "周星驰式无厘头",
+    "aliases": [
+      "无厘头",
+      "星爷",
+      "喜剧",
+      "周星驰",
+      "搞笑"
+    ],
+    "vibe": "一本正经地荒诞：庄重形式 × trivial 内容；破功要有真心",
+    "bestFor": [
+      "science-explainer",
+      "story-narrative",
+      "kids-education"
+    ]
+  },
+  "anatomy": {
+    "script": "三翻四抖：铺垫×3 一本正经，第四次抖包袱；小人物崇高公式",
+    "directing": "对位激活'戏仿'（庄重形式×trivial内容）；破功点必须标注（gag 声明）",
+    "art": "鲜艳俗艳色板；toneJump 破功跳色；漫画符号（感叹号/汗滴/问号）",
+    "camera": "heroic low angle 仰拍 trivial 主体；smash zoom 落反应；慢动作深情+骤然常速",
+    "performance": "定格+内心独白；反应弹入；破第四面墙；极端挤压拉伸；冲击震动",
+    "sourcing": "用户素材→戏仿构图公式（黑帮海报式头像）；音效梗库",
+    "sound": "双声线（播音腔 setup/滑稽腔 punchline）；唱片急停；怀旧金曲骤起骤停",
+    "editing": "硬切优先；段落转折可用溶解；comedy-beat 曲线（急停定格0.5s→反应0.8s）；梗落点四联动"
+  },
+  "palette": {
+    "primary": "#dc2626",
+    "accent": "#facc15",
+    "neutral": [
+      "#1c1917",
+      "#57534e",
+      "#a8a29e",
+      "#fef08a",
+      "#fffbeb"
+    ],
+    "colorArc": "庄重→错位→破功→会心"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC','Arial Black',sans-serif"
+    ],
+    "scale": {
+      "title": 0.13,
+      "body": 0.034
+    },
+    "tracking": {
+      "title": -0.02
+    }
+  },
+  "layout": {
+    "density": 0.5,
+    "maxElementsPerShot": 4,
+    "whitespace": 0.25
+  },
+  "motion": {
+    "easing": "back.out(2.2)",
+    "intensity": 0.85,
+    "staggerMs": 60,
+    "spring": {
+      "stiffness": 260,
+      "damping": 12
+    }
+  },
+  "pacing": {
+    "curve": "comedy-beat",
+    "shotLenMs": [
+      1500,
+      3000
+    ],
+    "breathEvery": 5
+  },
+  "effects": {
+    "grain": 0.08,
+    "vignette": 0.15,
+    "letterbox": false,
+    "dof": 6,
+    "bloom": 0.25
+  },
+  "transitions": [
+    "hard-cut",
+    "smash-cut",
+    "dissolve"
+  ],
+  "shotScaleBias": [
+    "CU",
+    "ECU"
+  ],
+  "provenance": {
+    "source": "manual",
+    "from": "周星驰无厘头传统 + 预期违背理论",
+    "version": "1.0",
+    "absorbedAt": "2026-10-24",
+    "review": "v1 对拍验收（情感落点检查必过）"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "subtitlePolicy": "keyword",
+  "visuals": {
+    "dimension": "css3d",
+    "motifs": [
+      "heroic-low-angle",
+      "smash-zoom",
+      "freeze-frame",
+      "comic-symbol",
+      "punch-line-3d"
+    ],
+    "sceneBias": [
+      "comic-symbol",
+      "comparison",
+      "typography",
+      "iso-stage"
+    ],
+    "sceneDeny": [
+      "depth-layers"
+    ],
+    "texture": [
+      "grain",
+      "halation"
+    ],
+    "note": "港片俗艳质感加漫画符号；庄重形式配 trivial 内容，破功处可用一次立体字砸下来"
+  }
+}

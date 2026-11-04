@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    font-family: {{FONT}};
+    background: linear-gradient(160deg, {{NEUTRAL_4}} 0%, {{NEUTRAL_3}} 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8%; box-sizing: border-box; }
+  .kicker { font-size: {{BODY_SIZE}}px; color: {{ACCENT}}; letter-spacing: 0.3em; margin-bottom: 2em; text-transform: uppercase; }
+  .subject { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; text-align: center; line-height: 1.25; max-width: 80%; }
+  .hint { margin-top: 3em; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; text-align: center; max-width: 70%; line-height: 1.6; }
+  .deco { position: absolute; width: 26vmin; height: 26vmin; border-radius: 50%; background: radial-gradient(circle at 30% 30%, {{PRIMARY}}33, transparent 70%); top: 8%; right: 6%; }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="deco"></div>
+    <div class="kicker">{{PROMPT}}</div>
+    <div class="subject">{{TITLE}}</div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, y: 60 } });
+      MV.enter('.kicker', { easing: '{{EASING}}', duration: {{DURATION}}, delay: {{STAGGER}}, from: { opacity: 0, y: -20 } });
+      MV.idle('.subject', { delay: 1200 });
+      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+{
+  "items": [
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_desk.jpg",
+      "type": "image",
+      "width": 1920,
+      "height": 1278,
+      "tags": [
+        "真实工作台",
+        "醒来",
+        "手"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    },
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_keyboard.jpg",
+      "type": "image",
+      "width": 1920,
+      "height": 1282,
+      "tags": [
+        "真实键盘",
+        "落笔",
+        "留痕"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    },
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_photo_light_trail.jpg",
+      "type": "image",
+      "width": 1920,
+      "height": 1283,
+      "tags": [
+        "真实长曝光",
+        "光轨",
+        "重放"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    },
+    {
+      "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\react-agent-mw20of0c\\materials\\bright_p_factory.jpg",
+      "type": "image",
+      "width": 1920,
+      "height": 1281,
+      "tags": [
+        "真实车间",
+        "地基",
+        "生产"
+      ],
+      "sourceUrl": "",
+      "license": "自建真实素材（本机渲染截图 / CC0 图库，已按风格分级）",
+      "credit": "项目自身"
+    }
+  ]
+}

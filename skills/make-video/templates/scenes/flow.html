@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8% 10%; box-sizing: border-box; }
+  .title { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; margin-bottom: 8%; }
+  .flow { display: flex; align-items: center; gap: 3%; }
+  .node { flex: 1; background: {{NEUTRAL_3}}; border: 2px solid {{PRIMARY}}; border-radius: 12px; padding: 5% 3%; text-align: center; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_0}}; font-weight: 600; }
+  .node.accent { background: {{PRIMARY}}; color: {{NEUTRAL_4}}; border-color: {{ACCENT}}; }
+  .arrow { color: {{ACCENT}}; font-size: {{TITLE_SIZE}}px; font-weight: 700; }
+  .note { margin-top: 8%; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="title">{{TITLE}}</div>
+    <div class="flow">
+      <div class="node">01</div>
+      <div class="arrow">→</div>
+      <div class="node">02</div>
+      <div class="arrow">→</div>
+      <div class="node accent">03</div>
+      <div class="arrow">→</div>
+      <div class="node">04</div>
+    </div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.title', { easing: '{{EASING}}', duration: {{DURATION}} });
+      MV.enter('.node', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, x: -40 } });
+      MV.enter('.arrow', { easing: '{{EASING}}', duration: 300, stagger: 80 });
+      MV.idle('.node.accent', { delay: 1200 });
+      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
+    });
+  </script>
+</body>
+</html>

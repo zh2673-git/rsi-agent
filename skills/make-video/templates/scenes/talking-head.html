@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: {{FONT}}; background: {{NEUTRAL_0}}; }
+  .stage { position: relative; width: 100%; height: 100%; }
+  .bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, {{PRIMARY}}44, transparent 60%); }
+  .subject { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); width: 34vmin; height: 34vmin; border-radius: 50%; background: linear-gradient(160deg, {{PRIMARY}}, {{ACCENT}}); box-shadow: 0 0 120px {{PRIMARY}}66; display: flex; align-items: center; justify-content: center; color: #fff; font-size: {{TITLE_SIZE}}px; font-weight: 700; }
+  .bigtext { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); width: 86%; text-align: center; font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_4}}; line-height: 1.25; }
+  .bigtext em { font-style: normal; color: {{ACCENT}}; background: {{NEUTRAL_0}}; padding: 0 0.15em; }
+  .progress { position: absolute; left: 6%; right: 6%; bottom: 4%; height: 6px; background: {{NEUTRAL_2}}; border-radius: 3px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 30%; background: {{ACCENT}}; }
+  .grain, .vignette, .letterbox { position: absolute; inset: 0; pointer-events: none; }
+  .letterbox { display: {{LETTERBOX}}; background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+  <div class="stage">
+    <div class="bg"></div>
+    <div class="subject">{{PROMPT}}</div>
+    <div class="bigtext">{{TITLE}}</div>
+    <div class="progress"><i></i></div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain" style="opacity:{{GRAIN}}"></div>
+  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
+  <script src="../motion/motion-lib.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, scale: 0.8 } });
+      MV.subtitle('.bigtext', {});
+      MV.idle('.subject', { delay: 1200 });
+      MV.camera('.stage', { move: '{{CAMERA}}', zoom: 'MCU' });
+    });
+  </script>
+</body>
+</html>

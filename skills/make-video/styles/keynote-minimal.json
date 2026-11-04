@@ -1,0 +1,119 @@
+{
+  "id": "keynote-minimal",
+  "name": "Apple Keynote 极简",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "Apple Keynote 极简",
+    "aliases": [
+      "苹果发布会",
+      "极简",
+      "高级感",
+      "苹果风"
+    ],
+    "vibe": "纯黑舞台，一屏一事，超大字紧字距，唯一强调色，留白即高级感",
+    "bestFor": [
+      "product-promo",
+      "tutorial-howto",
+      "opinion-essay"
+    ]
+  },
+  "anatomy": {
+    "script": "一句一屏：每段只讲一件事，短句，钩子前置",
+    "directing": "停顿式节奏；对位以 evidence 为主，特性卡逐张揭示",
+    "art": "纯黑舞台 #000000；单一电蓝强调；大字紧字距；hairline 网格",
+    "camera": "极少运动；揭示靠光扫与元素入场；急推仅用于唯一重点",
+    "performance": "元素像产品一样被'揭幕'：缓出、精准、无弹性",
+    "sourcing": "产品实拍优先（user-material）；无素材则极简线稿",
+    "sound": "电子氛围垫 + 揭幕音效；旁白沉稳",
+    "editing": "一屏一切；停顿充分；禁花式转场"
+  },
+  "palette": {
+    "primary": "#0a84ff",
+    "accent": "#0a84ff",
+    "neutral": [
+      "#000000",
+      "#1d1d1f",
+      "#6e6e73",
+      "#d2d2d7",
+      "#f5f5f7"
+    ],
+    "colorArc": "冷峻→聚焦→留白"
+  },
+  "type": {
+    "families": [
+      "'Microsoft YaHei','PingFang SC','SF Pro Display',sans-serif"
+    ],
+    "scale": {
+      "title": 0.12,
+      "body": 0.032
+    },
+    "tracking": {
+      "title": -0.03
+    }
+  },
+  "layout": {
+    "density": 0.15,
+    "maxElementsPerShot": 2,
+    "whitespace": 0.5
+  },
+  "motion": {
+    "easing": "power3.out",
+    "intensity": 0.3,
+    "staggerMs": 120,
+    "spring": {
+      "stiffness": 140,
+      "damping": 24
+    }
+  },
+  "pacing": {
+    "curve": "beat-pause",
+    "shotLenMs": [
+      2500,
+      4500
+    ],
+    "breathEvery": 4
+  },
+  "effects": {
+    "grain": 0,
+    "vignette": 0.05,
+    "letterbox": false,
+    "dof": 0,
+    "bloom": 0
+  },
+  "transitions": [
+    "fade-black"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "CU"
+  ],
+  "provenance": {
+    "source": "manual",
+    "from": "Apple 产品发布片工业实践",
+    "version": "1.0",
+    "absorbedAt": "2026-10-24",
+    "review": "v1 对拍验收"
+  },
+  "references": "references.md",
+  "antiPatterns": "anti-patterns.md",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": [
+      "flat-typography",
+      "single-subject",
+      "hairline-grid"
+    ],
+    "sceneBias": [
+      "typography",
+      "comparison"
+    ],
+    "sceneDeny": [
+      "comic-symbol",
+      "iso-stage",
+      "depth-layers"
+    ],
+    "texture": [],
+    "note": "纯黑舞台、无纹理、无立体装饰；一屏一事，留白即高级"
+  }
+}

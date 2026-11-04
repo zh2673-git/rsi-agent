@@ -1,0 +1,35 @@
+{
+  "id": "story-narrative",
+  "name": "故事叙事",
+  "beats": [
+    { "id": "world", "name": "世界建立", "note": "时间地点人物一屏交代", "function": "inform" },
+    { "id": "desire", "name": "愿望/缺口", "note": "主角想要什么/缺什么", "function": "advance" },
+    { "id": "turn1", "name": "第一情节点", "note": "意外把故事推入新阶段", "function": "advance" },
+    { "id": "trial", "name": "试炼/低谷", "note": "失败与代价", "function": "emotion" },
+    { "id": "turn2", "name": "第二情节点", "note": "转机与抉择", "function": "advance" },
+    { "id": "resolve", "name": "解决", "note": "高潮与落点", "function": "emotion" }
+  ],
+  "directorialNotes": [
+    { "beatId": "world", "visualIntent": "氛围空镜定场，主体远景", "emotionGoal": "沉浸", "counterpoint": "emotion" },
+    { "beatId": "desire", "visualIntent": "主体与'缺口'并置构图", "emotionGoal": "期待", "counterpoint": "metaphor" },
+    { "beatId": "turn1", "visualIntent": "节奏突变：一个意外的视觉入侵", "emotionGoal": "震动", "counterpoint": "emotion" },
+    { "beatId": "trial", "visualIntent": "孤独构图，冷色，长镜", "emotionGoal": "低落", "counterpoint": "emotion" },
+    { "beatId": "turn2", "visualIntent": "光的变化先于叙事揭示", "emotionGoal": "希望", "counterpoint": "metaphor" },
+    { "beatId": "resolve", "visualIntent": "呼应开场的同构图变形", "emotionGoal": "释然", "counterpoint": "emotion" }
+  ],
+  "style": {
+    "recommended": ["shinkai-atmosphere", "ghibli-painterly"],
+    "rationale": "故事需要情绪弧与氛围层；B 级预期：调性可复现，手绘/照片级工艺不可"
+  },
+  "pacing": { "curve": "story-arc", "shotLenMs": [2500, 5000], "breathEvery": 4, "comedyBeat": false },
+  "density": "low",
+  "subtitles": "少而精（仅金句）",
+  "headTail": { "head": "氛围定场", "tail": "情绪收束" },
+  "sound": { "bgmArc": "起-承-转-合完整弧", "sfxSet": ["ambient", "riser", "impact"] },
+  "templates": ["atmosphere", "typography", "comparison"],
+  "durationTiers": {
+    "0-5": { "wordsPerMin": 130, "structure": "微型三幕（愿望-阻碍-解决）", "chapters": 0 },
+    "5-10": { "wordsPerMin": 150, "structure": "完整三幕", "chapters": 2 },
+    "10+": { "wordsPerMin": 160, "structure": "多线叙事 + 章节回顾", "chapters": 4 }
+  }
+}
