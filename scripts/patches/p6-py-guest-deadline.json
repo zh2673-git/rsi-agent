@@ -1,0 +1,8 @@
+{
+ "id": "P6-PY-DEADLINE",
+ "description": "P6 kernel 契约显式化（2/3）：guest.py OnEvent 把 deadline_ms/priority 显式透传进 envelope dict——契约字段在绑定层不再被静默丢弃（需要强制收敛超时/按优先级分级的插件直接可读）。",
+ "file": "runtime/kernel/bindings/python/agent_kernel/guest.py",
+ "anchor": "    def OnEvent(self, request, context):\n        try:\n            payload = json.loads(request.payload) if request.payload else None\n        except json.JSONDecodeError:\n            payload = None\n        try:\n            value = self._plugin.on_event({\"target\": request.ty, \"payload\": payload})",
+ "patch": "    def OnEvent(self, request, context):\n        try:\n            payload = json.loads(request.payload) if request.payload else None\n        except json.JSONDecodeError:\n            payload = None\n        try:\n            # 契约显式化（P6）：deadline_ms（相对毫秒，未设=None）与 priority（内核\n            # Priority 枚举值）原样透传——契约字段在绑定层不得静默丢弃。\n            value = self._plugin.on_event({\n                \"target\": request.ty,\n                \"payload\": payload,\n                \"deadline_ms\": request.deadline_ms if request.HasField(\"deadline_ms\") else None,\n                \"priority\": request.priority,\n            })",
+ "note": "kernel_pb2.py 的 Envelope 已有 deadline_ms/priority 字段（pb2 是按现 schema 预生成的），无需再生成。"
+}

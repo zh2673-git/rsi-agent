@@ -1,0 +1,8 @@
+{
+ "id": "P6-PROTO",
+ "description": "P6 kernel 契约显式化（1/3）：schema/kernel.proto Envelope 字段注释——deadline_ms 是相对时长毫秒（进程本地 Instant 跨 ABI 无意义，与 wit deadline-ms 一致）；priority 语义沿用内核 Priority 枚举（Background=0/Normal=1/User=2/System=3）。",
+ "file": "runtime/kernel/schema/kernel.proto",
+ "anchor": "message Envelope {\n  string trace_id = 1;\n  string span_id  = 2;\n  string ty       = 3;\n  bytes  payload  = 4;\n  uint32 priority = 5;\n  optional uint64 deadline_ms = 6;\n  string idempotency_key = 7;\n}",
+ "patch": "message Envelope {\n  string trace_id = 1;\n  string span_id  = 2;\n  string ty       = 3;\n  bytes  payload  = 4;\n  // 调度优先级：沿用内核 Priority 枚举（Background=0 / Normal=1 / User=2 / System=3）。\n  uint32 priority = 5;\n  // 相对截止**时长**（毫秒），非绝对时间戳——进程本地 Instant 跨 ABI 无意义（A2）；\n  // 未设 = 无硬截止。内核侧映射：env.deadline.as_millis()（process/host.rs to_proto）。\n  optional uint64 deadline_ms = 6;\n  string idempotency_key = 7;\n}",
+ "note": "纯注释改动，wire 格式不变，无需重新生成 kernel_pb2.py。"
+}

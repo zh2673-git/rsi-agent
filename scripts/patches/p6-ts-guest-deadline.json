@@ -1,0 +1,8 @@
+{
+ "id": "P6-TS-DEADLINE",
+ "description": "P6 kernel 契约显式化（3/3）：TS 绑定 index.ts onEvent 把 deadlineMs/priority 显式透传进 envelope（camelCase 来自 proto-loader keepCase:false），Plugin 接口文档同步。",
+ "file": "runtime/kernel/bindings/typescript/src/index.ts",
+ "anchor": "    /** 一请求一响应（unary）：请求与回复经 idempotencyKey 关联 seq。 */\n    async onEvent(call: any, cb: any): Promise<void> {\n      const env = call.request;\n      let payload: unknown = null;\n      if (env?.payload?.length) {\n        try {\n          payload = JSON.parse(Buffer.from(env.payload).toString(\"utf8\"));\n        } catch {\n          payload = null;\n        }\n      }\n      let value: unknown;\n      try {\n        value = await plugin.onEvent({ target: env?.ty ?? \"\", payload });",
+ "patch": "    /** 一请求一响应（unary）：请求与回复经 idempotencyKey 关联 seq。 */\n    async onEvent(call: any, cb: any): Promise<void> {\n      const env = call.request;\n      let payload: unknown = null;\n      if (env?.payload?.length) {\n        try {\n          payload = JSON.parse(Buffer.from(env.payload).toString(\"utf8\"));\n        } catch {\n          payload = null;\n        }\n      }\n      let value: unknown;\n      try {\n        // 契约显式化（P6）：deadlineMs（相对毫秒，未设=0→null）与 priority 原样透传——\n        // 契约字段在绑定层不得静默丢弃。proto-loader keepCase:false → camelCase。\n        value = await plugin.onEvent({\n          target: env?.ty ?? \"\",\n          payload,\n          deadlineMs: typeof env?.deadlineMs === \"number\" && env.deadlineMs > 0 ? env.deadlineMs : null,\n          priority: env?.priority ?? 1,\n        });",
+ "note": "proto-loader 对 optional uint64 缺省返回 0（defaults:true）或 Long；用 typeof number 判定兼容两种。"
+}
