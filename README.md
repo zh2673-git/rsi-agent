@@ -3,6 +3,17 @@
 基于 [react-agent](https://github.com/zh2673-git/react-agent) 的 RSI 发行形态：预置技能 + 技能生产线 + 评测/证据 + 晋升策略。
 **不是第三个内核**，也不直接建在 [agent-kernel](https://github.com/zh2673-git/agent-kernel) 上。
 
+## 宣传片
+
+[![《它生产的是可靠性》宣传片](docs/media/rsi-agent-poster.jpg)](https://zh2673-git.github.io/rsi-agent/showcase.html)
+
+《它生产的是可靠性》——2 分 02 秒，21 镜，**亮调纸感**（米白纸面 + 墨蓝结构 + 青×琥珀强调），
+主讲人是你的卡通形象（右下角悬浮小头像，全程在场不遮挡画面），
+**旁白是真人声音克隆**（Qwen3-TTS 零样本，非合成音库）；
+画面 17 镜代码逐镜绘制，4 镜插入**真实素材**（真实机房照片、仓库真实源码、真实测试与渲染日志）。
+讲一条十阶段的技能生产线：进场 → 回放 → 裁决 → 写 → 验 → 评 → 跑 → 复验 → 复盘 → 晋升。
+[▶ 在线观看](https://zh2673-git.github.io/rsi-agent/showcase.html) · [MP4](docs/media/rsi-agent.mp4)
+
 ## 三者关系
 
 | 层 | 项目 | 职责 | RSI 中的位置 |
