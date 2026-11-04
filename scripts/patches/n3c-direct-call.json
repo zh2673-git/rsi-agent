@@ -1,0 +1,7 @@
+{
+  "id": "N3c",
+  "description": "直跑路径（BASH_SANDBOX=off）解码同步升级：UTF-8 优先而非 text=True locale",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor": "def _run_direct(command: str, timeout_ms: int) -> dict:\n    try:\n        proc = subprocess.run(  # noqa: S602 - 仅 BASH_SANDBOX=off 显式豁免时可达\n            command,\n            shell=True,\n            capture_output=True,\n            text=True,\n            timeout=timeout_ms / 1000,\n            cwd=_shell_cwd(),\n        )\n    except subprocess.TimeoutExpired:\n        return _timeout_result(timeout_ms)\n    output = (proc.stdout or \"\") + (proc.stderr or \"\")\n    return _result(proc.returncode, False, output)",
+  "patch": "def _run_direct(command: str, timeout_ms: int) -> dict:\n    try:\n        proc = subprocess.run(  # noqa: S602 - 仅 BASH_SANDBOX=off 显式豁免时可达\n            command,\n            shell=True,\n            capture_output=True,\n            timeout=timeout_ms / 1000,\n            cwd=_shell_cwd(),\n        )\n    except subprocess.TimeoutExpired:\n        return _timeout_result(timeout_ms)\n    # N3：不再用 text=True（locale 解码，中文 Windows 下 UTF-8 输出必乱码），\n    # 与沙箱路径同走 _decode_output（UTF-8 优先 + 非法字节转义）。\n    output = _decode_output((proc.stdout or b\"\") + (proc.stderr or b\"\"))\n    return _result(proc.returncode, False, output)"
+}

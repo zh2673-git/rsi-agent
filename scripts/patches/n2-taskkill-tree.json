@@ -1,0 +1,7 @@
+{
+  "id": "N2",
+  "description": "停实例杀进程树：taskkill 补 /T，python/node guest 子进程不再孤儿化",
+  "file": "runtime/crates/host/src/instances.rs",
+  "anchor": "    let out = std::process::Command::new(\"taskkill\")\n        .args([\"/PID\", &pid.to_string(), \"/F\"])\n        .output()\n        .map_err(|e| format!(\"taskkill 失败: {e}\"))?;\n",
+  "patch": "    // N2：/T 杀整棵进程树——host 直接子进程只有 guest 插件壳，python/node 的\n    // worker 都挂在下面；不带 /T 会孤儿化它们（端口/内存泄漏，下次 spawn 撞占）。\n    let out = std::process::Command::new(\"taskkill\")\n        .args([\"/PID\", &pid.to_string(), \"/T\", \"/F\"])\n        .output()\n        .map_err(|e| format!(\"taskkill 失败: {e}\"))?;\n"
+}

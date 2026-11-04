@@ -1,0 +1,7 @@
+{
+  "id": "N3b",
+  "description": "沙箱路径解码点换 _decode_output + 描述补「UTF-8 输出无需 chcp」引导（两分支同步）",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor": "    output = base64.b64decode(data.get(\"output_b64\", \"\")).decode(locale.getpreferredencoding(False), errors=\"replace\")\n    return _result(data.get(\"exit_code\"), bool(data.get(\"timeout\")), output)",
+  "patch": "    output = _decode_output(base64.b64decode(data.get(\"output_b64\", \"\")))\n    return _result(data.get(\"exit_code\"), bool(data.get(\"timeout\")), output)"
+}

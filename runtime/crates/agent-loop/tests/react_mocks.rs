@@ -1008,8 +1008,10 @@ async fn failed_exit_paths_still_emit_chat_summary() {
     assert_eq!(summary.len(), 1, "空答案失败出口必须恰好一条 chat_summary: {evs:#?}");
     let s = summary[0];
     assert!(s["stopped_by"].is_null(), "非预算原因 stopped_by=null: {s}");
-    assert_eq!(s["rounds"], json!(1), "画像须如实上报已跑轮数: {s}");
-    assert_eq!(s["llm_calls"], json!(1), "画像须如实上报 LLM 调用数: {s}");
+    // N1a 空答案自愈（2026-11-04）：首答空 → nudge 续跑一轮（mock 脚本耗尽重复返回空）
+    // → K502。画像如实上报两轮两次调用——自愈成本可见，不掩盖。
+    assert_eq!(s["rounds"], json!(2), "画像须如实上报已跑轮数（含自愈续跑轮）: {s}");
+    assert_eq!(s["llm_calls"], json!(2), "画像须如实上报 LLM 调用数（含自愈续跑）: {s}");
 }
 
 #[tokio::test]

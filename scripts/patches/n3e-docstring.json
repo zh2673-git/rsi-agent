@@ -1,0 +1,7 @@
+{
+  "id": "N3e",
+  "description": "bash.py 模块 docstring 同步 N3 解码语义（诚实边界：GBK 重合序列罕见场景）",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor": "cwd 归一（rsi-agent 快照适配第 3 处）：子进程 cwd 一律走 `_shell_cwd()`——剥 `\\\\?\\` 扩展长度\n前缀再校验可用性，不可用即 fail-closed。原因：宿主 instances.rs 用 `canonicalize()` 写\nWORKSPACE_ROOT 会带该前缀，而 Windows cmd.exe 拒绝 UNC 形态并**静默改在 C:\\Windows 执行且\nexit=0**（错目录 + 越界写 + 追溯失效三重危害）。",
+  "patch": "cwd 归一（rsi-agent 快照适配第 3 处）：子进程 cwd 一律走 `_shell_cwd()`——剥 `\\\\?\\` 扩展长度\n前缀再校验可用性，不可用即 fail-closed。原因：宿主 instances.rs 用 `canonicalize()` 写\nWORKSPACE_ROOT 会带该前缀，而 Windows cmd.exe 拒绝 UNC 形态并**静默改在 C:\\Windows 执行且\nexit=0**（错目录 + 越界写 + 追溯失效三重危害）。\n\nN3 输出解码：沙箱/直跑两侧统一 `_decode_output()`——UTF-8 优先，非法字节段以\n反斜杠十六进制（backslash-x-ff 形态）转义保留（原样可读，零信息丢失），不再按\nlocale（中文 Windows 缺省 GBK）解码。模型无需再垫 `chcp 65001` 仪式；GBK 输出\n会以混合形态呈现（合法 UTF-8 序列正常解码，罕见重合序列呈现为可读字符——诚实\n边界，不影响命令执行与退出码判定）。"
+}

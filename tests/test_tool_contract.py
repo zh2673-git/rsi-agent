@@ -320,8 +320,8 @@ class ExternalPatchTest(unittest.TestCase):
             (fake_root / "scripts" / "patches" / "bad.json").write_text("{oops", encoding="utf-8")
             with patch.object(self.mod, "ROOT", fake_root):
                 self.assertEqual(self.mod._load_external(), [])
-            # 内置清单不受影响
-            self.assertEqual(len(self.mod.PATCHES), 11)
+            # 内置清单不受影响（P5b/P4a/P4b 已退役：2026-11-03/04，计数 11→8）
+            self.assertEqual(len(self.mod.PATCHES), 8)
 
     def test_external_patch_applies_and_reverts(self):
         """外挂补丁走与内置一致的 apply/--revert 语义（锚点替换 + 备份还原）。"""

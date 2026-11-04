@@ -1,0 +1,7 @@
+{
+  "id": "N3d",
+  "description": "bash 工具描述补「输出已按 UTF-8 解码，无需 chcp 探测」——直跑分支（沙箱分支已由首版 N3d 覆盖；按 12 空格缩进唯一定位 else 分支）",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor": "            \"IMPORTANT: command must be a SINGLE line - a newline makes cmd.exe /c run only the first line \"\n            \"and silently drop the rest with exit_code=0; chain steps with && or & instead. \"\n            \"This tool is for running/building/testing, git, process and port queries - do NOT use it for \"",
+  "patch": "            \"IMPORTANT: command must be a SINGLE line - a newline makes cmd.exe /c run only the first line \"\n            \"and silently drop the rest with exit_code=0; chain steps with && or & instead. \"\n            \"Output is decoded as UTF-8 (non-UTF-8 bytes appear as backslash-x escapes) - do NOT prefix \"\n            \"commands with chcp 65001 or code-page env vars; they are unnecessary. \"\n            \"This tool is for running/building/testing, git, process and port queries - do NOT use it for \""
+}

@@ -262,8 +262,10 @@ PATCHES = (
     ("P1", "bash.py 多行 fail-loud", P1_FILE, P1_ANCHOR, P1_PATCH),
     ("P2", "skills.rs 产物段反向约定", P2_FILE, P2_ANCHOR, P2_PATCH),
     ("P3", "index.html max_rounds 上界", P3_FILE, P3_ANCHOR, P3_PATCH),
-    ("P4a", "bash.py 描述(沙箱分支) 加单行+替代引导", P4_FILE, P4_ANCHOR, P4_PATCH),
-    ("P4b", "bash.py 描述(直跑分支) 加单行+替代引导", P4_FILE, P4_ANCHOR2, P4_PATCH2),
+    # P4a 已退役（2026-11-04）：IMPORTANT 两行终态早已生效（沙箱分支 desc 在位），
+    # 其锚点被后到补丁 N3d（UTF-8 行插入）拆散致指纹失配；区域验证由 N3d 幂等覆盖。
+    # P4b 已退役（2026-11-04）：IMPORTANT 两行（直跑分支）终态在位，锚点被 N3d
+    # （直跑分支 UTF-8 行插入）拆散致指纹失配；区域验证由 N3d 幂等覆盖。
     ("P5a", "files.py 闸解释器 v7（_core_write_allowed + 前缀解析）", P5_FILE, P5_ANCHOR, P5_PATCH),
     # P5b 已退役（2026-11-03）：目标终态早已生效且锚点漂移，验证外迁至外挂 P5B-VERIFY。
     ("P5c", "files.py 黑名单尾注收口（L2 通道已移除）", P5_FILE, P5_ANCHOR3, P5_PATCH3),
@@ -334,6 +336,9 @@ def apply(dry: bool) -> int:
 def revert() -> int:
     n = 0
     for pid, desc, path, _a, _p in tuple(PATCHES) + tuple(_load_external()):
+        # 与 apply() 同款护栏：测试假 ROOT 下跳过烘焙的真实路径，防 stale 备份回灌。
+        if not path.is_relative_to(ROOT):
+            continue
         bak = _bak(path)
         if not bak.exists():
             print(f"[{pid}] SKIP 无备份可还原: {desc}")

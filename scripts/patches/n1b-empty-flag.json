@@ -1,0 +1,8 @@
+{
+  "id": "N1b",
+  "description": "chat() 局部变量 empty_nudged 声明（自愈一次闸）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "        // 墙钟到点后的「强制收敛」状态（T4 语义修正）：置位后不再发起新工具，\n        // 由下一轮 LLM 以 wrap-up 指令交出「已完成 / 未完成 / 下一步」。None = 未触发。\n        let mut wrap_up: Option<StopReason> = None;\n",
+  "patch": "        // 墙钟到点后的「强制收敛」状态（T4 语义修正）：置位后不再发起新工具，\n        // 由下一轮 LLM 以 wrap-up 指令交出「已完成 / 未完成 / 下一步」。None = 未触发。\n        let mut wrap_up: Option<StopReason> = None;\n        // N1 空答案自愈闸：nudge 续跑只做一次，防网络持续故障时空转烧钱。\n        let mut empty_nudged = false;\n",
+  "replace_all": false
+}

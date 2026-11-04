@@ -370,6 +370,8 @@ impl AgentLoopPlugin {
         // 墙钟到点后的「强制收敛」状态（T4 语义修正）：置位后不再发起新工具，
         // 由下一轮 LLM 以 wrap-up 指令交出「已完成 / 未完成 / 下一步」。None = 未触发。
         let mut wrap_up: Option<StopReason> = None;
+        // N1 空答案自愈闸：nudge 续跑只做一次，防网络持续故障时空转烧钱。
+        let mut empty_nudged = false;
         // 总预算（T4）：顶层取配置缺省；子代理继承父链衰减后的剩余（req.*_left）。
         let budget = ChatBudget {
             deadline: req
@@ -495,6 +497,38 @@ impl AgentLoopPlugin {
                     };
                     self.observe(env, &req.session_id, &[reminder.clone()]).await;
                     messages.push(reminder);
+                    continue;
+                }
+                // N1 空答案自愈（用户切网实测：网络瞬断/上游异常会产出 200 空内容
+                // 响应，原逻辑按 K502 整轮失败——已回喂的工具结果全部作废）。
+                // 截断（length）意味着上下文末尾被思考/前文占满、无正文可用，重试
+                // 同输入大概率复现，定向收敛；其余空内容（瞬断类）追加一条 nudge
+                // 消息就地续跑一轮，模型看到「上一轮为空」的显式反馈后重新作答。
+                // wrap-up 收敛轮不介入（finish 会以进度报告兜底答案）；自愈只此
+                // 一次：续轮再空按 K502 收敛，防网络持续故障时空转烧钱。
+                if wrap_up.is_none() && resp.content.as_deref().map_or(true, |s| s.trim().is_empty()) {
+                    if resp.finish_reason == "length" {
+                        let msg = "模型输出被 max_tokens 截断且无正文（finish_reason=length）。请缩小任务或清空会话历史后重试。";
+                        self.trace(env, &req.session_id, json!({"type": "error", "where": "finish", "message": msg})).await;
+                        self.summary_after_stop(env, &req.session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures).await;
+                        return json!({"ok": false, "error": {"code": "K502", "reason": "length", "message": msg}});
+                    }
+                    if empty_nudged {
+                        self.trace(env, &req.session_id, json!({"type": "error", "where": "finish", "message": "llm 返回了空答案"})).await;
+                        self.summary_after_stop(env, &req.session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures).await;
+                        return json!({"ok": false, "error": {"code": "K502", "message": "llm 返回了空答案"}});
+                    }
+                    empty_nudged = true;
+                    self.trace(env, &req.session_id, json!({"type": "policy", "where": "empty_answer_nudge", "message": "空答案（可能网络瞬断），已请求模型重新作答"})).await;
+                    let nudge = MemoryMsg {
+                        role: "user".into(),
+                        content: Some("[系统] 上一轮回复为空（可能网络瞬断），请直接给出最终答复。".into()),
+                        tool_calls: None,
+                        tool_call_id: None,
+                        attachments: None,
+                    };
+                    self.observe(env, &req.session_id, &[nudge.clone()]).await;
+                    messages.push(nudge);
                     continue;
                 }
                 return self
@@ -837,13 +871,24 @@ impl AgentLoopPlugin {
             answer = Self::wrap_up_report(rounds, &steps, wrap_up.unwrap_or(StopReason::Deadline), cfg);
         }
         if answer.trim().is_empty() {
-            // PLAN R4：空答案视为失败——ok:true + answer:"" 是假收敛；不落 memory、
-            // 不发 assistant 事件，按错误 payload 收敛。
-            self.trace(env, session_id, json!({"type": "error", "where": "finish", "message": "llm 返回了空答案"})).await;
+            // N1：空答案自愈已前移到主循环（本函数唯一的 wrap-up 入口在预算软停
+            // 路径，nudge 续跑对其无意义——进度报告兜底已先行）。截断类在此处
+            // 仍可能到达（wrap-up 收敛轮），给出与主循环一致的可行动错误。
+            let truncated = resp.finish_reason == "length";
+            let msg = if truncated {
+                "模型输出被 max_tokens 截断且无正文（finish_reason=length）。请缩小任务或清空会话历史后重试。"
+            } else {
+                "llm 返回了空答案"
+            };
+            self.trace(env, session_id, json!({"type": "error", "where": "finish", "message": msg})).await;
             // E7-C2：失败出口同样交画像（steps 已落地的成果数如实上报）。
             self.summary_after_stop(env, session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures)
                 .await;
-            return json!({"ok": false, "error": {"code": "K502", "message": "llm 返回了空答案"}});
+            let mut err_val = json!({"code": "K502", "message": msg});
+            if truncated {
+                err_val["error"]["reason"] = json!("length");
+            }
+            return json!({"ok": false, "error": err_val});
         }
         self.observe(
             env,

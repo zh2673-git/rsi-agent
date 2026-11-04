@@ -1,0 +1,7 @@
+{
+  "id": "N3f",
+  "description": "sandbox-run.rs 协议注释同步：base64 原始字节，解码语义已上移调用方（_decode_output UTF-8 优先）",
+  "file": "runtime/crates/host/src/bin/sandbox-run.rs",
+  "anchor": "//!   {\"exit_code\":u32,\"timeout\":bool,\"output_b64\":\"<base64>\"}   （base64 由调用方按本地编码解码）",
+  "patch": "//!   {\"exit_code\":u32,\"timeout\":bool,\"output_b64\":\"<base64>\"}   （base64 = 原始字节；解码语义在调用方 bash.py::_decode_output：UTF-8 优先，非法字节转义保留）"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "E7-TEST-ROUNDS-NUDGE",
+  "description": "N1a 空答案自愈使失败路径多跑一轮（nudge 续跑）——E7 画像断言从 1/1 修正为 2/2（如实上报自愈成本，与「宁可交进度报告」同款语义）",
+  "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+  "anchor": "    assert!(s[\"stopped_by\"].is_null(), \"非预算原因 stopped_by=null: {s}\");\n    assert_eq!(s[\"rounds\"], json!(1), \"画像须如实上报已跑轮数: {s}\");\n    assert_eq!(s[\"llm_calls\"], json!(1), \"画像须如实上报 LLM 调用数: {s}\");",
+  "patch": "    assert!(s[\"stopped_by\"].is_null(), \"非预算原因 stopped_by=null: {s}\");\n    // N1a 空答案自愈（2026-11-04）：首答空 → nudge 续跑一轮（mock 脚本耗尽重复返回空）\n    // → K502。画像如实上报两轮两次调用——自愈成本可见，不掩盖。\n    assert_eq!(s[\"rounds\"], json!(2), \"画像须如实上报已跑轮数（含自愈续跑轮）: {s}\");\n    assert_eq!(s[\"llm_calls\"], json!(2), \"画像须如实上报 LLM 调用数（含自愈续跑）: {s}\");"
+}

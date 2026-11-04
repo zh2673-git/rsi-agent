@@ -87,3 +87,40 @@ commit point（步骤 5）之后新进程立刻崩溃的残差：系统停服，
 4. 回滚：`python scripts/apply-tool-patches.py --revert`。
 
 已知残留（v1 接受）：POST 无请求级互斥，交接 2s 排水窗口内连点会多起一次隔离构建，两个新进程抢端口自动收敛（输者 90s 超时退出）；commit point 后新进程立刻崩溃需手动重跑 run.cmd（P1b watchdog 兜底项）。
+
+## 4. 第二轮迭代（N1-N4，2026-11-04；数据源 = trace 复盘 + 用户实测三问）
+
+> 出发点：不重复第一轮清单，以**当前运行状态**重新评估。trace（46 chat / 2472 调用）显示 bash 1027 次
+> 中 68.8% 可被专用工具替代（python 373 / powershell 109 / dir 86 / chcp 62 / findstr 45…）；
+> 用户实测暴露空答案与停实例孤儿两类缺陷；版本口径双轨经 specs 取证为有意设计（见 N4）。
+
+| # | 模块 | 目标与动作 | P | Q | I | 状态 |
+|---|---|---|---|---|---|---|
+| N1 | agent-loop | **空答案自愈**（用户切网实测复现）：`finish_reason=="length"`（截断，上下文末尾无正文可用，不重试）→ K502 升级为定向文案 + "reason" 字段；其余空内容（切网瞬断 / 上游异常）→ 追加一条 nudged user 消息就地续跑一轮（models 不换、不烧轮次），仍空才按 K502 收敛 | ☑ 2 补丁（n1a-finish-length + n1b-nudge-retry）：空分支迁出 finish() 内联进主循环工具分支（chat.rs:507 后），空答案时 finish_reason=length→带 reason 硬收敛；否则 observe+push "上一轮回复为空（可能网络瞬断），请直接给出最终答复。" 继续；锚点语义不变（wrap-up/verify 分支不受影响） | cargo test 47/47（新增 nudge 不吞错误单测）+ dry-run 0 FAIL | 切网瞬断从「整轮白跑」变为「自动续跑自愈」；截断给出可行动错误码 | ☑ |
+| N2 | host | **停实例杀进程树**（审计 H1 存量）：`taskkill /PID n /F` 孤儿化 python/node guest 子进程 → 端口释放但下次 spawn 撞占；补 `/T` | ☑ 1 补丁（n2-taskkill-tree）：instances.rs:423 args 加 "/T"（一行改动，windows-only 命令与现有平台语义一致） | cargo test（instances 模块）+ 活体验证随下次停实例 | 面板停实例不再留孤儿进程占内存/占端口 | ☑ |
+| N3 | tools | **bash 输出解码升级**（数据驱动：chcp 62 次 + 乱码历史）：沙箱/直跑两侧把 base64 原始字节按 UTF-8 优先解码，非法字节段以 `\xNN` 转义保留（原样可读，零信息丢失），locale 解码仅作兜底；描述补「无需 chcp 探测」引导 | ☑ 3 补丁（n3a-decode-utf8 + n3b-desc + n3c-docstring）：bash.py `_decode_output()` 新函数（strict utf-8 → 逐字节 `\xNN`）+ 两侧调用点替换 + docstring/描述同步；sandbox-run.rs 注释同步（行为注释：解码语义已上移调用方） | py_compile + 单测（纯 ASCII/UTF-8 中文/GBK 字节三态断言）+ dry-run 0 FAIL | 消除每会话约 60 次的 chcp 65001 仪式调用与 GBK 乱码（utf-8 输出直接可读，非 UTF-8 字节显式转义可见） | ☑ |
+| N4 | docs | **版本双轨口径固化**（不改代码）：Cargo `0.1.21` = 上游 react-agent 快照版本号（specs/independent-runtime 明言快照不改），git tag v0.0.x = rsi-agent 发版序号——两条线独立演进，发版只动 tag 与 release 不动 Cargo | ☑ PLAN 本节记录 + release notes 注明双轨口径 | 文档一致性（无代码改动） | 消除「版本漂移」误判；后续发版不再纠结 Cargo 号 | ☑ |
+
+N 轮数据附注：substitutability=68.8%（707/1027）印证 P4 描述引导仍被高频绕过——专用工具引导文案强化
+（N3b）是低成本高杠杆项；空答案 9 次/46 chat 均为非收敛出口，N1 直击该画像。
+
+### N 轮验证记录（2026-11-04）
+
+- **重放事故与修复**：验证期误跑 `--revert`（文档语义=全量还原），按共享 `.patchbak` 把 9 个运行时文件
+  打回**首补丁之前**的快照（越过 git HEAD，丢已提交功能）——用 `git checkout` 恢复后多遍 apply 重建；
+  根因之一是 15 个 stale `.patchbak`（首补丁时的远古快照）滞留树中，已全部清除（当前基线 = git HEAD +
+  补丁重放，.patchbak 仅为回滚锚点，异常滞留即毒源）。
+- **结构性修复**：`apply-tool-patches.py` 加 **ROOT 包含护栏**（apply/revert 均加）——内置补丁路径在
+  exec_module 时按真实 ROOT 烘焙，测试 `patch.object(ROOT, fake)` 拦不住元组旧路径，T1 契约测试曾借
+  stale 备份误还真实文件（bash.py 丢函数、files.py/index.html 回退），护栏后测试隔离彻底；E7 测试
+  PATCHES 计数断言 11→8 同步。
+- **退役（P5b 先例）**：P4a/P4b/E7-C2A 三补丁锚点被后到补丁拆散（指纹失配）但终态内容均在位
+  （IMPORTANT 引导两分支、finish 失败出口 summary），转 `retired/` 或内置注释退役。
+- **_decode_output v3**：v2 定长窗扫法有死循环（尾部截断不推进）与吞字（失败窗误并后续合法字节，
+  `end` 尾 `d` 被转义）两病——均由回归用例抓出；改为**按首字节定长**切分（ASCII 直出；C2-DF/E0-EF/
+  F0-F4 按 2/3/4 成段试解码；失败只转义当前字节），任何分支指针必推进 ≥1。纠错：GBK「你」=C4 E3
+  并非合法 UTF-8（E3 不可作续字节），旧「U+0123 重合」说法作废。
+- **E7 测试期望更新**：N1a 自愈使空答案失败路径 rounds/llm_calls 1/1→2/2（nudge 续跑的成本如实上报，
+  e7-test-rounds-nudge 补丁）。
+- **验证矩阵**：py 39/39（含解码 6 例）· agent-loop 66/66 · host lib 23/23 · cargo check 干净 ·
+  补丁层 61 OK / 0 FAIL 幂等稳态。host 全量链接测试因运行中的宿主进程锁 exe 未跑（check+lib 测试覆盖）。

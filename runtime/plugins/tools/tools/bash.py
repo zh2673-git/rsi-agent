@@ -10,6 +10,12 @@ cwd 归一（rsi-agent 快照适配第 3 处）：子进程 cwd 一律走 `_shel
 WORKSPACE_ROOT 会带该前缀，而 Windows cmd.exe 拒绝 UNC 形态并**静默改在 C:\Windows 执行且
 exit=0**（错目录 + 越界写 + 追溯失效三重危害）。
 
+N3 输出解码：沙箱/直跑两侧统一 `_decode_output()`——UTF-8 优先，非法字节段以
+反斜杠十六进制（backslash-x-ff 形态）转义保留（原样可读，零信息丢失），不再按
+locale（中文 Windows 缺省 GBK）解码。模型无需再垫 `chcp 65001` 仪式；GBK 输出
+会以混合形态呈现（合法 UTF-8 序列正常解码，罕见重合序列呈现为可读字符——诚实
+边界，不影响命令执行与退出码判定）。
+
 W16 bash 文件追溯（B 方案，不禁写只留痕）：对「快照区」= WORKSPACE_ROOT −（噪音目录 /
 .stream / 产物目录 / MEMORY_DATA_DIR / .git）执行前 pre-copy、执行后逐文件比对，变更
 （新增/修改/删除）写 undo 快照并随结果返回 changes[]——agent-loop 转发为 op=bash 的
@@ -200,13 +206,14 @@ def _run_direct(command: str, timeout_ms: int) -> dict:
             command,
             shell=True,
             capture_output=True,
-            text=True,
             timeout=timeout_ms / 1000,
             cwd=_shell_cwd(),
         )
     except subprocess.TimeoutExpired:
         return _timeout_result(timeout_ms)
-    output = (proc.stdout or "") + (proc.stderr or "")
+    # N3：不再用 text=True（locale 解码，中文 Windows 下 UTF-8 输出必乱码），
+    # 与沙箱路径同走 _decode_output（UTF-8 优先 + 非法字节转义）。
+    output = _decode_output((proc.stdout or b"") + (proc.stderr or b""))
     return _result(proc.returncode, False, output)
 
 
@@ -244,7 +251,7 @@ def _run_sandboxed(command: str, timeout_ms: int) -> dict:
         data = json.loads(proc.stdout.decode(errors="replace"))
     except (ValueError, UnicodeDecodeError) as exc:
         raise ToolError(f"沙箱助手返回不可解析: {exc}", code="SANDBOX_FAILED")
-    output = base64.b64decode(data.get("output_b64", "")).decode(locale.getpreferredencoding(False), errors="replace")
+    output = _decode_output(base64.b64decode(data.get("output_b64", "")))
     return _result(data.get("exit_code"), bool(data.get("timeout")), output)
 
 
@@ -255,6 +262,52 @@ def _timeout_result(timeout_ms: int) -> dict:
         "truncated": False,
         "output": f"[timeout] 命令超过 {timeout_ms}ms 被终止。如需更长时间请分步执行或调大 timeout_ms（上限 {_MAX_TIMEOUT_MS}ms）",
     }
+
+
+def _decode_output(raw: bytes) -> str:
+    """N3 输出解码：UTF-8 优先，非法字节以转义序列保留（零信息丢失）。
+
+    旧逻辑按 locale.getpreferredencoding(False) 解码——中文 Windows 缺省 GBK，
+    工具链（git/python/rust）普遍吐 UTF-8 → 每次中文输出都是乱码，模型被迫
+    在命令前垫 `chcp 65001` 仪式（实测 46 会话 62 次）。新语义：strict UTF-8
+    成功即用；失败则**按首字节定长**逐段扫描——ASCII（<0x80）直出；首字节
+    C2-DF / E0-EF / F0-F4 分别按 2/3/4 字节成段试解码；首字节非法、或段解码
+    失败（含尾部截断）只转义当前字节再前进一个。任何分支指针必推进 ≥1：
+    不死循环，也不会把失败段之后的合法字节卷进失败窗口（定长窗扫法两病
+    皆犯——尾部 ASCII 被转义——由回归用例抓住后改为本算法）。诚实边界：
+    GBK 双字节几乎总不是合法 UTF-8（如「你」= C4 E3，E3 不可作续字节），
+    会以 backslash-x-NN 转义呈现——不假装解码成功，模型可按转义反推原始编码。
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    out: list[str] = []
+    i, n = 0, len(raw)
+    while i < n:
+        lead = raw[i]
+        if lead < 0x80:
+            out.append(chr(lead))
+            i += 1
+            continue
+        if 0xC2 <= lead <= 0xDF:
+            expect = 2
+        elif 0xE0 <= lead <= 0xEF:
+            expect = 3
+        elif 0xF0 <= lead <= 0xF4:
+            expect = 4
+        else:
+            out.append("\\x%02x" % lead)
+            i += 1
+            continue
+        chunk = raw[i : i + expect]
+        try:
+            out.append(chunk.decode("utf-8"))
+            i += expect
+        except UnicodeDecodeError:
+            out.append("\\x%02x" % lead)
+            i += 1
+    return "".join(out)
 
 
 def _result(exit_code, timeout: bool, output: str) -> dict:
@@ -315,6 +368,8 @@ def _description() -> str:
             "Args: command (required), timeout_ms (default 30000, max 60000). "
             "IMPORTANT: command must be a SINGLE line - a newline makes cmd.exe /c run only the first line "
             "and silently drop the rest with exit_code=0; chain steps with && or & instead. "
+            "Output is decoded as UTF-8 (non-UTF-8 bytes appear as backslash-x escapes) - do NOT prefix "
+            "commands with chcp 65001 or code-page env vars; they are unnecessary. "
             "This tool is for running/building/testing, git, process and port queries - do NOT use it for "
             "file operations (reading, writing, editing, searching, listing files); use the dedicated tools "
             "(read_file/write_file/edit_file/grep/list_dir/symbols_search) instead."
