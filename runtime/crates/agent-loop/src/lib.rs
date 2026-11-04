@@ -111,14 +111,24 @@ pub fn has_acceptance_marker(text: &str) -> bool {
 const CONTRACT_REMINDER: &str = "[policy:contract_first] 先写验收清单再行动：请在不调用工具的情况下，用 todo 或文本列出本次任务的验收标准（逐条、可核对），然后再开始调用工具。";
 const VERIFY_REMINDER: &str = "[policy:verify_before_final] 最终答复前请逐条核对验收清单，并在答复中给出每条标准的满足情况（满足/不满足/原因）。";
 
-/// 各转发步的相对截止（A2：Envelope.deadline 为相对时长）。
+/// 各转发步的相对截止（A2：Envelope.deadline 为相对时长）。tools 闸可配（O3）：
+/// env `TOOLS_DEADLINE_SECS` 覆盖缺省 60s（<30s 回退），重构建/全仓扫描类命令按需放宽。
 /// LLM_DEADLINE=600s：深度思考模型长推理是常态（110s 时代被误伤）——单步上限放宽到
 /// 10 分钟覆盖全部商用推理模型流式思考；必须与 llm_adapter PROVIDER_DEADLINE=590s
 /// 配对（provider 先收敛 10s 报可重试 timeout，避免 gRPC abort 不中断 guest 线程导致
 /// 的涓流占坑，见 base.py 头注）；整轮预算 CHAT_BUDGET_SECS 缺省 900s 需 ≥ 单步闸，
 /// 否则长思考 + 工具轮会在轮边界被 K508 掐断。
 const MEM_DEADLINE: Duration = Duration::from_secs(5);
-const TOOLS_DEADLINE: Duration = Duration::from_secs(60);
+// O3：tools 闸可配——重构建/重索引/全仓扫描类命令 60s 常不够（活体 trace 实录 K502 ×3），
+// env `TOOLS_DEADLINE_SECS` 覆盖（<30s 视为误配回退 60，语义同 llm_step_deadline）。
+fn tools_deadline() -> Duration {
+    std::env::var("TOOLS_DEADLINE_SECS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|s| *s >= 30)
+        .map(Duration::from_secs)
+        .unwrap_or(Duration::from_secs(60))
+}
 const LLM_DEADLINE: Duration = Duration::from_secs(600);
 const ASSETS_DEADLINE: Duration = Duration::from_secs(5);
 
@@ -362,6 +372,22 @@ mod tests {
     use super::chat::build_user_msg;
     use super::tools_exec::ObsPlan;
     use super::*;
+
+    // O3：env 互相污染防不住并发——三测合并串行跑（语义：缺省→覆盖→误配回退）
+    #[test]
+    fn tools_deadline_env_semantics() {
+        let saved = std::env::var("TOOLS_DEADLINE_SECS").ok();
+        std::env::remove_var("TOOLS_DEADLINE_SECS");
+        assert_eq!(tools_deadline(), Duration::from_secs(60)); // 缺省
+        std::env::set_var("TOOLS_DEADLINE_SECS", "120");
+        assert_eq!(tools_deadline(), Duration::from_secs(120)); // 覆盖生效
+        std::env::set_var("TOOLS_DEADLINE_SECS", "5");
+        assert_eq!(tools_deadline(), Duration::from_secs(60)); // 低于下限回退
+        match saved {
+            Some(v) => std::env::set_var("TOOLS_DEADLINE_SECS", v),
+            None => std::env::remove_var("TOOLS_DEADLINE_SECS"),
+        }
+    }
 
     #[test]
     fn extract_sources_dedupes_and_validates() {

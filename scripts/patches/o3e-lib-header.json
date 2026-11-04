@@ -1,0 +1,7 @@
+{
+  "id": "O3e",
+  "description": "lib.rs 头注补 tools 闸可配说明（五闸总览诚实化）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor": "/// 各转发步的相对截止（A2：Envelope.deadline 为相对时长）。\n",
+  "patch": "/// 各转发步的相对截止（A2：Envelope.deadline 为相对时长）。tools 闸可配（O3）：\n/// env `TOOLS_DEADLINE_SECS` 覆盖缺省 60s（<30s 回退），重构建/全仓扫描类命令按需放宽。\n"
+}

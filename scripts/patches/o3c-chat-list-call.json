@@ -1,0 +1,7 @@
+{
+  "id": "O3a",
+  "description": "chat.rs tools.list 调用点 TOOLS_DEADLINE → tools_deadline()",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "let mut tools: Vec<ToolSpec> = match self.call(env, CAP_TOOLS, json!({\"op\": \"list\"}), TOOLS_DEADLINE).await {",
+  "patch": "let mut tools: Vec<ToolSpec> = match self.call(env, CAP_TOOLS, json!({\"op\": \"list\"}), tools_deadline()).await {"
+}

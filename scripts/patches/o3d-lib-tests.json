@@ -1,0 +1,7 @@
+{
+  "id": "O3d",
+  "description": "lib.rs 测试：tools_deadline 缺省 60s / TOOLS_DEADLINE_SECS=120 生效 / 低于 30s 回退（串行防 env 竞态）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor": "#[cfg(test)]\nmod tests {\n    use super::chat::build_user_msg;\n    use super::tools_exec::ObsPlan;\n    use super::*;",
+  "patch": "#[cfg(test)]\nmod tests {\n    use super::chat::build_user_msg;\n    use super::tools_exec::ObsPlan;\n    use super::*;\n\n    // O3：env 互相污染防不住并发——三测合并串行跑（语义：缺省→覆盖→误配回退）\n    #[test]\n    fn tools_deadline_env_semantics() {\n        let saved = std::env::var(\"TOOLS_DEADLINE_SECS\").ok();\n        std::env::remove_var(\"TOOLS_DEADLINE_SECS\");\n        assert_eq!(tools_deadline(), Duration::from_secs(60)); // 缺省\n        std::env::set_var(\"TOOLS_DEADLINE_SECS\", \"120\");\n        assert_eq!(tools_deadline(), Duration::from_secs(120)); // 覆盖生效\n        std::env::set_var(\"TOOLS_DEADLINE_SECS\", \"5\");\n        assert_eq!(tools_deadline(), Duration::from_secs(60)); // 低于下限回退\n        match saved {\n            Some(v) => std::env::set_var(\"TOOLS_DEADLINE_SECS\", v),\n            None => std::env::remove_var(\"TOOLS_DEADLINE_SECS\"),\n        }\n    }"
+}

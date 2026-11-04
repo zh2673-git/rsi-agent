@@ -1,0 +1,7 @@
+{
+  "id": "O4",
+  "description": "_cache_put 大文档分支：≤1M 字符可入缓存，超 8MB 总量预算整条拒存",
+  "file": "runtime/plugins/tools/tools/web.py",
+  "anchor": "def _cache_put(url: str, text: str) -> None:\n    _READ_CACHE.pop(url, None)\n    if len(text) <= _CACHEABLE_CHARS:\n        _READ_CACHE[url] = (time.monotonic(), text)\n    while len(_READ_CACHE) > _READ_CACHE_MAX:\n        _READ_CACHE.pop(next(iter(_READ_CACHE)))",
+  "patch": "def _cache_put(url: str, text: str) -> None:\n    _READ_CACHE.pop(url, None)\n    if len(text) <= _CACHEABLE_CHARS:\n        _READ_CACHE[url] = (time.monotonic(), text)\n    elif len(text) <= _CACHEABLE_CHARS_BIG:  # O4：大文档也可入缓存（256K~1M），翻页不再反复出网\n        if sum(len(t) for _ts, t in _READ_CACHE.values()) + len(text) > _READ_CACHE_TOTAL_BYTES:\n            return  # 总量预算超限：宁缺勿炸，退回旧行为（不缓存）\n        _READ_CACHE[url] = (time.monotonic(), text)\n    while len(_READ_CACHE) > _READ_CACHE_MAX:\n        _READ_CACHE.pop(next(iter(_READ_CACHE)))"
+}

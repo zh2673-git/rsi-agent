@@ -188,7 +188,7 @@ impl AgentLoopPlugin {
             return vec![];
         }
         let payload = json!({"op": "skill_tools", "skills": skills});
-        match self.call(env, CAP_TOOLS, payload, TOOLS_DEADLINE).await {
+        match self.call(env, CAP_TOOLS, payload, tools_deadline()).await {
             Ok(v) => serde_json::from_value(v.get("tools").cloned().unwrap_or(Value::Null)).unwrap_or_default(),
             Err(e) => {
                 tracing::warn!(target: ID, "tools.skill_tools failed, proceeding without skill tools: {e}");
@@ -303,7 +303,7 @@ impl AgentLoopPlugin {
                 // fail-closed 装载（origin=preset 由 tools 侧装载即启用）
                 let origin = loaded.get("origin").and_then(Value::as_str).unwrap_or("user");
                 match self
-                    .call(env, CAP_TOOLS, json!({"op": "install", "path": path, "skill": name, "origin": origin}), TOOLS_DEADLINE)
+                    .call(env, CAP_TOOLS, json!({"op": "install", "path": path, "skill": name, "origin": origin}), tools_deadline())
                     .await
                 {
                     Ok(v) if v.get("ok") == Some(&json!(true)) => {

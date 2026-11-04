@@ -1,0 +1,7 @@
+{
+  "id": "O1b",
+  "description": "grep 结果透出越界 clamp 提示（最高频违约者定点可见，防静默偏差）",
+  "file": "runtime/plugins/tools/tools/grep.py",
+  "anchor": "    notes = []\n    if output_mode == \"count\":",
+  "patch": "    notes = []\n    if _clamp_log:  # O1：本调用窗口内的越界 clamp 定点透传——修正必须让模型看见\n        adj = \", \".join(f\"{a['key']} {a['requested']}→{a['clamped_to']}\" for a in _clamp_log)\n        notes.append(f\"参数已自动修正: {adj}（越界自动取最近合法端点，无需改参重调）\")\n    if output_mode == \"count\":"
+}

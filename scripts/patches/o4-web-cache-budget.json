@@ -1,0 +1,7 @@
+{
+  "id": "O4",
+  "description": "web_read 大文档缓存预算：容量 256K→1M 字符、总量 8MB（32×1M 会挤爆→16 条），大页不再每次翻页重新出网",
+  "file": "runtime/plugins/tools/tools/web.py",
+  "anchor": "_READ_TTL_S = 600\n_READ_CACHE: dict[str, tuple[float, str]] = {}\n_READ_CACHE_MAX = 32\n_CACHEABLE_CHARS = 256 * 1024",
+  "patch": "_READ_TTL_S = 600\n_READ_CACHE: dict[str, tuple[float, str]] = {}\n_READ_CACHE_MAX = 32\n_CACHEABLE_CHARS = 256 * 1024\n# O4：大文档缓存预算（trace 复盘：web_read 483 次/17.7%，>256K 的长文档此前完全绕过\n# 缓存，每次翻页都重新出网）。容量放宽到 1M 字符（4×32K 页/96 页），缓存字典总量\n# 8MB 封顶——超限整条拒存（宁缺勿炸），LRU 淘汰由 _cache_put 的既有循环承担。\n_CACHEABLE_CHARS_BIG = 1024 * 1024\n_READ_CACHE_TOTAL_BYTES = 8 * 1024 * 1024"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "O1c",
+  "description": "dispatch 层导入 clamp 审计清单",
+  "file": "runtime/plugins/tools/tools_plugin.py",
+  "anchor": "from tools import ToolError\n",
+  "patch": "from tools import ToolError, _PARAMS_ADJUSTED\n"
+}

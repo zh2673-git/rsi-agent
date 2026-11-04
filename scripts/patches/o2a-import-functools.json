@@ -1,0 +1,7 @@
+{
+  "id": "O2a",
+  "description": "files.py 导入 functools.lru_cache（O2 归一键缓存用）",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor": "import difflib\nimport fnmatch\nimport os\nimport re\n",
+  "patch": "import difflib\nimport fnmatch\nimport functools\nimport os\nimport re\n"
+}

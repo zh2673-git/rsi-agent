@@ -18,6 +18,7 @@ bash 间接写不经此闸（靠 SYSTEM.md 纪律 + bash 沙箱兜底）。
 
 import difflib
 import fnmatch
+import functools
 import os
 import re
 import threading
@@ -330,6 +331,42 @@ def _line_candidates(text: str, needle: str, limit: int = 3) -> list[str]:
     return []
 
 
+def _ws_key(s: str) -> str:
+    """O2 白空间归一键：逐行 strip + 行内连续空白（含全角空格/NBSP）折一。
+
+    保留空行（行数对齐）——含空行的 old 也能定位；文件侧纯空白行同样折为空行。
+    """
+    out = []
+    for l in s.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        out.append(re.sub(r"[ \t\u00a0\u3000]+", " ", l.strip()))
+    return "\n".join(out)
+
+
+@functools.lru_cache(maxsize=64)
+def _ws_key_lines(text: str) -> tuple[str, ...]:
+    return tuple(_ws_key(l) for l in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"))
+
+
+def _window_for(text: str, old: str) -> tuple[int, int] | None:
+    """O2：old 的白空间归一形态在文件中的唯一行区间（0 处或多处 → None，不猜）。
+
+    行数窗口 = old 的原始行数（空行参与对齐）；全文件行键一次性预计算（lru_cache），
+    窗口内逐行比对键。恰一处命中才返回 (lo, hi)；调用方用原文行做精确替换。
+    """
+    keys = _ws_key_lines(text)
+    okeys = tuple(_ws_key(l) for l in old.replace("\r\n", "\n").replace("\r", "\n").split("\n"))
+    n = len(okeys)
+    if n == 0 or n > len(keys):
+        return None
+    win: tuple[int, int] | None = None
+    for i in range(len(keys) - n + 1):
+        if keys[i : i + n] == okeys:
+            if win is not None:
+                return None  # 多处命中：无法唯一定位，维持原报错（保守，不猜）
+            win = (i, i + n)
+    return win
+
+
 def _edit_file(args: dict) -> dict:
     real = _guard_write(_guard(require(args, "path")), require(args, "path"))
     old = require(args, "old_string")
@@ -349,6 +386,37 @@ def _edit_file(args: dict) -> dict:
         if count:
             mode = "fuzzy"
     if count == 0:
+        # O2 白空间归一自愈（先于报错）：old 与文件的差异若只是空白形态（全角/半角、
+        # 行首尾空白、连续空格数），且在文件中**唯一**命中 → 就地用文件原文替换。
+        # trace 复盘：14 次编辑失败多为此类，原「近似位置提示→read→重试」两步路一步完成。
+        win = _window_for(text, old)
+        if win is not None:
+            lo, hi = win
+            real_old = "\n".join(text.replace("\r\n", "\n").replace("\r", "\n").split("\n")[lo:hi])
+            nl = "\r\n" if "\r\n" in text else "\n"
+            new_used = new.replace("\r\n", "\n").replace("\r", "\n")
+            if nl == "\r\n":
+                new_used = new_used.replace("\n", "\r\n")
+            new_text = (text.replace("\r\n", "\n").replace("\r", "\n")
+                        .replace(real_old, new_used, 1))
+            if "\r\n" in text:
+                new_text = re.sub(r"(?<!\r)\n", "\r\n", new_text)
+            before_raw = real.read_bytes()
+            diff = "\n".join(difflib.unified_diff(text.splitlines(), new_text.splitlines(), lineterm="", n=1))
+            if len(diff) > _DIFF_MAX_CHARS:
+                diff = diff[:_DIFF_MAX_CHARS] + "\n…[diff 过长已截断]"
+            _write_newline_safe(real, new_text, encoding=write_enc)
+            result = {
+                "path": _display(real),
+                "replacements": 1,
+                "match_mode": "whitespace",
+                "action": "edited",
+                "diff": diff,
+                "note": "old_string 空白形态与文件不一致，已按白空间归一唯一匹配就地替换（换行/行首尾/连续空白差异自动吸收）",
+            }
+            if (snap := _snapshot_change(before_raw, real.read_bytes())) is not None:
+                result["undo"] = snap
+            return result
         cands = _line_candidates(text, old)
         hint = ("；文件中近似位置: " + " | ".join(cands)) if cands else "；文件中无相似行（确认目标文件是否正确）"
         raise ToolError(

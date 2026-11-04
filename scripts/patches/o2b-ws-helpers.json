@@ -1,0 +1,7 @@
+{
+  "id": "O2b",
+  "description": "白空间归一匹配器：_ws_key（行 strip + 行内空白折一）与 _window_for（唯一行区间定位，0/多处不猜）",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor": "def _edit_file(args: dict) -> dict:",
+  "patch": "def _ws_key(s: str) -> str:\n    \"\"\"O2 白空间归一键：逐行 strip + 行内连续空白（含全角空格/NBSP）折一。\n\n    保留空行（行数对齐）——含空行的 old 也能定位；文件侧纯空白行同样折为空行。\n    \"\"\"\n    out = []\n    for l in s.replace(\"\\r\\n\", \"\\n\").replace(\"\\r\", \"\\n\").split(\"\\n\"):\n        out.append(re.sub(r\"[ \\t\\u00a0\\u3000]+\", \" \", l.strip()))\n    return \"\\n\".join(out)\n\n\n@functools.lru_cache(maxsize=64)\ndef _ws_key_lines(text: str) -> tuple[str, ...]:\n    return tuple(_ws_key(l) for l in text.replace(\"\\r\\n\", \"\\n\").replace(\"\\r\", \"\\n\").split(\"\\n\"))\n\n\ndef _window_for(text: str, old: str) -> tuple[int, int] | None:\n    \"\"\"O2：old 的白空间归一形态在文件中的唯一行区间（0 处或多处 → None，不猜）。\n\n    行数窗口 = old 的原始行数（空行参与对齐）；全文件行键一次性预计算（lru_cache），\n    窗口内逐行比对键。恰一处命中才返回 (lo, hi)；调用方用原文行做精确替换。\n    \"\"\"\n    keys = _ws_key_lines(text)\n    okeys = tuple(_ws_key(l) for l in old.replace(\"\\r\\n\", \"\\n\").replace(\"\\r\", \"\\n\").split(\"\\n\"))\n    n = len(okeys)\n    if n == 0 or n > len(keys):\n        return None\n    win: tuple[int, int] | None = None\n    for i in range(len(keys) - n + 1):\n        if keys[i : i + n] == okeys:\n            if win is not None:\n                return None  # 多处命中：无法唯一定位，维持原报错（保守，不猜）\n            win = (i, i + n)\n    return win\n\n\ndef _edit_file(args: dict) -> dict:"
+}

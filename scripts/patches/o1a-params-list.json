@@ -1,0 +1,7 @@
+{
+  "id": "O1a",
+  "description": "optional_int 模块级 params_adjusted 清单（clamp 审计通道，随 O1a clamp 一同生效）",
+  "file": "runtime/plugins/tools/tools/__init__.py",
+  "anchor": "def optional_int(args: dict, key: str, default: int, lo: int, hi: int) -> int:",
+  "patch": "_PARAMS_ADJUSTED: list[dict] = []  # O1：clamp 发生时的审计清单（本请求窗口内累加，调用方读后即清）\n\n\ndef optional_int(args: dict, key: str, default: int, lo: int, hi: int) -> int:"
+}

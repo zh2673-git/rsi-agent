@@ -1,0 +1,7 @@
+{
+  "id": "O1c",
+  "description": "dispatch 层每调用清空 clamp 窗口（记录只归属当前调用，不外溢到后续 grep）",
+  "file": "runtime/plugins/tools/tools_plugin.py",
+  "anchor": "        args = args_any\n        try:\n            if not isinstance(args, dict):",
+  "patch": "        args = args_any\n        _PARAMS_ADJUSTED.clear()  # O1：每调用一窗口——上一调用的 clamp 记录不外溢（grep 读取的必是本调用）\n        try:\n            if not isinstance(args, dict):"
+}

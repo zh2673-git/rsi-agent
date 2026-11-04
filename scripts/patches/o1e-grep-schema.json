@@ -1,0 +1,7 @@
+{
+  "id": "O1e",
+  "description": "grep 参数 schema 同步 clamp 语义",
+  "file": "runtime/plugins/tools/tools/grep.py",
+  "anchor": "                \"context_before\": {\"type\": \"integer\", \"description\": \"context lines before each match (0-10)\"},\n                \"context_after\": {\"type\": \"integer\", \"description\": \"context lines after each match (0-10)\"},",
+  "patch": "                \"context_before\": {\"type\": \"integer\", \"description\": \"context lines before each match (0-10, higher values auto-clamp to 10)\"},\n                \"context_after\": {\"type\": \"integer\", \"description\": \"context lines after each match (0-10, higher values auto-clamp to 10)\"},"
+}

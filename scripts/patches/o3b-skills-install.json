@@ -1,0 +1,7 @@
+{
+  "id": "O3a",
+  "description": "skills.rs install 调用点 TOOLS_DEADLINE → tools_deadline()",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor": ".call(env, CAP_TOOLS, json!({\"op\": \"install\", \"path\": path, \"skill\": name, \"origin\": origin}), TOOLS_DEADLINE)",
+  "patch": ".call(env, CAP_TOOLS, json!({\"op\": \"install\", \"path\": path, \"skill\": name, \"origin\": origin}), tools_deadline())"
+}

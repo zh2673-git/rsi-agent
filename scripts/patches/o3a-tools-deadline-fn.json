@@ -1,0 +1,7 @@
+{
+  "id": "O3a",
+  "description": "TOOLS_DEADLINE 常量改 fn tools_deadline()（env TOOLS_DEADLINE_SECS 可配，<30s 回退 60）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor": "const TOOLS_DEADLINE: Duration = Duration::from_secs(60);\n",
+  "patch": "// O3：tools 闸可配——重构建/重索引/全仓扫描类命令 60s 常不够（活体 trace 实录 K502 ×3），\n// env `TOOLS_DEADLINE_SECS` 覆盖（<30s 视为误配回退 60，语义同 llm_step_deadline）。\nfn tools_deadline() -> Duration {\n    std::env::var(\"TOOLS_DEADLINE_SECS\")\n        .ok()\n        .and_then(|v| v.trim().parse::<u64>().ok())\n        .filter(|s| *s >= 30)\n        .map(Duration::from_secs)\n        .unwrap_or(Duration::from_secs(60))\n}\n"
+}

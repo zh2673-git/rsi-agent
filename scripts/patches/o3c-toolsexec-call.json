@@ -1,0 +1,7 @@
+{
+  "id": "O3a",
+  "description": "tools_exec.rs 调用点 TOOLS_DEADLINE → tools_deadline()",
+  "file": "runtime/crates/agent-loop/src/tools_exec.rs",
+  "anchor": "                    TOOLS_DEADLINE,\n",
+  "patch": "                    tools_deadline(),\n"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "O1d",
+  "description": "grep 工具描述同步 clamp 语义（越界自动取上限，无需改参重调）",
+  "file": "runtime/plugins/tools/tools/grep.py",
+  "anchor": "\"context_before / context_after (0-10, default 0: show surrounding lines per match, \"",
+  "patch": "\"context_before / context_after (0-10, values above 10 are auto-clamped to 10, default 0: show surrounding lines per match, \""
+}

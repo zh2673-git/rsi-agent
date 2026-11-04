@@ -1,0 +1,7 @@
+{
+  "id": "O3a",
+  "description": "skills.rs 调用点 TOOLS_DEADLINE → tools_deadline()",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor": "match self.call(env, CAP_TOOLS, payload, TOOLS_DEADLINE).await {",
+  "patch": "match self.call(env, CAP_TOOLS, payload, tools_deadline()).await {"
+}

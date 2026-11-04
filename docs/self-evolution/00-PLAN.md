@@ -124,3 +124,42 @@ N 轮数据附注：substitutability=68.8%（707/1027）印证 P4 描述引导�
   e7-test-rounds-nudge 补丁）。
 - **验证矩阵**：py 39/39（含解码 6 例）· agent-loop 66/66 · host lib 23/23 · cargo check 干净 ·
   补丁层 61 OK / 0 FAIL 幂等稳态。host 全量链接测试因运行中的宿主进程锁 exe 未跑（check+lib 测试覆盖）。
+
+## 5. 第三轮迭代（O1-O4，2026-11-04；数据源 = 活体 trace 复盘 v0.0.4）
+
+> 出发点：重启后活体已运行在 N1-N4 之上（run.cmd=cargo run，exe 13:15 构建含全部 Rust 补丁），
+> 以**本会话 trace**（s-mvzz0e2s，2717 次工具调用 / 9.3MB / 跨 30h）重新评估，不拘泥前两轮清单。
+> 画像：ok=false 共 113 次（bash 65 / grep 17 / edit_file 14 / read_file 9），其中**同因重犯**占大头——
+> bash 多行拒绝 ≥10 次、grep context 超界 5 次（开发 agent 自身也连撞两次，现场复现）、K502 长命令
+> 60s 闸 3 次、edit 近似位置提示后仍走「read→重试」两步路。结论：硬拒绝只在首次有效，重犯即纯烧 token；
+> 工具层应从「报错教育家」升级为「就地自愈」。
+
+| # | 模块 | 目标与动作 | P | Q | I | 状态 |
+|---|---|---|---|---|---|---|
+| O1 | tools | **参数越界自愈**：`optional_int` 越界从 BAD_ARG 硬拒绝改 clamp 到最近合法端点 + 模块级 `params_adjusted` 记录；grep 结果前缀透出「⚠ 已按上下文上限取 N」提示（最高频违约者定点透传）；schema 描述同步「超出自动取上限」 | ☑ 2 补丁（o1a-optional-int-clamp + o1b-grep-clamp-hint） | py_compile + 新测试套（clamp 两端/中值不动/负数下端/grep 提示透出）+ dry-run 0 FAIL | grep/edit 等 5+ 次/轮的越界重犯从「报错→改参→重调」三步变一步；审计通道 `params_adjusted` 可观测 | ☑ |
+| O2 | tools | **edit_file 自愈窗口**：EDIT_NO_MATCH 时用 `_line_candidates` 的命中行做**白空间归一重试**（每行 strip + 内部空白折一，空行折叠，唯一命中才应用）——模型最常见失败（全角空格/不可见字符/行尾差异）就地修复 | ☑ 2 补丁（o2a-import-functools + o2b-edit-fuzzy2） | py_compile + 新测试（全角空格归一命中/多命中不适用/正常编辑不受扰）+ dry-run 0 FAIL | 14 次编辑失败中的高频类（空白不一致）从两步路变一步；命中不唯一仍保守报错 | ☑ |
+| O3 | agent-loop | **TOOLS_DEADLINE 可配**：`Duration::from_secs(60)` 常量改 `fn tools_deadline()` 读 env `TOOLS_DEADLINE_SECS`（<30s 回退 60），tools_exec/skills 调用点同步；lib.rs 头注同步五闸总览 | ☑ 3 补丁（o3a-fn + o3b-test + o3c-doc） | cargo test（新增 env 缺省/下限回退两测）+ check 干净 | 重构建/重索引/全仓扫描类命令不再被 60s 硬闸 K502（本 trace 实录 3 次） | ☑ |
+| O4 | tools | **web_read 大文档缓存预算**（设计修正：缓存本存全文，真痛点是 >256K 长文档完全绕过缓存、每次翻页重新出网）：单条容量 256K→1M 字符 + 缓存总量 8MB 预算；行为对模型零感知（offset/limit 语义不变） | ☑ 2 补丁（o4-web-cache-budget + o4-web-cache-put-big） | py_compile + dry-run 0 FAIL（翻页行为由现有契约保证） | 本会话 web_read 483 次占工具调 17.7%，大文档翻页不再反复出网 | ☑ |
+
+O 轮数据附注：bash 1133 次（占 41.7%）仍居首，但其中「python 单行探针」类已被 N3 后的专用工具
+引导持续压低；本轮不动引导（边际递减），聚焦重犯自愈。web_read 483 次为第二名（17.7%）——O4 预取
+是其最痛处（长文档 6+ 次翻页）。
+
+### O 轮验证记录（2026-11-04）
+
+- **验证矩阵**：py 48/48（新增 O 轮自愈 10 例：clamp 四态 / grep 提示透出 / 白空间归一编辑含歧义不猜）
+  · agent-loop 67/67（新增 tools_deadline env 三态串行测）· host lib 23/23 · cargo check 干净 ·
+  补丁层 20 补丁全幂等（0 FAIL / 0 SKIP）。
+- **O1 哲学现场复现三次**：开发 agent 自身 grep context 超界连撞两次、bash timeout_ms 超上限一次——
+  活体插件跑的还是旧代码（补丁需重启生效），迭代动机无需再证。
+- **测试自身踩坑**：同文件三个 edit 并行发出互相覆盖（两处 setUp 丢失）→ 同文件编辑必须串行；
+  文件类测试首版撞 WORKSPACE_ROOT 越界护栏（tempdir 在工作区外）→ 按契约在 setUp 内临时重定向 env；
+  歧义用例首版构错（归一后实为单命中，自愈正确触发）→ 改双窗口真歧义。
+- **退役（P5b 先例）**：LOOP-P2-DEADLINE-FN 终态（llm_step_deadline fn）在位、锚点被 O3a 拆散 →
+  `retired/`。
+- **O4 口径修正**：落地时核实缓存本就存全文——痛点实为 >256K 长文档完全绕过缓存，方案从「预取」
+  修正为「大文档缓存预算」（容量 1M 字符 + 总量 8MB），PLAN 里程碑行的「预取」表述按实际落地为
+  缓存放宽口径理解。
+- 生效条件：以上全部为补丁层改动，**需重启 host**（cargo 重编 + 插件进程重启）后进入运行时；
+  O3 的 Rust 侧在下次 cargo run 重编时生效。
+

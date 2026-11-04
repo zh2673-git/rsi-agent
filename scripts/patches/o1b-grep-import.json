@@ -1,0 +1,7 @@
+{
+  "id": "O1b",
+  "description": "grep 导入 clamp 审计清单（提示透传用）",
+  "file": "runtime/plugins/tools/tools/grep.py",
+  "anchor": "from . import ToolError, optional_int, require",
+  "patch": "from . import ToolError, _PARAMS_ADJUSTED as _clamp_log, optional_int, require"
+}

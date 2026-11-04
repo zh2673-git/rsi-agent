@@ -315,7 +315,7 @@ impl AgentLoopPlugin {
         }
 
         // 工具清单（每请求一次；失败视为无工具可用，模型直接作答）+ 保留名 task 声明
-        let mut tools: Vec<ToolSpec> = match self.call(env, CAP_TOOLS, json!({"op": "list"}), TOOLS_DEADLINE).await {
+        let mut tools: Vec<ToolSpec> = match self.call(env, CAP_TOOLS, json!({"op": "list"}), tools_deadline()).await {
             Ok(v) => serde_json::from_value(v.get("tools").cloned().unwrap_or(Value::Null)).unwrap_or_default(),
             Err(e) => {
                 tracing::warn!(target: ID, "tools.list failed, proceeding without tools: {e}");
