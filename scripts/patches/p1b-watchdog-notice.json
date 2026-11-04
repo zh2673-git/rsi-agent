@@ -1,0 +1,8 @@
+{
+ "id": "P1B-B",
+ "description": "P1b 自更新看门狗（新进程侧）：web::run_inner 识别 RSI_SELF_UPDATE_RELAUNCH=1（看门狗接力拉起 = 上一次交接未正常收尾），清理标记并 tracing::warn 显式示警后按正常启动继续，行为无差别。",
+ "file": "runtime/crates/host/src/web/mod.rs",
+ "anchor": "            tracing::info!(\"self-update 交接完成：已在 {} 接管（旧进程已退出）\", self.addr);\n            return Self::serve_listener(listener, kernel).await;\n        }\n        let listener = TcpListener::bind(&self.addr).await?;\n        Self::serve_listener(listener, kernel).await",
+ "patch": "            tracing::info!(\"self-update 交接完成：已在 {} 接管（旧进程已退出）\", self.addr);\n            return Self::serve_listener(listener, kernel).await;\n        }\n        // P1b 接力启动（自更新看门狗拉起）：完整环境继承自旧进程但无 RSI_HANDOVER 握手\n        // ——说明旧进程没有走完交接收尾，由看门狗兜底重拉。显式示警而非静默换血（否则\n        // 「这次启动为何没有交接日志」无法追溯）；清理标记后按正常启动继续，行为无差别。\n        if std::env::var(\"RSI_SELF_UPDATE_RELAUNCH\").map(|v| v == \"1\").unwrap_or(false) {\n            std::env::remove_var(\"RSI_SELF_UPDATE_RELAUNCH\");\n            tracing::warn!(\n                \"RSI 启动示警：本进程由自更新接力看门狗拉起（上一次交接未正常收尾）。会话与配置经持久层延续；如状态异常请核对新进程日志。\"\n            );\n        }\n        let listener = TcpListener::bind(&self.addr).await?;\n        Self::serve_listener(listener, kernel).await",
+ "note": "marker 路径由接力进程按 WEB_ADDR 端口重新推导（与 self_update_start 同规则 rsi-handover-ready-<port>.flag），无需额外传参；重拉进程环境全量继承旧进程（含 WORKSPACE_ROOT/AGENT_KERNEL_REPO 等）。"
+}

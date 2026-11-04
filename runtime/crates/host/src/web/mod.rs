@@ -77,6 +77,15 @@ impl WebFrontend {
             tracing::info!("self-update 交接完成：已在 {} 接管（旧进程已退出）", self.addr);
             return Self::serve_listener(listener, kernel).await;
         }
+        // P1b 接力启动（自更新看门狗拉起）：完整环境继承自旧进程但无 RSI_HANDOVER 握手
+        // ——说明旧进程没有走完交接收尾，由看门狗兜底重拉。显式示警而非静默换血（否则
+        // 「这次启动为何没有交接日志」无法追溯）；清理标记后按正常启动继续，行为无差别。
+        if std::env::var("RSI_SELF_UPDATE_RELAUNCH").map(|v| v == "1").unwrap_or(false) {
+            std::env::remove_var("RSI_SELF_UPDATE_RELAUNCH");
+            tracing::warn!(
+                "RSI 启动示警：本进程由自更新接力看门狗拉起（上一次交接未正常收尾）。会话与配置经持久层延续；如状态异常请核对新进程日志。"
+            );
+        }
         let listener = TcpListener::bind(&self.addr).await?;
         Self::serve_listener(listener, kernel).await
     }

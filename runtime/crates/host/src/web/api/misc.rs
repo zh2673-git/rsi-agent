@@ -587,6 +587,64 @@ pub(crate) async fn self_update_start(stream: &mut TcpStream) -> anyhow::Result<
         //    然后退出——端口随即释放，新进程的下一次 bind 重试即成功（commit point）。
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         stamp("step4 旧进程退出，交出端口");
+        // P1b 自更新看门狗（接力进程）：上面这跳 exit(0) 若因外部原因未遂（镜像句柄未
+        // 释放 / 收尾挂起 / 崩溃），换血失败且没有任何进程收拾残局。此处孵化一个与宿主
+        // 完全解耦的普通线程进程——宿主死活不影响它：marker 被旧进程清掉（正常交接成功）
+        // 即自杀；25s 仍在则判定旧进程收尾失败，以 RSI_SELF_UPDATE_RELAUNCH=1 重拉新
+        // 二进制（无 HANDOVER，正常装配 + 90s bind 指数退避，由 web::run_inner 兜底）。
+        // 全程失败不报警不二次重启：旧进程可能仍在服务（fail-safe 语义不变），仅留日志。
+        let handover_marker = std::env::temp_dir().join(format!(
+            "rsi-handover-ready-{}.flag",
+            addr.rsplit(':').next().unwrap_or("8710")
+        ));
+        std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(25);
+            loop {
+                if !std::path::Path::new(&handover_marker).is_file() {
+                    // marker 清理 = 旧进程走完 run_inner 收尾（交接正常完成）
+                    std::process::exit(0);
+                }
+                if std::time::Instant::now() >= deadline {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(250));
+            }
+            let exe = match std::env::current_exe() {
+                Ok(p) => p,
+                Err(_) => std::process::exit(0),
+            };
+            stamp("watchdog 旧进程 25s 未退场（marker 未清），接力重拉新二进制");
+            let child = std::process::Command::new(&exe)
+                .env("RSI_SELF_UPDATE_RELAUNCH", "1")
+                .env("REACT_FRONTEND", "web")
+                .env("WEB_ADDR", &addr)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn();
+            match child {
+                Ok(mut c) => {
+                    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+                    loop {
+                        if std::path::Path::new(&handover_marker).is_file() {
+                            break; // 重拉进程已装配完成并接管端口，看门狗功成身退
+                        }
+                        if std::time::Instant::now() >= deadline {
+                            stamp("watchdog 重拉进程 120s 未就绪，放弃（需人工核对）");
+                            let _ = c.kill();
+                            break;
+                        }
+                        if let Ok(Some(st)) = c.try_wait() {
+                            stamp(&format!("watchdog 重拉进程提前退出（{st}），放弃"));
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+                }
+                Err(e) => stamp(&format!("watchdog 重拉失败：{e}（旧进程可能仍在服务，请人工核对）")),
+            }
+            std::process::exit(0);
+        });
         std::process::exit(0);
     });
 
