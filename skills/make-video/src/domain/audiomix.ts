@@ -6,6 +6,14 @@ import type { MixPlan, Project, Timeline } from '../core/schema.js';
 import { runFfmpeg } from '../infrastructure/ffmpeg-utils.js';
 import { ensureDir, exists } from '../infrastructure/fs-utils.js';
 import { DUCK_RATIO } from '../core/constants.js';
+import { mvError, ERR } from '../core/errors.js';
+import { err as issueErr, warn as issueWarn, type Issue } from '../core/validators/types.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+
+const execFileP = promisify(execFile);
+const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 // 旁白全轨：各镜按时间线起点延迟对齐后混音（时间真源 = timeline）
 export async function buildVoTrack(
@@ -37,83 +45,100 @@ export async function buildVoTrack(
   return out;
 }
 
-// 程序化 BGM：双和弦慢速 pad（Dm → Bb）+ 极轻空气层，无音源依赖
-// 结构：低频根音 + 五度 + 三度叠置，各自极慢颤音形成漂移；中段交叉换和弦给出情绪弧线
+// 程序化配乐：scripts/bgm_synth.py 合成"有编排的极简科技 bed"。
+// 旧实现是 10 路纯正弦叠加再低通 —— 那会得到 20–120Hz 占 71% 能量的 drone：
+// 笔记本/手机扬声器放不出这段低频，只露出谐波与拍频，听感就是"刺啦"。
+// 现实现骨架 Am7→Fmaj7→Cmaj7→G6（84BPM），拨弦琶音 + 暖 pad + 贝斯 + 轻节奏，
+// 并带循环渐进的情绪弧线；中高频有音乐性内容，人声区 150–500Hz 交给 duckBgm 让位。
 export async function buildBgm(totalMs: number, dir: string): Promise<string> {
   await ensureDir(dir);
   const out = path.join(dir, 'bgm-raw.wav');
-  const total = totalMs / 1000;
-  const d = total.toFixed(3);
-  const shiftA = Math.max(24, total * 0.42); // 和弦开始换位
-  const shiftB = shiftA + 12;
-  const fadeOut = Math.max(2.0, total - 3.2);
-  const bedA = `volume='if(lt(t,${shiftA.toFixed(2)}),1,if(lt(t,${shiftB.toFixed(2)}),(${shiftB.toFixed(2)}-t)/12,0))':eval=frame`;
-  const bedB = `volume='if(lt(t,${shiftA.toFixed(2)}),0,if(lt(t,${shiftB.toFixed(2)}),(t-${shiftA.toFixed(2)})/12,1))':eval=frame`;
-  await runFfmpeg([
-    // Dm 床：D2 A2 D3 F3 A3
-    '-f', 'lavfi', '-i', `sine=f=73.42:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=110.00:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=146.83:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=174.61:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=220.00:d=${d}`,
-    // Bb 床：Bb1 F2 Bb2 D3 F3
-    '-f', 'lavfi', '-i', `sine=f=58.27:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=87.31:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=116.54:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=146.83:d=${d}`,
-    '-f', 'lavfi', '-i', `sine=f=174.61:d=${d}`,
-    // 空气层：粉噪滤成极轻的风
-    '-f', 'lavfi', '-i', `anoisesrc=color=pink:d=${d}`,
-    '-filter_complex',
-    '[0:a]volume=0.30,tremolo=f=0.11:d=0.35[a0];' +
-      '[1:a]volume=0.22,tremolo=f=0.13:d=0.30[a1];' +
-      '[2:a]volume=0.14,tremolo=f=0.17:d=0.25[a2];' +
-      '[3:a]volume=0.09,tremolo=f=0.10:d=0.40[a3];' +
-      '[4:a]volume=0.06,tremolo=f=0.12:d=0.30[a4];' +
-      `[a0][a1][a2][a3][a4]amix=5:normalize=0,lowpass=f=900,${bedA}[bedA];` +
-      '[5:a]volume=0.22,tremolo=f=0.11:d=0.35[b0];' +
-      '[6:a]volume=0.15,tremolo=f=0.14:d=0.30[b1];' +
-      '[7:a]volume=0.10,tremolo=f=0.18:d=0.25[b2];' +
-      '[8:a]volume=0.06,tremolo=f=0.12:d=0.30[b3];' +
-      '[9:a]volume=0.04,tremolo=f=0.10:d=0.35[b4];' +
-      `[b0][b1][b2][b3][b4]amix=5:normalize=0,lowpass=f=900,${bedB}[bedB];` +
-      '[10:a]highpass=f=220,lowpass=f=1000,volume=0.18,tremolo=f=0.10:d=0.60[air];' +
-      `[bedA][bedB][air]amix=3:normalize=0,lowpass=f=1300,volume=1.40,` +
-      `afade=t=in:st=0:d=2.5,afade=t=out:st=${fadeOut.toFixed(2)}:d=3.2[out]`,
-    '-map', '[out]', out,
-  ]);
+  const script = path.join(ROOT_DIR, 'scripts', 'bgm_synth.py');
+  const py = process.env['MV_PYTHON'] ?? 'python';
+  try {
+    await execFileP(py, [script, '--ms', String(Math.round(totalMs)), '--out', out], {
+      maxBuffer: 32 * 1024 * 1024,
+    });
+  } catch (e) {
+    throw mvError(
+      ERR.PROBE,
+      `BGM 合成失败（需要 python + numpy：pip install numpy）: ${(e as Error).message}`,
+    );
+  }
+  if (!exists(out)) throw mvError(ERR.PROBE, `BGM 未生成: ${out}`);
   return out;
 }
 
-// ducking：旁白区间 BGM 经 sidechaincompress 压至约 DUCK_RATIO（V-SND-005 / V-CMP-004）
+// ducking + 让位：BGM 先做 EQ（挖掉人声基频区与齿音区），再做侧链压缩。
+// 只有 ducking 没有 EQ 是不够的——BGM 与旁白都堆在 120–400Hz，
+// 电平压下去还会有"糊"的掩蔽感；反过来只做 EQ 不 duck，停顿处 BGM 又显突兀。
+// 主链 = BGM（[0:a]），侧链 = 旁白（[1:a]）。（V-SND-005 / V-CMP-004）
 export async function duckBgm(bgm: string, voTrack: string, dir: string): Promise<string> {
   const out = path.join(dir, 'bgm.wav');
   await runFfmpeg([
     '-i', bgm,
     '-i', voTrack,
     '-filter_complex',
-    '[1:a]volume=1[sc];[0:a][sc]sidechaincompress=threshold=0.02:ratio=8:attack=60:release=450[out]',
+    '[0:a]highpass=f=55,' +
+      'equalizer=f=260:t=q:w=1.1:g=-6.5,' +   // 人声基频区让位
+      'equalizer=f=700:t=q:w=1.4:g=-2.0,' +   // 胸声/鼻音区轻让
+      'equalizer=f=3200:t=q:w=1.2:g=-2.5,' +  // 齿音区轻让（保清晰度）
+      'equalizer=f=9000:t=h:w=2000:g=+1.5,' + // 极轻空气感（不参与人声辨识）
+      'volume=-9dB,aformat=channel_layouts=stereo[bed];' +
+      '[1:a]aformat=channel_layouts=stereo[sc];' +
+      '[bed][sc]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=400[out]',
     '-map', '[out]', out,
   ]);
   return out;
 }
 
-// 音效合成：whoosh（粉色噪声扫频）/ hit（低频锤点）
+// 音效合成：scripts/sfx_synth.py 做"三层拼瞬态"的拟音。
+// 旧实现 hit = sine 58Hz 一条纯正弦（100% 能量在 20–120Hz）、whoosh = 固定 lowpass 1400 的粉噪：
+// 前者在小扬声器上放不出来只会露功放失真与谐波拍频（就是"刺啦"的来源，每片 11–14 个），
+// 后者被压成没有方向感的"沙沙"。新版 hit 由 body/click/noise 三层错开起音拼成，
+// whoosh 做真实带通扫频（380→3200Hz），听感是"有冲击"而不是"有噪声"。
 export async function buildSfx(dir: string): Promise<{ whoosh: string; hit: string }> {
   await ensureDir(dir);
+  const script = path.join(ROOT_DIR, 'scripts', 'sfx_synth.py');
+  const py = process.env['MV_PYTHON'] ?? 'python';
+  try {
+    await execFileP(py, [script, '--dir', dir], { maxBuffer: 32 * 1024 * 1024 });
+  } catch (e) {
+    throw mvError(
+      ERR.PROBE,
+      `音效合成失败（需要 python + numpy：pip install numpy）: ${(e as Error).message}`,
+    );
+  }
   const whoosh = path.join(dir, 'whoosh.wav');
-  await runFfmpeg([
-    '-f', 'lavfi', '-i', 'anoisesrc=color=pink:d=0.7:a=0.7',
-    '-af', 'lowpass=f=1400,highpass=f=300,afade=t=in:d=0.3,afade=t=out:st=0.32:d=0.38,volume=0.55',
-    whoosh,
-  ]);
   const hit = path.join(dir, 'hit.wav');
-  await runFfmpeg([
-    '-f', 'lavfi', '-i', 'sine=f=58:d=0.5',
-    '-af', 'afade=t=out:st=0.06:d=0.44,volume=0.75',
-    hit,
-  ]);
+  if (!exists(whoosh) || !exists(hit)) throw mvError(ERR.PROBE, `音效未生成: ${dir}`);
   return { whoosh, hit };
+}
+
+// V-SND-006 可听性闸门：把"BGM 别盖人声 / 别只堆在小扬声器放不出的低频"变成可复现的自动判据。
+// 判据与实测口径见 scripts/audio_check.py 头部注释；这里只负责把它接进 compose 的闸门。
+// 缺 python/numpy 时降级为不阻断（不因环境缺件挡住出片），但明确写入 warn。
+export async function checkMixAudibility(audioDir: string): Promise<Issue[]> {
+  const script = path.join(ROOT_DIR, 'scripts', 'audio_check.py');
+  const py = process.env['MV_PYTHON'] ?? 'python';
+  if (!exists(script)) return [];
+  try {
+    await execFileP(py, [script, '--mixdir', audioDir], { maxBuffer: 16 * 1024 * 1024 });
+    return [];
+  } catch (e) {
+    const err = e as { code?: number; stdout?: string; stderr?: string; message?: string };
+    // exit 1 = 判据未过（stdout 里带 issues）；其它 = 环境问题，降级为 warn
+    if (err.code === 1 && err.stdout) {
+      try {
+        const parsed = JSON.parse(err.stdout) as Record<string, { issues?: string[] }>;
+        const msgs = Object.values(parsed).flatMap((v) => v.issues ?? []);
+        if (msgs.length > 0) return msgs.map((m) => issueErr('V-SND-006', m));
+      } catch {
+        /* fallthrough */
+      }
+    }
+    return [issueWarn('V-SND-006', `混音体检未执行（需 python + numpy）: ${err.message ?? ''}`)];
+  }
 }
 
 // 混音计划（A9 工件）：音效按转场类型分流，只在"有运动/有冲击"的切点落

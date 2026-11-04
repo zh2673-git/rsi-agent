@@ -16,7 +16,7 @@ import { atomicWriteText, copyFile, ensureDir, exists } from '../infrastructure/
 import { extractKeywords } from '../core/validators/scene.js';
 import { copyDir } from './composer-utils.js';
 import { escapeHtml } from './scene-forge.js';
-import { buildVoTrack, buildBgm, duckBgm, buildSfx, planMix, exportSrt } from './audiomix.js';
+import { buildVoTrack, buildBgm, duckBgm, buildSfx, planMix, exportSrt, checkMixAudibility } from './audiomix.js';
 import { DUCK_RATIO } from '../core/constants.js';
 import {
   planTransition,
@@ -359,6 +359,8 @@ export async function compose(
     ...V.validateCutCandidates(project.shots, timeline),
     ...V.validateEmphasisTriangle(project.shots, timeline, scenePulse),
     ...V.validateMixPlan(project.mixPlan),
+    // V-SND-006 可听性：BGM 不许盖人声、低频不许只堆在小扬声器放不出的频段
+    ...(await checkMixAudibility(audioDir)),
   ];
   if (V.hasError(gateIssues)) {
     throw mvError(ERR.VALIDATION, `剪辑/声音部校验失败:\n${V.formatIssues(gateIssues)}`);
@@ -587,10 +589,13 @@ async function emitHyperframesProject(
   });
 
   // 三层声音轨：BGM（已 ducking）+ 音效落点（V-SND-001/003）
+  // 必须无条件覆盖拷贝：音效/BGM 重做后如果沿用旧文件（"存在就跳过"），
+  // 重新 compose 也会播出上一版的声音，等于返工失效。
   const totalDurS = ((timeline.shots.at(-1)?.startMs ?? 0) + (timeline.shots.at(-1)?.durationMs ?? 0)) / 1000;
   if (timeline.bgm && exists(path.join(dir, timeline.bgm))) {
     const bgmDest = path.join(hfDir, 'audio', 'bgm.wav');
-    if (!exists(bgmDest)) await copyFile(path.join(dir, timeline.bgm), bgmDest);
+    await ensureDir(path.dirname(bgmDest));
+    await copyFile(path.join(dir, timeline.bgm), bgmDest);
     tracks.push(
       `  <audio class="clip" id="aud-bgm" data-track-index="1" data-start="0" data-duration="${totalDurS.toFixed(3)}" src="audio/bgm.wav"></audio>`,
     );
@@ -600,7 +605,7 @@ async function emitHyperframesProject(
     const base = path.basename(cue.file);
     const src = path.join(dir, 'audio', 'mix', 'sfx', base);
     const dest = path.join(hfDir, 'audio', 'sfx', base);
-    if (exists(src) && !exists(dest)) await copyFile(src, dest);
+    if (exists(src)) await copyFile(src, dest);  // 同上：音效返工后必须覆盖
     if (exists(dest)) {
       // leadMs 负值 = 声音早于画面入点（whoosh 需要在剪切点前起势，峰值才落在切点）
       const cs = (Math.max(0, cue.atMs + (cue.leadMs ?? 0)) / 1000).toFixed(3);
