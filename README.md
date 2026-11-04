@@ -21,7 +21,12 @@ agent-kernel（空间 / 时间 / 规则）
 rsi-agent：skills/ + policies/ + ledger/ + config/
 ```
 
-**改造边界**：react-agent 只改 host 装配、assets 校验/状态、agent-loop 验收三个接缝；agent-kernel 零代码改动；creat-skill / project-dev 原目录不改，使用 vendored 副本。
+**改造边界**：react-agent 只改 host 装配、assets 校验/状态、agent-loop 验收三个接缝（HostSpec/assemble、skills.validate+state、LoopPolicy，已进上游 v0.1.22）；agent-kernel 零代码改动（P6 契约注释与绑定透传已进上游 v0.1.8）；creat-skill / project-dev 原目录不改，使用 vendored 副本。
+
+> **三仓联动**（v0.0.6 起）：rsi-agent 的活体迭代不再停留在外挂补丁层——通用改进整树回灌
+> react-agent / agent-kernel 上游正式版（v0.1.22 / v0.1.8 已吸收五轮活体改进与契约显式化），
+> 本仓补丁层从 73 收敛到 13（仅留 checkin / self-update / 看门狗等发行形态专属件）；
+> `scripts/patches/retired/` 保留 60 份退役补丁做历史追溯。新迭代上游正式版优先。
 
 ## 文档
 
@@ -139,8 +144,8 @@ python -m unittest discover -s tests -v
 
 `runtime/` 是以下版本的运行时代码快照，**请勿直接修改**（升级时按下面的同步流程重放）：
 
-- [react-agent](https://github.com/zh2673-git/react-agent) v0.1.21：`crates/agent-loop`、`crates/host`（含 web-dist）、`plugins`（memory / llm-adapter / tools / assets）。
-- [agent-kernel](https://github.com/zh2673-git/agent-kernel) v0.1.7：`bindings/python`、`bindings/typescript`、`schema/kernel.proto`。
+- [react-agent](https://github.com/zh2673-git/react-agent) v0.1.22：`crates/agent-loop`、`crates/host`（含 web-dist）、`plugins`（memory / llm-adapter / tools / assets）。
+- [agent-kernel](https://github.com/zh2673-git/agent-kernel) v0.1.8：`bindings/python`、`bindings/typescript`、`schema/kernel.proto`。
 
 快照仅做 4 处适配：
 
@@ -258,7 +263,7 @@ $env:RSI_VERIFY_BEFORE_FINAL = "1"   # 最终答复前逐条核对
 - [x] Phase 2：预置技能 + 校验/评测/账本/状态机 + schema/阈值闭环
 - [x] Phase 3：A/B 对比、使用率/退役、静态看板（`dashboard/index.html`）
 - [x] Phase 4：外部信号驱动的例行复盘、提案审批队列、月度健康报告、技能库配额告警（只告警不自动删）
-- [x] 独立运行：内嵌 `runtime/` 快照（react-agent v0.1.21 + agent-kernel v0.1.7 bindings/schema）+ `run.cmd`
+- [x] 独立运行：内嵌 `runtime/` 快照（react-agent v0.1.22 + agent-kernel v0.1.8 bindings/schema）+ `run.cmd`
 - [x] magpie 可选上游：Phase 0 门脚本（端点/回环/管理面/隔离）、评测溯源（`llm` 段 + 漂移拒基线）、`retry_attempts=1` 档（本机已用 Kilo 免密钥免费模型跑通端到端；独立账户隔离待人工）
 
 生成的看板是 [dashboard/index.html](dashboard/index.html)，每次运行 `python scripts/dashboard.py` 覆盖更新。
