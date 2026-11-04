@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "skill": "project-dev",
+  "version": "0.2.0",
+  "suite": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\project-dev\\evals\\cases.jsonl",
+  "evaluated_at": "2026-11-04T10:52:05+08:00",
+  "summary": {
+    "total": 6,
+    "decided": 6,
+    "pending": 0,
+    "invalid": 0,
+    "pass_rate": 1.0
+  },
+  "cases": [
+    {
+      "id": "c1",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c2",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c3",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c4",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c5",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c6",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    }
+  ],
+  "llm": {
+    "provider": "",
+    "models": [],
+    "drift": false,
+    "recorded": false
+  },
+  "baseline": {
+    "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\ledger\\baseline.json",
+    "version": "0.2.0",
+    "pass_rate": 1.0
+  },
+  "regressions": [],
+  "degraded": false,
+  "promotion": {
+    "eligible": false,
+    "reasons": [
+      "legacy 技能不可自动晋升（需人工确认）"
+    ],
+    "note": "仍需至少一条 E1/E2/E3 外部信号（见 skill_state.py promote）"
+  }
+}
