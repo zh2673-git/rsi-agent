@@ -1,0 +1,7 @@
+{
+ "id": "E7-TEST-FIX-CALLS",
+ "description": "E7 测试修正：预算硬停实际发生在检查点②（工具波次结束后）——r1 已执行的工具步骤如实计入 calls/steps，断言从 0 修正为 1（成果如实上报，与「宁可交进度报告」语义一致）。",
+ "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+ "anchor": "    assert_eq!(s[\"stopped_by\"], json!(\"tokens\"), \"停车原因必须可观测: {s}\");\n    assert_eq!(s[\"calls\"], json!(0), \"硬停发生在下一轮开头，本回合未执行工具: {s}\");\n    assert_eq!(s[\"rounds\"], json!(1), \"画像须如实上报已跑轮数: {s}\");\n    assert_eq!(s[\"llm_calls\"], json!(1), \"画像须如实上报 LLM 调用数: {s}\");",
+ "patch": "    assert_eq!(s[\"stopped_by\"], json!(\"tokens\"), \"停车原因必须可观测: {s}\");\n    // 硬停实际发生在检查点②（工具波次结束后）——r1 已执行的 calculator 步骤如实计入：\n    // 画像的职责是「如实上报本回合发生了什么」，不是把成果清零。\n    assert_eq!(s[\"calls\"], json!(1), \"r1 已执行的工具步骤必须如实计入: {s}\");\n    assert_eq!(s[\"steps\"], json!(1), \"steps 与 calls 同源（工具执行数）: {s}\");\n    assert_eq!(s[\"rounds\"], json!(1), \"画像须如实上报已跑轮数: {s}\");\n    assert_eq!(s[\"llm_calls\"], json!(1), \"画像须如实上报 LLM 调用数: {s}\");"
+}

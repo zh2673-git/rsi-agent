@@ -1,0 +1,7 @@
+{
+ "id": "E7-C1-CALL1",
+ "description": "E7-C1 接线（1/3）：停车检查点① 调用点适配 budget_stop 新签名（补 rounds/steps/usage/llm_ms/llm_calls/retries/tool_failures）。",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor": "            if let Some(reason) = self.check_budget(&budget, &usage) {\n                if reason.is_hard() {\n                    return self.budget_stop(env, &req.session_id, reason).await;\n                }\n                self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;\n            }\n            let sid = self.next_sid(&req.session_id); // 单调唯一（跨回合不碰撞），形状不变",
+ "patch": "            if let Some(reason) = self.check_budget(&budget, &usage) {\n                if reason.is_hard() {\n                    return self\n                        .budget_stop(env, &req.session_id, rounds, &steps, reason, usage, llm_ms, llm_calls, retries, tool_failures)\n                        .await;\n                }\n                self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;\n            }\n            let sid = self.next_sid(&req.session_id); // 单调唯一（跨回合不碰撞），形状不变"
+}

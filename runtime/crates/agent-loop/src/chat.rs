@@ -388,7 +388,9 @@ impl AgentLoopPlugin {
             }
             if let Some(reason) = self.check_budget(&budget, &usage) {
                 if reason.is_hard() {
-                    return self.budget_stop(env, &req.session_id, reason).await;
+                    return self
+                        .budget_stop(env, &req.session_id, rounds, &steps, reason, usage, llm_ms, llm_calls, retries, tool_failures)
+                        .await;
                 }
                 self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;
             }
@@ -600,7 +602,9 @@ impl AgentLoopPlugin {
             // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）
             if let Some(reason) = self.check_budget(&budget, &usage) {
                 if reason.is_hard() {
-                    return self.budget_stop(env, &req.session_id, reason).await;
+                    return self
+                        .budget_stop(env, &req.session_id, rounds, &steps, reason, usage, llm_ms, llm_calls, retries, tool_failures)
+                        .await;
                 }
                 self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;
             }
@@ -609,7 +613,9 @@ impl AgentLoopPlugin {
         // 停车检查点③：轮次耗尽前的强制收敛轮（预算可能恰在此间耗尽）
         if let Some(reason) = self.check_budget(&budget, &usage) {
             if reason.is_hard() {
-                return self.budget_stop(env, &req.session_id, reason).await;
+                return self
+                    .budget_stop(env, &req.session_id, rounds, &steps, reason, usage, llm_ms, llm_calls, retries, tool_failures)
+                    .await;
             }
             wrap_up = Some(reason);
         }
@@ -663,18 +669,77 @@ impl AgentLoopPlugin {
                 .await;
         }
         self.trace(env, &req.session_id, json!({"type": "error", "where": "max_rounds", "message": format!("agent loop exhausted max_rounds={max_rounds}")})).await;
+        // E7-C2：轮次耗尽出口也交画像（三出口闭环：自然收敛 / 预算停 / 失败收敛）。
+        self.summary_after_stop(env, &req.session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures)
+            .await;
         json!({"ok": false, "error": {"code": "K502", "message": format!("agent loop exhausted max_rounds={max_rounds}")}})
     }
 
     /// 预算硬停（仅 token）：成本上限已到，不再花任何一次 LLM 调用。
     /// 与旧实现一致地返回 K508——调用方（宿主/子代理）据此判断「被预算掐断」。
-    async fn budget_stop(&self, env: &Envelope, session_id: &str, reason: StopReason) -> Value {
+    async fn budget_stop(
+        &self,
+        env: &Envelope,
+        session_id: &str,
+        rounds: u32,
+        steps: &[StepRecord],
+        reason: StopReason,
+        usage: UsageAcc,
+        llm_ms: u64,
+        llm_calls: u32,
+        retries: u32,
+        tool_failures: u32,
+    ) -> Value {
         let msg = match reason {
             StopReason::Tokens => "chat 预算耗尽：token 超限",
             StopReason::Deadline => "chat 预算耗尽：时长超限",
         };
         self.trace(env, session_id, json!({"type": "error", "where": "budget", "message": msg})).await;
+        // E7-C1：预算硬停也要交 chat_summary——「被掐断」的回合不该在效率画像里缺段。
+        self.summary_after_stop(env, session_id, rounds, steps, Some(reason.tag()), &usage, llm_ms, llm_calls, retries, tool_failures)
+            .await;
         json!({"ok": false, "error": {"code": "K508", "message": msg}})
+    }
+
+    /// E7-C1/C2：非收敛出口（预算硬停 / 空答案 / 轮次耗尽）的效率画像兜底。
+    /// 此前三类出口只发 error、不发 chat_summary——脚本无法区分「没跑」与「跑了但失败」。
+    /// 字段与 finish 的收敛版对齐，仅少 budget_secs/max_rounds（静态配置，失败画像非必需）；
+    /// stopped_by=None 表示非预算原因（类型沿用收敛版："tokens"/"deadline"/null）。
+    #[allow(clippy::too_many_arguments)]
+    async fn summary_after_stop(
+        &self,
+        env: &Envelope,
+        session_id: &str,
+        rounds: u32,
+        steps: &[StepRecord],
+        stopped_by: Option<&str>,
+        usage: &UsageAcc,
+        llm_ms: u64,
+        llm_calls: u32,
+        retries: u32,
+        tool_failures: u32,
+    ) {
+        let step_count = steps.len();
+        self.trace(
+            env,
+            session_id,
+            json!({
+                "type": "chat_summary",
+                "calls": step_count,
+                "rounds": rounds,
+                "steps": step_count,
+                "llm_calls": llm_calls,
+                "retries": retries,
+                "failures": tool_failures,
+                "failure_rate": if step_count == 0 { 0.0 } else {
+                    (tool_failures as f64) / (step_count as f64)
+                },
+                "tokens": usage.to_value(),
+                "llm_ms": llm_ms,
+                "stopped_by": stopped_by,
+            }),
+        )
+        .await;
     }
 
     /// 墙钟到点：插入一次性 wrap-up 指令并置位软停状态（之后不再执行工具）。
@@ -775,6 +840,9 @@ impl AgentLoopPlugin {
             // PLAN R4：空答案视为失败——ok:true + answer:"" 是假收敛；不落 memory、
             // 不发 assistant 事件，按错误 payload 收敛。
             self.trace(env, session_id, json!({"type": "error", "where": "finish", "message": "llm 返回了空答案"})).await;
+            // E7-C2：失败出口同样交画像（steps 已落地的成果数如实上报）。
+            self.summary_after_stop(env, session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures)
+                .await;
             return json!({"ok": false, "error": {"code": "K502", "message": "llm 返回了空答案"}});
         }
         self.observe(

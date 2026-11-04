@@ -1,0 +1,7 @@
+{
+ "id": "E7-C2B-MAX-ROUNDS-SUMMARY",
+ "description": "E7-C2b：轮次耗尽出口（K502）补发 chat_summary——兜底失败出口同样不发画像事件的最后缺口。",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor": "        self.trace(env, &req.session_id, json!({\"type\": \"error\", \"where\": \"max_rounds\", \"message\": format!(\"agent loop exhausted max_rounds={max_rounds}\")})).await;\n        json!({\"ok\": false, \"error\": {\"code\": \"K502\", \"message\": format!(\"agent loop exhausted max_rounds={max_rounds}\")}})",
+ "patch": "        self.trace(env, &req.session_id, json!({\"type\": \"error\", \"where\": \"max_rounds\", \"message\": format!(\"agent loop exhausted max_rounds={max_rounds}\")})).await;\n        // E7-C2：轮次耗尽出口也交画像（三出口闭环：自然收敛 / 预算停 / 失败收敛）。\n        self.summary_after_stop(env, &req.session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures)\n            .await;\n        json!({\"ok\": false, \"error\": {\"code\": \"K502\", \"message\": format!(\"agent loop exhausted max_rounds={max_rounds}\")}})"
+}

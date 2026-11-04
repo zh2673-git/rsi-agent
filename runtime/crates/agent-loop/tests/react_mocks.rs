@@ -936,6 +936,83 @@ async fn token_budget_exhaustion_stops_loop() {
 }
 
 #[tokio::test]
+async fn budget_stop_emits_chat_summary_for_observability() {
+    // E7-C1 回归：预算硬停（K508）也必须补发 chat_summary——「被掐断」的回合
+    // 不能在效率画像里缺段，脚本要能区分「没跑」与「跑了但被预算截停」。
+    let _env_guard = ENV_LOCK.lock().unwrap();
+    let saved = std::env::var("CHAT_TOKEN_BUDGET").ok();
+    std::env::set_var("CHAT_TOKEN_BUDGET", "10");
+
+    let mem_state = Arc::new(Mutex::new(vec![]));
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let llm_script = vec![
+        // r1：要调工具，本调用即用掉 12 tokens（> 预算 10）→ 下一轮开头硬停
+        json!({"ok": true, "content": null, "tool_calls": [{"id": "c1", "name": "calculator", "arguments": {}}], "model": "mock", "finish_reason": "tool_calls", "usage": {"input_tokens": 8, "output_tokens": 4}}),
+        // r2（不应到达）
+        json!({"ok": true, "content": "should not reach", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let kernel = boot(vec![
+        mock_memory_traced(mem_state.clone(), events.clone()),
+        mock_llm_capturing(llm_script, Arc::new(Mutex::new(vec![]))),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "burn tokens").await;
+    assert_eq!(r["ok"], json!(false), "{r}");
+    assert_eq!(r["error"]["code"], json!("K508"), "{r}");
+
+    let evs = events.lock().unwrap().clone();
+    let errs: Vec<&Value> = evs.iter().filter(|e| e["type"] == "error").collect();
+    assert!(!errs.is_empty(), "K508 出口必须有 error 事件在场: {evs:#?}");
+    let summary: Vec<&Value> = evs.iter().filter(|e| e["type"] == "chat_summary").collect();
+    assert_eq!(summary.len(), 1, "预算硬停后必须恰好一条 chat_summary: {evs:#?}");
+    let s = summary[0];
+    assert_eq!(s["stopped_by"], json!("tokens"), "停车原因必须可观测: {s}");
+    // 硬停实际发生在检查点②（工具波次结束后）——r1 已执行的 calculator 步骤如实计入：
+    // 画像的职责是「如实上报本回合发生了什么」，不是把成果清零。
+    assert_eq!(s["calls"], json!(1), "r1 已执行的工具步骤必须如实计入: {s}");
+    assert_eq!(s["steps"], json!(1), "steps 与 calls 同源（工具执行数）: {s}");
+    assert_eq!(s["rounds"], json!(1), "画像须如实上报已跑轮数: {s}");
+    assert_eq!(s["llm_calls"], json!(1), "画像须如实上报 LLM 调用数: {s}");
+
+    match saved {
+        Some(v) => std::env::set_var("CHAT_TOKEN_BUDGET", v),
+        None => std::env::remove_var("CHAT_TOKEN_BUDGET"),
+    }
+}
+
+#[tokio::test]
+async fn failed_exit_paths_still_emit_chat_summary() {
+    // E7-C2 回归：空答案（finish 的 K502）失败出口也要交 chat_summary（steps 如实上报）。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mem_state = Arc::new(Mutex::new(vec![]));
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let llm_script = vec![
+        // r1：收敛（无工具调用），但 content 为空 → finish 判空答案 K502
+        json!({"ok": true, "content": null, "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let kernel = boot(vec![
+        mock_memory_traced(mem_state.clone(), events.clone()),
+        mock_llm_capturing(llm_script, Arc::new(Mutex::new(vec![]))),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "empty answer").await;
+    assert_eq!(r["ok"], json!(false), "{r}");
+    assert_eq!(r["error"]["code"], json!("K502"), "{r}");
+
+    let evs = events.lock().unwrap().clone();
+    let summary: Vec<&Value> = evs.iter().filter(|e| e["type"] == "chat_summary").collect();
+    assert_eq!(summary.len(), 1, "空答案失败出口必须恰好一条 chat_summary: {evs:#?}");
+    let s = summary[0];
+    assert!(s["stopped_by"].is_null(), "非预算原因 stopped_by=null: {s}");
+    assert_eq!(s["rounds"], json!(1), "画像须如实上报已跑轮数: {s}");
+    assert_eq!(s["llm_calls"], json!(1), "画像须如实上报 LLM 调用数: {s}");
+}
+
+#[tokio::test]
 async fn wall_clock_budget_soft_converges_instead_of_aborting() {
     // T4 语义修正回归：墙钟到点**不得**丢弃本轮成果直接 K508。
     // 旧行为（硬中止）的后果：任务没做完、工作也没了，用户只看到「预算耗尽」错误气泡。

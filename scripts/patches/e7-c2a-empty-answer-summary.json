@@ -1,0 +1,7 @@
+{
+ "id": "E7-C2A-EMPTY-ANSWER-SUMMARY",
+ "description": "E7-C2a：finish 空答案出口（K502）补发 chat_summary——假收敛回合此前不发画像事件。",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor": "        if answer.trim().is_empty() {\n            // PLAN R4：空答案视为失败——ok:true + answer:\"\" 是假收敛；不落 memory、\n            // 不发 assistant 事件，按错误 payload 收敛。\n            self.trace(env, session_id, json!({\"type\": \"error\", \"where\": \"finish\", \"message\": \"llm 返回了空答案\"})).await;\n            return json!({\"ok\": false, \"error\": {\"code\": \"K502\", \"message\": \"llm 返回了空答案\"}});\n        }",
+ "patch": "        if answer.trim().is_empty() {\n            // PLAN R4：空答案视为失败——ok:true + answer:\"\" 是假收敛；不落 memory、\n            // 不发 assistant 事件，按错误 payload 收敛。\n            self.trace(env, session_id, json!({\"type\": \"error\", \"where\": \"finish\", \"message\": \"llm 返回了空答案\"})).await;\n            // E7-C2：失败出口同样交画像（steps 已落地的成果数如实上报）。\n            self.summary_after_stop(env, session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures)\n                .await;\n            return json!({\"ok\": false, \"error\": {\"code\": \"K502\", \"message\": \"llm 返回了空答案\"}});\n        }"
+}

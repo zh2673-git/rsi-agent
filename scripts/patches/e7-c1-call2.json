@@ -1,0 +1,7 @@
+{
+ "id": "E7-C1-CALL2",
+ "description": "E7-C1 接线（2/3）：停车检查点② 调用点适配 budget_stop 新签名。",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor": "            // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）\n            if let Some(reason) = self.check_budget(&budget, &usage) {\n                if reason.is_hard() {\n                    return self.budget_stop(env, &req.session_id, reason).await;\n                }",
+ "patch": "            // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）\n            if let Some(reason) = self.check_budget(&budget, &usage) {\n                if reason.is_hard() {\n                    return self\n                        .budget_stop(env, &req.session_id, rounds, &steps, reason, usage, llm_ms, llm_calls, retries, tool_failures)\n                        .await;\n                }"
+}
