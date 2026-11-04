@@ -163,3 +163,28 @@ O 轮数据附注：bash 1133 次（占 41.7%）仍居首，但其中「python �
 - 生效条件：以上全部为补丁层改动，**需重启 host**（cargo 重编 + 插件进程重启）后进入运行时；
   O3 的 Rust 侧在下次 cargo run 重编时生效。
 
+### O 轮回灌上游（2026-11-04）——「rsi 补丁 → react-agent/agent-kernel 正式版」
+
+- **动机**：73 个外挂补丁中 60 个是通用组件修复，长期漂移会让 runtime 快照与上游渐行渐远；
+  用户裁决：反向根据实践经验优化上游，让三仓一起迭代。
+- **落地**：
+  - **react-agent v0.1.22**（edca021 + 9519a6b + 9b7ed30）：agent-loop 八文件整树移植
+    （P2/N/E/O 全系含其地基层 budget/secrets/skills）、tools/llm_adapter/memory 插件、
+    host 通用五件（instances 杀树/sandbox-run 注释/前端重置入口）；并合入在途的
+    Phase 1 接缝（assemble/skillkit/LoopPolicy）。版本 0.1.21→0.1.22，tag 已推。
+  - **agent-kernel v0.1.8**（0bc4720）：P6 契约显式化三件（proto 注释 + py/ts guest
+    deadline/priority 透传），cargo 29 suites 全绿，tag 已推；rsi runtime 内嵌 triple 同步。
+  - **rsi-agent**：runtime 重嵌入 v0.1.22（代码树与上游逐字节一致，verified）；内核依赖
+    v0.1.7→v0.1.8；**60 个补丁退役**进 retired/（P5b 先例），13 个 rsi 专属补丁留守
+    （checkin×6 / watchdog×2 / self-update×2 / x1×2 / files-p5-noise）。
+- **附带修复（回灌过程暴露的上游测试卫生债）**：secrets 测试 CONFIG_FILE 环境泄漏
+  （改为临时路径方案）；e2e_full_react_mock 显式清除宿主注入的 WORKSPACE_ROOT/CONFIG_FILE/
+  SKILLS_DIR——InProcess 循环读测试进程 env，「进程无这些变量」的脆弱前提被用户级环境
+  变量击穿。
+- **验证矩阵（最终稳态）**：rsi-agent py 48/48 · runtime agent-loop lib 24/24 +
+  react_mocks 40/40 + conformance 3/3 · host lib 23/23 · cargo check 干净 ·
+  补丁层 13 活跃全幂等 0 FAIL · react-agent v0.1.22 同矩阵全绿（另含 e2e 七目标）。
+- **运维提醒**：runtime 已含全部改动，重启 host 即生效（不再依赖补丁重放路径）；
+  此后新迭代从「补丁先行」改为「上游正式版优先，rsi 仅留发行形态专属补丁」。
+
+
