@@ -60,6 +60,21 @@ description: 自动生成视频 skill：输入主题/讲稿/素材，按电影�
    `sceneDeny` 剔除、`sceneBias` 前置，LLM 只能在池内选。`css3d` 风格用
    `MV.depth/orbit/tilt3d/card3d/spin3d` 做真透视（父级必须 `perspective` +
    `preserve-3d`），2D 风格不得混入 3D 痕迹——漂移会被 V-STYLE-008 记录。
+9. **动效落在该落的词上，不是每句都砸**（P7，docs/10 §5.3 + `motion-grammar.ts`）。
+   这是「动效丰富」与「动效廉价」的分界线：丰富来自**每一镜都有明确的主动作**，
+   廉价来自**每一镜都砸**。
+   - **选语法再选模板**：`pickGrammar()` 按旁白语义打分（这段在讲什么 → 选画法），
+     并**硬排除**冲突项；九种语法见 docs/10 §5.3。不要让模型自由发挥。
+   - **重音预算是硬约束**：带 `slam/punch/whip` 的镜头 **≤ 总数 1/3**，超了 compose 直接拦
+     （V-MOT-013）。全篇都加粗 = 没有重点。
+   - **动作谱八字段**落 `visual.params.actionSheet`：对应口播 / 主体 / 准备 / 主动作 /
+     刹停收势 / 配角让位 / 相机路径 / 声音落点。写不出第八项的镜头说明还没想清楚。
+   - **人物是一条主线**（可选）：项目根放 `presenter.json`
+     （`{"image":"canvas/avatar.png","corner":"br","width":196,"mode":"hero-to-corner",
+     "heroAnchor":{"x":76,"y":46,"width":24}}`）即让卡通头像出镜；
+     `hero-to-corner` 是**同一元素**开头大窗、随后改尺寸/位置收到角标，
+     不是每镜重新淡入（那会在快切里闪）。
+   - 审计落 `logs/motion-audit.json`；12 个动效原语见 `templates/motion/motion-lib.js`。
 
 ## 风格菜单（用户叫法 → 风格包）
 
