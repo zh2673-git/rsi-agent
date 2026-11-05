@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-11-05T00:58:16.563Z",
-  "issues": [],
+  "generatedAt": "2026-11-05T02:30:10.377Z",
+  "issues": [
+    {
+      "rule": "V-MOT-018",
+      "level": "warn",
+      "message": "开头镜头 s01 是标题卡：开头 3 秒要是一个具体的小场景（一双手/一个物在做和题目有关的事）"
+    }
+  ],
   "grammarByShot": [
     [
       "s01",

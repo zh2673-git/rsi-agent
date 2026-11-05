@@ -6,6 +6,12 @@
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; }
   .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8% 10%; box-sizing: border-box; }
+  /* 环境层：横向流动的刻度线。主体（节点）动完之后由它接手，保证镜内没有死帧。 */
+  .flow-field {
+    position: absolute; inset: -10%; pointer-events: none; opacity: 0.55; z-index: 0;
+    background-image: repeating-linear-gradient(90deg, {{PRIMARY}}22 0 2px, transparent 2px 6%);
+  }
+  .stage > *:not(.flow-field) { position: relative; z-index: 1; }
   .title { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; margin-bottom: 8%; }
   .flow { display: flex; align-items: center; gap: 3%; }
   .node { flex: 1; background: {{NEUTRAL_3}}; border: 2px solid {{PRIMARY}}; border-radius: 12px; padding: 5% 3%; text-align: center; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_0}}; font-weight: 600; }
@@ -17,30 +23,62 @@
 </style>
 </head>
 <body data-scene-id="{{SCENE_ID}}">
-  <div class="stage">
-    <div class="title">{{TITLE}}</div>
-    <div class="flow">
-      <div class="node">01</div>
-      <div class="arrow">→</div>
-      <div class="node">02</div>
-      <div class="arrow">→</div>
-      <div class="node accent">03</div>
-      <div class="arrow">→</div>
-      <div class="node">04</div>
+  <!-- 根容器必须带 data-scene-id 与 data-accent：composer 靠 data-accent="0" 判断本镜
+       是否消耗重音预算（V-MOT-013）。缺这个属性所有镜都会被当成有重音，审计 100% 误报。 -->
+  <div data-scene-id="{{SCENE_ID}}" data-beats="5" data-accent="{{ACCENT_FLAG}}">
+    <div class="stage">
+      <div class="flow-field" data-motif></div>
+      <div class="title">{{TITLE}}</div>
+      <div class="flow">
+        <div class="node">01</div>
+        <div class="arrow">→</div>
+        <div class="node">02</div>
+        <div class="arrow">→</div>
+        <div class="node accent">03</div>
+        <div class="arrow">→</div>
+        <div class="node">04</div>
+      </div>
     </div>
+    <div class="letterbox"></div>
+    <div class="grain" style="opacity:{{GRAIN}}"></div>
+    <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
   </div>
-  <div class="letterbox"></div>
-  <div class="grain" style="opacity:{{GRAIN}}"></div>
-  <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
   <script src="../motion/motion-lib.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      MV.enter('.title', { easing: '{{EASING}}', duration: {{DURATION}} });
-      MV.enter('.node', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, x: -40 } });
-      MV.enter('.arrow', { easing: '{{EASING}}', duration: 300, stagger: 80 });
-      MV.idle('.node.accent', { delay: 1200 });
-      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
-    });
+    (function () {
+      function boot() {
+        // 必须显式绑定本镜时间线：多合成内联时 querySelector('[data-composition-id]')
+        // 会命中根，动画被错挂到根时间线上，渲染器 seek 本镜得到的是全空。
+        MV.use('scene-{{SCENE_ID}}');
+        if (!MV.timeline()) return;
+
+        // ① 入场（主体动作）
+        MV.enter('.title', { easing: '{{EASING}}', duration: {{DURATION}} });
+        MV.enter('.node', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, x: -40 } });
+        MV.enter('.arrow', { easing: '{{EASING}}', duration: 300, stagger: 80 });
+
+        // ② 重音：本镜有预算才砸，没有就走缓入（V-MOT-013）。
+        //    判据读 DOM 上的 data-accent，不要在脚本里再写一次占位符——
+        //    场景注入用 String.replace 只换第一处，第二个占位符会留着不替换。
+        var accentEl = document.querySelector('[data-accent]');
+        var accent = accentEl ? accentEl.getAttribute('data-accent') === '1' : false;
+        if (accent) {
+          MV.slam('.node.accent', { delay: 900 });
+        } else {
+          MV.idle('.node.accent', { delay: 1200 });
+        }
+
+        // ③ 环境母题：入场落定后由它持续供给运动。
+        // 之前这个模板一次 motifLoop 都没有，节点入场完就彻底静止 ——
+        // 实测成片 88% 的帧是死帧，这正是「看着素」的直接来源。
+        MV.motifLoop('.flow-field', { kind: 'scan', amp: 0.9, duration: 1800, span: 16 });
+        MV.motifLoop('.arrow', { kind: 'pulse', amp: 0.5, span: 14 });
+
+        MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+      else boot();
+    })();
   </script>
 </body>
 </html>

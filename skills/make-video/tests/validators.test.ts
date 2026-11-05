@@ -29,8 +29,11 @@ describe('V-STYLE-003 组合确认门', () => {
 });
 
 describe('场景校验器', () => {
+  // 合法场景夹具必须含母题循环（V-MOT-021）：入场动作之外还要有持续运动，
+  // 否则镜头后半段是死画面。夹具跟随不变量一起演进。
   const goodScene = `<body data-scene-id="s01"><div class="subject">hi</div>
-<script>MV.enter('.subject', {duration: 600});</script></body>`;
+<script>MV.enter('.subject', {duration: 600});
+MV.motifLoop('.subject', {kind: 'pulse', amp: 0.6});</script></body>`;
 
   it('合法场景通过', () => {
     const issues = V.validateSceneFile(goodScene, { narration: '这是一段旁白。' });

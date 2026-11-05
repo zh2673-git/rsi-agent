@@ -38,6 +38,11 @@
       MV.enter('.bar', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, scaleY: 0, transformOrigin: 'bottom' } });
       MV.emphasis('.bar.accent', { duration: 1400 });
       MV.idle('.chart', { delay: 1200 });
+
+    // 柱状图呼吸 + 整图缓慢漂移：数据镜最容易「画完就死」
+    MV.motifLoop('.chart', { kind: 'drift', amp: 0.6, duration: 1600, span: 16 });
+    MV.motifLoop('.bar.accent', { kind: 'pulse', amp: 0.7, duration: 1400, span: 16 });
+
       MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
     });
   </script>

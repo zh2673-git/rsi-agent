@@ -37,6 +37,11 @@
       MV.enter('.sun', { easing: '{{EASING}}', duration: 2000, from: { opacity: 0, scale: 0.6 } });
       MV.enter('.cloud', { easing: 'none', duration: 2000, stagger: 600, from: { xPercent: -20, opacity: 0 } });
       MV.idle('.sun', { delay: 2000 });
+
+    // 云层持续横移（大气环境的主运动），太阳缓慢呼吸
+    MV.motifLoop('.cloud', { kind: 'drift', amp: 0.7, duration: 1600, span: 18 });
+    MV.motifLoop('.sun', { kind: 'breathe', amp: 0.9, duration: 1800, span: 18 });
+
       MV.camera('.stage', { move: 'push-in', zoom: '{{ZOOM}}' });
     });
   </script>

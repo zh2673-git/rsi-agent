@@ -1,0 +1,11 @@
+spawn: npx --yes hyperframes@0.8.173 render "D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf\remotion" -o "D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf\out\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf.mp4" -f 30 -q standard
+[beat 30s] alive, buffer 24430 bytes
+=== exit 0, 41s ===
+assemble","status":"end","elapsedMs":37962,"durationMs":922,"stagePhase":"capturing","hasAudio":true,"workerCount":4,"forceScreenshot":true,"totalFrames":747,"framesCompleted":747,"captureMode":"screenshot","captureOperation":"encode"}
+[INFO] [Render:trace] {"renderJobId":"01884b22-7dcf-474e-a604-2b43273f9c18","phase":"pipeline","status":"checkpoint","elapsedMs":38022,"message":"artifact validated","totalElapsedMs":38013}
+  █████████████████████████  100%  Render complete
+
+◇  D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf\out\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf.mp4
+   7.4 MB · 24.9s video · rendered in 38.6s
+   screenshot capture · hardware gpu · compile 0.7s · extract 0.0s · audio 0.8s · probe 0.2s · setup 3.4s · capture 24.4s · encode 7.7s · assemble 0.9s
+

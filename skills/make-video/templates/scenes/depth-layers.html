@@ -40,6 +40,11 @@
       /* 景深推进：三层按 data-depth 各自前移，前后景速度差即纵深 */
       MV.depth('.layer', { strength: 1.4 });
       MV.idle('.subject', { delay: 2000 });
+
+    // 分层纵深：各层不同速度漂移才显纵深（远景慢、近景快）
+    MV.motifLoop('.layer.far', { kind: 'drift', amp: 0.5, duration: 1800, span: 18 });
+    MV.motifLoop('.layer.near', { kind: 'drift', amp: 1.0, duration: 1400, span: 18 });
+
       MV.camera('.stage', { move: 'push-in', zoom: '{{ZOOM}}' });
     });
   </script>

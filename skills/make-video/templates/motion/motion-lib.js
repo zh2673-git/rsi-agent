@@ -240,7 +240,7 @@
     whip: { dur: 0.28, blur: 12, ease: 'expo.inOut' },
     mask: { dur: 0.5, ease: 'power2.inOut' },
     bands: { dur: 0.32, stagger: 0.06 },
-    motif: { dur: 2.4, amp: 0.32 },
+    motif: { dur: 2.4, amp: 0.8 },
   };
   MV.MO = MO;
 
@@ -540,6 +540,63 @@
   /** 母题循环：环境层「一直是活的」——每幕一个主动作 + 若干母题循环。
    *  必须与主体动作作用在不同元素上（否则抢属性、变成整体抖动）。
    *  opts.kind: float|pulse|rotate|shimmer */
+  /** 母题循环的 kind 表：每个 kind 对应一种「环境在动」的视觉语言。
+   *  铁律（阿杜「每幕 2 个母题循环」+ 花叔「画要一直是活的」）：
+   *  画面里必须一直有事发生，但**不能抢主体的属性**——所以每种 kind 动的是不同 CSS 属性，
+   *  且幅度必须看得见（位移 ≥ 元件自身尺寸的 2%，或透明度 ≥ 0.2 的变化）。
+   *  幅度定价都在一次「参数只动 0.3 时肉眼看不出来」的实测之后重定过。 */
+  var MOTIF_KINDS = {
+    // 上下漂浮：位移是 amp*6(px)。amp 0.3 只有 ±1.8px —— 所以默认值提到 0.8（±4.8px）
+    float: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { y: amp * 6 }, { y: -amp * 6, duration: dur, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+    },
+    // 缩放呼吸：amp 0.3 → ±3.75%，看得见且不抢主体
+    pulse: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { scale: 1 - amp / 8 }, { scale: 1 + amp / 8, duration: dur, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+    },
+    // 转台：amp 0.5 → ±1.5°，够了；再大就破坏版式
+    rotate: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { rotation: -amp * 3 }, { rotation: amp * 3, duration: dur, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+    },
+    // 明暗闪动：透明度 0.35↔0.95，是「光在呼吸」的主来源
+    shimmer: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { opacity: 0.45 }, { opacity: 0.95, duration: dur / 2, ease: 'sine.inOut', repeat: reps * 2, yoyo: true }, at);
+    },
+    // 扫描：整层横向掠过（网格/背景纹理专用）。走 x 而不是 y，
+    // 因为横移在 16:9 里比上下抖动更像「镜头在扫」，也不会让版式上下跳。
+    scan: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { x: -amp * 40, backgroundPosition: '0% 0%' },
+        { x: amp * 40, backgroundPosition: '100% 0%', duration: dur, ease: 'none', repeat: reps, yoyo: true }, at);
+    },
+    // 光带横穿：单向匀速走完再从头（不 yoyo，像激光扫过去）
+    sweep: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { xPercent: -amp * 60 }, { xPercent: amp * 180, duration: dur, ease: 'none', repeat: reps }, at);
+    },
+    // 缓漂：极慢的整体位移，氛围镜用；比 float 更慢更远
+    drift: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { x: -amp * 22, y: amp * 8 },
+        { x: amp * 22, y: -amp * 8, duration: dur * 2, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+    },
+    // 呼吸（幅度更大、周期更长，用于大块背景色块/光晕）
+    breathe: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { scale: 1 - amp / 5, opacity: 0.55 },
+        { scale: 1 + amp / 5, opacity: 1, duration: dur * 1.5, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+    },
+    // 挤压：纵向压缩来回（「被压紧」的感觉），只动 scaleY，不碰版式宽度
+    compress: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { scaleY: 1 - amp / 4 }, { scaleY: 1 + amp / 12, duration: dur, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+    },
+    // 沉降：从略高处缓慢落下并停住感（单程 + 小幅回弹），收尾镜用
+    settle: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { y: -amp * 14 }, { y: amp * 4, duration: dur * 1.5, ease: 'power2.out', repeat: reps, yoyo: true }, at);
+    },
+    // 排空：透明度单向衰减再回来（「被抽走」），比 shimmer 慢且单向
+    drain: function (nodes, amp, dur, reps, at, tl) {
+      tl.fromTo(nodes, { opacity: 1 }, { opacity: 0.35, duration: dur * 1.2, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+    },
+  };
+  MV.MOTIF_KINDS = MOTIF_KINDS;
+
   MV.motifLoop = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
@@ -555,15 +612,18 @@
     // 有界 repeat：镜长未知时按 16s 上限，超出部分自然静止（时间线必须有限）
     var reps = Math.max(1, Math.round(num(opts.span, 16) / dur / 2));
     var at = num(opts.delay, 0) / 1000;
-    if (kind === 'pulse') {
-      tl.fromTo(nodes, { scale: 1 - amp / 8 }, { scale: 1 + amp / 8, duration: dur, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
-    } else if (kind === 'rotate') {
-      tl.fromTo(nodes, { rotation: -amp * 3 }, { rotation: amp * 3, duration: dur, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
-    } else if (kind === 'shimmer') {
-      tl.fromTo(nodes, { opacity: 0.35 }, { opacity: 0.95, duration: dur / 2, ease: 'sine.inOut', repeat: reps * 2, yoyo: true }, at);
-    } else {
-      tl.fromTo(nodes, { y: amp * 6 }, { y: -amp * 6, duration: dur, ease: 'sine.inOut', repeat: reps, yoyo: true }, at);
+
+    // 未实现的 kind 一律显式告警，绝不静默落进 float。
+    // 教训（2026-11-05）：模板按语义写了 sweep/breathe/scan/drain/compress/settle/drift，
+    // 库里只实现四种，其余全落 else 变成 ±1.6px 的 y 位移——渲染出来是「开头动一下、
+    // 剩下四秒完全静止」（实测静止帧 88-93%）。静默降级比报错危险得多。
+    if (!MOTIF_KINDS[kind]) {
+      if (global.console && global.console.warn) {
+        global.console.warn('[motion-lib] motifLoop: 未知 kind "' + kind + '"，按约定降级为 float');
+      }
+      kind = 'float';
     }
+    MOTIF_KINDS[kind](nodes, amp, dur, reps, at, tl);
     return tl;
   };
 

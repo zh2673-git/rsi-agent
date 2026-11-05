@@ -47,6 +47,11 @@
       MV.orbit('.deck', { step: 18 });
       MV.depth('.panel', { strength: 1.1 });
       MV.idle('.subject', { delay: 2000 });
+
+    // 等距舞台：转台缓慢旋转 + 光晕呼吸（与主体分离）
+    MV.motifLoop('.halo', { kind: 'breathe', amp: 1.0, duration: 1600, span: 16 });
+    MV.motifLoop('.floor', { kind: 'rotate', amp: 0.9, duration: 1800, span: 16 });
+
       MV.camera('.stage', { move: 'push-in', zoom: '{{ZOOM}}' });
     });
   </script>

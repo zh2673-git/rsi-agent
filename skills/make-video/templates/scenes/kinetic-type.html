@@ -39,6 +39,10 @@
   /* 色带（MV.bands 的通道）：换场用，扫过去不丢画面 */
   .band { position: absolute; left: 0; right: 0; height: 33.4%; background: {{PRIMARY}}; opacity: 0; pointer-events: none; }
   .band.b1 { top: 0; } .band.b2 { top: 33.3%; background: {{ACCENT}}; } .band.b3 { top: 66.6%; }
+  /* b2 作为常驻环境层：三色带只在转场瞬间闪现（opacity:0），
+     整镜没有任何可见的大面积元素在动 —— 实测变化像素仅 4%。
+     让中间那条带常驻淡色呼吸，画面才是活的。 */
+  .band.b2 { opacity: 0.16; }
 
   /* 主语：一句话里最该被记住的那个词，全屏最大 */
   .subject {
@@ -142,8 +146,11 @@
     // ⑤ 结构线从上方生长（不是整体位移）
     MV.maskReveal('.rule-line', { dir: 'down', duration: 500, delay: 180 });
 
-    // ⑥ 环境层母题循环：与主体分离，画面一直在动但不抢戏
-    MV.motifLoop('.grain-field', { kind: 'shimmer', amp: 0.3, span: 14 });
+    // ⑥ 环境层母题循环：与主体分离，画面一直在动但不抢戏。
+    // 载体选 band.b2（33% 屏高的色带）而不是 grain-field（1px/16% 的细网格）——
+    // 细网格上做任何运动都不改变亮度，实测成片帧间变化像素只有 4%。
+    MV.motifLoop('.band.b2', { kind: 'drain', amp: 1.0, duration: 1600, span: 16 });
+    MV.motifLoop('.figure', { kind: 'pulse', amp: 0.7, duration: 1400, span: 16 });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

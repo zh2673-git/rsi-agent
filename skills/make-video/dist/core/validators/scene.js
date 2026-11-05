@@ -9,6 +9,20 @@ export const MOTION_WHITELIST = [
     'MV.idle',
     'MV.use',
     'MV.timeline',
+    // 动效语法原语（P7：吸收阿杜 adu-motion-video + 花叔 huashu-art-motion）
+    // 每个都对应一条可数语义，动机由场景作者写；重音类受 V-MOT-013 全片预算约束
+    'MV.slam',
+    'MV.staggeredIn',
+    'MV.morphTo',
+    'MV.counter',
+    'MV.highlight',
+    'MV.cards',
+    'MV.punch',
+    'MV.whip',
+    'MV.drift',
+    'MV.maskReveal',
+    'MV.bands',
+    'MV.motifLoop',
     // 3D 素材语言层（docs/11 §二 visuals.dimension=css3d 时使用）
     'MV.depth',
     'MV.tilt3d',
@@ -16,6 +30,10 @@ export const MOTION_WHITELIST = [
     'MV.card3d',
     'MV.spin3d',
 ];
+/** 重音类原语（标点）：slam/punch/whip —— 全片占比受 V-MOT-013 约束 */
+export const ACCENT_PRIMITIVES = ['MV.slam', 'MV.punch', 'MV.whip'];
+/** 往里推的运镜词（V-MOT-014 不连三镜往里推） */
+export const PUSH_CAMERAS = ['push-in', 'punch-in'];
 /** 3D 痕迹：透视/三轴旋转/景深原语任一出现即视为用了立体素材 */
 const HAS_3D = /perspective\s*:|preserve-3d|rotate3d\(|rotate[XY]\(|translateZ\(|rotation[XY]\s*:|transformPerspective|MV\.(depth|tilt3d|orbit|card3d|spin3d)/i;
 export function uses3d(html) {
@@ -42,26 +60,52 @@ export function validateSceneFile(html, opts) {
             issues.push(err('V-SCENE-002', `场景禁止包含时间轴属性 ${attr}（时序只允许剪辑部机器生成）`));
         }
     }
-    const calls = html.match(/MV\.[a-zA-Z]+/g) ?? [];
+    // 原语名含数字（tilt3d / card3d / spin3d / md5 式命名），字符类必须带 0-9，
+    // 否则 MV.tilt3d 会被截成「MV.tilt」误判为非白名单原语
+    const calls = html.match(/MV\.[a-zA-Z][a-zA-Z0-9]*/g) ?? [];
     for (const call of calls) {
         if (!whitelist.includes(call)) {
             issues.push(err('V-SCENE-003', `场景引用非白名单原语 ${call}`));
         }
     }
+    // V-MOT-021 每镜必须有母题循环（error）：画面里一直有事发生。
+    //
+    // 出处：阿杜「每幕 1 个主动作 + 2 个母题循环」、花叔「画要一直是活的，禁图片之间做转场」。
+    // 为什么必须是 error 而不是 warn：入场动作再漂亮也只占开头 1 秒，
+    // 之后 4 秒如果没有任何循环运动，成片就是「动一下、然后死掉」。
+    // 实测证据（2026-11-05 案例 A，flow 模板 7 镜全无 motifLoop）：
+    //   帧间变化像素仅 4.6%，且只集中在左侧一个小方块和右下角标——整片 65% 帧近乎全静止。
+    // 加入母题循环后同一指标升到 20-92%（整屏 16×9 热区几乎全亮）。
+    // 注意：canvas 程序镜有自己的 rAF 循环，不走 MV.motifLoop，故豁免。
+    if (!html.includes('canvas') && !/MV\.motifLoop\s*\(/.test(html)) {
+        issues.push(err('V-MOT-021', '场景无任何 MV.motifLoop：入场动作结束后画面会完全静止（阿杜/花叔共同铁律「画面一直是活的」）'));
+    }
     // V-MOT-008 时长 token 纪律（error）：时长必须落在 motion profile 区间
-    // {微 200-400 / 入场 400-800 / 转场 300-600 / 强调循环 1200-2000ms}
+    // {标点 150-200 / 微 200-400 / 入场 400-800 / 转场 300-600 / 强调循环 1200-2000ms}
+    // 标点档（150-200ms）来自花叔实测的砸入 0.17s：重音那一下比「微动」还要短，
+    // 否则砸下来变成推出来。三档以上覆盖 200-800 连续区，动画不必卡在档位缝里。
     for (const m of html.match(/duration:\s*(\d{3,})/g) ?? []) {
         const ms = Number(m.match(/(\d+)/)[1]);
-        const inRange = (ms >= 200 && ms <= 400) || (ms >= 400 && ms <= 800) || (ms >= 300 && ms <= 600) || (ms >= 1200 && ms <= 2000);
+        const inRange = (ms >= 150 && ms <= 200) ||
+            (ms >= 200 && ms <= 400) ||
+            (ms >= 400 && ms <= 800) ||
+            (ms >= 300 && ms <= 600) ||
+            (ms >= 1200 && ms <= 2000);
         if (!inRange) {
-            issues.push(err('V-MOT-008', `时长 ${ms}ms 不在 motion profile 区间（200-400/400-800/300-600/1200-2000）`));
+            issues.push(err('V-MOT-008', `时长 ${ms}ms 不在 motion profile 区间（150-200/200-400/400-800/300-600/1200-2000）`));
         }
     }
     // V-MOT-001 缓动白名单（error）：非 token 缓动拦截
+    // 白名单按「这条缓动的形状干什么用」收录，不是收集所有 GSAP 名称：
+    //   out 系 = 入场/落定；in 系 = 退场/收势；inOut = 位移与形变；
+    //   quint.out = 数字滚动落定（花叔 t3）；expo.inOut = 甩镜（y4）；power4.in = 砸入（y5）
     const EASING_WHITELIST = [
         'power1.out', 'power1.in', 'power1.inOut', 'power2.out', 'power2.in', 'power2.inOut',
-        'power3.out', 'power3.in', 'power3.inOut', 'power4.out', 'sine.out', 'sine.in', 'sine.inOut',
-        'expo.out', 'expo.in', 'back.out', 'elastic.out', 'none',
+        'power3.out', 'power3.in', 'power3.inOut', 'power4.out', 'power4.in', 'power4.inOut',
+        'sine.out', 'sine.in', 'sine.inOut',
+        'expo.out', 'expo.in', 'expo.inOut',
+        'quint.out', 'quint.in', 'quint.inOut',
+        'back.out', 'back.in', 'elastic.out', 'none',
     ];
     for (const m of html.match(/(?:ease|easing):\s*'([^']+)'/g) ?? []) {
         const val = m.match(/'([^']+)'/)?.[1];
@@ -87,12 +131,21 @@ export function validateSceneFile(html, opts) {
             issues.push(err('V-MOT-004', `辅助元素透明度 ${op} > 0.7（staging：非主语让位主语）`));
         }
     }
-    // V-MOT-010/011 并发约束（error）：MV 场景同屏运动元素 ≤3、位移方向 ≤2
+    // V-MOT-010/011 并发约束（error）：同屏**持续并列运动**的主体 ≤4、位移方向 ≤2
+    //
+    // P7 修订（两处，都为对齐两家方法论）：
+    //  1) 只数「持续并列运动」，不数一次性揭示。入场/擦除/高亮/砸入都是 resolve 到静止的
+    //     一次性动作，本质是错峰不是并列——把它们算进共同命运，等于禁止阿杜的「错峰入场」。
+    //     真正要防的是「好几样东西同时朝不同方向缓慢漂」那种廉价感。
+    //  2) 环境母题（MV.motifLoop）是环境层，与主体分属两层、不抢属性，不计入——
+    //     这正是「每幕一个主动作 + 2 个母题循环」的落地方式。
     const isCanvas = html.includes('canvas');
     if (!isCanvas) {
-        const targets = new Set([...html.matchAll(/MV\.(?:enter|to|from|fromTo|emphasis)\('([^']+)'/g)].map((m) => m[1]));
+        const SUSTAINED = /MV\.(?:camera|emphasis|idle|performance|orbit|tilt3d|spin3d|card3d|depth|drift|cards)\('([^']+)'/g;
+        const motifCalls = new Set([...html.matchAll(/MV\.motifLoop\('([^']+)'/g)].map((m) => m[1]));
+        const targets = new Set([...html.matchAll(SUSTAINED)].map((m) => m[1]).filter((t) => !motifCalls.has(t)));
         if (targets.size > 4) {
-            issues.push(err('V-MOT-010', `同屏运动元素 ${targets.size} > 3（共同命运约束）`));
+            issues.push(err('V-MOT-010', `同屏持续运动主体 ${targets.size} > 4（共同命运约束；一次性揭示与环境母题不计入）`));
         }
         let dirs = 0;
         if (/\bx:\s*-/.test(html))
@@ -101,6 +154,7 @@ export function validateSceneFile(html, opts) {
             dirs += 1;
         if (/\by:\s*-/.test(html))
             dirs += 1;
+        // 色带（MV.bands）是转场层，方向由 opts.dir 统一给，不参与主体方向计数
         if (dirs > 2) {
             issues.push(err('V-MOT-011', `同屏运动方向 > 2（共同命运约束）`));
         }
@@ -113,8 +167,9 @@ export function validateSceneFile(html, opts) {
         }
     }
     // V-ACT-005 长镜 idle（warn）：估计时长 >4s 的场景须有表演微动
+    // P7：环境母题循环（MV.motifLoop）同样是「画面里一直有事发生」，与 idle/emphasis 等价
     const estSec = opts.narration.length * 0.22;
-    if (estSec > 4 && !/MV\.idle|MV\.emphasis|MV\.performance|pulse/.test(html)) {
+    if (estSec > 4 && !/MV\.idle|MV\.emphasis|MV\.performance|MV\.motifLoop|pulse/.test(html)) {
         issues.push(warn('V-ACT-005', `长镜（≈${estSec.toFixed(1)}s）无 idle 微动（禁死寂）`));
     }
     const visualText = stripSubtitleAreas(html, opts.title);

@@ -164,8 +164,12 @@ function page(shotId, s) {
     MV.staggeredIn('.kicker, .hint', { delay: 60, secondary: 420, tertiary: 160 });
     MV.maskReveal('.measure', { dir: 'right', duration: 500, delay: 260 });
     // 环境循环：母题持续动，让「静止的一屏」也不是死帧
-    MV.motifLoop('[data-motif]', { kind: '${s.motif}', amp: 0.22, span: 16 });
-    ${s.ring ? "MV.motifLoop('[data-ring]', { kind: 'pulse', amp: 0.55, span: 26 });" : ''}
+    // 留白风格的运动载体必须是「留白本身」：hair-grid 是 1px/26% 的细网格、
+    // ring 是 2px 描边，它们动多少都不改变亮度（实测变化像素仅 3.3%）。
+    // 极简派的标准做法是让光与空白轻微呼吸——不违背风格，也不新增装饰。
+    MV.motifLoop('.stage', { kind: 'drain', amp: 1.0, duration: 1800, span: 16 });
+    MV.motifLoop('[data-motif]', { kind: '${s.motif}', amp: 0.9, span: 16 });
+    ${s.ring ? "MV.motifLoop('[data-ring]', { kind: 'pulse', amp: 0.9, span: 26 });" : ''}
     // 相机：极简派靠缓慢推拉给出「在讲」的体感，不做花式运镜
     MV.camera('.stage', { move: '${s.cam}', zoom: 1.06 });
   }

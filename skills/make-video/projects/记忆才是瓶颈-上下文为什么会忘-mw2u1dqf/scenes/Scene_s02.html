@@ -116,8 +116,11 @@
     
     MV.maskReveal('.baseline', { dir: 'right', duration: 520, delay: 240 });
     // 数据流：网格缓慢漂移 + 扫描光带横穿，两种节奏叠出「机器在工作」
-    MV.motifLoop('[data-grid]', { kind: 'pulse', amp: 0.26, span: 18 });
-    MV.motifLoop('[data-laser]', { kind: 'rotate', amp: 0.9, span: 11 });
+    // grid-field 自带 transform(perspective+rotateY)，用 xPercent 会覆盖它导致变形，
+    // 且 1px 细线的位移不改变亮度。改为让 laser 光带横穿（大面积、单向），
+    // grid 用 opacity 呼吸（不碰 transform）。
+    MV.motifLoop('[data-grid]', { kind: 'drain', amp: 1.0, duration: 1600, span: 18 });
+    MV.motifLoop('[data-laser]', { kind: 'sweep', amp: 1.0, duration: 1600, span: 16 });
     MV.motifLoop('.evidence .dot', { kind: 'pulse', amp: 0.6, span: 22 });
     MV.camera('.stage', { move: 'pan', zoom: 1.07 });
   }

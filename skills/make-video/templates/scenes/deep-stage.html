@@ -151,12 +151,19 @@
     // ④ 地面网格擦除揭示（纵深「长出来」而不是淡入）
     MV.maskReveal('.floor', { dir: 'up', duration: 500, delay: 240 });
 
-    // ⑤ 重音标点：快推后停住（不是慢推到底）
-    MV.punch('.stage', { delay: {{PUNCH_AT}}, amp: 1.1 });
+    // ⑤ 重音标点：快推后停住（不是慢推到底）。
+    //    必须落在 accent 分支内——punch 是标点，无差别每镜都推就是把重音预算废掉（V-MOT-013）；
+    //    也必须推内容层（.deck）而不是 .stage：推整屏容器等于整片永久放大 10%，
+    //    观众读到的是「画面抖了一下」，不是「这句话被强调」。
+    if (accent) {
+      MV.punch('.deck', { delay: {{PUNCH_AT}}, amp: 1.1 });
+    }
 
-    // ⑥ 环境层：光晕呼吸 + 地面缓慢旋转感（与主体分离，画面一直是活的）
-    MV.motifLoop('.halo', { kind: 'shimmer', amp: 0.34, span: 14 });
-    MV.motifLoop('.floor', { kind: 'rotate', amp: 0.5, duration: 2000, span: 14 });
+    // ⑥ 环境层：光晕呼吸 + 地面缓慢旋转（与主体分离 → 画面一直是活的）。
+    //    amp 不能取 0.3 量级：float 的位移是 amp*6(px)，0.3 只有 ±1.8px，肉眼不可见，
+    //    渲染出来就是「开头动一下、剩下四秒死画面」。呼吸要看得见才算画面在动。
+    MV.motifLoop('.halo', { kind: 'shimmer', amp: 0.55, span: 14 });
+    MV.motifLoop('.floor', { kind: 'rotate', amp: 1.1, duration: 1800, span: 14 });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

@@ -11,7 +11,7 @@
     "assetPolicy": "auto",
     "aiConsent": false
   },
-  "stage": "done",
+  "stage": "compose",
   "script": {
     "fullText": "第一眼就觉得高级的页面，你往往说不出它到底好在哪。答案不是配色，也不是字体，是那些有意空出来的留白。留白不是空，是替你的眼睛排好了先看哪、再看哪。把信息挤满一屏，读者找不到落点，只会把整屏一起跳过。所以先删掉一半，剩下的那一半，才真的有人愿意停下来听。",
     "segments": [
@@ -547,11 +547,11 @@
     ]
   },
   "continuity": {
-    "generatedAt": "2026-11-05T00:58:12.932Z",
+    "generatedAt": "2026-11-05T02:30:07.207Z",
     "items": []
   },
   "mixPlan": {
-    "generatedAt": "2026-11-05T00:58:16.557Z",
+    "generatedAt": "2026-11-05T02:30:10.371Z",
     "tracks": [
       {
         "kind": "vo",

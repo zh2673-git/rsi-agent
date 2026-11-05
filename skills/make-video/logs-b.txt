@@ -1,0 +1,11 @@
+spawn: npx --yes hyperframes@0.8.173 render "D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\留白-高级感来自删掉的东西-mw2u1d4o\remotion" -o "D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\留白-高级感来自删掉的东西-mw2u1d4o\out\留白-高级感来自删掉的东西-mw2u1d4o.mp4" -f 30 -q standard
+[beat 30s] alive, buffer 24145 bytes
+=== exit 0, 40s ===
+e":"assemble","status":"end","elapsedMs":36440,"durationMs":989,"stagePhase":"capturing","hasAudio":true,"workerCount":4,"forceScreenshot":true,"totalFrames":778,"framesCompleted":778,"captureMode":"screenshot","captureOperation":"encode"}
+[INFO] [Render:trace] {"renderJobId":"363d07fb-f7b8-4f53-b5ef-470fd24ce320","phase":"pipeline","status":"checkpoint","elapsedMs":36497,"message":"artifact validated","totalElapsedMs":36487}
+  █████████████████████████  100%  Render complete
+
+◇  D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\留白-高级感来自删掉的东西-mw2u1d4o\out\留白-高级感来自删掉的东西-mw2u1d4o.mp4
+   6.0 MB · 25.9s video · rendered in 37.1s
+   screenshot capture · hardware gpu · compile 0.7s · extract 0.0s · audio 0.9s · probe 0.2s · setup 3.3s · capture 23.8s · encode 6.7s · assemble 1.0s
+

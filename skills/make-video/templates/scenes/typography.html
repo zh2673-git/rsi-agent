@@ -33,6 +33,10 @@
       MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, y: 60 } });
       MV.enter('.kicker', { easing: '{{EASING}}', duration: {{DURATION}}, delay: {{STAGGER}}, from: { opacity: 0, y: -20 } });
       MV.idle('.subject', { delay: 1200 });
+
+    // 排版镜：字已入场，靠衬底色块呼吸供给运动
+    MV.motifLoop('.stage', { kind: 'breathe', amp: 0.6, duration: 1800, span: 16 });
+
       MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
     });
   </script>

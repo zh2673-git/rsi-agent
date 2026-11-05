@@ -1,6 +1,17 @@
 {
-  "generatedAt": "2026-11-05T00:59:17.460Z",
-  "issues": [],
+  "generatedAt": "2026-11-05T02:20:52.801Z",
+  "issues": [
+    {
+      "rule": "V-MOT-018",
+      "level": "warn",
+      "message": "开头镜头 s01 是标题卡：开头 3 秒要是一个具体的小场景（一双手/一个物在做和题目有关的事）"
+    },
+    {
+      "rule": "V-MOT-016",
+      "level": "warn",
+      "message": "文字主导镜 2/5 = 40% > 30%（信息是结构，但整片都靠字就是 PPT）"
+    }
+  ],
   "grammarByShot": [
     [
       "s01",

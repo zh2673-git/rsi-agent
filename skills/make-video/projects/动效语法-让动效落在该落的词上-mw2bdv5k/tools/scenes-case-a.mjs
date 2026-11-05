@@ -176,6 +176,14 @@ function page(shotId, s) {
   .grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.05; mix-blend-mode: multiply;
     background-image: repeating-radial-gradient(circle at 30% 40%, rgba(90,74,50,0.14) 0 0.5px, transparent 0.6px 2.2px);
     background-size: 3px 3px; }
+  /* 环境光晕：大面积径向渐变（覆盖约半个画面），是母题运动的载体。
+     为什么不用 .grain-field：那是 1px/16% 透明度的网格，动多少都不改变亮度，
+     实测做成片帧间差仅 0.2/255 —— 等于没动。运动的载体必须有视觉权重。 */
+  .halo {
+    position: absolute; inset: -20%; pointer-events: none; z-index: 0;
+    background: radial-gradient(circle at 30% 38%, ${STYLE.primary}99 0%, ${STYLE.accent}66 38%, transparent 72%);
+    opacity: 0.85;
+  }
   .vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0.2;
     background: radial-gradient(ellipse at center, transparent 54%, rgba(58,44,24,0.4) 132%); }
 </style>
@@ -184,6 +192,7 @@ function page(shotId, s) {
 <div data-scene-id="${shotId}" data-beats="5" data-accent="${s.accent}">
   <div class="stage">
     <div class="grain-field" data-motif></div>
+    <div class="halo" data-halo></div>
     <div class="rule-line" data-rule></div>
     <div class="kicker" data-rank="tertiary">${s.kicker}</div>
     <div class="subject" data-rank="primary"><em>${s.hero}<span class="hl"></span></em></div>
@@ -214,7 +223,12 @@ function page(shotId, s) {
     MV.staggeredIn('.kicker, .hint', { delay: 120, secondary: 180, tertiary: 320 });
     ${s.figure ? `MV.counter('.figure', { from: 0, to: ${s.figureTo}, decimals: ${s.figureDec}, suffix: '${s.figureSuffix ?? ''}', delay: 420 });` : ''}
     MV.maskReveal('.rule-line', { dir: 'down', duration: 500, delay: 200 });
-    MV.motifLoop('.grain-field', { kind: '${s.motif}', amp: 0.3, span: 14 });
+    // 母题必须是可见运动：grain-field 是网格纹理，用 scan 横向掠过（走 x 不走 y）。
+    // 原来写 amp: 0.3 —— float 只有 ±1.8px、shimmer 根本不吃 amp，两种都等于静止。
+    // 一个元素只挂一条母题循环：breathe 与 drift 都写 transform，
+    // 同元素并发两条补间会互相覆盖，实际只剩一条生效（且相位被打乱）。
+    MV.motifLoop('.halo', { kind: 'breathe', amp: 1.0, duration: 1600, span: 16 });
+    MV.motifLoop('.rule-line', { kind: '${s.motif === 'shimmer' ? 'pulse' : 'shimmer'}', amp: 0.6, span: 14 });
     MV.enter('.figure', { easing: 'power2.out', duration: 600, delay: 300, from: { opacity: 0 } });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

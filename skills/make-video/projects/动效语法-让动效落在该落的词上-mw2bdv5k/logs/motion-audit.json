@@ -1,6 +1,11 @@
 {
-  "generatedAt": "2026-11-04T22:54:53.849Z",
+  "generatedAt": "2026-11-05T02:07:58.265Z",
   "issues": [
+    {
+      "rule": "V-MOT-016",
+      "level": "warn",
+      "message": "文字主导镜 4/7 = 57% > 30%（信息是结构，但整片都靠字就是 PPT）"
+    },
     {
       "rule": "V-MOT-017",
       "level": "warn",

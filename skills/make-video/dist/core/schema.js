@@ -23,6 +23,10 @@ export const VisualKindSchema = z.enum(['code-scene', 'user-material', 'imported
 // 运镜词表（docs/05 摄影 / docs/10 V-CAM-002）：
 // static/none 是**导演的合法选择**（静止构图 + 镜内表演），不是"漏填"；
 // 词表只负责拒绝没登记的词（dolly-zoom 这类会静默退化成静止的拼写漂移）。
+// P7 增补三词（吸收阿杜 + 花叔）：
+//   punch-in = 短推后停住（0.25-0.35s 推 18-32%），是**标点**不是慢推——受 V-MOT-013 预算约束；
+//   whip-pan = 甩镜（0.26-0.30s expo.inOut + 运动模糊），视线突然转移；
+//   drift    = 整镜匀速慢移（1-4%/s），**只给氛围镜/艺术镜**——解说片每镜都慢推就是 PPT。
 export const CAMERA_MOVES = [
     'push-in',
     'pull-out',
@@ -30,6 +34,9 @@ export const CAMERA_MOVES = [
     'pan-left',
     'tilt-up',
     'tilt-down',
+    'punch-in',
+    'whip-pan',
+    'drift',
 ];
 const CAMERA_ALIASES = {
     'push-in': 'push-in',
@@ -43,6 +50,14 @@ const CAMERA_ALIASES = {
     tiltup: 'tilt-up',
     'tilt-down': 'tilt-down',
     tiltdown: 'tilt-down',
+    'punch-in': 'punch-in',
+    punchin: 'punch-in',
+    punch: 'punch-in',
+    'whip-pan': 'whip-pan',
+    whippan: 'whip-pan',
+    whip: 'whip-pan',
+    drift: 'drift',
+    slowdrift: 'drift',
     static: 'static',
     none: 'static',
 };

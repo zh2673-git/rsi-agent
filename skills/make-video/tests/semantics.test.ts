@@ -141,8 +141,9 @@ const GOOD_SCENE = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8
 <body data-scene-id="s01"><div class="stage"><div class="subject">◎</div></div>
 <script src="../motion/motion-lib.js"></script>
 <script>document.addEventListener('DOMContentLoaded',function(){
-MV.enter('.subject',{easing:'power2.out',duration:600,from:{opacity:0,y:40}});
-MV.camera('.stage',{move:'push-in',zoom:'MS'});});</script></body></html>`;
+ MV.enter('.subject',{easing:'power2.out',duration:600,from:{opacity:0,y:40}});
+ MV.motifLoop('.subject',{kind:'pulse',amp:0.6});
+ MV.camera('.stage',{move:'push-in',zoom:'MS'});});</script></body></html>`;
 
 const BAD_SCENE = GOOD_SCENE.replace("MV.enter('.subject'", "MV.fly('.subject'");
 

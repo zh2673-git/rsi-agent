@@ -32,6 +32,11 @@
       MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, scale: 0.8 } });
       MV.subtitle('.bigtext', {});
       MV.idle('.subject', { delay: 1200 });
+
+    // 口播镜：背景呼吸 + 进度条持续推进（观众看得到「在讲下去」）
+    MV.motifLoop('.bg', { kind: 'breathe', amp: 0.9, duration: 1800, span: 16 });
+    MV.motifLoop('.progress', { kind: 'scan', amp: 0.8, duration: 1600, span: 16 });
+
       MV.camera('.stage', { move: '{{CAMERA}}', zoom: 'MCU' });
     });
   </script>

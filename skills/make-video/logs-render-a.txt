@@ -1,0 +1,12 @@
+spawn: npx --yes hyperframes@0.8.173 render "D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\动效语法-让动效落在该落的词上-mw2bdv5k\remotion" -o "D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\动效语法-让动效落在该落的词上-mw2bdv5k\out\动效语法-让动效落在该落的词上-mw2bdv5k.mp4" -f 30 -q standard
+[beat 30s] alive, buffer 26062 bytes
+[beat 60s] alive, buffer 35728 bytes
+=== exit 0, 76s ===
+","status":"end","elapsedMs":73096,"durationMs":1465,"stagePhase":"capturing","hasAudio":true,"workerCount":4,"forceScreenshot":true,"totalFrames":1265,"framesCompleted":1265,"captureMode":"screenshot","captureOperation":"encode"}
+[INFO] [Render:trace] {"renderJobId":"4a82c6fe-9c4e-4538-9ff6-b95aabe3d397","phase":"pipeline","status":"checkpoint","elapsedMs":73170,"message":"artifact validated","totalElapsedMs":73149}
+  █████████████████████████  100%  Render complete
+
+◇  D:\ZH\vibe code\skills\tool\rsi-agent\skills\make-video\projects\动效语法-让动效落在该落的词上-mw2bdv5k\out\动效语法-让动效落在该落的词上-mw2bdv5k.mp4
+   18.5 MB · 42.2s video · rendered in 1m 13.5s
+   screenshot capture · hardware gpu · compile 1.1s · extract 0.0s · audio 1.4s · probe 0.3s · setup 3.6s · capture 45.3s · encode 20.3s · assemble 1.5s
+

@@ -30,7 +30,7 @@
   /* 桌面光斑：环境层呼吸，给纸面一点体积 */
   .desk-glow {
     position: absolute; inset: -10%;
-    background: radial-gradient(ellipse at 32% 22%, {{ACCENT}}26 0%, transparent 58%);
+    background: radial-gradient(ellipse at 32% 22%, {{ACCENT}}55 0%, transparent 58%);
     pointer-events: none;
   }
 
@@ -148,11 +148,15 @@
     // ⑤ 红线连接（擦除揭示，笔尖从左画到右）
     MV.maskReveal('.thread', { dir: 'left', duration: 500, delay: 760 });
 
-    // ⑥ 重音标点：只有带预算的镜才快推（V-MOT-013），其余镜靠卡片流转推进
-    if (accent) MV.punch('.stage', { delay: {{PUNCH_AT}}, amp: 1.14 });
+    // 重音标点：推内容层（.deck + .subject），不推 .stage——
+    // 推整屏容器等于整片永久放大 14%，观众读到的是「画面放大了」而不是「这句被强调」。
+    if (accent) MV.punch('.deck', { delay: {{PUNCH_AT}}, amp: 1.14 });
 
-    // ⑦ 环境层呼吸（与主体分离）
-    MV.motifLoop('.desk-glow', { kind: 'shimmer', amp: 0.28, span: 14 });
+    // ⑦ 环境层呼吸（与主体分离）。
+    //    desk-glow 是径向光晕，大面积可用；但 shimmer 不吃 amp，
+    //    写 amp: 0.28 等于没调，且光晕本身的 {{ACCENT}}26 只有 15% 不透明度，
+    //    动起来亮度变化极小。改用 breathe（同时动 scale 与 opacity）并提高存在感。
+    MV.motifLoop('.desk-glow', { kind: 'breathe', amp: 1.0, duration: 1800, span: 16 });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

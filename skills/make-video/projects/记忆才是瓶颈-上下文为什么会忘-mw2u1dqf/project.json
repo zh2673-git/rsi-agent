@@ -11,7 +11,7 @@
     "assetPolicy": "auto",
     "aiConsent": false
   },
-  "stage": "done",
+  "stage": "compose",
   "script": {
     "fullText": "所有人都在问同一个问题：模型还能不能更聪明。但真正卡住它的，其实不是智力，是记忆。上下文一旦被填满，前面说过的话就会被悄悄挤出去。于是同一件事，它不得不回过头来问你第二遍。真正的进步不是参数量变大，是让它真的记得住。",
     "segments": [
@@ -547,11 +547,11 @@
     ]
   },
   "continuity": {
-    "generatedAt": "2026-11-05T00:59:12.398Z",
+    "generatedAt": "2026-11-05T02:20:49.794Z",
     "items": []
   },
   "mixPlan": {
-    "generatedAt": "2026-11-05T00:59:17.447Z",
+    "generatedAt": "2026-11-05T02:20:52.795Z",
     "tracks": [
       {
         "kind": "vo",
