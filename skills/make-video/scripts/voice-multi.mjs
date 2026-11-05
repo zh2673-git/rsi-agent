@@ -54,4 +54,5 @@ for (const id of ids) {
   await store.save(project);
   console.log(`${id} 配音完成 ${done}/${project.shots.length}`);
 }
+await tts.close(); // P8-T0：收尾释放常驻 worker（显存即刻归还，不再依赖进程退出）
 console.log(`全部完成，共合成 ${total} 句`);

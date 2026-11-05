@@ -180,6 +180,7 @@ function validateSceneHtml(
   project: Project,
   templateName: string,
   dimension?: '2d' | 'css3d' | 'mixed',
+  opts: { enforceActionSheet?: boolean } = {},
 ): V.Issue[] {
   const issues = V.validateSceneFile(html, {
     narration: shot.narration,
@@ -188,6 +189,24 @@ function validateSceneHtml(
   });
   if (templateName === 'chart') {
     issues.push(...V.validateChartScene(html));
+  }
+  // P8-T5：动作谱变约束——只在 LLM 施工路径强制。理由：LLM 的 payload 里带了动作谱，
+  // 「写了 requiredPrimitives 却不调用」是施工缺陷；而 forge 路径的画面来自模板文件，
+  // 模板选型（TEMPLATE_CUES）与语法选型（pickGrammar）是两条链，模板自带编舞已由
+  // V-MOT-021 等把关，拿语法表硬套模板会把正常流水线整片打回。
+  // 既有精修文件（existed 分支）同此豁免——老项目不因 P8 升级而无法续跑。
+  if (opts.enforceActionSheet && shot.visual.kind === 'code-scene') {
+    const sheet = shot.visual.params['actionSheet'] as { requiredPrimitives?: string[] } | undefined;
+    for (const prim of sheet?.requiredPrimitives ?? []) {
+      if (!html.includes(prim)) {
+        issues.push(
+          V.err(
+            'V-MOT-023',
+            `场景缺少语法要求的原语 ${prim}（动作谱 requiredPrimitives）：动作谱写了就要做到，否则选型是空话`,
+          ),
+        );
+      }
+    }
   }
   return issues;
 }
@@ -247,6 +266,9 @@ async function tryLlmScene(
     camera: shot.camera === 'none' ? 'push-in' : shot.camera,
     zoom: shot.zoom,
     template: shot.visual.template ?? 'typography',
+    // P8-T5：动作谱交给场景画师——语法选型在分镜期已定，LLM 照动作谱施工，
+    // 校验器按 requiredPrimitives 验收（写了 requiredPrimitives 却不调用会被打回）
+    actionSheet: shot.visual.params['actionSheet'],
     // 风格素材语言（V-STYLE-008）：维度/母题/纹理/禁用 + 美术-摄影-表演三条部门指令，
     // 让画面长成这一派的样子，而不是只换一套配色
     styleVisual: pack.visuals,
@@ -273,7 +295,9 @@ async function tryLlmScene(
     };
     const html = res?.html ?? '';
     if (!html) return null; // 引擎无 scene 能力（template 模式声明）→ forge 兜底
-    const issues = validateSceneHtml(html, shot, project, base.template, pack.visuals?.dimension);
+    const issues = validateSceneHtml(html, shot, project, base.template, pack.visuals?.dimension, {
+      enforceActionSheet: true, // LLM 拿着动作谱施工 → 按谱验收（V-MOT-023）
+    });
     if (!V.hasError(issues)) return { html, template: base.template };
     feedback = `上一版被校验器打回，逐条修复后重出完整 HTML：\n${V.formatIssues(issues)}`;
   }

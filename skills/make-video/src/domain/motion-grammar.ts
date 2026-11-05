@@ -20,6 +20,8 @@ export type GrammarId =
   | 'y3_whiteboard' //     白板：笔尖揭开线稿，最后拉远看全图
   | 'y4_story' //          故事型简笔：换姿势 0.1s 快切后定住，笑点靠反应特写
   | 'y5_kinetic_type' //   动态文字：字是演员，关键词踩重音砸进来
+  | 'y6_mechanism' //      机制拆解（P8）：外壳打开→部件逐个点亮→力传导到结果
+  | 'y7_system_map' //     系统地图（P8）：全貌定场→局部放大→回望全图
   | 't1_3b1b' //           3Blue1Brown：一个对象形变成下一个，几乎不切
   | 't2_keynote' //        发布会：一屏一件事，产品/截图当主角
   | 't3_finance' //        财经图表：先搭坐标系，再让数据长出来
@@ -44,7 +46,7 @@ export interface GrammarSpec {
 }
 
 /**
- * 九种语法（y1-y5 / t1-t3 + b_roll 兜底）。
+ * 十一种语法（y1-y7 / t1-t3 + b_roll 兜底）。
  * motionBeats 里的箭头 = 动作的先后关系，不是时间刻度——
  * 阿杜的要点是「保留动作之间的关系比照抄总秒数更重要」。
  */
@@ -98,6 +100,26 @@ export const GRAMMARS: GrammarSpec[] = [
     cameraBias: ['punch-in', 'static', 'drift'],
     textShare: 0.7,
     motifs: ['shimmer', 'float'],
+  },
+  {
+    id: 'y6_mechanism',
+    cues: ['原理', '机制', '内部', '拆开', '拆解', '怎么运作', '怎么工作', '组成部分', '零件', '模块', '协作', '传导', '触发', '驱动'],
+    when: '讲一个东西内部怎么运作：拆开外壳、部件逐个上场、力传导到结果',
+    avoid: '只是罗列部件名称而没有「怎么动起来」时，用 y1 讲尺度更清楚',
+    motionBeats: ['外壳/整体先定场（maskReveal 揭出）', '→ 部件逐个点亮（staggeredIn 错峰）', '→ 关键部件高亮 + 位移到联动位', '→ 力传导：A 动→B 跟→结果出现', '→ 收回到整体（morphTo 合拢）'],
+    cameraBias: ['push-in', 'drift', 'static'],
+    textShare: 0.25,
+    motifs: ['float', 'rotate'],
+  },
+  {
+    id: 'y7_system_map',
+    cues: ['系统', '全局', '整体', '架构', '地图', '全貌', '生态', '之间', '关系', '层级', '脉络', '链路', '拓扑'],
+    when: '讲多个主体之间的关系/一张地图：先看全貌，再放大关键局部，最后回望全图',
+    avoid: '只有一个主体时用 t1/y6——地图至少要三件事物才成立',
+    motionBeats: ['全貌定场（整张地图淡入）', '→ 关系线逐条描出（maskReveal）', '→ 推进到关键局部（punch-in 停住）', '→ 局部细节点亮 + 数字/名词落定', '→ 拉远回望全图（pull-out 收束）'],
+    cameraBias: ['pull-out', 'push-in', 'drift'],
+    textShare: 0.3,
+    motifs: ['float', 'pulse'],
   },
   {
     id: 't1_3b1b',
@@ -157,6 +179,8 @@ export interface GrammarContext {
   singleNumber?: boolean;
   /** 风格包的 sceneBias（语法必须能在该风格的素材语言里落地） */
   styleBias?: string[];
+  /** P8-T6 文字主导闸：前文 y5 已超配额时抑制 y5（硬排除而非扣分） */
+  suppressTextLed?: boolean;
 }
 
 const NUMBER_RE = /\d|百分|千|万|亿|倍|成|个点/;
@@ -186,6 +210,9 @@ export function pickGrammar(narration: string, ctx: GrammarContext = {}): Gramma
     if (recent.includes(g.id)) return true;
     if (ctx.singleNumber && g.id === 't3_finance') return true;
     if (ctx.hasRealMaterial && g.id === 'y3_whiteboard') return true;
+    // P8-T6 文字主导闸：y5 是重音大户（slam 受 V-MOT-013 预算），
+    // 导演声明文字主导或显式降低 y5 权重时，把它移出候选而不是靠扣分（扣分会被线索词淹没）
+    if (ctx.suppressTextLed && g.id === 'y5_kinetic_type') return true;
     return false;
   };
 
@@ -216,7 +243,8 @@ export function pickGrammar(narration: string, ctx: GrammarContext = {}): Gramma
     (g) =>
       g.id !== 'b_roll' &&
       !(ctx.singleNumber && g.id === 't3_finance') &&
-      !(ctx.hasRealMaterial && g.id === 'y3_whiteboard'),
+      !(ctx.hasRealMaterial && g.id === 'y3_whiteboard') &&
+      !(ctx.suppressTextLed && g.id === 'y5_kinetic_type'),
   )
     .map((g) => ({ g, score: score(g) - (recent.includes(g.id) ? 1 : 0) }))
     .filter((x) => x.score > 0)
@@ -249,7 +277,32 @@ export interface ActionSheet {
   soundCue: string;
   /** 环境母题：让画面「一直是活的」，与主动作作用在不同元素 */
   motif: string;
+  /**
+   * P8-T5：这一语法要求的必选原语（白名单内的 MV.*）。
+   * scene-forge 校验场景 HTML 必须真的调用它们（error 级）——
+   * 动作谱只有变成约束才不是废纸；requiredPrimitives 里必有 motifLoop（画面一直是活的）。
+   */
+  requiredPrimitives: string[];
 }
+
+/**
+ * 语法 → 必选原语（P8-T5 约束表）。
+ * 取材于各语法 motionBeats 里点名的动作：动作谱写了什么，场景就必须做什么。
+ * motifLoop 全语法必选（阿杜/花叔共同铁律「画面一直是活的」= V-MOT-021）。
+ */
+const REQUIRED_BY_GRAMMAR: Record<string, string[]> = {
+  y1_flat_explainer: ['MV.enter', 'MV.motifLoop'],
+  y2_collage: ['MV.staggeredIn', 'MV.highlight', 'MV.motifLoop'],
+  y3_whiteboard: ['MV.maskReveal', 'MV.motifLoop'],
+  y4_story: ['MV.enter', 'MV.performance', 'MV.motifLoop'],
+  y5_kinetic_type: ['MV.staggeredIn', 'MV.highlight', 'MV.motifLoop'],
+  y6_mechanism: ['MV.maskReveal', 'MV.staggeredIn', 'MV.highlight', 'MV.morphTo', 'MV.motifLoop'],
+  y7_system_map: ['MV.maskReveal', 'MV.motifLoop'],
+  t1_3b1b: ['MV.morphTo', 'MV.motifLoop'],
+  t2_keynote: ['MV.staggeredIn', 'MV.motifLoop'],
+  t3_finance: ['MV.counter', 'MV.highlight', 'MV.motifLoop'],
+  b_roll: ['MV.motifLoop'],
+};
 
 /** 机位偏好落成词表值（b_roll 的 slow-drift 是别名 → drift） */
 export function normalizeCameraBias(bias: string): string {
@@ -275,6 +328,8 @@ export function actionSheet(
     y3_whiteboard: '笔尖停住，等下一句再动',
     y4_story: '定格 + 挤压回弹（0.1s expo.out 后定住）',
     y5_kinetic_type: '砸入 0.94 → 1.0 回弹后完全静止，焦点唯一',
+    y6_mechanism: '部件合拢回整体（morphTo 收束）后完全静止',
+    y7_system_map: '拉远回望全图，停在可读的全貌上',
     t1_3b1b: '形变完成即停，结论留在画面上被读',
     t2_keynote: '名词/数字落定即静止，不叠滑入',
     t3_finance: '数据长完标一件事，镜头停住',
@@ -291,6 +346,7 @@ export function actionSheet(
     cameraPath: shot.camera && shot.camera !== 'none' ? shot.camera : normalizeCameraBias(bias),
     soundCue: textLed ? 'hit 与砸入同帧' : 'whoosh 峰值落在动作启动帧',
     motif: grammar.motifs[0] ?? 'float',
+    requiredPrimitives: REQUIRED_BY_GRAMMAR[grammar.id] ?? ['MV.motifLoop'],
   };
 }
 
@@ -313,7 +369,26 @@ export interface MotionShotFact {
   compositionKey: string;
   /** 语法 id（未落成时为空） */
   grammar?: string;
+  /**
+   * P8-T3：该镜 motifLoop 调用的母题种类（去重后的 kind 集）。
+   * V-MOT-022 用它判「画面一直是活的」有没有真的发生——
+   * 有调用但 amp 低到看不见，等于没有。
+   */
+  motifKinds?: string[];
+  /**
+   * P8-T3：该镜 motifLoop 的最小可见位移折算（px）。
+   * float/drift 按位移算，pulse/breathe 等按缩放折算（amp/8 × 400px 基准）。
+   * 低于 3px 视为「肉眼不可见」。
+   */
+  minMotifMotionPx?: number;
 }
+
+/**
+ * V-MOT-022 母题可见度阈值（P8-T3）。
+ * 出处是渲染实测：float amp=0.32 → ±1.9px，720p 下等同静止，静止帧 88-93%。
+ * 「调用了 motifLoop」不等于「画面活着」——动至少 3px 才算活。
+ */
+export const MOTIF_MIN_MOTION_PX = 3;
 
 export interface MotionIssue {
   rule: string;
@@ -336,6 +411,7 @@ const PUSH_SET = new Set(['push-in', 'punch-in']);
  * | V-MOT-018 | 开头 3 秒是具体小场景 | 花叔「开头 3 秒不是标题」 |
  * | V-MOT-019 | 每镜 ≥1 主动作；同语法不连 ≥3 | 阿杜 motion-quality |
  * | V-MOT-020 | 相邻两镜换构图 | 花叔「相邻两镜换构图，不换画风」 |
+ * | V-MOT-022 | 母题循环可见（动 ≥3px）且 ≥1 种 | P8：渲染实测 amp 0.3 = 静止 |
  */
 export function auditMotionMix(shots: MotionShotFact[], totalMs: number): MotionIssue[] {
   const issues: MotionIssue[] = [];
@@ -443,6 +519,30 @@ export function auditMotionMix(shots: MotionShotFact[], totalMs: number): Motion
       rule: 'V-MOT-020',
       level: 'warn',
       message: `${sameComp.length}/${total - 1} 处相邻镜构图未变（${sameComp.slice(0, 4).join(', ')}）：换构图不换画风`,
+    });
+  }
+
+  // V-MOT-022 母题可见度（P8-T3）：「调用了 motifLoop」≠「画面活着」。
+  // 判据：每镜至少 1 种母题，且最小可见位移 ≥ 3px（float amp=0.32 的 ±1.9px 是反例）。
+  // b_roll 语法镜豁免种类要求（氛围镜允许单一母题），但可见性不豁免。
+  const invisible = shots.filter(
+    (s) => s.minMotifMotionPx !== undefined && s.minMotifMotionPx < MOTIF_MIN_MOTION_PX,
+  );
+  if (invisible.length > 0) {
+    issues.push({
+      rule: 'V-MOT-022',
+      level: 'warn',
+      message: `${invisible.length} 镜母题动幅不可见（${invisible.slice(0, 5).map((s) => `${s.shotId}:${s.minMotifMotionPx?.toFixed(1)}px`).join(' ')}）< ${MOTIF_MIN_MOTION_PX}px：动 1-2px 等于没动，调高 amp`,
+    });
+  }
+  const noMotif = shots.filter(
+    (s) => s.minMotifMotionPx === undefined || (s.motifKinds?.length ?? 0) < 1,
+  );
+  if (noMotif.length > Math.max(1, Math.floor(total * 0.3))) {
+    issues.push({
+      rule: 'V-MOT-022',
+      level: 'warn',
+      message: `${noMotif.length}/${total} 镜无母题循环：入场结束后画面全静止（阿杜/花叔铁律「画一直是活的」）`,
     });
   }
 

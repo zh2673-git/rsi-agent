@@ -84,6 +84,8 @@ export class StateEngine {
     // 成片 out/ 与中央 IR project.json 永不回收（store.clean 只清中间产物目录）
     this.stop();
     this.project = null;
+    // P8-T0：常驻子进程资源随引擎一起释放（Qwen3 worker 不关就会一直占 GPU）
+    await this.deps.tts.close?.();
   }
 
   private transition(shot: Shot, to: Shot['state']): void {

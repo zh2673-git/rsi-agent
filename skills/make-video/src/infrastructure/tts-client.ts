@@ -12,6 +12,12 @@ export interface TtsResult {
 export interface TtsClient {
   readonly name: string;
   synthesize(text: string, outFile: string, voice?: string): Promise<TtsResult>;
+  /**
+   * 释放底层资源（P8-T0）：有常驻子进程的实现（Qwen3）关掉进程释放显存；
+   * 其余实现是空操作。引擎 destroy/CLI 收尾必须调用——worker 不退出就会
+   * 把 0.6B 模型一直留在 GPU 上（挂机僵尸进程事故的根治点）。
+   */
+  close?(): Promise<void>;
 }
 
 export class SilentTtsClient implements TtsClient {
@@ -349,6 +355,26 @@ export class Qwen3TtsClient implements TtsClient {
     const ms = await ffprobeDurationMs(outFile);
     if (ms <= 0) throw mvError(ERR.TTS, `Qwen3-TTS 输出不可解码: ${outFile}`);
     return { file: outFile, durationMs: ms };
+  }
+
+  /** 释放常驻 worker（P8-T0）：关 stdin → worker 读到 EOF 自然退出；兜底 kill 防挂死 */
+  async close(): Promise<void> {
+    const proc = this.proc;
+    this.proc = null;
+    this.ready = null;
+    if (!proc) return;
+    await new Promise<void>((resolve) => {
+      const done = () => resolve();
+      proc.once('exit', done);
+      // 给 3s 优雅退出窗口；模型卸载慢的机器走 kill 兜底
+      const killTimer = setTimeout(() => {
+        proc.kill();
+        resolve();
+      }, 3000);
+      proc.once('exit', () => clearTimeout(killTimer));
+      proc.stdin?.end();
+      void done;
+    });
   }
 }
 

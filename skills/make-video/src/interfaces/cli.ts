@@ -379,6 +379,8 @@ program
           ? { hint: '已停在确认点：审阅 confirmation 后，编辑 project.json 的 confirmed=true 或用 --yes 重跑 run' }
           : {}),
       });
+      // P8-T0：run 收尾释放常驻 TTS worker（防止 CLI 退出后 worker 变僵尸占 GPU）
+      await engine.destroy();
     } catch (e) {
       fail(e);
     }
@@ -398,13 +400,18 @@ program
       const id = await store.resolveProjectId(opts['project']);
       const project = await store.load(id);
       const tts = createTtsClient(ttsProvider());
-      if (opts['from'] && opts['shot']) {
-        await useRecording(store, project, opts['shot'], opts['from']);
-        out({ shot: opts['shot'], source: 'recording', durationMs: project.shots.find((s) => s.id === opts['shot'])?.voice?.durationMs });
-        return;
+      try {
+        if (opts['from'] && opts['shot']) {
+          await useRecording(store, project, opts['shot'], opts['from']);
+          out({ shot: opts['shot'], source: 'recording', durationMs: project.shots.find((s) => s.id === opts['shot'])?.voice?.durationMs });
+          return;
+        }
+        const n = await resynthesize(store, project, tts, opts['shot'], opts['voice']);
+        out({ synthesized: n });
+      } finally {
+        // P8-T0：voice 收尾释放常驻 TTS worker（失败路径同样释放）
+        await tts.close?.();
       }
-      const n = await resynthesize(store, project, tts, opts['shot'], opts['voice']);
-      out({ synthesized: n });
     } catch (e) {
       fail(e);
     }

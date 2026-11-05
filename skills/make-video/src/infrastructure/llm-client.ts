@@ -80,12 +80,13 @@ const SCENE_SYSTEM_PROMPT = `你是视频编译器的美术摄影部场景画师
 硬性契约（校验器逐条把关，违反即打回）：
 1. 完整骨架：<body data-scene-id="给定的sceneId"> 内有 .stage 容器；末尾 <script src="../motion/motion-lib.js"></script> 与一个 document.addEventListener('DOMContentLoaded', ...) 注册动画。
 2. 画面必须表达本镜旁白的具体含义（人/物/数字/因果/过程），禁止通用装饰凑数，禁止出现旁白原文或导演指令文本。
-3. 动画只用给定白名单原语 MV.enter/idle/to/from/fromTo/emphasis/performance/camera，缓动只用给定的 easing，时长只允许 200-400/400-800/300-600/1200-2000ms。
-4. 主语唯一（.subject 或 .title 等恰好 1 个），辅助元素 opacity ≤ 0.7，同屏运动元素 ≤ 3、位移方向 ≤ 2。
-5. 禁止属性 data-start/data-duration/data-track-index（时序只归剪辑部）；禁止 repeat:-1；位移不得 ease:'none' 急停。
-6. 颜色只用给定 token（{{PRIMARY}} 等替换后的真实值），字体只用给定 fontFamily，字号用给定 px。
-7. 若给了相机与景别，用 MV.camera('.stage', { move, zoom }) 表达；静态画面必须有相机运动。
-8. 素材语言（payload.styleVisual）必须遵守：dimension=css3d 时至少用一个 3D 原语（MV.tilt3d/orbit/depth/card3d/spin3d），并给容器 perspective 与 transform-style:preserve-3d；dimension=2d 时禁止任何 3D 属性（perspective/rotate3d/translateZ）。motifs 是这一派允许的母题，texture 是允许的纹理层，styleVisual.note 是素材语言的一句话定义——场景必须长成这一派的样子，不能只换配色。`;
+3. 动画只用给定白名单原语 MV.enter/idle/to/from/fromTo/emphasis/performance/camera 与动作谱 actionSheet.requiredPrimitives 点名的原语（MV.slam/staggeredIn/morphTo/counter/highlight/cards/punch/whip/drift/maskReveal/bands/motifLoop），缓动只用给定的 easing，时长只允许 200-400/400-800/300-600/1200-2000ms。
+4. **动作谱就是施工图**（payload.actionSheet）：prepare/main/settle/secondary/cameraPath/soundCue/motif 逐条落实；requiredPrimitives 列出的每个原语必须真的调用一次（缺一个校验器打回）。MV.motifLoop 必选且 amp ≥ 0.5（动 1-2px 等于没动）。
+5. 主语唯一（.subject 或 .title 等恰好 1 个），辅助元素 opacity ≤ 0.7，同屏运动元素 ≤ 3、位移方向 ≤ 2。
+6. 禁止属性 data-start/data-duration/data-track-index（时序只归剪辑部）；禁止 repeat:-1；位移不得 ease:'none' 急停。
+7. 颜色只用给定 token（{{PRIMARY}} 等替换后的真实值），字体只用给定 fontFamily，字号用给定 px。
+8. 若给了相机与景别，用 MV.camera('.stage', { move, zoom }) 表达；静态画面必须有相机运动。
+9. 素材语言（payload.styleVisual）必须遵守：dimension=css3d 时至少用一个 3D 原语（MV.tilt3d/orbit/depth/card3d/spin3d），并给容器 perspective 与 transform-style:preserve-3d；dimension=2d 时禁止任何 3D 属性（perspective/rotate3d/translateZ）。motifs 是这一派允许的母题，texture 是允许的纹理层，styleVisual.note 是素材语言的一句话定义——场景必须长成这一派的样子，不能只换配色。`;
 
 /** 分镜系统提示词（docs/04 导演部 A5）：动机是「为什么切」，不是「这镜拍什么」 */
 const STORYBOARD_SYSTEM_PROMPT = `你是视频编译器的导演部（导演+分镜师）。根据讲稿段落与导演批注输出分镜数组。只输出合法 JSON 数组，每个元素是一镜。

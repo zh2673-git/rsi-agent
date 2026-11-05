@@ -14,6 +14,7 @@ import { mvError, ERR } from '../core/errors.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
 import type { StyleRegistry } from './style-registry.js';
 import { applyStyleVisualPool, pickTemplateBySemantics } from './scene-semantics.js';
+import { pickGrammar, actionSheet } from './motion-grammar.js';
 
 export interface MaterialIndexItem {
   path: string;
@@ -221,6 +222,71 @@ export async function storyboard(
       state: 'pending' as const,
     } satisfies Shot;
   });
+  // P8-T6 超长镜切分：旁白 >8s（花叔「一镜 2-6s」硬档 + V-MOT-017 上限 6.5s）的镜
+  // 按句号/问号切成两镜以上——拆开的是「一镜装一段话」的 PPT 拍法；
+  // 拆出的镜共用原 segmentId（配音按镜旁白合成，素材沿用由 narration 变化自然失效）。
+  const LONG_SHOT_CHARS = 36; // 36 字 × 220ms ≈ 7.9s
+  const splitShots: Shot[] = [];
+  for (const shot of shots) {
+    const sentences = shot.narration.split(/(?<=[。！？!?])/).filter((s) => s.trim().length > 0);
+    if (shot.narration.length <= LONG_SHOT_CHARS || sentences.length < 2) {
+      splitShots.push(shot);
+      continue;
+    }
+    // 尽量均匀分给前半/后半（长句优先在前，与口播语序一致）
+    const target = Math.ceil(shot.narration.length / 2);
+    let acc = 0;
+    let cut = 1;
+    for (let k = 0; k < sentences.length - 1; k += 1) {
+      acc += sentences[k]!.length;
+      if (acc >= target) {
+        cut = k + 1;
+        break;
+      }
+      cut = k + 1;
+    }
+    const partA = sentences.slice(0, cut).join('');
+    const partB = sentences.slice(cut).join('');
+    if (!partA.trim() || !partB.trim()) {
+      splitShots.push(shot);
+      continue;
+    }
+    const mk = (narration: string, suffix: string, extraCoverage = false): Shot => ({
+      ...shot,
+      id: `${shot.id}${suffix}`,
+      narration,
+      // 拆出的后半镜换构图（V-MOT-020）：景别进一档，后半比前半更近
+      zoom: extraCoverage ? nextZoomIn(shot.zoom) : shot.zoom,
+      coverage: extraCoverage ? shot.coverage : shot.coverage,
+    });
+    splitShots.push(mk(partA, 'a'), mk(partB, 'b', true));
+  }
+  shots.length = 0;
+  shots.push(...splitShots);
+  // P8-T2 语法前移：动效语法在分镜期选定（而不是 compose 期补记录）——
+  // 语法要约束 LLM 场景生成（payload 带动作谱）与模板语义归位，晚于分镜就失去约束力。
+  // compose 期 composer 只沿用既有 actionSheet，不再重算（导演/人工可改，改了就算数）。
+  const grammarRecent: string[] = [];
+  let y5Count = 0;
+  for (const shot of shots) {
+    const declared = shot.visual.params['actionSheet'] as { grammar?: string } | undefined;
+    if (declared?.grammar) {
+      grammarRecent.push(declared.grammar);
+      if (declared.grammar === 'y5_kinetic_type') y5Count += 1;
+      continue;
+    }
+    // P8-T6 文字主导闸：前文 y5 已超 40% 配额 → 抑制 y5（重音是稀缺资源，全片都砸=没有重点）
+    const suppress = y5Count / Math.max(1, grammarRecent.length) > 0.4 && grammarRecent.length >= 3;
+    const g = pickGrammar(shot.narration, {
+      recent: grammarRecent.slice(-2) as import('./motion-grammar.js').GrammarId[],
+      hasRealMaterial: shot.visual.kind === 'user-material' || shot.visual.kind === 'imported',
+      singleNumber: (shot.narration.match(/\d+/g) ?? []).length === 1,
+      suppressTextLed: suppress,
+    });
+    grammarRecent.push(g.id);
+    if (g.id === 'y5_kinetic_type') y5Count += 1;
+    shot.visual.params['actionSheet'] = actionSheet(shot, g);
+  }
   // 重跑分镜不该无差别清空已完成产物：旁白原文没变的镜头照旧沿用配音与素材，
   // 否则每次 --script 微调或 storyboard 重进都要重配音（0.6B 模型几分钟起步）。
   const prevById = new Map(project.shots.map((s) => [s.id, s]));
@@ -261,6 +327,13 @@ function normalizeCoverage(raw: Coverage[] | undefined): Coverage[] {
       rotation: Number.isFinite(c.rotation) ? c.rotation : 0,
       motivation: c.motivation || 'emphasis',
     }));
+}
+
+/** 景别序列进一档（P8-T6 超长镜切分：后半镜比前半近，制造推近叙事） */
+const ZOOM_LADDER = ['ELS', 'LS', 'MLS', 'MS', 'MCU', 'CU', 'ECU'] as const;
+function nextZoomIn(zoom: string): (typeof ZOOM_LADDER)[number] {
+  const i = ZOOM_LADDER.indexOf(zoom as (typeof ZOOM_LADDER)[number]);
+  return ZOOM_LADDER[Math.min(ZOOM_LADDER.length - 1, i + 1)] ?? 'MS';
 }
 
 export function buildConfirmation(project: Project): string {

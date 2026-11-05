@@ -31,6 +31,22 @@ export const TEMPLATE_CUES: TemplateCue[] = [
     template: 'paper-stage',
     cues: ['因为', '所以', '推导', '论证', '理由', '条件', '前提', '依据', '资料', '整理', '拆开', '分成', '归类'],
   },
+  // P8-T1 新模板（与 motion-grammar 的 y6/y7 语法同源线索，模板选择与语法选型互相印证）：
+  // compare-stage = 对比的富编排形式（两栏对峙 + 中线划过 + 胜负翻转）
+  {
+    template: 'compare-stage',
+    cues: ['相比', '对比', '反而', '却', '之前', '之后', '以前', '现在', '翻倍', '减半', '输', '赢', '快了', '慢了'],
+  },
+  // process-track = 流程的富编排形式（轨道 + 游标推进 + 站点点亮）
+  {
+    template: 'process-track',
+    cues: ['首先', '然后', '接着', '随后', '最终', '一步', '流程', '走到', '阶段', '四步', '三步', '路上', '途中'],
+  },
+  // hierarchy-stack = 层级的富编排形式（卡叠 + 逐层抽开 + 顶层接管）
+  {
+    template: 'hierarchy-stack',
+    cues: ['分层', '层级', '一层', '三层', '上层', '底层', '优先级', '叠', '堆', '架构', '从下到上', '从上到下'],
+  },
   // deep-stage = t1 3b1b + 纵深舞台：机制/结构/层级（含 1 次 slam，同受重音预算约束）
   {
     template: 'deep-stage',

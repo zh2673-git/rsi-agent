@@ -50,4 +50,5 @@ for (const shot of project.shots) {
 }
 project.timeline = undefined; // 旁白时长定了，旧时间线作废
 await store.save(project);
+await tts.close(); // P8-T0：收尾释放常驻 worker
 console.log(`配音完成 ${done}/${project.shots.length}`);

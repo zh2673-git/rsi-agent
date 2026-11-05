@@ -44,29 +44,64 @@ import {
   type MotionShotFact,
 } from './motion-grammar.js';
 
+/** motifLoop 调用里 amp→可见位移（px）的折算系数：float/drift 是 amp*6（motion-lib.js） */
+const MOTIF_AMP_TO_PX = 6;
+/** pulse/breathe/rotate 类：缩放母题按「400px 元素上的边移」折算，amp/8 × 400 */
+const MOTIF_SCALE_BASE_PX = 400;
+const MOTIF_SCALE_KINDS = new Set(['pulse', 'breathe', 'compress', 'settle', 'drain', 'rotate', 'shimmer', 'scan', 'sweep']);
+
 /**
- * 由时间线 + 场景事实拼出混剪审计的输入（V-MOT-013~020）。
+ * 从场景 HTML 抽出 motifLoop 调用 → 母题种类 + 最小可见位移（V-MOT-022 素材）。
+ * 只认 `MV.motifLoop(sel, { kind: 'x', amp: y })` 字面量；未声明 amp 用库默认 0.8。
+ */
+function extractMotifFacts(html: string): { kinds: string[]; minMotionPx: number | undefined } {
+  const kinds = new Set<string>();
+  let min: number | undefined;
+  for (const m of html.matchAll(/MV\.motifLoop\([^)]*\)/g)) {
+    const call = m[0];
+    const kindM = call.match(/kind:\s*'([A-Za-z]+)'/);
+    const ampM = call.match(/amp:\s*([\d.]+)/);
+    kinds.add(kindM?.[1] ?? 'float');
+    const amp = ampM ? Number(ampM[1]) : 0.8;
+    const px = MOTIF_SCALE_KINDS.has(kindM?.[1] ?? 'float')
+      ? (amp / 8) * MOTIF_SCALE_BASE_PX
+      : amp * MOTIF_AMP_TO_PX;
+    min = min === undefined ? px : Math.min(min, px);
+  }
+  return { kinds: [...kinds], minMotionPx: min };
+}
+
+/**
+ * 由时间线 + 场景事实拼出混剪审计的输入（V-MOT-013~022）。
  * 构图 key = 景别 + 主体侧位：相邻镜一样就是「没换构图」——
  * 花叔的「相邻两镜换构图，不换画风」，判据必须是画面结构，不是语法名。
  */
 function toMotionFact(
   t: Timeline['shots'][number],
   project: Project,
-  facts: Map<string, { accents: string[]; hasMain: boolean; textLed: boolean }>,
+  facts: Map<string, { accents: string[]; hasMain: boolean; textLed: boolean; html?: string }>,
   grammarByShot: Map<string, string>,
 ): MotionShotFact {
   const shot = project.shots.find((s) => s.id === t.shotId);
   const f = facts.get(t.shotId) ?? { accents: [], hasMain: false, textLed: false };
   const side = String(shot?.visual.params['side'] ?? 'center');
+  const grammar = grammarByShot.get(t.shotId);
+  // P8-T4 主动作口径：真素材镜没有 Scene HTML（hasMain 恒 false 是采集盲区不是事实），
+  // 但 Ken Burns 推移本身就是运动语义——camera ≠ none 的真素材镜算有主动作。
+  const realMaterial = shot?.visual.kind === 'user-material' || shot?.visual.kind === 'imported';
+  const hasMainAction = f.hasMain || (realMaterial && t.camera !== 'none') || grammar === 'b_roll';
+  const motif = extractMotifFacts(f.html ?? '');
   return {
     shotId: t.shotId,
     durationMs: t.durationMs,
     camera: normalizeCameraToken(t.camera) ?? 'static',
     textLed: f.textLed,
     accents: f.accents,
-    hasMainAction: f.hasMain,
+    hasMainAction,
     compositionKey: `${shot?.zoom ?? 'MS'}:${side}`,
-    ...(grammarByShot.get(t.shotId) ? { grammar: grammarByShot.get(t.shotId) } : {}),
+    ...(grammar ? { grammar } : {}),
+    motifKinds: motif.kinds,
+    minMotifMotionPx: motif.minMotionPx,
   };
 }
 
@@ -378,7 +413,7 @@ export async function compose(
   const sceneDir = path.join(dir, 'scenes');
   const scenePulse = new Map<string, boolean>();
   const sceneBeats = new Map<string, number>();
-  const sceneFacts = new Map<string, { accents: string[]; hasMain: boolean; textLed: boolean }>();
+  const sceneFacts = new Map<string, { accents: string[]; hasMain: boolean; textLed: boolean; html?: string }>();
   for (const shot of project.shots) {
     const file = path.join(sceneDir, `Scene_${shot.id}.html`);
     if (!exists(file)) continue;
@@ -402,17 +437,19 @@ export async function compose(
       textLed:
         ((shot.visual.params['actionSheet'] as { grammar?: string } | undefined)?.grammar ?? '').startsWith('y5') ||
         /class="[^"]*\b(kinetic|kinetic-type)\b/.test(html),
+      html, // P8-T3：V-MOT-022 要从 HTML 里数 motifLoop 的 kind/amp
     });
   }
-  // 把动作谱与语法落到 shot.visual.params（供 scene 输出与审计复用）；
-  // 已有声明者（人工精修/agent 指定）一律不覆盖——导演的镜头清单优先。
+  // 语法前移（P8-T2）后 composer 只沿用分镜期落成的 actionSheet——不再重算，
+  // 否则人工/导演在确认点改过的语法会被 compose 期悄悄覆盖回去。
   const grammarByShot = new Map<string, string>();
   for (const shot of project.shots) {
     const declared = shot.visual.params['actionSheet'] as { grammar?: string } | undefined;
-    if (declared?.grammar) {
-      grammarByShot.set(shot.id, declared.grammar);
-      continue;
-    }
+    if (declared?.grammar) grammarByShot.set(shot.id, declared.grammar);
+  }
+  // 极老项目（分镜早于 P8）没有 actionSheet：compose 期补一次，同样落回 params
+  for (const shot of project.shots) {
+    if (grammarByShot.has(shot.id)) continue;
     const recent = [...grammarByShot.values()].slice(-2) as GrammarId[];
     const g = pickGrammar(shot.narration, {
       recent,
@@ -1168,7 +1205,11 @@ function wrapComposition(
   if (!out.includes('gsap.min.js')) {
     out = out.replace('</head>', '<script src="../motion/gsap.min.js"></script>\n</head>');
   }
-  if (!out.includes('data-composition-id')) {
+  // 防重判断必须看「属性形态」（<div data-composition-id="…"）——LLM 场景常把本文件的教学注释
+  // 原样抄进 HTML 注释或 querySelector 选择器字符串，裸 includes 会被这些文本骗过，
+  // 跳过注入 → 渲染器报 "no element with a data-composition-id attribute"（26 镜全灭案例）。
+  const hasCompRoot = /(<|\s)data-composition-id\s*=\s*["']/.test(out);
+  if (!hasCompRoot) {
     // 子合成根：独立包装元素承载 data-composition-id + data-width/height（官方 card.html 同款）。
     // 根元素不得靠 class 取样式（lint: subcomposition_root_styled_by_class——作用域改写后丢失），
     // 因此根用内联尺寸样式，原 .stage 作为内层元素照常被作用域规则命中。
@@ -1178,7 +1219,8 @@ function wrapComposition(
         `${body}${ws}<div data-composition-id="scene-${shotId}" data-width="${size.w}" data-height="${size.h}" style="width:100%;height:100%">${firstTag}${rest}</div>${close}`,
     );
   }
-  if (!out.includes('window.__timelines')) {
+  // 同理只认赋值形态：场景正文读取 __timelines[...] 不代表注册脚本已存在
+  if (!/window\.__timelines\s*=/.test(out)) {
     out = out.replace(
       '</body>',
       `<script>window.__timelines = window.__timelines || {}; if (window.gsap && !window.__timelines['scene-${shotId}']) { window.__timelines['scene-${shotId}'] = gsap.timeline({ paused: true }); }</script>
@@ -1201,7 +1243,9 @@ function wrapComposition(
   }
   // 悬浮主讲头像：叠在场景之上、字幕之下（z-index:6 由 CSS 给），机位轨之后注册以覆盖全镜
   if (presenter) {
-    if (!out.includes('mv-presenter')) {
+    // 与上文同理：防重判断只认「元素/属性在标记中真实出现」的形态，
+    // 裸 includes 会被正文注释/选择器文本误命中导致 CSS+markup 注入被跳过
+    if (!/<[^>]*mv-presenter/.test(out)) {
       out = out.replace('</style>', `${PRESENTER_CSS}\n</style>`);
       out = out.replace(
         /(<div data-composition-id="scene-[^"]*"[^>]*>)/,

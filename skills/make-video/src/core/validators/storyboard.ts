@@ -9,9 +9,20 @@ export function validateStoryboard(p: Project): Issue[] {
   if (p.script && shots.length > 0 && p.script.segments.length !== shots.length) {
     // V-RHY-007：镜头粒度=语义单元——一镜一单元，段数必须与镜数一致
     // （V-STE-003 属任务幂等条款，此处系历史借号）
-    issues.push(
-      err('V-RHY-007', `旁白段数(${p.script.segments.length}) ≠ 镜头数(${shots.length})`),
-    );
+    // P8-T6 修订：超长镜切分（一镜装 >8s 旁白）会把一段合法地拆成 a/b 两镜——
+    // 拆分镜共享同一 segmentId 且旁白原文拼接 = 原段，这属于「一镜变两拍」不是丢段；
+    // 判据改为「每个 segmentId 至少有一镜覆盖」。
+    const segIds = new Set(p.script.segments.map((s) => s.id));
+    const covered = new Set(shots.map((s) => s.segmentId));
+    const missing = [...segIds].filter((id) => !covered.has(id));
+    if (missing.length > 0) {
+      issues.push(
+        err(
+          'V-RHY-007',
+          `旁白段数(${p.script.segments.length}) 与镜头数(${shots.length}) 不匹配：段 ${missing.join(', ')} 无镜头覆盖`,
+        ),
+      );
+    }
   }
 
   for (const s of shots) {

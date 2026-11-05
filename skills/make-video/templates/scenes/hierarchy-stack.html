@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{SCENE_ID}} · hierarchy-stack</title>
+<!--
+  动效语法：y6 机制拆解 + y7 系统地图的「层级」分支（P8-T1）
+  层级不是「几个框叠着」：是一叠卡，抽哪张讲哪张——
+    - 整叠先定场（错峰落下，错位感 = 层叠语义）；
+    - 逐层抽开（每层左移 + 缩小让位，像扑克牌展开）；
+    - 顶层高亮接管（阿杜主次），顶层的 Key 名字 counter 落定；
+    - 标点镜 punch 顶层卡（V-MOT-013 预算）；母题：光斑呼吸 + 顶卡 float。
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  [data-scene-id] { position: relative; width: 100%; height: 100%; }
+  body { font-family: {{FONT}}; background: #0b0e15; color: {{NEUTRAL_4}}; }
+
+  .stage {
+    position: relative; width: 100%; height: 100%; box-sizing: border-box;
+    padding: 7% 8%; overflow: hidden;
+    perspective: 1200px; transform-style: preserve-3d;
+    background:
+      radial-gradient(ellipse at 74% 20%, {{PRIMARY}}30 0%, transparent 58%),
+      linear-gradient(170deg, #0d121c 0%, #070a10 100%);
+  }
+
+  .halo {
+    position: absolute; inset: -8%;
+    background: radial-gradient(ellipse at 26% 76%, {{ACCENT}}38 0%, transparent 56%);
+    pointer-events: none;
+  }
+
+  .kicker {
+    position: relative; z-index: 5; font-size: {{BODY_SIZE}}px; font-weight: 600;
+    letter-spacing: 0.26em; text-transform: uppercase; color: {{ACCENT}}; opacity: 0.85;
+    margin-bottom: 1.4vmin;
+  }
+  .subject {
+    position: relative; z-index: 5;
+    font-size: {{TITLE_SIZE}}px; font-weight: 800; line-height: 1.15;
+    letter-spacing: -0.02em; color: #fff;
+    text-shadow: 0 4px 30px rgba(0,0,0,0.66); max-width: 86%; margin: 0 0 4vmin;
+  }
+
+  /* 卡叠：三张卡错位堆叠，展开后从左到右依次是 L1 底层 → L3 顶层 */
+  .stack {
+    position: relative; z-index: 3; margin-top: 4.6vmin; height: 34vmin;
+    transform-style: preserve-3d;
+  }
+  .layer {
+    position: absolute; top: 0; width: 44%; height: 100%;
+    border-radius: 14px; padding: 3.4% 3%;
+    box-sizing: border-box; overflow: hidden;
+    background: linear-gradient(160deg, {{PRIMARY}}c9, #0b1018ee);
+    border: 1px solid {{ACCENT}}4d;
+    box-shadow: 0 24px 56px rgba(0,0,0,0.6), inset 0 1px 0 {{ACCENT}}3d;
+  }
+  .layer .tier {
+    font-size: calc({{BODY_SIZE}}px * 0.76); font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: {{ACCENT}}; opacity: 0.9; display: block;
+    margin-bottom: 1.4vmin;
+  }
+  .layer .name {
+    font-size: calc({{TITLE_SIZE}}px * 0.6); font-weight: 800; line-height: 1.2;
+    color: #fff;
+  }
+  .layer .desc {
+    margin-top: 1.6vmin; font-size: calc({{BODY_SIZE}}px * 0.88); line-height: 1.5;
+    color: {{NEUTRAL_4}}; opacity: 0.78;
+  }
+  .layer .beam {
+    display: block; height: 0.34em; margin-top: 2vmin; border-radius: 2px;
+    background: {{ACCENT}}; opacity: 0.55; transform-origin: 0 50%;
+  }
+  .layer.l1 { left: 0; z-index: 1; }
+  .layer.l2 { left: 24%; z-index: 2; }
+  .layer.l3 { left: 48%; z-index: 3; border-color: {{ACCENT}}; }
+
+  .hint {
+    position: relative; z-index: 5; margin-top: 4.2vmin;
+    font-size: {{BODY_SIZE}}px; line-height: 1.6; color: {{NEUTRAL_3}};
+    opacity: 0.7; max-width: 64%;
+  }
+
+  .letterbox { position: absolute; inset: 0; pointer-events: none; display: {{LETTERBOX}};
+    background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: {{GRAIN}};
+    background-image: repeating-radial-gradient(circle at 56% 44%, rgba(255,255,255,0.10) 0 0.5px, transparent 0.6px 2.2px);
+    background-size: 3px 3px; mix-blend-mode: overlay; }
+  .vignette { position: absolute; inset: 0; pointer-events: none; opacity: {{VIGNETTE}};
+    background: radial-gradient(ellipse at center, transparent 46%, rgba(0,0,0,0.7) 128%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+<div data-scene-id="{{SCENE_ID}}" data-beats="6" data-accent="{{ACCENT_FLAG}}">
+  <div class="stage">
+    <div class="halo" data-motif></div>
+    <div class="kicker" data-rank="tertiary">{{KICKER}}</div>
+    <div class="subject" data-rank="primary">{{TITLE}}</div>
+    <div class="stack">
+      <div class="layer l1" data-depth="0.4" data-rank="secondary">
+        <span class="tier">L{{TIER1}}</span>
+        <div class="name">{{NAME1}}</div>
+        <div class="desc">{{DESC1}}</div>
+        <span class="beam" data-beam></span>
+      </div>
+      <div class="layer l2" data-depth="0.7" data-rank="secondary">
+        <span class="tier">L{{TIER2}}</span>
+        <div class="name">{{NAME2}}</div>
+        <div class="desc">{{DESC2}}</div>
+        <span class="beam" data-beam></span>
+      </div>
+      <div class="layer l3" data-depth="1" data-rank="primary">
+        <span class="tier">L{{TIER3}}</span>
+        <div class="name">{{NAME3}}</div>
+        <div class="desc">{{DESC3}}</div>
+        <span class="beam" data-beam></span>
+      </div>
+    </div>
+    <div class="hint" data-rank="tertiary">{{SUB_LINE}}</div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+</div>
+<script src="../motion/gsap.min.js"></script>
+<script src="../motion/motion-lib.js"></script>
+<script>
+(function () {
+  function boot() {
+    MV.use('scene-{{SCENE_ID}}');
+    if (!MV.timeline()) return;
+    var accentEl = document.querySelector('[data-accent]');
+    var accent = accentEl ? accentEl.getAttribute('data-accent') === '1' : true;
+
+    MV.motifLoop('.halo', { kind: 'breathe', amp: 0.85, duration: 1900, span: 16 });
+
+    // ① 错峰入场：主语先落、三层依次（从底到顶的建造顺序）
+    MV.staggeredIn('.subject, .kicker, .layer, .hint', { delay: 40, secondary: 170, tertiary: 320 });
+
+    // ② 分层景深：三层不同速度的漂移（纵深语义，css3d 声明时成立）
+    MV.depth('.layer', { strength: 1.2 });
+
+    // ③ 顶层接管（阿杜主次）：l3 抬升 + 微转（这一层是本镜的主角）
+    MV.performance('.layer.l3', { stiffness: {{SPRING_STIFFNESS}}, damping: {{SPRING_DAMPING}} });
+    MV.tilt3d('.stack', { amp: 4, duration: 2000 });
+
+    // ④ 层号落定：L1→L3 数字滚动（y6 的「部件逐个点亮」落在编号上）
+    MV.counter('.layer .tier', { delay: 560, stagger: 140, from: 0, to: 3, decimals: 0, prefix: 'L' });
+
+    // ⑤ 荧光条：三层 beam 逐层点亮（从底层往上，能量向上传导 = y6 力传导）
+    MV.highlight('.layer .beam', { delay: 540, stagger: 140 });
+
+    // ⑥ 重音标点：punch 顶层（主角），仅标点镜
+    if (accent) MV.punch('.layer.l3', { delay: {{PUNCH_AT}}, amp: 1.1 });
+
+    // ⑦ 母题：顶卡慢漂 + 光斑呼吸（与主体分离）；时长取 2000ms 档（V-MOT-008）
+    MV.motifLoop('.layer.l3', { kind: 'float', amp: 0.7, duration: 2000, span: 16 });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

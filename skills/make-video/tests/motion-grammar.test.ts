@@ -197,4 +197,73 @@ describe('动效语法层（P7 吸收阿杜 + 花叔）', () => {
       expect(issues).toHaveLength(0);
     });
   });
+
+  describe('P8 增量', () => {
+    it('十一种语法齐备：y6_mechanism / y7_system_map 已入表', () => {
+      const ids = GRAMMARS.map((g) => g.id);
+      expect(ids).toContain('y6_mechanism');
+      expect(ids).toContain('y7_system_map');
+      expect(ids).toHaveLength(11);
+    });
+
+    it('机制线索 → y6_mechanism；系统/关系线索 → y7_system_map', () => {
+      expect(pickGrammar('它的内部机制是三部分协作驱动的。').id).toBe('y6_mechanism');
+      expect(pickGrammar('系统之间的架构关系像一张地图，脉络清晰。').id).toBe('y7_system_map');
+    });
+
+    it('actionSheet 带 requiredPrimitives 且必含 motifLoop', () => {
+      const g = getGrammar('y2_collage');
+      const sheet = actionSheet({ id: 's03', narration: '证据摆在这里。' }, g);
+      expect(sheet.requiredPrimitives).toContain('MV.motifLoop');
+      expect(sheet.requiredPrimitives).toContain('MV.highlight');
+      for (const gr of GRAMMARS) {
+        const s = actionSheet({ id: 'x', narration: 'n' }, gr);
+        expect(s.requiredPrimitives.length).toBeGreaterThan(0);
+        expect(s.requiredPrimitives).toContain('MV.motifLoop');
+      }
+    });
+
+    it('suppressTextLed 硬排除 y5（文字主导闸）', () => {
+      const line = '记住三点：一是先写契约，二是再写代码，三是最后跑测试。';
+      expect(pickGrammar(line).id).toBe('y5_kinetic_type');
+      const g = pickGrammar(line, { suppressTextLed: true });
+      expect(g.id).not.toBe('y5_kinetic_type');
+    });
+
+    it('V-MOT-022：母题动幅不可见 → warn', () => {
+      const shots = [
+        fact({ shotId: 's01', minMotifMotionPx: 1.9, motifKinds: ['float'], compositionKey: 'CU:1' }),
+        fact({ shotId: 's02', minMotifMotionPx: 5.2, motifKinds: ['breathe'], compositionKey: 'MS:2' }),
+      ];
+      const issues = auditMotionMix(shots, 6000);
+      expect(issues.some((i) => i.rule === 'V-MOT-022' && i.message.includes('不可见'))).toBe(true);
+    });
+
+    it('V-MOT-022：动幅可见 → 不报', () => {
+      const shots = [
+        fact({ shotId: 's01', minMotifMotionPx: 4.8, motifKinds: ['float'], compositionKey: 'CU:1' }),
+        fact({ shotId: 's02', minMotifMotionPx: 6, motifKinds: ['pulse'], compositionKey: 'MS:2' }),
+      ];
+      const issues = auditMotionMix(shots, 6000);
+      expect(issues.some((i) => i.rule === 'V-MOT-022')).toBe(false);
+    });
+
+    it('V-MOT-022：过半镜无母题 → warn', () => {
+      const shots = ['s01', 's02', 's03', 's04'].map((id, i) =>
+        fact({ shotId: id, minMotifMotionPx: i === 0 ? undefined : 5, motifKinds: [], compositionKey: `CU:${i}` }),
+      );
+      const issues = auditMotionMix(shots, 12000);
+      expect(issues.some((i) => i.rule === 'V-MOT-022' && i.message.includes('无母题'))).toBe(true);
+    });
+
+    it('T4 口径（在 audit 层验证豁免逻辑的输入由 toMotionFact 决定）：b_roll 语法镜带 hasMainAction', () => {
+      // composer 已把 b_roll / 真素材镜折算成 hasMainAction=true（见 composer.toMotionFact），
+      // 这里钉住审计端行为：全 true 时无 V-MOT-019 主动作告警
+      const shots = ['s01', 's02', 's03'].map((id, i) =>
+        fact({ shotId: id, grammar: 'b_roll', compositionKey: `CU:${i}`, accents: [] }),
+      );
+      const issues = auditMotionMix(shots, 9000);
+      expect(issues.some((i) => i.rule === 'V-MOT-019' && i.message.includes('无主动作'))).toBe(false);
+    });
+  });
 });
