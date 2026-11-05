@@ -1,0 +1,362 @@
+[
+  {
+    "shotId": "s01",
+    "move": "push-in",
+    "zoom": "MS",
+    "durationS": 5.28,
+    "amp": 0.044,
+    "sign": -1,
+    "focus": {
+      "x": 50,
+      "y": 48
+    },
+    "coverage": [],
+    "segments": [
+      {
+        "atS": 0,
+        "durationS": 0.5,
+        "from": {
+          "atS": 0,
+          "scale": 1.0053,
+          "xPercent": 0.9,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 0.5,
+          "scale": 1.0123,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      },
+      {
+        "atS": 0.5,
+        "durationS": 4.33,
+        "from": {
+          "atS": 0.5,
+          "scale": 1.0123,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 4.83,
+          "scale": 1.0405,
+          "xPercent": -0.5,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "none"
+      },
+      {
+        "atS": 4.83,
+        "durationS": 0.45,
+        "from": {
+          "atS": 4.83,
+          "scale": 1.0405,
+          "xPercent": -0.5,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 5.28,
+          "scale": 1.051,
+          "xPercent": -0.7,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      }
+    ]
+  },
+  {
+    "shotId": "s02",
+    "move": "pan",
+    "zoom": "CU",
+    "durationS": 4.96,
+    "amp": 0.06,
+    "sign": 1,
+    "focus": {
+      "x": 50,
+      "y": 48
+    },
+    "coverage": [],
+    "segments": [
+      {
+        "atS": 0,
+        "durationS": 0.5,
+        "from": {
+          "atS": 0,
+          "scale": 1.036,
+          "xPercent": -1.804,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 0.5,
+          "scale": 1.0348,
+          "xPercent": -2.2,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      },
+      {
+        "atS": 0.5,
+        "durationS": 4.01,
+        "from": {
+          "atS": 0.5,
+          "scale": 1.0348,
+          "xPercent": -2.2,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 4.51,
+          "scale": 1.0336,
+          "xPercent": 2.2,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "none"
+      },
+      {
+        "atS": 4.51,
+        "durationS": 0.45,
+        "from": {
+          "atS": 4.51,
+          "scale": 1.0336,
+          "xPercent": 2.2,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 4.96,
+          "scale": 1.0348,
+          "xPercent": 2.42,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      }
+    ]
+  },
+  {
+    "shotId": "s03",
+    "move": "push-in",
+    "zoom": "MS",
+    "durationS": 4.88,
+    "amp": 0.044,
+    "sign": -1,
+    "focus": {
+      "x": 50,
+      "y": 48
+    },
+    "coverage": [],
+    "segments": [
+      {
+        "atS": 0,
+        "durationS": 0.5,
+        "from": {
+          "atS": 0,
+          "scale": 1.0053,
+          "xPercent": 0.9,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 0.5,
+          "scale": 1.0123,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      },
+      {
+        "atS": 0.5,
+        "durationS": 3.93,
+        "from": {
+          "atS": 0.5,
+          "scale": 1.0123,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 4.43,
+          "scale": 1.0405,
+          "xPercent": -0.5,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "none"
+      },
+      {
+        "atS": 4.43,
+        "durationS": 0.45,
+        "from": {
+          "atS": 4.43,
+          "scale": 1.0405,
+          "xPercent": -0.5,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 4.88,
+          "scale": 1.051,
+          "xPercent": -0.7,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      }
+    ]
+  },
+  {
+    "shotId": "s04",
+    "move": "pull-out",
+    "zoom": "CU",
+    "durationS": 5.44,
+    "amp": 0.06,
+    "sign": 1,
+    "focus": {
+      "x": 50,
+      "y": 48
+    },
+    "coverage": [],
+    "segments": [
+      {
+        "atS": 0,
+        "durationS": 0.5,
+        "from": {
+          "atS": 0,
+          "scale": 1.0672,
+          "xPercent": 0.8,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 0.5,
+          "scale": 1.0576,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      },
+      {
+        "atS": 0.5,
+        "durationS": 4.49,
+        "from": {
+          "atS": 0.5,
+          "scale": 1.0576,
+          "xPercent": 0,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 4.99,
+          "scale": 1.018,
+          "xPercent": -0.4,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "none"
+      },
+      {
+        "atS": 4.99,
+        "durationS": 0.45,
+        "from": {
+          "atS": 4.99,
+          "scale": 1.018,
+          "xPercent": -0.4,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 5.44,
+          "scale": 1.0096,
+          "xPercent": -0.5,
+          "yPercent": 0,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      }
+    ]
+  },
+  {
+    "shotId": "s05",
+    "move": "tilt-up",
+    "zoom": "MS",
+    "durationS": 5.36,
+    "amp": 0.044,
+    "sign": -1,
+    "focus": {
+      "x": 50,
+      "y": 48
+    },
+    "coverage": [],
+    "segments": [
+      {
+        "atS": 0,
+        "durationS": 0.5,
+        "from": {
+          "atS": 0,
+          "scale": 1.0264,
+          "xPercent": 0,
+          "yPercent": 1.54,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 0.5,
+          "scale": 1.0255,
+          "xPercent": 0,
+          "yPercent": 1.98,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      },
+      {
+        "atS": 0.5,
+        "durationS": 4.41,
+        "from": {
+          "atS": 0.5,
+          "scale": 1.0255,
+          "xPercent": 0,
+          "yPercent": 1.98,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 4.91,
+          "scale": 1.0246,
+          "xPercent": 0,
+          "yPercent": -1.98,
+          "rotation": 0
+        },
+        "ease": "none"
+      },
+      {
+        "atS": 4.91,
+        "durationS": 0.45,
+        "from": {
+          "atS": 4.91,
+          "scale": 1.0246,
+          "xPercent": 0,
+          "yPercent": -1.98,
+          "rotation": 0
+        },
+        "to": {
+          "atS": 5.36,
+          "scale": 1.0255,
+          "xPercent": 0,
+          "yPercent": -2.2,
+          "rotation": 0
+        },
+        "ease": "power2.out"
+      }
+    ]
+  }
+]

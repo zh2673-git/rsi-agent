@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-11-04T22:54:53.849Z",
+  "issues": [
+    {
+      "rule": "V-MOT-017",
+      "level": "warn",
+      "message": "过长镜头 3（s02:8.4s s04:7.0s s05:6.6s）> 6.5s"
+    }
+  ],
+  "grammarByShot": [
+    [
+      "s01",
+      "y2_collage"
+    ],
+    [
+      "s02",
+      "y5_kinetic_type"
+    ],
+    [
+      "s03",
+      "y5_kinetic_type"
+    ],
+    [
+      "s04",
+      "b_roll"
+    ],
+    [
+      "s05",
+      "y5_kinetic_type"
+    ],
+    [
+      "s06",
+      "y5_kinetic_type"
+    ],
+    [
+      "s07",
+      "y2_collage"
+    ]
+  ]
+}

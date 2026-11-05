@@ -219,6 +219,9 @@ function sample(waypoints: Waypoint[], t: number): Waypoint {
 
 const DRIFT = 2.2;
 
+// 标点运镜的行程（V-MOT-013 全片预算）：花叔实测 快推 18-32% / 甩镜视线突变
+const PUNCH_AMP = 0.26;
+
 function waypointsFor(
   move: CameraMove,
   amp: number,
@@ -234,6 +237,33 @@ function waypointsFor(
         { t: enterS, scale: 1 + amp * 0.28, x: 0, y: 0 },
         { t: midS, scale: 1 + amp * 0.92, x: sign * 0.5, y: 0 },
         { t: durS, scale: 1 + amp * 1.16, x: sign * 0.7, y: 0 },
+      ];
+    // 快推标点：0.25-0.35s 推到位**然后停住**（不是慢推到底）。
+    // 它是文章里的加粗，不是每段都换行——推完就安静，把注意力留在画面上。
+    case 'punch-in': {
+      const hit = Math.min(durS * 0.42, 0.32);
+      return [
+        { t: 0, scale: 1, x: 0, y: 0 },
+        { t: hit, scale: 1 + PUNCH_AMP * amp * 4.2, x: sign * 0.4, y: 0 },
+        { t: durS, scale: 1 + PUNCH_AMP * amp * 4.4, x: sign * 0.5, y: 0 },
+      ];
+    }
+    // 甩镜：视线突然转移。前段冲出去、后段落定，中段是运动模糊的主体。
+    case 'whip-pan': {
+      const hit = Math.min(durS * 0.3, 0.28);
+      return [
+        { t: 0, scale: 1 + amp * 0.6, x: -sign * DRIFT * 1.6, y: 0 },
+        { t: hit, scale: 1 + amp * 0.62, x: sign * DRIFT * 1.5, y: 0 },
+        { t: durS, scale: 1 + amp * 0.58, x: sign * DRIFT * 1.1, y: 0 },
+      ];
+    }
+    // 慢漂：整镜 1-4%/s 匀速——只给氛围镜/艺术风格镜（花叔：解说片每镜慢推 = PPT）
+    case 'drift':
+      return [
+        { t: 0, scale: 1, x: 0, y: 0 },
+        { t: enterS, scale: 1 + amp * 0.1, x: -sign * 0.2, y: 0 },
+        { t: midS, scale: 1 + amp * 0.36, x: sign * 0.2, y: 0 },
+        { t: durS, scale: 1 + amp * 0.54, x: sign * 0.35, y: 0 },
       ];
     case 'pull-out':
       return [
@@ -330,8 +360,24 @@ export function planCameraRig(args: {
         ]
       : waypointsFor(move, amp, durationS, enterS, midS, sign);
 
-  // 分段边界：三段 + 每个覆盖切点（切点把整条曲线切成"切前/切后"两段）
-  const bounds = [...new Set([0, enterS, ...cuts.map((c) => c.atMs / 1000), midS, durationS])]
+  // 标点运镜（punch-in / whip-pan）的「打中点」必须成为分段边界，
+  // 否则缓动会把 0.28s 的冲击摊到整段三秒里——那就退化成慢推了。
+  const punctS =
+    move === 'punch-in' ? Math.min(durationS * 0.42, 0.32)
+    : move === 'whip-pan' ? Math.min(durationS * 0.3, 0.28)
+    : null;
+
+  // 分段边界：三段 + 标点打中点 + 每个覆盖切点（切点把整条曲线切成"切前/切后"两段）
+  const bounds = [
+    ...new Set([
+      0,
+      enterS,
+      ...(punctS === null ? [] : [punctS]),
+      ...cuts.map((c) => c.atMs / 1000),
+      midS,
+      durationS,
+    ]),
+  ]
     .filter((b) => b >= 0 && b <= durationS)
     .sort((a, b) => a - b);
 
@@ -345,7 +391,16 @@ export function planCameraRig(args: {
     if (durS <= 0) continue;
     const isFirst = i === 1;
     const isLast = i === bounds.length - 1;
-    const ease = isFirst ? 'power2.out' : isLast ? (options.punchOut ? 'power2.in' : 'power2.out') : 'none';
+    // 标点段用「冲进去」的缓动（expo.out），冲完之后的段落才减速落定；
+    // 常规镜维持 进入 settle(power2.out) → 漂移(none) → 落定(power2.out)。
+    const isPunct = punctS !== null && Math.abs(b - punctS) < 1e-6;
+    const ease = isPunct
+      ? (move === 'whip-pan' ? 'expo.out' : 'power3.out')
+      : isFirst
+        ? 'power2.out'
+        : isLast
+          ? (options.punchOut ? 'power2.in' : 'power2.out')
+          : 'none';
     segments.push({
       atS: +a.toFixed(3),
       durationS: durS,

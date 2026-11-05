@@ -1,0 +1,20 @@
+{
+  "outFile": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf\\out\\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf.mp4",
+  "checks": [
+    {
+      "name": "duration",
+      "ok": true,
+      "detail": "24900ms vs 时间线 24880ms（差 20ms）"
+    },
+    {
+      "name": "resolution",
+      "ok": true,
+      "detail": "1920x1080"
+    },
+    {
+      "name": "nonempty",
+      "ok": true,
+      "detail": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf\\out\\记忆才是瓶颈-上下文为什么会忘-mw2u1dqf.mp4"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import type {
   SubtitlePolicy,
   Timeline,
 } from '../core/schema.js';
+import { normalizeCameraToken } from '../core/schema.js';
 import { V } from '../core/index.js';
 import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR } from '../core/constants.js';
@@ -34,6 +35,40 @@ import {
   planCameraRig,
   type RigPlan,
 } from './camera.js';
+import {
+  actionSheet,
+  auditMotionMix,
+  auditOpening,
+  pickGrammar,
+  type GrammarId,
+  type MotionShotFact,
+} from './motion-grammar.js';
+
+/**
+ * 由时间线 + 场景事实拼出混剪审计的输入（V-MOT-013~020）。
+ * 构图 key = 景别 + 主体侧位：相邻镜一样就是「没换构图」——
+ * 花叔的「相邻两镜换构图，不换画风」，判据必须是画面结构，不是语法名。
+ */
+function toMotionFact(
+  t: Timeline['shots'][number],
+  project: Project,
+  facts: Map<string, { accents: string[]; hasMain: boolean; textLed: boolean }>,
+  grammarByShot: Map<string, string>,
+): MotionShotFact {
+  const shot = project.shots.find((s) => s.id === t.shotId);
+  const f = facts.get(t.shotId) ?? { accents: [], hasMain: false, textLed: false };
+  const side = String(shot?.visual.params['side'] ?? 'center');
+  return {
+    shotId: t.shotId,
+    durationMs: t.durationMs,
+    camera: normalizeCameraToken(t.camera) ?? 'static',
+    textLed: f.textLed,
+    accents: f.accents,
+    hasMainAction: f.hasMain,
+    compositionKey: `${shot?.zoom ?? 'MS'}:${side}`,
+    ...(grammarByShot.get(t.shotId) ? { grammar: grammarByShot.get(t.shotId) } : {}),
+  };
+}
 
 export function validateReadiness(project: Project): V.Issue[] {
   const issues: V.Issue[] = [];
@@ -343,6 +378,7 @@ export async function compose(
   const sceneDir = path.join(dir, 'scenes');
   const scenePulse = new Map<string, boolean>();
   const sceneBeats = new Map<string, number>();
+  const sceneFacts = new Map<string, { accents: string[]; hasMain: boolean; textLed: boolean }>();
   for (const shot of project.shots) {
     const file = path.join(sceneDir, `Scene_${shot.id}.html`);
     if (!exists(file)) continue;
@@ -354,7 +390,62 @@ export async function compose(
     } else {
       sceneBeats.set(shot.id, (html.match(/\.(to|from|fromTo)\(/g) ?? []).length);
     }
+    // 混剪审计素材（V-MOT-013~020）：从场景实际调用里数，不信任声明。
+    // 但模板可以声明「本镜不带标点」（data-accent="0"）——那样场景里的 slam 走的是 else 分支，
+    // 没被真正调用。判据必须是「这一帧真的出现标点」，不是「源码里出现过 slam 这个词」。
+    const accentOff = /data-accent="0"/.test(html);
+    sceneFacts.set(shot.id, {
+      accents: accentOff ? [] : V.ACCENT_PRIMITIVES.filter((p) => html.includes(p)),
+      hasMain: /MV\.(enter|slam|staggeredIn|morphTo|counter|highlight|cards|punch|whip|maskReveal|bands|performance|emphasis|orbit|depth|tilt3d|spin3d|card3d)\(/.test(
+        html,
+      ),
+      textLed:
+        ((shot.visual.params['actionSheet'] as { grammar?: string } | undefined)?.grammar ?? '').startsWith('y5') ||
+        /class="[^"]*\b(kinetic|kinetic-type)\b/.test(html),
+    });
   }
+  // 把动作谱与语法落到 shot.visual.params（供 scene 输出与审计复用）；
+  // 已有声明者（人工精修/agent 指定）一律不覆盖——导演的镜头清单优先。
+  const grammarByShot = new Map<string, string>();
+  for (const shot of project.shots) {
+    const declared = shot.visual.params['actionSheet'] as { grammar?: string } | undefined;
+    if (declared?.grammar) {
+      grammarByShot.set(shot.id, declared.grammar);
+      continue;
+    }
+    const recent = [...grammarByShot.values()].slice(-2) as GrammarId[];
+    const g = pickGrammar(shot.narration, {
+      recent,
+      hasRealMaterial: shot.visual.kind === 'user-material' || shot.visual.kind === 'imported',
+      singleNumber: (shot.narration.match(/\d+/g) ?? []).length === 1,
+    });
+    grammarByShot.set(shot.id, g.id);
+    shot.visual.params['actionSheet'] = actionSheet(shot, g);
+  }
+  const motionIssues = [
+    ...auditOpening(
+      timeline.shots.map((t) => toMotionFact(t, project, sceneFacts, grammarByShot)),
+    ),
+    ...auditMotionMix(
+      timeline.shots.map((t) => toMotionFact(t, project, sceneFacts, grammarByShot)),
+      (() => {
+        const lastShot = timeline.shots.at(-1);
+        return lastShot ? lastShot.startMs + lastShot.durationMs : 0;
+      })(),
+    ),
+  ];
+  const motionErrors = motionIssues.filter((i) => i.level === 'error');
+  if (motionErrors.length > 0) {
+    throw mvError(
+      ERR.VALIDATION,
+      `动效语法校验失败（V-MOT-013~020）:\n${motionErrors.map((i) => `${i.rule}: ${i.message}`).join('\n')}`,
+    );
+  }
+  await atomicWriteText(
+    path.join(dir, 'logs', 'motion-audit.json'),
+    JSON.stringify({ generatedAt: new Date().toISOString(), issues: motionIssues, grammarByShot: [...grammarByShot] }, null, 2),
+  );
+
   const gateIssues = [
     ...V.validateCutCandidates(project.shots, timeline),
     ...V.validateEmphasisTriangle(project.shots, timeline, scenePulse),
@@ -485,7 +576,8 @@ async function emitHyperframesProject(
               durMs / 1000,
               buildRigScript(rig),
               mediaStyle,
-              presenterMarkup(presenter, size) + presenterScript(presenter, shot.id, durMs / 1000),
+              presenterMarkup(presenter, size) +
+                presenterScript(presenter, shot.id, durMs / 1000, project.shots.findIndex((s) => s.id === shot.id)),
             )
           : buildMediaComposition(
               shot.id,
@@ -515,7 +607,15 @@ async function emitHyperframesProject(
       options: parseCameraOptions(shot.visual.params),
     });
     rigAudit.push(rigSummary(rig));
-    const wrapped = wrapComposition(sceneHtml, shot.id, size, durMs / 1000, buildRigScript(rig), presenter);
+    const wrapped = wrapComposition(
+      sceneHtml,
+      shot.id,
+      size,
+      durMs / 1000,
+      buildRigScript(rig),
+      presenter,
+      project.shots.findIndex((s) => s.id === shot.id),
+    );
     await atomicWriteText(path.join(compDir, `Scene_${shot.id}.html`), wrapped);
   }
   await atomicWriteText(
@@ -672,12 +772,19 @@ ${transitionsScript}
 }
 
 // 悬浮卡通主讲头像（"实时有人在讲"）：小尺寸角标，不遮挡主体，靠画外留白呼吸
-// 由 project 目录下的 presenter.json 声明（缺省不出现）：{ "image": "canvas/presenter.png", "corner": "br", "width": 196 }
+// 由 project 目录下的 presenter.json 声明（缺省不出现）：
+//   { "image": "canvas/avatar.png", "corner": "br", "width": 196, "mode": "corner|hero-to-corner" }
+// mode=hero-to-corner（阿杜「人物是一条主线」）：同一元素在开场镜以大窗出现，
+// 再**改变尺寸/位置/圆角**收到角标——不是换一个头像，也不是永远一个角标。
 interface PresenterSpec {
   image: string;
   corner: 'bl' | 'br' | 'tl' | 'tr';
   width: number;
   fps: number;
+  /** corner = 恒定角标；hero-to-corner = 开场大窗 → 收到角标（人物主线） */
+  mode: 'corner' | 'hero-to-corner';
+  /** 大窗锚点（hero-to-corner 的首镜用），百分比 */
+  heroAnchor: { x: number; y: number; width: number };
 }
 
 const PRESENTER_CSS = `
@@ -687,6 +794,8 @@ const PRESENTER_CSS = `
   .mv-presenter.bl { left: 3.2%; bottom: 11.6%; }
   .mv-presenter.tr { right: 3.2%; top: 11.6%; }
   .mv-presenter.tl { left: 3.2%; top: 11.6%; }
+  /* 大窗锚点：由 presenterScript 用内联样式落位（centered，圆心为锚点） */
+  .mv-presenter.hero-mode { transform: translate(-50%, -50%); }
   .mv-presenter .plate { position: relative; border-radius: 25%; overflow: hidden;
     background: #f7f4ec;
     box-shadow: 0 18px 34px rgba(58,44,24,0.30), 0 3px 8px rgba(58,44,24,0.20),
@@ -707,7 +816,40 @@ function presenterMarkup(spec: PresenterSpec, size: { w: number; h: number }): s
 }
 
 // 主讲头像的时间线：在场恒定 + 有界呼吸浮动（不逐镜淡入淡出——那会在快切里闪）
-function presenterScript(spec: PresenterSpec, shotId: string, durationS: number): string {
+// hero-to-corner 模式（阿杜人物主线）：首镜从大窗收到角标，
+// 位移/尺寸/圆角**同一条补间**完成（位置与尺寸同步变化，不是先缩再挪）。
+function presenterScript(spec: PresenterSpec, shotId: string, durationS: number, shotIndex = -1): string {
+  const heroFirst = spec.mode === 'hero-to-corner' && shotIndex === 0;
+  const heroBlock = heroFirst
+    ? `
+    // 人物主线：大窗 → 角标（同一元素改尺寸/位置/圆角）
+    var startW = Math.round(window.innerWidth * ${(spec.heroAnchor.width / 100).toFixed(4)});
+    el.classList.remove('${spec.corner}');
+    el.classList.add('hero-mode');
+    el.style.left = '${spec.heroAnchor.x}%';
+    el.style.top = '${spec.heroAnchor.y}%';
+    el.style.width = startW + 'px';
+    el.style.zIndex = '8';
+    var plate = el.querySelector('.plate');
+    var enterS = Math.min(1.2, ${durationS.toFixed(3)} * 0.32);
+    tl.fromTo(el, { opacity: 0, scale: 0.86 }, { opacity: 1, scale: 1, duration: 0.42, ease: 'power3.out' }, 0.06);
+    if (plate) tl.fromTo(plate, { borderRadius: '34%' }, { borderRadius: '25%', duration: enterS, ease: 'power2.inOut' }, 0.06);
+    // 收小：宽 100% → 13%（与场景里的角标同宽），位置回到角标锚点
+    tl.to(el, { width: Math.round(window.innerWidth * 0.13) + 'px', duration: Math.max(0.5, ${durationS.toFixed(3)} * 0.3), ease: 'power2.inOut' },
+      Math.max(0.9, ${durationS.toFixed(3)} * 0.55));
+    tl.to(el, { left: '${spec.corner.includes('l') ? '6.5%' : '93.5%'}', top: '${spec.corner.includes('t') ? '18%' : '82%'}',
+      duration: Math.max(0.5, ${durationS.toFixed(3)} * 0.3), ease: 'power2.inOut' },
+      Math.max(0.9, ${durationS.toFixed(3)} * 0.55));`
+    : '';
+  const settleBlock = heroFirst
+    ? `
+    // 首镜收完即接管角标几何，后续镜直接沿用（不重复动画）
+    tl.call(function () {
+      el.classList.remove('hero-mode');
+      el.classList.add('${spec.corner}');
+      el.style.left = ''; el.style.top = ''; el.style.width = ''; el.style.zIndex = '';
+    }, null, Math.max(1.4, ${durationS.toFixed(3)} * 0.86));`
+    : '';
   return `<script data-mv-presenter-rig="1">
 (function () {
   function boot() {
@@ -723,7 +865,7 @@ function presenterScript(spec: PresenterSpec, shotId: string, durationS: number)
     if (talk) {
       tl.fromTo(talk, { opacity: 0.3, scaleX: 0.72 },
         { opacity: 0.95, scaleX: 1.06, duration: 0.42, ease: 'sine.inOut', repeat: reps * 2, yoyo: true }, 0);
-    }
+    }${heroBlock}${settleBlock}
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else setTimeout(boot, 0);
@@ -740,7 +882,19 @@ function readPresenter(dir: string): PresenterSpec | null {
     const abs = path.resolve(dir, raw.image);
     if (!exists(abs)) return null;
     const corner = ['bl', 'br', 'tl', 'tr'].includes(String(raw.corner)) ? (raw.corner as PresenterSpec['corner']) : 'br';
-    return { image: abs, corner, width: Number(raw.width ?? 196), fps: Number(raw.fps ?? 30) };
+    const anchor = (raw.heroAnchor ?? {}) as Partial<PresenterSpec['heroAnchor']>;
+    return {
+      image: abs,
+      corner,
+      width: Number(raw.width ?? 196),
+      fps: Number(raw.fps ?? 30),
+      mode: raw.mode === 'hero-to-corner' ? 'hero-to-corner' : 'corner',
+      heroAnchor: {
+        x: Number(anchor.x ?? 50),
+        y: Number(anchor.y ?? 46),
+        width: Number(anchor.width ?? 30),
+      },
+    };
   } catch {
     return null;
   }
@@ -1007,6 +1161,7 @@ function wrapComposition(
   durationS: number,
   rigScript = '',
   presenter: PresenterSpec | null = null,
+  shotIndex = -1,
 ): string {
   let out = sceneHtml;
   // HyperFrames 契约：GSAP 必须先于 motion-lib 加载；时间线注册到 window.__timelines[compositionId]
@@ -1054,7 +1209,7 @@ function wrapComposition(
       );
     }
     if (!out.includes('data-mv-presenter-rig')) {
-      out = out.replace('</body>', `${presenterScript(presenter, shotId, durationS)}\n</body>`);
+      out = out.replace('</body>', `${presenterScript(presenter, shotId, durationS, shotIndex)}\n</body>`);
     }
   }
   return out;

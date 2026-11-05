@@ -26,7 +26,7 @@
   "subtitles": "特性卡",
   "headTail": { "head": "痛点场景", "tail": "强 CTA 尾" },
   "sound": { "bgmArc": "沉稳→揭幕→上扬", "sfxSet": ["reveal", "whoosh"] },
-  "templates": ["typography", "comparison", "atmosphere"],
+  "templates": ["typography", "comparison", "atmosphere", "kinetic-type", "paper-stage", "deep-stage"],
   "durationTiers": {
     "0-5": { "wordsPerMin": 120, "structure": "痛点-方案-CTA 三段", "chapters": 0 },
     "5-10": { "wordsPerMin": 140, "structure": "完整特性序列", "chapters": 2 },

@@ -1,0 +1,7 @@
+{
+  "image": "canvas/avatar.png",
+  "corner": "br",
+  "width": 196,
+  "mode": "hero-to-corner",
+  "heroAnchor": { "x": 76, "y": 46, "width": 24 }
+}

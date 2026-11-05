@@ -14,6 +14,12 @@ from qwen_tts import Qwen3TTSModel
 MODEL = sys.argv[1]
 LANG = sys.argv[2] if len(sys.argv) > 2 else "Chinese"
 
+# 父进程用 Start-Process/后台重定向启动时 stdin 可能是 None（不是空流），
+# 旧写法 `for line in sys.stdin` 会抛 TypeError 直接退出——表现为「配音莫名其妙停了」。
+if sys.stdin is None:
+    print(json.dumps({"ready": False, "fatal": "stdin 不可用（需由持有管道的父进程启动）"}), flush=True)
+    sys.exit(2)
+
 print(json.dumps({"ready": False, "stage": "loading"}), flush=True)
 model = Qwen3TTSModel.from_pretrained(MODEL, device_map="cuda:0", dtype=torch.bfloat16)
 prompts = {}

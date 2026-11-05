@@ -26,7 +26,7 @@
   "subtitles": "少而精（仅金句）",
   "headTail": { "head": "氛围定场", "tail": "情绪收束" },
   "sound": { "bgmArc": "起-承-转-合完整弧", "sfxSet": ["ambient", "riser", "impact"] },
-  "templates": ["atmosphere", "typography", "comparison"],
+  "templates": ["atmosphere", "typography", "comparison", "paper-stage", "deep-stage"],
   "durationTiers": {
     "0-5": { "wordsPerMin": 130, "structure": "微型三幕（愿望-阻碍-解决）", "chapters": 0 },
     "5-10": { "wordsPerMin": 150, "structure": "完整三幕", "chapters": 2 },

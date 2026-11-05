@@ -24,7 +24,7 @@
   "subtitles": "卡片式",
   "headTail": { "head": "头条标题卡", "tail": "台标尾" },
   "sound": { "bgmArc": "紧凑单弧", "sfxSet": ["tick", "swoosh"] },
-  "templates": ["typography", "flow", "comparison"],
+  "templates": ["typography", "flow", "comparison", "kinetic-type"],
   "durationTiers": {
     "0-5": { "wordsPerMin": 150, "structure": "头条 + 3 要点", "chapters": 0 },
     "5-10": { "wordsPerMin": 170, "structure": "头条 + 分组要点", "chapters": 2 },

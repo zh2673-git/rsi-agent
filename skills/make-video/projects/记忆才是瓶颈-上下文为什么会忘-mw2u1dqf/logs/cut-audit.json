@@ -1,0 +1,62 @@
+[
+  {
+    "cut": "s01→s02",
+    "atMs": 4800,
+    "transition": "dissolve",
+    "motivation": "",
+    "motiveSource": "none",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化"
+    ]
+  },
+  {
+    "cut": "s02→s03",
+    "atMs": 9120,
+    "transition": "dissolve",
+    "motivation": "",
+    "motiveSource": "none",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化"
+    ]
+  },
+  {
+    "cut": "s03→s04",
+    "atMs": 14880,
+    "transition": "dissolve",
+    "motivation": "",
+    "motiveSource": "none",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化"
+    ]
+  },
+  {
+    "cut": "s04→s05",
+    "atMs": 19680,
+    "transition": "dissolve",
+    "motivation": "",
+    "motiveSource": "none",
+    "anchors": "",
+    "audioShiftMs": -90,
+    "microCuts": [],
+    "candidates": [
+      "句读停顿",
+      "景别变化",
+      "色温变化"
+    ]
+  }
+]

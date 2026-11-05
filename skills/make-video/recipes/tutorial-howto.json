@@ -26,7 +26,7 @@
   "subtitles": "步骤编号常驻",
   "headTail": { "head": "成果预览", "tail": "成果展示尾" },
   "sound": { "bgmArc": "平稳低音量", "sfxSet": ["tick", "confirm"] },
-  "templates": ["typography", "flow", "comparison"],
+  "templates": ["typography", "flow", "comparison", "kinetic-type", "paper-stage"],
   "durationTiers": {
     "0-5": { "wordsPerMin": 130, "structure": "目标-步骤-成果", "chapters": 0 },
     "5-10": { "wordsPerMin": 150, "structure": "带检查点的完整步骤", "chapters": 2 },

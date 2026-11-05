@@ -176,7 +176,7 @@ export async function storyboard(
       materialDecisions: decisions,
     },
   });
-  const shots = (raw as unknown[]).map((s, i) => {
+  const shots: Shot[] = (raw as unknown[]).map((s, i) => {
     const shot = s as Partial<Shot>;
     if (!shot.narration || !shot.visual) {
       throw mvError(ERR.LLM_SCHEMA, `分镜第 ${i + 1} 条缺字段`);
@@ -221,6 +221,18 @@ export async function storyboard(
       state: 'pending' as const,
     } satisfies Shot;
   });
+  // 重跑分镜不该无差别清空已完成产物：旁白原文没变的镜头照旧沿用配音与素材，
+  // 否则每次 --script 微调或 storyboard 重进都要重配音（0.6B 模型几分钟起步）。
+  const prevById = new Map(project.shots.map((s) => [s.id, s]));
+  for (const shot of shots) {
+    const prev = prevById.get(shot.id);
+    if (!prev || prev.narration.trim() !== shot.narration.trim()) continue;
+    if (prev.voice) {
+      shot.voice = prev.voice;
+      if (shot.state === 'pending') shot.state = 'voiced';
+    }
+    if (prev.asset) shot.asset = prev.asset;
+  }
   project.shots = shots;
   project.style = styleDecision;
   project.materialDecisions = Object.fromEntries(

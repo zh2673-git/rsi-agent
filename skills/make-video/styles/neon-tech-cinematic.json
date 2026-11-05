@@ -105,11 +105,7 @@
       "evidence-card",
       "presenter-card"
     ],
-    "sceneBias": [
-      "typography",
-      "comparison",
-      "flow"
-    ],
+    "sceneBias": ["deep-stage", "kinetic-type", "typography", "comparison", "flow"],
     "sceneDeny": [
       "iso-stage",
       "css3d"

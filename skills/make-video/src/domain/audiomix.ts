@@ -79,14 +79,17 @@ export async function duckBgm(bgm: string, voTrack: string, dir: string): Promis
     '-i', bgm,
     '-i', voTrack,
     '-filter_complex',
-    '[0:a]highpass=f=55,' +
+    '[0:a]highpass=f=95,' +
+      'equalizer=f=110:t=q:w=0.9:g=-5.0,' +   // 收掉次低频/贝斯尾巴：小扬声器放不出，只会露出拍频与谐波
       'equalizer=f=260:t=q:w=1.1:g=-6.5,' +   // 人声基频区让位
       'equalizer=f=700:t=q:w=1.4:g=-2.0,' +   // 胸声/鼻音区轻让
       'equalizer=f=3200:t=q:w=1.2:g=-2.5,' +  // 齿音区轻让（保清晰度）
       'equalizer=f=9000:t=h:w=2000:g=+1.5,' + // 极轻空气感（不参与人声辨识）
       'volume=-9dB,aformat=channel_layouts=stereo[bed];' +
       '[1:a]aformat=channel_layouts=stereo[sc];' +
-      '[bed][sc]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=400[out]',
+      // 侧链阈值/比率按短旁白（≤20s、停顿稀疏）标定：旧 threshold=0.05 时
+      // 旁白几乎连续的短片只压出 ~1dB，V-SND-006 的「确实在让人声」判据会失守。
+      '[bed][sc]sidechaincompress=threshold=0.02:ratio=9:attack=15:release=280[out]',
     '-map', '[out]', out,
   ]);
   return out;

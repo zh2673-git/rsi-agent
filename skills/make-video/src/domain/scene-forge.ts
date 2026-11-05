@@ -109,6 +109,11 @@ export async function drawScene(
     throw mvError(ERR.SCENE_INVALID, `场景模板不存在: ${templateName}`);
   }
   const tokens = tokensFromPack(pack);
+  // 重音预算（V-MOT-013）：按镜序号确定性地挑约 1/3 的镜头带标点。
+  // 为什么在 forge 里分而不是在模板里随手砸：标点是全片资源，单镜看不见全片。
+  // 为什么用镜序号的哈希而不是「每 3 镜一次」：固定节拍就是节拍器，
+  // 打散后观众感觉不到规律，但总量仍受预算约束。
+  const accentOn = accentBudget(project, shot.id);
   const html = renderTemplate(await readTemplate(templateFile), {
     shot,
     project,
@@ -118,6 +123,7 @@ export async function drawScene(
     .replace('{{SCENE_PROGRAM}}', isCanvas ? templateName.slice('canvas:'.length) : '')
     .replace('{{KICKER}}', isCanvas ? escapeHtml(String(shot.visual.params?.['kicker'] ?? '')) : '')
     .replace('{{BEATS}}', isCanvas ? String(BEATS_PER_PROGRAM[templateName.slice('canvas:'.length)] ?? 6) : '')
+    .replace('{{ACCENT_FLAG}}', accentOn ? '1' : '0')
     .replace(/\{\{STAR_SEED\}\}/g, String(hashSeed(shot.id)));
   const issues = validateSceneHtml(
     html,
@@ -281,6 +287,41 @@ function hashSeed(s: string): number {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0) % 100000;
+}
+
+/**
+ * 重音预算分配（V-MOT-013）：全片约 1/3 的镜头带标点（slam/punch/whip）。
+ *
+ * 判据要让「这一镜真的需要重音」压过「均匀撒点」：
+ *   1. 第一镜必须有（V-MOT-018 开头是具体小场景，需要那一下砸）；
+ *   2. 最后两镜优先（收尾金句是天然的标点位置）；
+ *   3. 其余按 shotId 哈希打散，配额 = ceil(n/3) - 已用。
+ * 为什么不用「每 3 镜一次」：固定节拍就是节拍器，观众会感觉到规律。
+ */
+export function accentBudget(project: Project, shotId: string): boolean {
+  const n = project.shots.length;
+  if (n <= 1) return true;
+  const quota = Math.max(1, Math.ceil(n / 3));
+  const idx = project.shots.findIndex((s) => s.id === shotId);
+  if (idx < 0) return false;
+  if (idx === 0) return true;
+  // 末两镜优先占配额
+  const tail = new Set<number>();
+  for (let i = Math.max(1, n - 2); i < n && tail.size < Math.max(0, quota - 1); i += 1) tail.add(i);
+  if (tail.has(idx)) return true;
+  // 剩余配额按哈希打散到中间镜
+  const mid = [];
+  for (let i = 1; i < n; i += 1) if (!tail.has(i)) mid.push(i);
+  const remaining = Math.max(0, quota - 1 - tail.size);
+  if (remaining === 0) return false;
+  const picked = new Set<number>();
+  const scored = mid
+    .map((i) => ({ i, k: hashSeed(project.shots[i]!.id) }))
+    .sort((a, b) => a.k - b.k)
+    .slice(0, remaining)
+    .map((x) => x.i);
+  for (const i of scored) picked.add(i);
+  return picked.has(idx);
 }
 
 // 各画面程序的编排节拍数（V-RHY-006 每 2-3s 一次视觉变化的校验数据源）

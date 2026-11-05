@@ -1,0 +1,166 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{SCENE_ID}} · deep-stage</title>
+<!--
+  动效语法：t1 3b1b（一个对象形变成下一个）+ 03 深色 3D 多屏（阿杜 anim4 纵深舞台）
+  铁律：
+    - 风格声明 css3d 必须真的调 3D 原语（V-STYLE-008），父级 perspective + preserve-3d；
+    - 纵深舞台：前中后层分离、遮挡和速度差引导焦点，主体抬升；
+    - 重音预算：1 次 MV.punch + 1 次 MV.whip（V-MOT-013）；
+    - 母题循环让「画一直是活的」，与主体动作分离。
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  /* 子合成根到 .stage 之间还有一层 [data-scene-id] 包装（wrapComposition 提供），
+     不给它尺寸，绝对定位子元素就会落进 0 高度盒子（整帧只剩 body 底色）。
+     已有场景模板都写了这一条，新模板漏了会静默出一张黑图。 */
+  [data-scene-id] { position: relative; width: 100%; height: 100%; }
+  body { font-family: {{FONT}}; background: #06080d; color: {{NEUTRAL_4}}; }
+
+  .stage {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    perspective: 1200px; transform-style: preserve-3d;
+    background:
+      radial-gradient(ellipse at 50% 26%, {{PRIMARY}}2e 0%, transparent 62%),
+      linear-gradient(172deg, #0a0f18 0%, #05070c 100%);
+  }
+
+  /* 地面网格：真实透视（rotateX），不是缩放贴图 */
+  .floor {
+    position: absolute; left: -70%; right: -70%; top: 46%; bottom: -70%;
+    transform: rotateX(70deg); transform-origin: 50% 0;
+    background-image:
+      linear-gradient({{ACCENT}}3a 1px, transparent 1px),
+      linear-gradient(90deg, {{ACCENT}}3a 1px, transparent 1px);
+    background-size: 90px 90px; opacity: 0.55;
+  }
+
+  /* 后方光晕：环境母题（呼吸/明暗），与主体分离 */
+  .halo {
+    position: absolute; left: 50%; top: 30%; width: 52vmin; height: 52vmin;
+    margin: -26vmin 0 0 -26vmin; border-radius: 50%;
+    background: radial-gradient(circle, {{ACCENT}}55 0%, transparent 68%);
+    filter: blur({{BLOOM}}px); opacity: 0.62;
+  }
+
+  /* 卡阵：三屏展陈，data-depth 驱动分层景深（前中后不同 z 与速度） */
+  .deck {
+    position: absolute; left: 50%; top: 52%; width: 74%; height: 40%;
+    margin-left: -37%; transform-style: preserve-3d;
+  }
+  .panel {
+    position: absolute; top: 0; width: 29%; height: 74%; border-radius: 12px;
+    background: linear-gradient(158deg, {{PRIMARY}}cc, #0b1018dd);
+    border: 1px solid {{ACCENT}}55;
+    box-shadow: 0 28px 64px rgba(0,0,0,0.62), inset 0 1px 0 {{ACCENT}}44;
+    display: flex; align-items: flex-end; padding: 2.6%;
+    box-sizing: border-box; overflow: hidden;
+  }
+  .panel .lbl {
+    font-size: calc({{BODY_SIZE}}px * 0.8); font-weight: 700; letter-spacing: 0.1em;
+    color: {{NEUTRAL_4}}; opacity: 0.82; line-height: 1.35;
+  }
+  .panel.p1 { left: 0; } .panel.p2 { left: 35.5%; } .panel.p3 { left: 71%; }
+
+  /* 主语：这一镜要落定的那一件事，压在卡阵之上 */
+  .subject {
+    position: absolute; left: 8%; right: 8%; top: 13%;
+    font-size: {{TITLE_SIZE}}px; font-weight: 800; line-height: 1.14;
+    letter-spacing: -0.02em; color: #fff;
+    text-shadow: 0 4px 32px rgba(0,0,0,0.7);
+    z-index: 5;
+  }
+  .subject em {
+    font-style: normal; color: {{ACCENT}};
+    /* isolation:isolate 让 em 自建 stacking context，高亮条 z-index:-1 才会落在字后面
+       （否则会被合成根的不透明背景整条盖掉 —— hyperframes negative_z_index lint） */
+    position: relative; display: inline-block; isolation: isolate;
+  }
+  .subject em .hl {
+    position: absolute; left: -0.05em; right: -0.05em; bottom: 0.04em; height: 0.3em;
+    background: {{ACCENT}}; opacity: 0.28; z-index: -1; display: block; border-radius: 2px;
+    transform-origin: 0 50%;
+  }
+
+  .kicker {
+    position: absolute; left: 8%; top: 7%; z-index: 5;
+    font-size: {{BODY_SIZE}}px; font-weight: 600; letter-spacing: 0.26em;
+    text-transform: uppercase; color: {{ACCENT}}; opacity: 0.85;
+  }
+  .hint {
+    position: absolute; left: 8%; bottom: 8%; z-index: 5;
+    font-size: {{BODY_SIZE}}px; line-height: 1.6; color: {{NEUTRAL_3}};
+    opacity: 0.7; max-width: 62%;
+  }
+
+  .letterbox { position: absolute; inset: 0; pointer-events: none; display: {{LETTERBOX}};
+    background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: {{GRAIN}};
+    background-image: repeating-radial-gradient(circle at 34% 42%, rgba(255,255,255,0.10) 0 0.5px, transparent 0.6px 2.2px);
+    background-size: 3px 3px; mix-blend-mode: overlay; }
+  .vignette { position: absolute; inset: 0; pointer-events: none; opacity: {{VIGNETTE}};
+    background: radial-gradient(ellipse at center, transparent 44%, rgba(0,0,0,0.72) 128%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+<div data-scene-id="{{SCENE_ID}}" data-beats="6" data-accent="{{ACCENT_FLAG}}">
+  <div class="stage">
+    <div class="halo" data-motif></div>
+    <div class="floor" data-floor></div>
+    <div class="kicker" data-rank="tertiary">{{KICKER}}</div>
+    <div class="subject" data-rank="primary"><em>{{HERO_WORD}}<span class="hl"></span></em></div>
+    <div class="deck">
+      <div class="panel p1" data-depth="0.35"><span class="lbl">{{PANEL1}}</span></div>
+      <div class="panel p2" data-depth="0.7"><span class="lbl">{{PANEL2}}</span></div>
+      <div class="panel p3" data-depth="1"><span class="lbl">{{PANEL3}}</span></div>
+    </div>
+    <div class="hint" data-rank="secondary">{{SUB_LINE}}</div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+</div>
+<script src="../motion/gsap.min.js"></script>
+<script src="../motion/motion-lib.js"></script>
+<script>
+(function () {
+  function boot() {
+    MV.use('scene-{{SCENE_ID}}');
+    if (!MV.timeline()) return;
+    var accentEl = document.querySelector('[data-accent]');
+    var accent = accentEl ? accentEl.getAttribute('data-accent') === '1' : true;
+
+    // ① 标点镜才砸（V-MOT-013 全片预算）；非标点镜走缓入，一样有主角但不抢重音
+    if (accent) {
+      MV.slam('.subject', { delay: 60 });
+    } else {
+      MV.enter('.subject', { easing: 'power3.out', duration: 600, from: { opacity: 0, y: 48 } });
+    }
+    MV.highlight('.subject em .hl', { delay: 300 });
+
+    // ② 错峰：kicker 先、hint 压后
+    MV.staggeredIn('.kicker, .hint', { delay: 120, secondary: 200, tertiary: 320 });
+
+    // ③ 真 3D：分层景深 + 转台 + 立方体转动（V-STYLE-008 css3d 必须落地）
+    MV.depth('.panel', { strength: 1.25 });
+    MV.orbit('.deck', { step: 16, duration: 2000 });
+    MV.tilt3d('.deck', { amp: 5, duration: 1800 });
+
+    // ④ 地面网格擦除揭示（纵深「长出来」而不是淡入）
+    MV.maskReveal('.floor', { dir: 'up', duration: 500, delay: 240 });
+
+    // ⑤ 重音标点：快推后停住（不是慢推到底）
+    MV.punch('.stage', { delay: {{PUNCH_AT}}, amp: 1.1 });
+
+    // ⑥ 环境层：光晕呼吸 + 地面缓慢旋转感（与主体分离，画面一直是活的）
+    MV.motifLoop('.halo', { kind: 'shimmer', amp: 0.34, span: 14 });
+    MV.motifLoop('.floor', { kind: 'rotate', amp: 0.5, duration: 2000, span: 14 });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{SCENE_ID}} · kinetic-type</title>
+<!--
+  动效语法：y5 动态文字（花叔 huashu-art-motion 的核心语法）
+  铁律：字就是演员。关键词踩重音砸进来，主词大到一眼读完，画面永远只有一个焦点。
+
+  重音纪律（V-MOT-013）：slam 是**标点**，不是每镜都砸。
+  这一镜砸不砸由 {{ACCENT}} 决定（composer 按全片预算分配，约 1/3 的镜头带标点）；
+  非标点镜只走错峰入场 + 环境母题，一样是活的，但不抢重音资源。
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  /* 子合成根到 .stage 之间还有一层 [data-scene-id] 包装（wrapComposition 提供），
+     必须给它尺寸，否则绝对定位子元素落进 0 高度盒子（整帧只剩 body 底色）。 */
+  [data-scene-id] { position: relative; width: 100%; height: 100%; }
+  body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; color: {{NEUTRAL_0}}; }
+
+  .stage {
+    position: relative; width: 100%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 9% 10%; box-sizing: border-box;
+    background:
+      radial-gradient(ellipse at 78% 18%, {{ACCENT}}22 0%, transparent 56%),
+      linear-gradient(168deg, {{NEUTRAL_4}} 0%, {{NEUTRAL_3}} 100%);
+  }
+
+  /* 环境层：底色网格在极慢呼吸（花叔「画要一直是活的」） */
+  .grain-field {
+    position: absolute; inset: -6%;
+    background-image:
+      repeating-linear-gradient(0deg, {{NEUTRAL_2}}14 0 1px, transparent 1px 4.2vmin),
+      repeating-linear-gradient(90deg, {{NEUTRAL_2}}14 0 1px, transparent 1px 4.2vmin);
+    opacity: 0.5; pointer-events: none;
+  }
+
+  /* 色带（MV.bands 的通道）：换场用，扫过去不丢画面 */
+  .band { position: absolute; left: 0; right: 0; height: 33.4%; background: {{PRIMARY}}; opacity: 0; pointer-events: none; }
+  .band.b1 { top: 0; } .band.b2 { top: 33.3%; background: {{ACCENT}}; } .band.b3 { top: 66.6%; }
+
+  /* 主语：一句话里最该被记住的那个词，全屏最大 */
+  .subject {
+    position: relative; z-index: 3;
+    font-size: {{TITLE_SIZE}}px; font-weight: 800; line-height: 1.06;
+    letter-spacing: -0.03em; color: {{NEUTRAL_0}};
+    max-width: 92%;
+  }
+  .subject em {
+    font-style: normal; color: {{PRIMARY}};
+    /* 高亮的底色条由 .hl 单独铺，避免文字本体重排（seek 抖动）。
+       em 自身建立 stacking context —— 高亮条用 z-index:-1 才会落在字后面而不是被根背景盖掉
+       （hyperframes negative_z_index lint 的成因就是这个）。 */
+    position: relative; display: inline-block; isolation: isolate;
+  }
+  .subject em .hl {
+    position: absolute; left: -0.06em; right: -0.06em; bottom: 0.06em; height: 0.34em;
+    background: {{ACCENT}}; opacity: 0.42; z-index: -1; transform-origin: 0 50%;
+    display: block; border-radius: 2px;
+  }
+
+  /* 数字：一段只有一个数时用它，不画图表（花叔兜底二） */
+  .figure {
+    position: absolute; right: 10%; bottom: 16%; z-index: 3;
+    font-size: calc({{TITLE_SIZE}}px * 0.92); font-weight: 800;
+    color: {{PRIMARY}}; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.04em;
+  }
+
+  /* 辅助层：让位（≤70% 透明度，V-MOT-004） */
+  .kicker {
+    position: relative; z-index: 3;
+    font-size: {{BODY_SIZE}}px; font-weight: 600; letter-spacing: 0.28em;
+    text-transform: uppercase; color: {{NEUTRAL_2}}; margin-bottom: 2.2vmin;
+  }
+  .hint {
+    position: relative; z-index: 3;
+    margin-top: 3.4vmin; font-size: {{BODY_SIZE}}px; line-height: 1.65;
+    color: {{NEUTRAL_2}}; max-width: 78%; opacity: 0.7;
+  }
+
+  /* 结构线：从左侧生长，方向感来自它而不是整体位移 */
+  .rule-line {
+    position: absolute; left: 10%; top: 22%; width: 3px; height: 24%;
+    background: linear-gradient(180deg, {{PRIMARY}}, transparent);
+    transform-origin: 50% 0; z-index: 2;
+  }
+
+  .letterbox { position: absolute; inset: 0; pointer-events: none; display: {{LETTERBOX}};
+    background: linear-gradient(to bottom, #000 0 8%, transparent 8% 92%, #000 92% 100%); }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: {{GRAIN}};
+    background-image: repeating-radial-gradient(circle at 30% 40%, rgba(255,255,255,0.09) 0 0.5px, transparent 0.6px 2.2px);
+    background-size: 3px 3px; mix-blend-mode: multiply; }
+  .vignette { position: absolute; inset: 0; pointer-events: none; opacity: {{VIGNETTE}};
+    background: radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,0.55) 132%); }
+</style>
+</head>
+<body data-scene-id="{{SCENE_ID}}">
+<div data-scene-id="{{SCENE_ID}}" data-beats="5" data-accent="{{ACCENT_FLAG}}">
+  <div class="stage">
+    <div class="grain-field" data-motif></div>
+    <div class="rule-line" data-rule></div>
+    <div class="kicker" data-rank="tertiary">{{KICKER}}</div>
+    <div class="subject" data-rank="primary"><em>{{HERO_WORD}}<span class="hl"></span></em></div>
+    <div class="figure">{{FIGURE}}</div>
+    <div class="hint" data-rank="secondary">{{SUB_LINE}}</div>
+    <div class="band b1"></div><div class="band b2"></div><div class="band b3"></div>
+  </div>
+  <div class="letterbox"></div>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+</div>
+<script src="../motion/gsap.min.js"></script>
+<script src="../motion/motion-lib.js"></script>
+<script>
+(function () {
+  function boot() {
+    MV.use('scene-{{SCENE_ID}}');
+    if (!MV.timeline()) return;
+    // 这一镜是否带重音标点（全片预算由 composer 分配，约 1/3）
+    var accent = (document.querySelector('[data-accent]') || {}).getAttribute
+      ? document.querySelector('[data-accent]').getAttribute('data-accent') === '1'
+      : false;
+
+    if (accent) {
+      // ① 标点镜：整词砸入（0.17s 1.55→0.94→1.0）——这一镜唯一的标点
+      MV.slam('.subject', { delay: 60 });
+      MV.highlight('.subject em .hl', { delay: 300 });
+    } else {
+      // ② 非标点镜：仍是「字是演员」，但用缓入 + 高亮扫过，不砸
+      MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, y: 54 } });
+      MV.highlight('.subject em .hl', { delay: 360 });
+    }
+
+    // ③ 错峰：kicker 先落、hint 压后（data-rank 分级，禁同拍响）
+    MV.staggeredIn('.kicker, .hint', { delay: 120, secondary: 180, tertiary: 320 });
+
+    // ④ 数字滚动：落定在口播说到它那一刻，quintOut 收尾
+    MV.counter('.figure', { from: 0, to: {{FIGURE_TO}}, decimals: {{FIGURE_DEC}}, suffix: '{{FIGURE_SUFFIX}}', delay: {{FIGURE_AT}} });
+
+    // ⑤ 结构线从上方生长（不是整体位移）
+    MV.maskReveal('.rule-line', { dir: 'down', duration: 500, delay: 180 });
+
+    // ⑥ 环境层母题循环：与主体分离，画面一直在动但不抢戏
+    MV.motifLoop('.grain-field', { kind: 'shimmer', amp: 0.3, span: 14 });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

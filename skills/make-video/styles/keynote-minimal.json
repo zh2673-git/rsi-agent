@@ -104,10 +104,7 @@
       "single-subject",
       "hairline-grid"
     ],
-    "sceneBias": [
-      "typography",
-      "comparison"
-    ],
+    "sceneBias": ["kinetic-type", "typography", "paper-stage", "comparison"],
     "sceneDeny": [
       "comic-symbol",
       "iso-stage",

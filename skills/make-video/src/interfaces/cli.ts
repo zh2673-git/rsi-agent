@@ -551,6 +551,16 @@ program
         produced,
         p.timeline.shots.reduce((a, s) => a + s.durationMs, 0),
       );
+      // 与 engine.run() 的 render 阶段对齐：校验通过就把阶段推到 done、镜头标 ready，
+      // 否则 `status` 永远停在 compose，续跑时会重渲染一遍。
+      const badOut = outChecks.filter((c) => !c.ok);
+      if (badOut.length === 0) {
+        for (const shot of p.shots) {
+          if (shot.state !== 'ready') shot.state = 'ready';
+        }
+        p.stage = 'done';
+        await engine.deps.store.save(p);
+      }
       out({ outFile: produced, checks: outChecks });
     } catch (e) {
       fail(e);

@@ -114,11 +114,7 @@
       "ink-structure",
       "soft-haze"
     ],
-    "sceneBias": [
-      "typography",
-      "comparison",
-      "chart"
-    ],
+    "sceneBias": ["kinetic-type", "paper-stage", "typography", "comparison", "chart"],
     "sceneDeny": [],
     "texture": [
       "paper",

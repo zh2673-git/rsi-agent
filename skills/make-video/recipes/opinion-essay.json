@@ -24,7 +24,7 @@
   "subtitles": "大字金句卡",
   "headTail": { "head": "观点大字卡", "tail": "互动提问尾" },
   "sound": { "bgmArc": "克制→上扬→收束", "sfxSet": ["hit", "riser"] },
-  "templates": ["typography", "comparison"],
+  "templates": ["typography", "comparison", "kinetic-type", "paper-stage"],
   "durationTiers": {
     "0-5": { "wordsPerMin": 130, "structure": "立论-论证-金句", "chapters": 0 },
     "5-10": { "wordsPerMin": 150, "structure": "完整论证链", "chapters": 2 },

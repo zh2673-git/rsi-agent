@@ -63,7 +63,16 @@
   帧驱动，帧索引是合成时间的纯函数），不再退回首帧静图；图片/视频统一套风格包
   `visuals.media` 的调色、颗粒、暗角、遮幅与运镜。AI 生图是付费能力，**调用前必须问用户**，
   授权后 `confirm --allow-ai` 才放行（`V-AI-001` 闸门）
-- **断点续跑**：全部状态落 IR，单镜重试、阶段回拨、局部重生成
+- **动效语法（P7）**：动效不是"哪里都加"，而是落在该落的词上——9 种镜头语法
+  （kinetic-type 排版 / collage 拼贴 / whiteboard 白板 / b-roll 素材切 / chart 数据 /
+  demo 演示 / listicle 清单 / dialogue 对话 / atmosphere 氛围），按旁白语义打分选型
+  并硬排除冲突项；12 个动效原语（`slam` 砸词 / `staggeredIn` 错峰 / `morphTo` 形变 /
+  `counter` 数字 / `highlight` 荧光笔 / `cards` 卡组 / `punch` 冲击 / `whip` 甩 /
+  `drift` 漂移 / `maskReveal` 遮罩 / `bands` 色带 / `motifLoop` 环境母题），全是有界
+  补间（逐帧可复现）。**重音预算是硬约束**：加粗/砸词的镜头 ≤1/3，全篇都砸等于没有重点
+  （V-MOT-013~020，审计落 `logs/motion-audit.json`）
+- **断点续跑**：全部状态落 IR，单镜重试、阶段回拨、局部重生成；重跑分镜时旁白原文未变的
+  镜头**沿用已有配音与素材**（不因一次微调就重配音）
 
 ## 快速开始
 

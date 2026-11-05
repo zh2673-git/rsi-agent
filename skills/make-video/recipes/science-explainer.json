@@ -24,7 +24,7 @@
   "subtitles": "关键词高亮（Mayer 信号原则）",
   "headTail": { "head": "钩子大字卡", "tail": "订阅引导尾" },
   "sound": { "bgmArc": "轻快→专注→明亮", "sfxSet": ["whoosh", "pop"] },
-  "templates": ["typography", "chart", "flow", "comparison", "atmosphere"],
+  "templates": ["typography", "chart", "flow", "comparison", "atmosphere", "kinetic-type", "paper-stage", "deep-stage"],
   "durationTiers": {
     "0-5": { "wordsPerMin": 130, "structure": "钩子前置，单章节", "chapters": 0 },
     "5-10": { "wordsPerMin": 150, "structure": "完整三幕，2-4 章节标记", "chapters": 3 },

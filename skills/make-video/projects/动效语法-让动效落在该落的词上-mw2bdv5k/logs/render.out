@@ -1,0 +1,20 @@
+{
+  "outFile": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\动效语法-让动效落在该落的词上-mw2bdv5k\\out\\动效语法-让动效落在该落的词上-mw2bdv5k.mp4",
+  "checks": [
+    {
+      "name": "duration",
+      "ok": true,
+      "detail": "42167ms vs 时间线 42160ms（差 7ms）"
+    },
+    {
+      "name": "resolution",
+      "ok": true,
+      "detail": "1920x1080"
+    },
+    {
+      "name": "nonempty",
+      "ok": true,
+      "detail": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\make-video\\projects\\动效语法-让动效落在该落的词上-mw2bdv5k\\out\\动效语法-让动效落在该落的词上-mw2bdv5k.mp4"
+    }
+  ]
+}
