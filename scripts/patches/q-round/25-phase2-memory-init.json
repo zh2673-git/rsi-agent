@@ -1,0 +1,1 @@
+{"id":"Q2-06","description":"memory_plugin.ts：init 建 sidecar 目录与索引初态（destroy 对称）","file":"runtime/plugins/memory/memory_plugin.ts","anchor_file":"blocks/q2-memory-init-anchor.txt","patch_file":"blocks/q2-memory-init-patch.txt"}

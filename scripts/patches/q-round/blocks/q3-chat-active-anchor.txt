@@ -1,0 +1,2 @@
+        let out = self.chat_run(env, &req).await;
+        self.cancels.lock().unwrap().remove(&req.session_id);

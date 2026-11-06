@@ -1,0 +1,12 @@
+  es.onmessage = (m) => {
+    let ev; try { ev = JSON.parse(m.data); } catch { return; }
+    // Q 轮：服务端帧带精确 trace 游标（after + 本批序号）。优先用之——
+    // 跨批/跳帧时前端自增计数会漂，切回缓存会话就会重放重复气泡。
+    if (ev && typeof ev.cursor === "number" && ev.cursor >= 0) {
+      lastAfter = ev.cursor; preciseCursor = true;
+    } else if (ev && ev.type && !String(ev.type).startsWith("stream_") && !preciseCursor) {
+      lastAfter++; // 无 cursor 字段的旧服务端：退回自增近似
+    }
+    if (ev) delete ev.cursor;           // 渲染层不感知游标字段
+    try { render(ev); } catch (e) { console.warn("render failed:", ev?.type, e); } // 单事件渲染异常不拖垮游标与后续事件
+  };

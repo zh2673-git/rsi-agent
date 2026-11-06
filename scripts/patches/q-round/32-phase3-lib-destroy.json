@@ -1,0 +1,1 @@
+{"id":"Q3-03","description":"agent-loop lib.rs：destroy 清队列（时空闭环）","file":"runtime/crates/agent-loop/src/lib.rs","anchor_file":"blocks/q3-lib-destroy-anchor.txt","patch_file":"blocks/q3-lib-destroy-patch.txt"}

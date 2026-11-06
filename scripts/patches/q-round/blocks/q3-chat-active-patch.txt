@@ -1,0 +1,4 @@
+        // Q 轮：标记在途 chat（显式队列据此决定 steer 注入 / pump 延迟启动）。
+        queue::mark_active(&req.session_id, true);
+        let out = self.chat_run(env, &req).await;
+        self.cancels.lock().unwrap().remove(&req.session_id);

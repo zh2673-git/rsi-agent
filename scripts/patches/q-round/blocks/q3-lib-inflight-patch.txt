@@ -1,0 +1,2 @@
+        // Q 轮：槽位可配（缺省保持 8 / 32；非法值 fail-closed 回退缺省）。
+        max_inflight: Some(std::env::var("AGENT_MAX_INFLIGHT").ok().and_then(|v| v.trim().parse::<usize>().ok()).filter(|n| *n >= 2 && *n <= 128).unwrap_or(8)),

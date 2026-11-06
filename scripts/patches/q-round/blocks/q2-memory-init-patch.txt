@@ -1,0 +1,6 @@
+  init(_config: unknown): void {
+    fs.mkdirSync(sessionsDir(), { recursive: true });
+    fs.mkdirSync(tracesDir(), { recursive: true });
+    fs.mkdirSync(eventsDir(), { recursive: true });  // Q 轮：append-only sidecar 目录
+    if (!fs.existsSync(indexFile())) saveIndex({ sessions: [] }); // init/destroy 成对：派生索引有初态
+  },

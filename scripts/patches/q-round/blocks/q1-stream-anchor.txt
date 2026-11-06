@@ -1,0 +1,8 @@
+function resetStreamState() {
+  streamSid = streamCard = streamBody = streamStats = null;
+  streamBuf.reasoning = "";
+  streamBuf.text = "";
+  processBox = processBody = processThink = null;
+  roundCards = [];
+  subBoxes.clear();
+}

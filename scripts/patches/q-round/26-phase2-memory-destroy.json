@@ -1,0 +1,1 @@
+{"id":"Q2-07","description":"memory_plugin.ts：destroy 清内存缓存对称收口","file":"runtime/plugins/memory/memory_plugin.ts","anchor_file":"blocks/q2-memory-destroy-anchor.txt","patch_file":"blocks/q2-memory-destroy-patch.txt"}

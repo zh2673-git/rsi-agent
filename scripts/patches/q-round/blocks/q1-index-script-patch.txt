@@ -1,0 +1,2 @@
+<script src="/vendor/q-session.js" defer></script>
+<script src="/vendor/app-core.js" defer></script>

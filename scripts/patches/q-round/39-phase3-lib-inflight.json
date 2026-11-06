@@ -1,0 +1,1 @@
+{"id":"Q3-10","description":"agent-loop lib.rs：max_inflight 读 AGENT_MAX_INFLIGHT（缺省 8）","file":"runtime/crates/agent-loop/src/lib.rs","anchor_file":"blocks/q3-lib-inflight-anchor.txt","patch_file":"blocks/q3-lib-inflight-patch.txt"}

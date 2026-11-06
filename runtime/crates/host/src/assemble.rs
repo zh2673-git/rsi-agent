@@ -73,7 +73,8 @@ impl HostSpec {
         assets_env.push(("WORKSPACE_ROOT".into(), config::workspace_root()));
         Self {
             node_id: "react-agent".into(),
-            max_total_inflight: 32,
+            // Q 轮：全局槽位可配（缺省 32；非法值回退缺省，assemble 单测断言不变）。
+        max_total_inflight: std::env::var("AGENT_MAX_TOTAL_INFLIGHT").ok().and_then(|v| v.trim().parse::<usize>().ok()).filter(|n| *n >= 8 && *n <= 1024).unwrap_or(32),
             plugins: vec![
                 PluginSpec {
                     id: "memory".into(),

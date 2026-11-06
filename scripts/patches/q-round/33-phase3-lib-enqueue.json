@@ -1,0 +1,1 @@
+{"id":"Q3-04","description":"agent-loop lib.rs：queue_enqueue 方法（入队 + 空闲即 spawn pump）","file":"runtime/crates/agent-loop/src/lib.rs","anchor_file":"blocks/q3-lib-enqueue-anchor.txt","patch_file":"blocks/q3-lib-enqueue-patch.txt"}

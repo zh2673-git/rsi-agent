@@ -1,0 +1,19 @@
+function delSession(id) {
+  if (!confirm("删除会话 " + id + "？（仅清本地记录，服务端消息日志保留）")) return;
+  let arr = loadSessions().filter((x) => x.id !== id);
+  saveSessions(arr);
+  if (session === id) {
+    session = arr.length ? arr[0].id : "web";
+    localStorage.setItem(CKEY, session);
+  }
+  dropSessionCache(id);                 // 回滚/删除会 connect(0)，缓存必须失效，防已删内容复活
+  refreshSessionTag();
+  renderSessions(); connect(undefined, true);
+}
+function switchSession(id) {
+  if (id === session) return;
+  snapshotSessionFeed(session);         // 离开前存 DOM 快照 + 精确游标
+  session = id; localStorage.setItem(CKEY, id); touchSession(id);
+  refreshSessionTag();
+  renderSessions(); connect(undefined, true);  // 命中缓存则瞬时显示 + 增量追赶
+}

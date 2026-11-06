@@ -1,0 +1,1 @@
+{"id":"Q3-11","description":"host assemble.rs：max_total_inflight 读 AGENT_MAX_TOTAL_INFLIGHT（缺省 32）","file":"runtime/crates/host/src/assemble.rs","anchor_file":"blocks/q3-assemble-inflight-anchor.txt","patch_file":"blocks/q3-assemble-inflight-patch.txt"}

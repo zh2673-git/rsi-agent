@@ -246,6 +246,8 @@ impl AgentLoopPlugin {
                 return json!({"ok": false, "error": {"code": "K409", "message": "该会话已有进行中的对话，拒绝并发 chat（会互踩取消/流式/回滚定位）；请等待完成或先停止当前回合"}});
             }
         };
+        // Q 轮：标记在途 chat（显式队列据此决定 steer 注入 / pump 延迟启动）。
+        queue::mark_active(&req.session_id, true);
         let out = self.chat_run(env, &req).await;
         self.cancels.lock().unwrap().remove(&req.session_id);
         // 空间卫生（A4）：会话级瞬态表逐出，防长驻进程无界增长。
@@ -260,6 +262,12 @@ impl AgentLoopPlugin {
             self.session_chats.lock().unwrap().remove(&req.session_id);
         }
         drop(_permit);
+        // Q 轮：闸释放之后再 spawn 队列消费者——pump 的第一条 chat 才不会撞 K409。
+        queue::mark_active(&req.session_id, false);
+        queue::leftover_steers_to_followup(&req.session_id); // 未赶上的 steer 不丢
+        if let Some(host) = self.host.get() {
+            queue::try_spawn(host, &req.session_id);
+        }
         out
     }
 
@@ -385,8 +393,27 @@ impl AgentLoopPlugin {
             rounds += 1;
             // 停车检查点①：每轮开头——取消（硬中止，用户意愿最高）优先，
             // 其次预算：token 硬停，墙钟软收敛（见 budget::StopReason）。
+            // 停车检查点①：每轮开头——取消（硬中止，用户意愿最高）优先，
+            // 其次预算：token 硬停，墙钟软收敛（见 budget::StopReason）。
             if let Some(v) = self.check_cancel(env, &req.session_id).await {
                 return v;
+            }
+            // Q 轮 Phase 3：steering（软插队）——在取消检查之后、LLM 规划之前，把
+            // 队列里 target=steer 的文本作为一条 user 消息注入当前工作集，不新开 chat。
+            // 不写 trace user 事件：回滚按 trace 的 user 计数定位，注入不能污染该口径；
+            // 该消息只在本轮 messages 里对模型可见（Model-visible 原文已由队列持久化）。
+            let steers = queue::take_steers(&req.session_id);
+            if !steers.is_empty() {
+                let injected = MemoryMsg {
+                    role: "user".into(),
+                    content: Some(format!("[用户追加指令（轮次边界注入）]\n{}", steers.join("\n\n"))),
+                    tool_calls: None,
+                    tool_call_id: None,
+                    attachments: None,
+                };
+                // 只用 messages 承载（本轮模型可见）；不写 trace 事件，避免触碰
+                // FROZEN_EVENT_TYPES 契约与任何历史重放口径。
+                messages.push(injected);
             }
             if let Some(reason) = self.check_budget(&budget, &usage) {
                 if reason.is_hard() {

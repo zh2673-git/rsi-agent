@@ -1,0 +1,1 @@
+{"id":"Q1-08","description":"app-events.js：send 改入队单消费者 / 插队 / Esc / 停止退回队列 / 回滚按 per-session 态","file":"runtime/crates/host/web-dist/vendor/app-events.js","anchor_file":"blocks/q1-events-send-anchor.txt","patch_file":"blocks/q1-events-send-patch.txt"}

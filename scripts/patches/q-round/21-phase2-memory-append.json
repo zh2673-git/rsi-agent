@@ -1,0 +1,1 @@
+{"id":"Q2-02","description":"memory_plugin.ts：append 写 sidecar / get 触发 TTL 逐出","file":"runtime/plugins/memory/memory_plugin.ts","anchor_file":"blocks/q2-memory-append-anchor.txt","patch_file":"blocks/q2-memory-append-patch.txt"}

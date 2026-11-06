@@ -1,0 +1,1 @@
+{"id":"Q3-05","description":"agent-loop chat.rs：chat_body 标记在途状态 + 出口 spawn pump","file":"runtime/crates/agent-loop/src/chat.rs","anchor_file":"blocks/q3-chat-active-anchor.txt","patch_file":"blocks/q3-chat-active-patch.txt"}

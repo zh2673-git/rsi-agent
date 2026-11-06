@@ -1,0 +1,1 @@
+{"id":"Q1-03","description":"app-core.js：切换/删除会话走缓存（离开快照、切回增量、删除清缓存）","file":"runtime/crates/host/web-dist/vendor/app-core.js","anchor_file":"blocks/q1-core-switch-anchor.txt","patch_file":"blocks/q1-core-switch-patch.txt"}

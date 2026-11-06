@@ -1,0 +1,10 @@
+        sessions.set(sessionId, compacted);
+        persist(sessionId, compacted);
+        // Q 轮：压缩不再等于删除原文——先追加一条 typed compaction 事件
+        // （摘要 + first_kept + tokens_before），工作集视图仍按旧语义替换，
+        // 后续可从 sidecar 重放/审计/分支，M1/M4/M10 的「破坏性覆写」消解。
+        appendSessionEvents(sessionId, [{
+          kind: "compaction", summary, first_kept: msgs.length - kept.length,
+          tokens_before: JSON.stringify(msgs).length, kept: kept.length,
+        }]);
+        return { ok: true, count: compacted.length };

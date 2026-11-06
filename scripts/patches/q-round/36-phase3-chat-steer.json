@@ -1,0 +1,1 @@
+{"id":"Q3-07","description":"agent-loop chat.rs：轮次边界 check_steer（注入当前工作集，不新开 chat / 不污染 user 计数）","file":"runtime/crates/agent-loop/src/chat.rs","anchor_file":"blocks/q3-chat-steer-anchor.txt","patch_file":"blocks/q3-chat-steer-patch.txt"}

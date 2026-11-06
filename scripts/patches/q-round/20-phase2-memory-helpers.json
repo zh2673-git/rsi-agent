@@ -1,0 +1,1 @@
+{"id":"Q2-01","description":"memory_plugin.ts：append-only sidecar / session.index / recall / TTL 基础设施","file":"runtime/plugins/memory/memory_plugin.ts","anchor_file":"blocks/q2-memory-helpers-anchor.txt","patch_file":"blocks/q2-memory-helpers.txt"}

@@ -274,6 +274,9 @@ pub const AGENT_ENV_MAP: &[(&str, &str)] = &[
     ("retry_base_ms", "LLM_RETRY_BASE_MS"),
     ("llm_context_tokens", "LLM_CONTEXT_TOKENS"),
     ("output_dir", "AGENT_OUTPUT_DIR"),
+    // Q 轮 Phase 3：并发槽位可配置（缺省仍为 8 / 32，assemble 单测断言不变）。
+    ("max_inflight", "AGENT_MAX_INFLIGHT"),
+    ("max_total_inflight", "AGENT_MAX_TOTAL_INFLIGHT"),
 ];
 
 /// 启动时把 config.json 应用为 env（spawn 下发走既有机制）。返回应用的键数。

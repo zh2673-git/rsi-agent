@@ -1,0 +1,1 @@
+{"id":"Q1-09","description":"gateway.rs：SSE 帧加精确 cursor 字段（不改事件类型全集）","file":"runtime/crates/host/src/web/gateway.rs","anchor_file":"blocks/q1-gateway-cursor-anchor.txt","patch_file":"blocks/q1-gateway-cursor-patch.txt"}

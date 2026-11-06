@@ -1,0 +1,3 @@
+        sessions.set(sessionId, compacted);
+        persist(sessionId, compacted);
+        return { ok: true, count: compacted.length };

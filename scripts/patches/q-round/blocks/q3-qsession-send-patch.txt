@@ -1,0 +1,15 @@
+// Q 轮：发送 = 入队 + 单消费者。运行中连发只入队、不发 chat fetch；每条在
+// drain 里各 POST 一次 /api/queue（服务端持久队列按入队顺序单消费者执行）。
+// 本地 qState.queue 只作「待发 UI」镜像；停止 = cancel + 队列退回输入框。
+async function send(presetText, presetAtts) {
+  const text = (presetText ?? input.value).trim();
+  if (!text) return;
+  const atts = presetAtts ? presetAtts : pendingAtts.splice(0);
+  if (presetText === undefined) { input.value = ""; input.style.height = "48px"; renderAtts(); }
+  touchSession(session);
+  autoName(session, text); // 标题为空时按首条消息自动命名
+  const s = qState(session);
+  s.queue.push({ text, atts });
+  queueOpen = true; renderQueue();
+  if (!s.draining) drain(session);
+}

@@ -1,0 +1,1 @@
+{"id":"Q1-02","description":"style.css：待发队列抽屉样式","file":"runtime/crates/host/web-dist/style.css","anchor":"  .wsp-empty { color: var(--faint); padding: 12px 4px; font-size: 13px; }\n","patch_file":"blocks/q1-style-patch.txt"}

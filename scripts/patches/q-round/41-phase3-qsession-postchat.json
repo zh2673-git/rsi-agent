@@ -1,0 +1,1 @@
+{"id":"Q3-12","description":"q-session.js：postChat 优先走服务端持久队列，旧 host 回退本地直发","file":"runtime/crates/host/web-dist/vendor/q-session.js","anchor_file":"blocks/q3-qsession-postchat-anchor.txt","patch_file":"blocks/q3-qsession-postchat-patch.txt"}

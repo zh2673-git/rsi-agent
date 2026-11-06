@@ -1,0 +1,25 @@
+    /// Q 轮 Phase 3：显式入队。当前会话空闲 → 立即 spawn pump；有在途 chat →
+    /// 由 chat_body 出口（闸释放后）spawn；steer 且在运行中 → 进轮次边界注入缓冲。
+    fn queue_enqueue(&self, env: &Envelope) -> Value {
+        let sid = env.payload.get("session_id").and_then(Value::as_str).unwrap_or("");
+        let text = env.payload.get("user_text").and_then(Value::as_str).unwrap_or("");
+        if sid.is_empty() || text.trim().is_empty() {
+            return json!({"ok": false, "error": {"code": "K400", "message": "queue/enqueue 需 session_id + user_text"}});
+        }
+        let target = env.payload.get("target").and_then(Value::as_str).unwrap_or("followup");
+        if !matches!(target, "followup" | "steer") {
+            return json!({"ok": false, "error": {"code": "K400", "message": "target 只能是 followup 或 steer"}});
+        }
+        let atts = env.payload.get("attachments").cloned();
+        match queue::enqueue(sid, text.to_string(), atts, target) {
+            Ok((id, position)) => {
+                if let Some(host) = self.host.get() {
+                    queue::try_spawn(host, sid);
+                }
+                json!({"ok": true, "queued": true, "id": id, "position": position, "target": target})
+            }
+            Err(e) => json!({"ok": false, "error": {"code": "K400", "message": e}}),
+        }
+    }
+
+    /// 跨插件调用便捷封装（K2 寻址契约 + S1 贯穿，v0.1.7 消费）：按 capability 寻址，

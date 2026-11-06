@@ -1,0 +1,1 @@
+{"id":"Q1-04","description":"app-stream.js：快照/恢复对称半边 + reset 清 doneSids","file":"runtime/crates/host/web-dist/vendor/app-stream.js","anchor_file":"blocks/q1-stream-anchor.txt","patch_file":"blocks/q1-stream-patch.txt"}

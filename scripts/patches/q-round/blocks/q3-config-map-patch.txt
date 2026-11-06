@@ -1,0 +1,5 @@
+    ("output_dir", "AGENT_OUTPUT_DIR"),
+    // Q 轮 Phase 3：并发槽位可配置（缺省仍为 8 / 32，assemble 单测断言不变）。
+    ("max_inflight", "AGENT_MAX_INFLIGHT"),
+    ("max_total_inflight", "AGENT_MAX_TOTAL_INFLIGHT"),
+];

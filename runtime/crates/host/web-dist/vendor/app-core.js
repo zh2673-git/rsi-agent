@@ -80,14 +80,16 @@ function delSession(id) {
     session = arr.length ? arr[0].id : "web";
     localStorage.setItem(CKEY, session);
   }
+  dropSessionCache(id);                 // 回滚/删除会 connect(0)，缓存必须失效，防已删内容复活
   refreshSessionTag();
-  renderSessions(); connect();
+  renderSessions(); connect(undefined, true);
 }
 function switchSession(id) {
   if (id === session) return;
+  snapshotSessionFeed(session);         // 离开前存 DOM 快照 + 精确游标
   session = id; localStorage.setItem(CKEY, id); touchSession(id);
   refreshSessionTag();
-  renderSessions(); connect();
+  renderSessions(); connect(undefined, true);  // 命中缓存则瞬时显示 + 增量追赶
 }
 refreshSessionTag(); touchSession(session); renderSessions();
 $("toggle").onclick = () => $("sidebar").classList.toggle("collapsed");

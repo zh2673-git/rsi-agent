@@ -187,4 +187,42 @@ O 轮数据附注：bash 1133 次（占 41.7%）仍居首，但其中「python �
 - **运维提醒**：runtime 已含全部改动，重启 host 即生效（不再依赖补丁重放路径）；
   此后新迭代从「补丁先行」改为「上游正式版优先，rsi 仅留发行形态专属补丁」。
 
+## 6. 第四轮迭代（Q 轮，2026-11-06；数据源 = `outputs/rsi-agent-前端交互与记忆模块优化方案.md`）
+
+> 目标：运行中可追加指令、切会话瞬时显示、同端口新对话不受老任务拖累、记忆分层与非破坏性压缩。
+> 落地路径：`runtime/` 写保护 → 全部核心改动走 `scripts/patches/q-round/*.json` 外挂补丁，
+> 由 `scripts/apply-q-round.py --dry-run` 预演全中后正式应用（`.qpatchbak` 可 `--revert`）。
+
+### 6.1 P·Q·I 验收表
+
+| # | 目标与动作 | P（产物） | Q（质量门） | I（影响） | 状态 |
+|---|---|---|---|---|---|
+| Q1 | **前端队列 / 缓存 / per-session 状态**（问题 1A、2、3 P0） | `web-dist/vendor/q-session.js`（新）+ `app-core/app-events/app-stream/app-files.js` + `index.html` + `style.css`；`gateway.rs` SSE 帧加 `cursor` 字段 | `node --check` 6 文件全过；`pytest 53/53`；补丁 11 条全幂等 0 FAIL；SSE 帧仍是原事件对象（不新增事件 type） | Enter=排队、Alt+Enter=插队、Esc=停止并退回队列；切会话 `innerHTML` 瞬时显示 + `after=cursor` 增量追赶；A 运行中切 B 不再误禁用发送；回滚/删除清缓存防复活 | ☑ |
+| Q2 | **memory 换底座、不换视图** | `memory_plugin.ts`：`events/<safe>.jsonl` append-only sidecar、`session.index.json`、`memory.recall`（≤5 条摘要）、30min TTL 逐出、`init/destroy` 对称 | `node --check` 过；`pytest 53/53`；`cargo test` 中 `e2e_ts_memory` 4/4 全绿（旧 get/summarize/rollback 断言不破） | `summarize` 追加 typed compaction 事件而不再丢原文（M1/M4/M10）；`session.index` 供列表/预取（M5）；`sessions` Map 有界（M6） | ☑ |
+| Q3 | **服务端显式队列 / status / steer / 可配 inflight** | `agent-loop/src/queue.rs`（新）+ `lib.rs/chat.rs`（op 面、pump、轮次边界注入）+ `host/src/web/mod.rs`（`/api/chat/status`、`/api/queue`、`/api/queue/remove`）+ `config.rs/assemble.rs`（`AGENT_MAX_INFLIGHT`/`AGENT_MAX_TOTAL_INFLIGHT`）+ `q-session.js` 接持久队列 | `cargo check --workspace` 干净；`cargo test --workspace` 除 2 个**基线既有红**外全绿（agent-loop lib 24/24、react_mocks 40/40、conformance 3/3、host lib 23/23、e2e_ts_memory 4/4、e2e_web_gateway SSE/400/404 保留）；`pytest 53/53` | 队列跨标签页一致、可观测、可取消；steer 在轮次边界注入当前工作集（不新开 chat、不写 `user` trace 事件 → 回滚计数与事件 type 全集不污染）；裸并发 POST 同 session 仍 `K409` | ☑ |
+
+### 6.2 方案与接缝
+
+- **「显式队列 vs 隐式排队」不推翻旧裁决**（§2.4）：`00-PLAN.md:18,42` 否决的是「把两次并发裸 chat 串成隐式顺序」。Q 轮只有走 `/api/queue` 的指令才被单消费者 pump 串行化，裸 `/api/chat` 仍由 `chat.rs` 的 `session_chats` 闸 `try_lock` 失败即 `K409`；pump 自身也走同一闸（经 `host.call_plugin` 派发），不绕过。
+- **「换底座、不换视图」**：`sessions/<safe>.json` 仍是 LLM 工作集与 `get/summarize/rollback` 的唯一视图（e2e 旧断言逐字保留），原文/压缩/回滚/UI 事件另写 append-only `events/<safe>.jsonl`。这样 M1「破坏性覆写」被消解，而回滚的「第 N 条 user 消息」物理截断语义与前端 `userTurns` 索引不变。
+- **精确 cursor 是字段而非新事件类型**：`gateway.rs` 在原 SSE 帧上插 `cursor=after+i+1`，前端 `delete ev.cursor` 后照常 `render(ev)`；`FROZEN_EVENT_TYPES` 与 `render()` switch 均无需改动。
+- **前向后兼容**：`q-session.js` 的 `postChat`/`interruptAndSend` 先试 `/api/queue`，旧 host（无该路由）返回 404 即回退本地「直发 + K409 有限重试 / 取消+重启」近似；`memory.recall`/`session.index` 为纯追加 op，agent-loop 的 5 个 memory op 面未变。
+- **有界与闭环**：队列每会话 ≤20 项、单条 ≤64KB、pump K409 重试 120×250ms 后放回队首；`destroy()` 清全局队列；memory `init` 建目录/索引、`destroy` 清内存缓存；残留 steer 在 chat 出口转回 followup 队首，绝不静默丢失。
+
+### 6.3 迭代记录（改了哪些文件 / 跑了什么命令 / 保留还是回退）
+
+- **改动文件**：前端 7 文件（`q-session.js` 新建）、`gateway.rs`、`memory_plugin.ts`、`agent-loop/src/queue.rs`（新建）、`lib.rs`、`chat.rs`、`host/src/web/mod.rs`、`config.rs`、`assemble.rs`；测试/工具层 `tests/__init__.py`、`tests/test_q_round_contract.py`（新建）、`pytest.ini`、`scripts/apply-q-round.py`（新建）、`scripts/patches/q-round/**`、`skills/memory-recall/SKILL.md`（新建）、本文件。共 34 条零填充排序补丁，全部 `--dry-run` 锚点命中后应用。
+- **命令**：`python -m pytest -q`（53 passed）、`python -m unittest discover -s tests -t .`（53 OK）、`node --check`（6 JS + memory_plugin.ts）、`cd runtime && cargo check --workspace`（Finished）、`python scripts/apply-q-round.py --dry-run`（0 FAIL，全幂等）、`python scripts/apply-tool-patches.py --dry-run`（历史 13 补丁不受影响）。
+- **cargo test 基线对比**：`e2e_full_react_mock::full_react_loop_with_mock_llm_and_real_guests`（答案文本兜底 `outputs/data.xlsx` artifact 缺失）与 `e2e_web_gateway::web_config_center_and_skills_crud`（宿主进程 env 泄漏使 provider=`openai` 而非 `mock`）在**干净 HEAD 的 git worktree 上同样失败**——判定为本机环境/陈旧断言的基线既有红，非本轮回归；其余套件全绿。用 `CARGO_TARGET_DIR=target-q` 隔离构建目录，规避运行中 host 锁住 `debug/*.exe`（os error 5）。
+- **结论：全部保留**，无回退。重启 host 后前端与 Rust 改动生效（memory 为 guest 进程，重启自动加载）。
+
+### 6.4 已评估不做（防重复尝试）
+
+- 会话树 / fork / clone（pi）：改 `rollback` 的「第 N 条 user」语义与前端 `userTurns` 索引，与本仓「物理截断回滚 + 文件撤销」冲突；
+- SQLite / state_db（codex）：新增依赖，与「无 DB、fail-closed 简单底座」冲突，本轮用 JSON 索引；
+- 把 memory `concurrent:false` 翻成 true：同步 fs 无锁 = 数据竞争，否决；
+- 把 trace 与 model context 合并为单一事件源：需同改 `rollback`/`skills.rs` 重放/`render()`，列为 Q 轮之后的独立迭代；
+- 同 session 裸并发隐式排队：旧裁决保留（见 §6.2）；
+- SSE 新增 `cursor` 事件类型：会触发 `FROZEN_EVENT_TYPES` 冻结闸与前端 render 改动，改用帧内字段。
+
 

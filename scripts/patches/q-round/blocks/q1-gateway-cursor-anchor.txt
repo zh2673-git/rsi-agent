@@ -1,0 +1,7 @@
+                if let Some(events) = v.get("events").and_then(Value::as_array) {
+                    for e in events {
+                        let line = format!("data: {e}\n\n");
+                        write_half.write_all(line.as_bytes()).await?;
+                        has_new = true;
+                    }
+                }

@@ -1,0 +1,5 @@
+//   {"op":"memory.recall","session_id":str,"query"?:str,"limit"?:int}
+//       → {"ok":true,"items":[{kind,ts,session_id,cursor,preview}]} —— 摘要级召回（≤5 条）
+//   {"op":"session.index"} → {"ok":true,"sessions":[{id,title,updated_at,event_count,last_cursor}]}
+//       以上为 Q 轮 Phase 2 纯追加 op；旧 op 语义逐字不变（工作集视图仍为 sessions/<safe>.json），
+//       原文/压缩/回滚/UI 事件另追加到 events/<safe>.jsonl（append-only sidecar）。

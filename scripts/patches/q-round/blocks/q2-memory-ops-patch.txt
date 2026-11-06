@@ -1,0 +1,26 @@
+        if (op === "trace.append") {
+          const events = (payload.events ?? []) as unknown[];
+          if (!Array.isArray(events) || events.length === 0) return err("events must be a non-empty array");
+          fs.appendFileSync(traceFile(sessionId), events.map((e) => JSON.stringify(e)).join("\n") + "\n", "utf8");
+          // Q 轮：UI 真相源事件同步进 sidecar（白名单投影，不复制全文/附件 b64）。
+          appendSessionEvents(sessionId, events.map((e) => {
+            const ev = (e ?? {}) as Record<string, unknown>;
+            return {
+              kind: "trace", type: ev.type ?? "",
+              preview: typeof ev.text === "string" ? ev.text.slice(0, 200)
+                : typeof ev.message === "string" ? ev.message.slice(0, 200)
+                : typeof ev.answer === "string" ? ev.answer.slice(0, 200) : "",
+            };
+          }));
+          return { ok: true, count: events.length };
+        }
+        // Q 轮：摘要级召回（不返回全文 / 附件 / 密钥字段），硬上限 5 条。
+        if (op === "memory.recall") {
+          const query = payload.query as string | undefined;
+          const limit = typeof payload.limit === "number" ? payload.limit : 5;
+          return { ok: true, items: recall(sessionId, String(query ?? ""), limit) };
+        }
+        // Q 轮：会话索引（filesystem-first 的派生元数据，供列表/预取）。
+        if (op === "session.index") {
+          return { ok: true, ...loadIndex() };
+        }

@@ -1,0 +1,1 @@
+{"id":"Q3-02","description":"agent-loop lib.rs：on_event 增加 queue/enqueue|status|remove|interrupt op","file":"runtime/crates/agent-loop/src/lib.rs","anchor_file":"blocks/q3-lib-ops-anchor.txt","patch_file":"blocks/q3-lib-ops-patch.txt"}

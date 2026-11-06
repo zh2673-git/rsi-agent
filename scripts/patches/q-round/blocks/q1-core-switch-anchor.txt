@@ -1,0 +1,17 @@
+function delSession(id) {
+  if (!confirm("删除会话 " + id + "？（仅清本地记录，服务端消息日志保留）")) return;
+  let arr = loadSessions().filter((x) => x.id !== id);
+  saveSessions(arr);
+  if (session === id) {
+    session = arr.length ? arr[0].id : "web";
+    localStorage.setItem(CKEY, session);
+  }
+  refreshSessionTag();
+  renderSessions(); connect();
+}
+function switchSession(id) {
+  if (id === session) return;
+  session = id; localStorage.setItem(CKEY, id); touchSession(id);
+  refreshSessionTag();
+  renderSessions(); connect();
+}

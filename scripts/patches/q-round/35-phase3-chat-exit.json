@@ -1,0 +1,1 @@
+{"id":"Q3-06","description":"agent-loop chat.rs：chat 出口释放闸后 spawn 显式队列 pump","file":"runtime/crates/agent-loop/src/chat.rs","anchor_file":"blocks/q3-chat-exit-anchor.txt","patch_file":"blocks/q3-chat-exit-patch.txt"}

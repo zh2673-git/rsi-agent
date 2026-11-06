@@ -27,10 +27,15 @@
   </header>
   <div id="stream"><div class="wrap" id="feed"></div></div>
   <footer>
+    <div id="queue-box" hidden>
+      <div class="qhead"><span>待发指令（Enter 排队；⏭ 停止当前并插队）</span><span id="queue-count"></span><button class="btn ghost" id="queue-toggle" type="button">隐藏</button></div>
+      <div id="queue-list"></div>
+    </div>
     <div class="atts" id="atts" hidden></div>
     <div class="composer">
       <button id="attach" class="attach" title="附加图片或文本文件（最多 4 个，单个 ≤2MB）">📎</button>
-      <textarea id="input" placeholder="输入消息，Enter 发送（Shift+Enter 换行；可直接粘贴图片）"></textarea>
+      <textarea id="input" placeholder="输入消息，Enter 发送 / 排队（Shift+Enter 换行；Alt+Enter 插队；可直接粘贴图片）"></textarea>
+      <button id="interrupt" class="btn ghost" title="停止当前回合并优先执行新指令">⏭ 插队</button>
       <button id="stop" hidden style="background: var(--card-2); color: var(--text);">停止</button>
       <button id="send">发送</button>
       <input type="file" id="file" multiple hidden
@@ -171,6 +176,7 @@
 <!-- W17 迭代八拆分（原 app.js 单文件 → 五模块，vendor/ 前缀复用既有白名单规则零 Rust 改动；defer 按文档序执行）。
      顺序约束：events 顶层立即调用 api()/connect()（api 声明在 settings）→ settings 必须先于 events；
      settings/files 顶层仅赋值与 let 声明，无立即调用，故 core → stream → files → settings → events 安全。 -->
+<script src="/vendor/q-session.js" defer></script>
 <script src="/vendor/app-core.js" defer></script>
 <script src="/vendor/app-stream.js" defer></script>
 <script src="/vendor/app-files.js" defer></script>

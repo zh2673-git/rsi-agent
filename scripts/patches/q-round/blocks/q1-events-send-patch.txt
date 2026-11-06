@@ -1,0 +1,62 @@
+// Q 轮：发送 = 入队 + 单消费者。运行中连发只入队、不发 fetch；每条在 drain 的
+// finally 之后才取下一条，绝不与当前 chat 抢同会话闸。停止 = cancel + 队列退回输入框。
+async function send(presetText, presetAtts) {
+  const text = (presetText ?? input.value).trim();
+  if (!text) return;
+  const atts = presetAtts ? presetAtts : pendingAtts.splice(0);
+  if (presetText === undefined) { input.value = ""; input.style.height = "48px"; renderAtts(); }
+  touchSession(session);
+  autoName(session, text); // 标题为空时按首条消息自动命名
+  const s = qState(session);
+  s.queue.push({ text, atts });
+  queueOpen = true; renderQueue();
+  if (!s.draining) drain(session);
+}
+sendBtn.onclick = () => send();
+
+// R2 回滚：物理截断到第 idx 条 user 消息之前（该问题及其后全部删除，memory 消息与
+// trace 事件同源截断）。R15：区间内 agent 的文件改动随回滚一并撤销（host 冲突检测：
+// 变更后又被人工改过的文件自动跳过，绝不硬覆盖）。resend=true 为「重新生成」。
+async function rollbackTo(idx, resend, ut) {
+  if (qState(session).running) { setStatus("对话进行中，请先停止或等待完成"); return; }
+  const affected = [...fcSeen.values()].filter((e) => e.turn >= idx);
+  const fileList = affected.slice(0, 8).map((e) => `${{ edit: "编辑", bash: "脚本", write: "写入" }[e.op] ?? e.op} ${e.path}`).join("\n");
+  const undoNote = affected.length
+    ? `\n\n同时撤销该轮起 agent 的文件改动（${affected.length} 个）：\n${fileList}${affected.length > 8 ? `\n…等共 ${affected.length} 个` : ""}\n（变更后又被手动修改的文件将自动跳过）`
+    : "";
+  if (!confirm(resend ? `回滚本问题并重新生成回答？${undoNote}` : `回滚到该问题之前？（该问题及其后的对话将被删除）${undoNote}`)) return;
+  try {
+    const v = await api("POST", "/api/chat/rollback", { session_id: session, upto_user_index: idx });
+    const un = v.undone?.length ?? 0, sk = v.skipped?.length ?? 0;
+    var undoMsg = (un || sk) ? `已撤销 ${un} 个文件改动` + (sk ? `，${sk} 个跳过（文件已被修改）` : "") : null;
+  } catch (e) { setStatus("回滚失败: " + e.message); return; }
+  dropSessionCache(session); // 回滚会 connect(0)，缓存必须失效，防已删内容复活
+  connect(0); // 全量重放截断后的历史（重置 SSE 游标）
+  if (undoMsg) setStatus(undoMsg);
+  if (resend && ut) send(ut.text, ut.atts || []);
+}
+
+// P2/T1 停止：发送期间可见。置位取消信号（agent-loop 在波次间/轮次边界收敛为 K499），
+// 随即 abort 阻塞中的 /api/chat（UI 即时解锁，不再等服务端收敛）。
+stopBtn.onclick = async () => {
+  stopBtn.disabled = true;
+  try {
+    const r = await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
+    const v = await r.json();
+    if (v.ok) {
+      setStatus("正在停止…");
+      returnQueueToInput();             // pi 语义：排队消息退回编辑器，不静默丢弃
+      qState(session).abort?.abort();
+    } else setStatus("停止失败: " + (v.error?.message ?? r.status));
+  } catch (e) { setStatus("停止失败: " + e); }
+  finally { stopBtn.disabled = false; }
+};
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (e.altKey) interruptAndSend();  // Alt+Enter：停止当前 + 插队
+    else send();                        // Enter：排队（follow-up）
+  } else if (e.key === "Escape" && qState(session).running) {
+    e.preventDefault(); stopBtn.onclick(); // Esc：硬中断并退回队列
+  }
+});

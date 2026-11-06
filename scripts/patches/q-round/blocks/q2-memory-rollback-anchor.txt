@@ -1,0 +1,6 @@
+        sessions.set(sessionId, kept);
+        persist(sessionId, kept);
+        if (text) {
+          fs.truncateSync(file, userMarks[upto].off);
+        }
+        return {

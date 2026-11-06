@@ -18,7 +18,11 @@
 //       该轮前；落在摘要区 → 标记与消息全清（摘要与回滚区间重叠，保留即上下文残留，
 //       agent 会误以为已回滚的材料还在）。无 trace 文件的纯 memory 会话按 memory 侧
 //       真实 user 计数定位，压缩标记随截断一并丢弃。
-// Event = 任意 JSON 对象（建议 {type, ts, ...}）——事件日志（Phase 3-1）：只追加、不可变，
+//   {"op":"memory.recall","session_id":str,"query"?:str,"limit"?:int}
+//       → {"ok":true,"items":[{kind,ts,session_id,cursor,preview}]} —— 摘要级召回（≤5 条）
+//   {"op":"session.index"} → {"ok":true,"sessions":[{id,title,updated_at,event_count,last_cursor}]}
+//       以上为 Q 轮 Phase 2 纯追加 op；旧 op 语义逐字不变（工作集视图仍为 sessions/<safe>.json），
+//       原文/压缩/回滚/UI 事件另追加到 events/<safe>.jsonl（append-only sidecar）。
 // 服务于审计/恢复/UI 重放（与 memory「模型上下文」是不同关注点，dsh：Model-visible means logged）。
 // Msg = {role, content?, tool_calls?, tool_call_id?} —— 与 agent-loop 的 contract.rs 镜像。
 //
@@ -164,12 +168,104 @@ function err(message: string): { ok: false; error: { message: string } } {
   return { ok: false, error: { message } };
 }
 
+// ── Q 轮 Phase 2：append-only sidecar + session.index + recall + TTL ──────────
+// 设计取舍（「换底座、不换视图」）：sessions/<safe>.json 仍是 LLM 工作集的唯一
+// 视图，get/summarize/rollback 语义与旧版逐字一致（e2e 断言不破）；所有原始
+// 消息、压缩摘要、trace 事件另行追加到 events/<safe>.jsonl，原文永不因压缩删除。
+// SessionEvent = {ts, kind, ...}，白名单字段投影供 memory.recall 摘要级召回。
+const eventsDir = (): string => {
+  const dir = path.join(dataDir(), "events");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+};
+const eventFile = (id: string): string =>
+  path.join(eventsDir(), `${id.replace(/[^A-Za-z0-9._-]/g, "_")}.jsonl`);
+const indexFile = (): string => path.join(dataDir(), "session.index.json");
+
+function appendSessionEvents(sessionId: string, rows: unknown[]): void {
+  if (!rows.length) return;
+  const ts = Date.now();
+  fs.appendFileSync(
+    eventFile(sessionId),
+    rows.map((e) => JSON.stringify({ ts, ...(e as Record<string, unknown>) })).join("\n") + "\n",
+    "utf8",
+  );
+  touchIndex(sessionId, rows.length);
+}
+
+type SessionIndexEntry = {
+  id: string; title: string; updated_at: number; event_count: number; last_cursor: number;
+};
+type SessionIndex = { sessions: SessionIndexEntry[] };
+function loadIndex(): SessionIndex {
+  try {
+    const v = JSON.parse(fs.readFileSync(indexFile(), "utf8")) as SessionIndex;
+    if (v && Array.isArray(v.sessions)) return v;
+  } catch { /* 尚无索引：正常路径 */ }
+  return { sessions: [] };
+}
+function saveIndex(idx: SessionIndex): void {
+  // tmp+rename 原子写（与 persist 同款纪律）；索引是派生数据，损坏可重建。
+  const file = indexFile();
+  const tmp = `${file}.tmp-${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify(idx), "utf8");
+  fs.renameSync(tmp, file);
+}
+function touchIndex(sessionId: string, delta = 1): void {
+  try {
+    const idx = loadIndex();
+    let it = idx.sessions.find((s) => s.id === sessionId);
+    if (!it) { it = { id: sessionId, title: "", updated_at: 0, event_count: 0, last_cursor: 0 }; idx.sessions.unshift(it); }
+    it.updated_at = Date.now();
+    it.event_count += delta;
+    it.last_cursor = it.event_count;
+    // TTL/空间卫生：只保留最近 200 个活跃会话的元数据（文件系统仍是真相源，
+    // 老会话再次 append 时自动重建条目——filesystem-first 修 stale 行）。
+    idx.sessions.sort((a, b) => b.updated_at - a.updated_at);
+    idx.sessions = idx.sessions.slice(0, 200);
+    saveIndex(idx);
+  } catch (e) {
+    console.error(`[memory] session.index 更新失败（不影响主链）: ${e}`);
+  }
+}
+function pruneSessionCache(now: number): void {
+  // M6：sessions Map 永不逐出会让长驻进程无界增长。30 分钟未访问的会话从内存
+  // 逐出，磁盘视图与 sidecar 不动（下次 get 由 loadIfAbsent 冷加载）。
+  const TTL_MS = 30 * 60 * 1000;
+  for (const [id, last] of sessionTouched) {
+    if (now - last > TTL_MS) { sessions.delete(id); sessionTouched.delete(id); }
+  }
+}
+const sessionTouched = new Map<string, number>();
+
+function recall(sessionId: string, query: string, limit: number): unknown[] {
+  // 摘要级召回：不返回全文、不返回附件 base64、不返回密钥型字段。
+  const q = String(query || "").toLowerCase().trim();
+  const max = Math.min(Math.max(1, Math.floor(limit || 5)), 5);
+  const out: unknown[] = [];
+  let text = "";
+  try { text = fs.readFileSync(eventFile(sessionId), "utf8"); } catch { return out; }
+  const lines = text.split("\n").filter(Boolean).slice(-2000); // 只扫最近 2000 行
+  for (let i = lines.length - 1; i >= 0 && out.length < max; i--) {
+    let e: Record<string, unknown>;
+    try { e = JSON.parse(lines[i]) as Record<string, unknown>; } catch { continue; }
+    const kind = String(e.kind ?? "");
+    const preview = String(e.preview ?? e.summary ?? e.text ?? "").slice(0, 200);
+    if (q && !`${kind} ${preview}`.toLowerCase().includes(q)) continue;
+    out.push({ kind, ts: e.ts ?? 0, session_id: sessionId, cursor: i + 1, preview });
+  }
+  return out;
+}
+
 export const memoryPlugin: Plugin = {
   manifest(): PluginManifest {
     return { id: "memory", version: "0.1.0", api_version: "0.1" };
   },
   init(_config: unknown): void {
     fs.mkdirSync(sessionsDir(), { recursive: true });
+    fs.mkdirSync(tracesDir(), { recursive: true });
+    fs.mkdirSync(eventsDir(), { recursive: true });  // Q 轮：append-only sidecar 目录
+    if (!fs.existsSync(indexFile())) saveIndex({ sessions: [] }); // init/destroy 成对：派生索引有初态
   },
   onEvent(envelope: { target: unknown; payload: unknown }): unknown {
     const payload = (envelope.payload ?? {}) as Record<string, unknown>;
@@ -182,9 +278,15 @@ export const memoryPlugin: Plugin = {
         const msgs = loadIfAbsent(sessionId);
         msgs.push(...incoming);
         persist(sessionId, msgs);
+        // Q 轮：原文同步追加进 sidecar（工作集视图仍是 sessions/<safe>.json）。
+        appendSessionEvents(sessionId, incoming.map((m) => ({
+          kind: "message", role: m.role, preview: (m.content ?? "").slice(0, 200),
+        })));
         return { ok: true, count: msgs.length };
       }
       case "get": {
+        sessionTouched.set(sessionId, Date.now());
+        pruneSessionCache(Date.now());
         const msgs = loadIfAbsent(sessionId);
         const limit = payload.limit as number | undefined;
         return { ok: true, messages: limit ? msgs.slice(-limit) : msgs };
@@ -217,6 +319,13 @@ export const memoryPlugin: Plugin = {
         ];
         sessions.set(sessionId, compacted);
         persist(sessionId, compacted);
+        // Q 轮：压缩不再等于删除原文——先追加一条 typed compaction 事件
+        // （摘要 + first_kept + tokens_before），工作集视图仍按旧语义替换，
+        // 后续可从 sidecar 重放/审计/分支，M1/M4/M10 的「破坏性覆写」消解。
+        appendSessionEvents(sessionId, [{
+          kind: "compaction", summary, first_kept: msgs.length - kept.length,
+          tokens_before: JSON.stringify(msgs).length, kept: kept.length,
+        }]);
         return { ok: true, count: compacted.length };
       }
       case "rollback": {
@@ -293,6 +402,13 @@ export const memoryPlugin: Plugin = {
         if (text) {
           fs.truncateSync(file, userMarks[upto].off);
         }
+        // Q 轮：物理回滚在工作集/trace 视图保持原语义；sidecar 追加一条 typed
+        // rollback 事件，保留「曾经发生过什么」的审计轨迹（原文不复活到工作集）。
+        appendSessionEvents(sessionId, [{
+          kind: "rollback", upto_user_index: upto,
+          removed_messages: msgs.length - kept.length,
+          removed_events: text ? totalEvents - userMarks[upto].evIdx : 0,
+        }]);
         return {
           ok: true,
           removed_messages: msgs.length - kept.length,
@@ -305,7 +421,27 @@ export const memoryPlugin: Plugin = {
           const events = (payload.events ?? []) as unknown[];
           if (!Array.isArray(events) || events.length === 0) return err("events must be a non-empty array");
           fs.appendFileSync(traceFile(sessionId), events.map((e) => JSON.stringify(e)).join("\n") + "\n", "utf8");
+          // Q 轮：UI 真相源事件同步进 sidecar（白名单投影，不复制全文/附件 b64）。
+          appendSessionEvents(sessionId, events.map((e) => {
+            const ev = (e ?? {}) as Record<string, unknown>;
+            return {
+              kind: "trace", type: ev.type ?? "",
+              preview: typeof ev.text === "string" ? ev.text.slice(0, 200)
+                : typeof ev.message === "string" ? ev.message.slice(0, 200)
+                : typeof ev.answer === "string" ? ev.answer.slice(0, 200) : "",
+            };
+          }));
           return { ok: true, count: events.length };
+        }
+        // Q 轮：摘要级召回（不返回全文 / 附件 / 密钥字段），硬上限 5 条。
+        if (op === "memory.recall") {
+          const query = payload.query as string | undefined;
+          const limit = typeof payload.limit === "number" ? payload.limit : 5;
+          return { ok: true, items: recall(sessionId, String(query ?? ""), limit) };
+        }
+        // Q 轮：会话索引（filesystem-first 的派生元数据，供列表/预取）。
+        if (op === "session.index") {
+          return { ok: true, ...loadIndex() };
         }
         if (op === "trace.read") {
           // P4：按索引偏移直读（traceOffsets 内部 size+mtime 命中缓存 / 未命中重建一次）。
@@ -349,7 +485,11 @@ export const memoryPlugin: Plugin = {
     }
   },
   destroy(): void {
-    /* 无需清理：每次写操作已即时落盘 */
+    // Q 轮：无后台 writer/句柄可关（同步 fs 每次写已落盘）；显式清空内存缓存与
+    // 访问时间戳，保持 init/destroy 的时空闭环，sidecar / index 作为磁盘真相源保留。
+    sessions.clear();
+    sessionTouched.clear();
+    traceIdx.clear();
   },
 };
 

@@ -1,0 +1,1 @@
+{"id":"Q1-06","description":"app-events.js：connect 用缓存游标 + per-session UI 重算","file":"runtime/crates/host/web-dist/vendor/app-events.js","anchor_file":"blocks/q1-events-connect-anchor.txt","patch_file":"blocks/q1-events-connect-patch.txt"}

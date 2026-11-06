@@ -1,0 +1,68 @@
+// chatAbort：当次 /api/chat 的中断器。停止 = 先 POST cancel（置位服务端取消信号），
+// 再 abort 阻塞中的请求——UI 即时解锁；服务端到最近检查点（波次间/轮次边界）自然收敛 K499，
+// memory/trace 照常落盘，重连 SSE 即见真实状态。
+let chatAbort = null;
+async function send(presetText, presetAtts) {
+  const text = (presetText ?? input.value).trim();
+  if (!text) return;
+  // 附件：手动发送取托盘待发件；重新生成用 trace 留存的原始附件
+  const atts = presetAtts ? presetAtts : pendingAtts.splice(0);
+  if (presetText === undefined) { input.value = ""; input.style.height = "48px"; renderAtts(); }
+  sendBtn.disabled = true; stopBtn.hidden = false; setStatus("思考中…");
+  touchSession(session);
+  autoName(session, text); // 标题为空时按首条消息自动命名
+  try {
+    chatAbort = new AbortController();
+    const r = await fetch("/api/chat", {
+      method: "POST", headers: { "content-type": "application/json" }, signal: chatAbort.signal,
+      body: JSON.stringify({ session_id: session, message: text, ...(atts.length ? { attachments: atts } : {}) }),
+    });
+    const v = await r.json();
+    if (!v.ok) setStatus("失败: " + (v.error?.message ?? r.status));
+    else setStatus("");
+  } catch (e) {
+    if (e?.name === "AbortError") setStatus("已停止（后台正在收敛）"); else setStatus("请求失败: " + e);
+  }
+  finally { chatAbort = null; sendBtn.disabled = false; stopBtn.hidden = true; input.focus(); }
+}
+sendBtn.onclick = () => send();
+
+// R2 回滚：物理截断到第 idx 条 user 消息之前（该问题及其后全部删除，memory 消息与
+// trace 事件同源截断）。R15：区间内 agent 的文件改动随回滚一并撤销（host 冲突检测：
+// 变更后又被人工改过的文件自动跳过，绝不硬覆盖）。resend=true 为「重新生成」。
+async function rollbackTo(idx, resend, ut) {
+  if (sendBtn.disabled) { setStatus("对话进行中，请先停止或等待完成"); return; }
+  const affected = [...fcSeen.values()].filter((e) => e.turn >= idx);
+  const fileList = affected.slice(0, 8).map((e) => `${{ edit: "编辑", bash: "脚本", write: "写入" }[e.op] ?? e.op} ${e.path}`).join("\n");
+  const undoNote = affected.length
+    ? `\n\n同时撤销该轮起 agent 的文件改动（${affected.length} 个）：\n${fileList}${affected.length > 8 ? `\n…等共 ${affected.length} 个` : ""}\n（变更后又被手动修改的文件将自动跳过）`
+    : "";
+  if (!confirm(resend ? `回滚本问题并重新生成回答？${undoNote}` : `回滚到该问题之前？（该问题及其后的对话将被删除）${undoNote}`)) return;
+  try {
+    const v = await api("POST", "/api/chat/rollback", { session_id: session, upto_user_index: idx });
+    const un = v.undone?.length ?? 0, sk = v.skipped?.length ?? 0;
+    var undoMsg = (un || sk) ? `已撤销 ${un} 个文件改动` + (sk ? `，${sk} 个跳过（文件已被修改）` : "") : null;
+  } catch (e) { setStatus("回滚失败: " + e.message); return; }
+  connect(0); // 全量重放截断后的历史（重置 SSE 游标）
+  if (undoMsg) setStatus(undoMsg);
+  if (resend && ut) send(ut.text, ut.atts || []);
+}
+
+// P2/T1 停止：发送期间可见。置位取消信号（agent-loop 在波次间/轮次边界收敛为 K499），
+// 随即 abort 阻塞中的 /api/chat（UI 即时解锁，不再等服务端收敛）。
+// 与发送互斥——stopBtn 仅在 sendBtn.disabled 时出现。
+stopBtn.onclick = async () => {
+  stopBtn.disabled = true;
+  try {
+    const r = await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
+    const v = await r.json();
+    if (v.ok) {
+      setStatus("正在停止…");
+      chatAbort?.abort();
+    } else setStatus("停止失败: " + (v.error?.message ?? r.status));
+  } catch (e) { setStatus("停止失败: " + e); }
+  finally { stopBtn.disabled = false; }
+};
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});

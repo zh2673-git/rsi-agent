@@ -1,0 +1,6 @@
+        if (op === "trace.append") {
+          const events = (payload.events ?? []) as unknown[];
+          if (!Array.isArray(events) || events.length === 0) return err("events must be a non-empty array");
+          fs.appendFileSync(traceFile(sessionId), events.map((e) => JSON.stringify(e)).join("\n") + "\n", "utf8");
+          return { ok: true, count: events.length };
+        }

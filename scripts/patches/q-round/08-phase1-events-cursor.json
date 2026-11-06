@@ -1,0 +1,1 @@
+{"id":"Q1-07","description":"app-events.js：SSE 帧 cursor 精确游标优先，旧服务端退回自增","file":"runtime/crates/host/web-dist/vendor/app-events.js","anchor_file":"blocks/q1-events-onmessage-anchor.txt","patch_file":"blocks/q1-events-onmessage-patch.txt"}

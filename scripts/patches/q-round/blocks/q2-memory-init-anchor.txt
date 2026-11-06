@@ -1,0 +1,3 @@
+  init(_config: unknown): void {
+    fs.mkdirSync(sessionsDir(), { recursive: true });
+  },

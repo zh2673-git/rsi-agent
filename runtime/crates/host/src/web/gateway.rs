@@ -50,8 +50,14 @@ pub(super) async fn sse_events(mut stream: TcpStream, kernel: std::sync::Arc<Ker
         match resp {
             Ok(v) if v.get("ok") == Some(&json!(true)) => {
                 if let Some(events) = v.get("events").and_then(Value::as_array) {
-                    for e in events {
-                        let line = format!("data: {e}\n\n");
+                    for (i, e) in events.iter().enumerate() {
+                        // Q 轮：精确游标随帧下发（after + 本批序号），不改事件 type、
+                        // 不新增 SSE 帧类型——前端优先用 cursor，缺省退回自增近似。
+                        let mut framed = e.clone();
+                        if let Some(obj) = framed.as_object_mut() {
+                            obj.insert("cursor".into(), json!(after + i as u64 + 1));
+                        }
+                        let line = format!("data: {framed}\n\n");
                         write_half.write_all(line.as_bytes()).await?;
                         has_new = true;
                     }

@@ -356,6 +356,63 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         ("GET", r) if r.starts_with("/files/") => {
             files::serve_workspace_file(&mut stream, r.trim_start_matches("/files/"), query).await
         }
+        // Q 轮 Phase 3：真实运行态 / 显式队列（纯追加端点；旧 /api/chat 的 400/404
+        // 与 K409 裸并发裁决逐字不变）。status 由 agent-loop 的 session_chats + 队列
+        // 状态派生，多标签页不再靠「自己那次 fetch 没结束」猜。
+        ("GET", "/api/chat/status") => {
+            let session = parse_query(query).get("session").cloned().unwrap_or_default();
+            if session.is_empty() {
+                return json_resp(&mut stream, 400, bad_request("缺 session 参数", Some("session"))).await;
+            }
+            let resp = kernel
+                .dispatch(Envelope::new(PluginId::new("agent-loop"), json!({"op": "queue/status", "session_id": session})))
+                .await
+                .unwrap_or_else(|e| json!({"ok": false, "error": {"code": "K500", "message": e.to_string()}}));
+            let st = resp.get("status").cloned().unwrap_or_else(|| json!({"ok": false}));
+            json_resp(&mut stream, 200, st).await
+        }
+        ("POST", "/api/queue") => {
+            let req: Value = match serde_json::from_slice(&body) {
+                Ok(v) => v,
+                Err(e) => {
+                    return json_resp(&mut stream, 400, json!({"ok": false, "error": {"code": "K400", "message": format!("body 非法 JSON: {e}")}})).await;
+                }
+            };
+            let Some(session) = req.get("session_id").and_then(Value::as_str) else {
+                return json_resp(&mut stream, 400, bad_request("缺 session_id", Some("session_id"))).await;
+            };
+            let Some(text) = req.get("message").and_then(Value::as_str) else {
+                return json_resp(&mut stream, 400, bad_request("缺 message", Some("message"))).await;
+            };
+            let mut payload = json!({"op": "queue/enqueue", "session_id": session, "user_text": text,
+                "target": req.get("target").and_then(Value::as_str).unwrap_or("followup")});
+            if let Some(att) = req.get("attachments") {
+                match api::validate_attachments(att) {
+                    Ok(Some(list)) => { payload["attachments"] = list; }
+                    Ok(None) => {}
+                    Err(e) => return json_resp(&mut stream, 400, e).await,
+                }
+            }
+            let resp = kernel
+                .dispatch(Envelope::new(PluginId::new("agent-loop"), payload))
+                .await
+                .unwrap_or_else(|e| json!({"ok": false, "error": {"code": "K500", "message": e.to_string()}}));
+            json_resp(&mut stream, 200, resp).await
+        }
+        ("POST", "/api/queue/remove") => {
+            let req: Value = match serde_json::from_slice(&body) {
+                Ok(v) => v,
+                Err(e) => {
+                    return json_resp(&mut stream, 400, json!({"ok": false, "error": {"code": "K400", "message": format!("body 非法 JSON: {e}")}})).await;
+                }
+            };
+            let payload = json!({"op": "queue/remove", "session_id": req.get("session_id").and_then(Value::as_str).unwrap_or(""), "id": req.get("id").and_then(Value::as_str).unwrap_or("")});
+            let resp = kernel
+                .dispatch(Envelope::new(PluginId::new("agent-loop"), payload))
+                .await
+                .unwrap_or_else(|e| json!({"ok": false, "error": {"code": "K500", "message": e.to_string()}}));
+            json_resp(&mut stream, 200, resp).await
+        }
         ("POST", "/api/chat/cancel") => {
             // P2/T1：取消运行中的 chat。转发 agent-loop `cancel` op（置位取消标志，
             // 循环在轮次边界收敛为 K499）。不等待 chat 结束，立即返回。

@@ -1,0 +1,7 @@
+  <footer>
+    <div class="atts" id="atts" hidden></div>
+    <div class="composer">
+      <button id="attach" class="attach" title="附加图片或文本文件（最多 4 个，单个 ≤2MB）">📎</button>
+      <textarea id="input" placeholder="输入消息，Enter 发送（Shift+Enter 换行；可直接粘贴图片）"></textarea>
+      <button id="stop" hidden style="background: var(--card-2); color: var(--text);">停止</button>
+      <button id="send">发送</button>

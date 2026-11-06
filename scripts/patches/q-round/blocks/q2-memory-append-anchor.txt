@@ -1,0 +1,12 @@
+      case "append": {
+        const incoming = (payload.messages ?? []) as Msg[];
+        const msgs = loadIfAbsent(sessionId);
+        msgs.push(...incoming);
+        persist(sessionId, msgs);
+        return { ok: true, count: msgs.length };
+      }
+      case "get": {
+        const msgs = loadIfAbsent(sessionId);
+        const limit = payload.limit as number | undefined;
+        return { ok: true, messages: limit ? msgs.slice(-limit) : msgs };
+      }

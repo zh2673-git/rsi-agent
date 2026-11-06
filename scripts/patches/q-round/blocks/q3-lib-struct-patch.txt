@@ -1,0 +1,9 @@
+/// Q 轮 Phase 3：显式队列的 per-session 状态（单锁保证「检查+标记+取队首」原子，
+/// 不重复启动、不丢项）。与 §2.4 的裁决一致：裸并发 POST 同 session 仍由
+/// `session_chats` 闸返回 K409；只有走 enqueue 入口的指令才被显式串行化。
+pub struct SessionQueue {
+    pub running: bool,
+    pub pending: std::collections::VecDeque<serde_json::Value>,
+}
+
+pub struct AgentLoopPlugin {

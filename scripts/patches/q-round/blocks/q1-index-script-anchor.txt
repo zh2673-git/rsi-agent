@@ -1,0 +1,1 @@
+<script src="/vendor/app-core.js" defer></script>

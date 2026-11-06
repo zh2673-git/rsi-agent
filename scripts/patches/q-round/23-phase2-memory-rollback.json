@@ -1,0 +1,1 @@
+{"id":"Q2-04","description":"memory_plugin.ts：rollback 追加 typed 审计事件","file":"runtime/plugins/memory/memory_plugin.ts","anchor_file":"blocks/q2-memory-rollback-anchor.txt","patch_file":"blocks/q2-memory-rollback-patch.txt"}

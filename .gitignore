@@ -16,8 +16,11 @@ config.magpie.local.json
 # 中间物（探针/一次性分析脚本）：只留痕不入库
 .scratch/
 
-# 补丁回滚备份（scripts/apply-tool-patches.py 自动生成）
+# 补丁回滚备份（scripts/apply-tool-patches.py / apply-q-round.py 自动生成）
 *.patchbak
+*.qpatchbak
+# Q 轮隔离构建目录（运行中 host 锁住 debug/*.exe 时使用）
+runtime/target-q/
 
 # Magpie 账号台账（含邮箱等 PII，仅本机）
 config/magpie-accounts.json

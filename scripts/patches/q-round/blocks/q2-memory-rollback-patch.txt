@@ -1,0 +1,13 @@
+        sessions.set(sessionId, kept);
+        persist(sessionId, kept);
+        if (text) {
+          fs.truncateSync(file, userMarks[upto].off);
+        }
+        // Q 轮：物理回滚在工作集/trace 视图保持原语义；sidecar 追加一条 typed
+        // rollback 事件，保留「曾经发生过什么」的审计轨迹（原文不复活到工作集）。
+        appendSessionEvents(sessionId, [{
+          kind: "rollback", upto_user_index: upto,
+          removed_messages: msgs.length - kept.length,
+          removed_events: text ? totalEvents - userMarks[upto].evIdx : 0,
+        }]);
+        return {

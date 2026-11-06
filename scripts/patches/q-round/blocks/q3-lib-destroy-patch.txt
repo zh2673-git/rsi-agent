@@ -1,0 +1,4 @@
+    fn destroy(&self) -> KernelResult<()> {
+        queue::destroy();   // Q 轮：init/destroy 成对，清空进程内队列状态
+        Ok(())
+    }

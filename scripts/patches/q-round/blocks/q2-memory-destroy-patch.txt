@@ -1,0 +1,7 @@
+  destroy(): void {
+    // Q 轮：无后台 writer/句柄可关（同步 fs 每次写已落盘）；显式清空内存缓存与
+    // 访问时间戳，保持 init/destroy 的时空闭环，sidecar / index 作为磁盘真相源保留。
+    sessions.clear();
+    sessionTouched.clear();
+    traceIdx.clear();
+  },

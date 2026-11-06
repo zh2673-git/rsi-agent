@@ -1,0 +1,1 @@
+{"id":"Q2-03","description":"memory_plugin.ts：summarize 追加 typed compaction 事件（原文不删，旧视图不变）","file":"runtime/plugins/memory/memory_plugin.ts","anchor_file":"blocks/q2-memory-summarize-anchor.txt","patch_file":"blocks/q2-memory-summarize-patch.txt"}

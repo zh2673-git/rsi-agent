@@ -1,0 +1,3 @@
+    fn destroy(&self) -> KernelResult<()> {
+        Ok(())
+    }

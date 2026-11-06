@@ -1,0 +1,2 @@
+        // 8 = 并发 chat 槽位 + cancel 通道余量（cancel 不应被满载 chat 挤掉）。
+        max_inflight: Some(8),

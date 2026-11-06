@@ -1,0 +1,1 @@
+{"id":"Q2-05","description":"memory_plugin.ts：trace.append 写 sidecar + memory.recall / session.index op","file":"runtime/plugins/memory/memory_plugin.ts","anchor_file":"blocks/q2-memory-ops-anchor.txt","patch_file":"blocks/q2-memory-ops-patch.txt"}

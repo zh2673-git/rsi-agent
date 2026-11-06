@@ -1,0 +1,1 @@
+{"id":"Q3-14","description":"q-session.js：drain 区分服务端接管/本地兜底，避免双份入队","file":"runtime/crates/host/web-dist/vendor/q-session.js","anchor_file":"blocks/q3-qsession-drain-anchor.txt","patch_file":"blocks/q3-qsession-drain-patch.txt"}

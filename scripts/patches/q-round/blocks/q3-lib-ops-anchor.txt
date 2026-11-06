@@ -1,0 +1,1 @@
+            "chat" => Ok(self.chat_body(&env).await),

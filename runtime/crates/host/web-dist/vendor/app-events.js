@@ -169,6 +169,7 @@ function resetSessionFeed() {
   feed.innerHTML = "";
   pending.clear();
   lastAfter = 0;
+  preciseCursor = false;             // Q 轮：重放回到近似计数口径，收到 cursor 帧后才转精确
   doneSids.clear();
   resetStreamState();   // app-stream.js：流式句柄 + 过程框 + 回合卡 + 子代理框 + 缓冲
   resetFileChanges();   // app-files.js：文件变更视图
@@ -181,14 +182,16 @@ function resetSessionFeed() {
   turnFcBox = null;
 }
 
-function connect(after) {
-  after = after || 0;
+function connect(after, useCache) {
+  const cached = useCache && after === undefined ? restoreSessionFeed(session) : null;
+  after = after || (cached ? cached.cursor : 0);
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (es) es.close();
-  if (after === 0) resetSessionFeed(); // 首屏/切换/回滚后：集中重置（P7），清空后全量重放
+  if (!cached && after === 0) resetSessionFeed(); // 首屏/切换/回滚后：集中重置（P7），清空后全量重放
   // 清 DOM 后流式句柄一并失效，避免继续写入已移除的气泡
-  streamSid = streamCard = streamBody = streamStats = null;
+  if (!cached) streamSid = streamCard = streamBody = streamStats = null;
   es = new EventSource(`/api/events?session=${encodeURIComponent(session)}&after=${after}`);
+  bindQueueUI(); syncRunUI();
   es.onopen = () => { connEl.classList.add("live"); setStatus(""); };
   // onerror 同时会收到「连接错误」和「服务端 event: error 帧」：带 data 的是业务错误帧，
   // 只渲染横幅，绝不能在这里重连——否则每条 trace.read 失败都会关连接重建、清空 feed，
@@ -209,7 +212,14 @@ function connect(after) {
   };
   es.onmessage = (m) => {
     let ev; try { ev = JSON.parse(m.data); } catch { return; }
-    if (ev && ev.type && !String(ev.type).startsWith("stream_")) lastAfter++; // 持久事件数 ≈ trace 游标
+    // Q 轮：服务端帧带精确 trace 游标（after + 本批序号）。优先用之——
+    // 跨批/跳帧时前端自增计数会漂，切回缓存会话就会重放重复气泡。
+    if (ev && typeof ev.cursor === "number" && ev.cursor >= 0) {
+      lastAfter = ev.cursor; preciseCursor = true;
+    } else if (ev && ev.type && !String(ev.type).startsWith("stream_") && !preciseCursor) {
+      lastAfter++; // 无 cursor 字段的旧服务端：退回自增近似
+    }
+    if (ev) delete ev.cursor;           // 渲染层不感知游标字段
     try { render(ev); } catch (e) { console.warn("render failed:", ev?.type, e); } // 单事件渲染异常不拖垮游标与后续事件
   };
 }
@@ -262,32 +272,19 @@ function renderAtts() {
   });
 }
 
-// chatAbort：当次 /api/chat 的中断器。停止 = 先 POST cancel（置位服务端取消信号），
-// 再 abort 阻塞中的请求——UI 即时解锁；服务端到最近检查点（波次间/轮次边界）自然收敛 K499，
-// memory/trace 照常落盘，重连 SSE 即见真实状态。
-let chatAbort = null;
+// Q 轮：发送 = 入队 + 单消费者。运行中连发只入队、不发 fetch；每条在 drain 的
+// finally 之后才取下一条，绝不与当前 chat 抢同会话闸。停止 = cancel + 队列退回输入框。
 async function send(presetText, presetAtts) {
   const text = (presetText ?? input.value).trim();
   if (!text) return;
-  // 附件：手动发送取托盘待发件；重新生成用 trace 留存的原始附件
   const atts = presetAtts ? presetAtts : pendingAtts.splice(0);
   if (presetText === undefined) { input.value = ""; input.style.height = "48px"; renderAtts(); }
-  sendBtn.disabled = true; stopBtn.hidden = false; setStatus("思考中…");
   touchSession(session);
   autoName(session, text); // 标题为空时按首条消息自动命名
-  try {
-    chatAbort = new AbortController();
-    const r = await fetch("/api/chat", {
-      method: "POST", headers: { "content-type": "application/json" }, signal: chatAbort.signal,
-      body: JSON.stringify({ session_id: session, message: text, ...(atts.length ? { attachments: atts } : {}) }),
-    });
-    const v = await r.json();
-    if (!v.ok) setStatus("失败: " + (v.error?.message ?? r.status));
-    else setStatus("");
-  } catch (e) {
-    if (e?.name === "AbortError") setStatus("已停止（后台正在收敛）"); else setStatus("请求失败: " + e);
-  }
-  finally { chatAbort = null; sendBtn.disabled = false; stopBtn.hidden = true; input.focus(); }
+  const s = qState(session);
+  s.queue.push({ text, atts });
+  queueOpen = true; renderQueue();
+  if (!s.draining) drain(session);
 }
 sendBtn.onclick = () => send();
 
@@ -295,7 +292,7 @@ sendBtn.onclick = () => send();
 // trace 事件同源截断）。R15：区间内 agent 的文件改动随回滚一并撤销（host 冲突检测：
 // 变更后又被人工改过的文件自动跳过，绝不硬覆盖）。resend=true 为「重新生成」。
 async function rollbackTo(idx, resend, ut) {
-  if (sendBtn.disabled) { setStatus("对话进行中，请先停止或等待完成"); return; }
+  if (qState(session).running) { setStatus("对话进行中，请先停止或等待完成"); return; }
   const affected = [...fcSeen.values()].filter((e) => e.turn >= idx);
   const fileList = affected.slice(0, 8).map((e) => `${{ edit: "编辑", bash: "脚本", write: "写入" }[e.op] ?? e.op} ${e.path}`).join("\n");
   const undoNote = affected.length
@@ -307,6 +304,7 @@ async function rollbackTo(idx, resend, ut) {
     const un = v.undone?.length ?? 0, sk = v.skipped?.length ?? 0;
     var undoMsg = (un || sk) ? `已撤销 ${un} 个文件改动` + (sk ? `，${sk} 个跳过（文件已被修改）` : "") : null;
   } catch (e) { setStatus("回滚失败: " + e.message); return; }
+  dropSessionCache(session); // 回滚会 connect(0)，缓存必须失效，防已删内容复活
   connect(0); // 全量重放截断后的历史（重置 SSE 游标）
   if (undoMsg) setStatus(undoMsg);
   if (resend && ut) send(ut.text, ut.atts || []);
@@ -314,7 +312,6 @@ async function rollbackTo(idx, resend, ut) {
 
 // P2/T1 停止：发送期间可见。置位取消信号（agent-loop 在波次间/轮次边界收敛为 K499），
 // 随即 abort 阻塞中的 /api/chat（UI 即时解锁，不再等服务端收敛）。
-// 与发送互斥——stopBtn 仅在 sendBtn.disabled 时出现。
 stopBtn.onclick = async () => {
   stopBtn.disabled = true;
   try {
@@ -322,13 +319,20 @@ stopBtn.onclick = async () => {
     const v = await r.json();
     if (v.ok) {
       setStatus("正在停止…");
-      chatAbort?.abort();
+      returnQueueToInput();             // pi 语义：排队消息退回编辑器，不静默丢弃
+      qState(session).abort?.abort();
     } else setStatus("停止失败: " + (v.error?.message ?? r.status));
   } catch (e) { setStatus("停止失败: " + e); }
   finally { stopBtn.disabled = false; }
 };
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (e.altKey) interruptAndSend();  // Alt+Enter：停止当前 + 插队
+    else send();                        // Enter：排队（follow-up）
+  } else if (e.key === "Escape" && qState(session).running) {
+    e.preventDefault(); stopBtn.onclick(); // Esc：硬中断并退回队列
+  }
 });
 input.addEventListener("input", () => {
   input.style.height = "48px";

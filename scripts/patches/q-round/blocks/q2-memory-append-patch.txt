@@ -1,0 +1,18 @@
+      case "append": {
+        const incoming = (payload.messages ?? []) as Msg[];
+        const msgs = loadIfAbsent(sessionId);
+        msgs.push(...incoming);
+        persist(sessionId, msgs);
+        // Q 轮：原文同步追加进 sidecar（工作集视图仍是 sessions/<safe>.json）。
+        appendSessionEvents(sessionId, incoming.map((m) => ({
+          kind: "message", role: m.role, preview: (m.content ?? "").slice(0, 200),
+        })));
+        return { ok: true, count: msgs.length };
+      }
+      case "get": {
+        sessionTouched.set(sessionId, Date.now());
+        pruneSessionCache(Date.now());
+        const msgs = loadIfAbsent(sessionId);
+        const limit = payload.limit as number | undefined;
+        return { ok: true, messages: limit ? msgs.slice(-limit) : msgs };
+      }

@@ -1,0 +1,92 @@
+function err(message: string): { ok: false; error: { message: string } } {
+  return { ok: false, error: { message } };
+}
+
+// ── Q 轮 Phase 2：append-only sidecar + session.index + recall + TTL ──────────
+// 设计取舍（「换底座、不换视图」）：sessions/<safe>.json 仍是 LLM 工作集的唯一
+// 视图，get/summarize/rollback 语义与旧版逐字一致（e2e 断言不破）；所有原始
+// 消息、压缩摘要、trace 事件另行追加到 events/<safe>.jsonl，原文永不因压缩删除。
+// SessionEvent = {ts, kind, ...}，白名单字段投影供 memory.recall 摘要级召回。
+const eventsDir = (): string => {
+  const dir = path.join(dataDir(), "events");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+};
+const eventFile = (id: string): string =>
+  path.join(eventsDir(), `${id.replace(/[^A-Za-z0-9._-]/g, "_")}.jsonl`);
+const indexFile = (): string => path.join(dataDir(), "session.index.json");
+
+function appendSessionEvents(sessionId: string, rows: unknown[]): void {
+  if (!rows.length) return;
+  const ts = Date.now();
+  fs.appendFileSync(
+    eventFile(sessionId),
+    rows.map((e) => JSON.stringify({ ts, ...(e as Record<string, unknown>) })).join("\n") + "\n",
+    "utf8",
+  );
+  touchIndex(sessionId, rows.length);
+}
+
+type SessionIndexEntry = {
+  id: string; title: string; updated_at: number; event_count: number; last_cursor: number;
+};
+type SessionIndex = { sessions: SessionIndexEntry[] };
+function loadIndex(): SessionIndex {
+  try {
+    const v = JSON.parse(fs.readFileSync(indexFile(), "utf8")) as SessionIndex;
+    if (v && Array.isArray(v.sessions)) return v;
+  } catch { /* 尚无索引：正常路径 */ }
+  return { sessions: [] };
+}
+function saveIndex(idx: SessionIndex): void {
+  // tmp+rename 原子写（与 persist 同款纪律）；索引是派生数据，损坏可重建。
+  const file = indexFile();
+  const tmp = `${file}.tmp-${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify(idx), "utf8");
+  fs.renameSync(tmp, file);
+}
+function touchIndex(sessionId: string, delta = 1): void {
+  try {
+    const idx = loadIndex();
+    let it = idx.sessions.find((s) => s.id === sessionId);
+    if (!it) { it = { id: sessionId, title: "", updated_at: 0, event_count: 0, last_cursor: 0 }; idx.sessions.unshift(it); }
+    it.updated_at = Date.now();
+    it.event_count += delta;
+    it.last_cursor = it.event_count;
+    // TTL/空间卫生：只保留最近 200 个活跃会话的元数据（文件系统仍是真相源，
+    // 老会话再次 append 时自动重建条目——filesystem-first 修 stale 行）。
+    idx.sessions.sort((a, b) => b.updated_at - a.updated_at);
+    idx.sessions = idx.sessions.slice(0, 200);
+    saveIndex(idx);
+  } catch (e) {
+    console.error(`[memory] session.index 更新失败（不影响主链）: ${e}`);
+  }
+}
+function pruneSessionCache(now: number): void {
+  // M6：sessions Map 永不逐出会让长驻进程无界增长。30 分钟未访问的会话从内存
+  // 逐出，磁盘视图与 sidecar 不动（下次 get 由 loadIfAbsent 冷加载）。
+  const TTL_MS = 30 * 60 * 1000;
+  for (const [id, last] of sessionTouched) {
+    if (now - last > TTL_MS) { sessions.delete(id); sessionTouched.delete(id); }
+  }
+}
+const sessionTouched = new Map<string, number>();
+
+function recall(sessionId: string, query: string, limit: number): unknown[] {
+  // 摘要级召回：不返回全文、不返回附件 base64、不返回密钥型字段。
+  const q = String(query || "").toLowerCase().trim();
+  const max = Math.min(Math.max(1, Math.floor(limit || 5)), 5);
+  const out: unknown[] = [];
+  let text = "";
+  try { text = fs.readFileSync(eventFile(sessionId), "utf8"); } catch { return out; }
+  const lines = text.split("\n").filter(Boolean).slice(-2000); // 只扫最近 2000 行
+  for (let i = lines.length - 1; i >= 0 && out.length < max; i--) {
+    let e: Record<string, unknown>;
+    try { e = JSON.parse(lines[i]) as Record<string, unknown>; } catch { continue; }
+    const kind = String(e.kind ?? "");
+    const preview = String(e.preview ?? e.summary ?? e.text ?? "").slice(0, 200);
+    if (q && !`${kind} ${preview}`.toLowerCase().includes(q)) continue;
+    out.push({ kind, ts: e.ts ?? 0, session_id: sessionId, cursor: i + 1, preview });
+  }
+  return out;
+}

@@ -1,0 +1,8 @@
+        drop(_permit);
+        // Q 轮：闸释放之后再 spawn 队列消费者——pump 的第一条 chat 才不会撞 K409。
+        queue::mark_active(&req.session_id, false);
+        queue::leftover_steers_to_followup(&req.session_id); // 未赶上的 steer 不丢
+        if let Some(host) = self.host.get() {
+            queue::try_spawn(host, &req.session_id);
+        }
+        out

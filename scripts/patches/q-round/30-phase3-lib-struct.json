@@ -1,0 +1,1 @@
+{"id":"Q3-01","description":"agent-loop lib.rs：注册 queue 模块","file":"runtime/crates/agent-loop/src/lib.rs","anchor_file":"blocks/q3-lib-mod-anchor.txt","patch_file":"blocks/q3-lib-mod-patch.txt"}

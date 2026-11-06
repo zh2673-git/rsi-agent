@@ -1,0 +1,24 @@
+function resetSessionFeed() {
+  feed.innerHTML = "";
+  pending.clear();
+  lastAfter = 0;
+  doneSids.clear();
+  resetStreamState();   // app-stream.js：流式句柄 + 过程框 + 回合卡 + 子代理框 + 缓冲
+  resetFileChanges();   // app-files.js：文件变更视图
+  userTurns = [];
+  turnArtifacts = [];
+  turnSourceBox = null;
+  turnSourceUrls.clear();
+  turnArtifactPaths.clear();
+  turnTail = null;
+  turnFcBox = null;
+}
+
+function connect(after) {
+  after = after || 0;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (es) es.close();
+  if (after === 0) resetSessionFeed(); // 首屏/切换/回滚后：集中重置（P7），清空后全量重放
+  // 清 DOM 后流式句柄一并失效，避免继续写入已移除的气泡
+  streamSid = streamCard = streamBody = streamStats = null;
+  es = new EventSource(`/api/events?session=${encodeURIComponent(session)}&after=${after}`);

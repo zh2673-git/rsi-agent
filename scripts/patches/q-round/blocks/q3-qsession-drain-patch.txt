@@ -1,0 +1,16 @@
+async function drain(sid) {
+  const s = qState(sid);
+  if (s.draining) return;
+  s.draining = true; s.running = true; syncRunUI();
+  try {
+    while (s.queue.length) {
+      const item = s.queue[0];
+      await postChat(sid, item);   // 每条各入队一次（服务端按序执行），或旧 host 直发兜底
+      s.queue.shift();
+      renderQueue();
+    }
+  } finally {
+    s.draining = false; s.running = false; s.abort = null;
+    if (session === sid) { syncRunUI(); setStatus(""); input.focus(); }
+  }
+}

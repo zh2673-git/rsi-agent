@@ -49,6 +49,21 @@ function resetStreamState() {
   processBox = processBody = processThink = null;
   roundCards = [];
   subBoxes.clear();
+  doneSids.clear();
+}
+
+// Q 轮：会话视图缓存的对称半边（P7 只落地了 reset）。只存纯数据，DOM 句柄引用
+// 一律丢弃——它们随 innerHTML 恢复而失效，重放/新事件由 ensureProcessBox 重建。
+function snapshotStreamState() {
+  return { reasoning: streamBuf.reasoning, text: streamBuf.text, roundCards: roundCards.length };
+}
+function restoreStreamState(s) {
+  streamBuf.reasoning = s.reasoning || "";
+  streamBuf.text = s.text || "";
+  streamSid = streamCard = streamBody = streamStats = null;
+  processBox = processBody = processThink = null;
+  roundCards = [];
+  subBoxes.clear();
 }
 
 function ensureProcessBox() {

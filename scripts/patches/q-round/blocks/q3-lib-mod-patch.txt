@@ -1,0 +1,2 @@
+mod budget;
+mod queue;   // Q 轮 Phase 3：服务端显式队列（全局有界状态，不动插件结构体）

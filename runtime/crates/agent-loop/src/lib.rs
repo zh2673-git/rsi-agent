@@ -27,6 +27,7 @@
 //! 跨插件调用封装与跨模块共享的常量/小工具。
 
 mod budget;
+mod queue;   // Q 轮 Phase 3：服务端显式队列（全局有界状态，不动插件结构体）
 mod chat;
 mod compaction;
 mod config;
@@ -227,8 +228,8 @@ pub fn new_with_policy(max_rounds: usize, policy: LoopPolicy) -> PluginInstance 
         // Serial 会让 cancel dispatch 在 per-plugin 锁后排队到 chat 结束之后（取消永远迟到）。
         semantics: Semantics::Concurrent,
         priority: 1,
-        // 8 = 并发 chat 槽位 + cancel 通道余量（cancel 不应被满载 chat 挤掉）。
-        max_inflight: Some(8),
+        // Q 轮：槽位可配（缺省保持 8 / 32；非法值 fail-closed 回退缺省）。
+        max_inflight: Some(std::env::var("AGENT_MAX_INFLIGHT").ok().and_then(|v| v.trim().parse::<usize>().ok()).filter(|n| *n >= 2 && *n <= 128).unwrap_or(8)),
         fuel_limit: None,
         host_timeout_ms: None,
         epoch_interval_ms: None,
@@ -288,6 +289,30 @@ impl AgentLoopPlugin {
         format!("{session_id}-r{n}")
     }
 
+    /// Q 轮 Phase 3：显式入队。当前会话空闲 → 立即 spawn pump；有在途 chat →
+    /// 由 chat_body 出口（闸释放后）spawn；steer 且在运行中 → 进轮次边界注入缓冲。
+    fn queue_enqueue(&self, env: &Envelope) -> Value {
+        let sid = env.payload.get("session_id").and_then(Value::as_str).unwrap_or("");
+        let text = env.payload.get("user_text").and_then(Value::as_str).unwrap_or("");
+        if sid.is_empty() || text.trim().is_empty() {
+            return json!({"ok": false, "error": {"code": "K400", "message": "queue/enqueue 需 session_id + user_text"}});
+        }
+        let target = env.payload.get("target").and_then(Value::as_str).unwrap_or("followup");
+        if !matches!(target, "followup" | "steer") {
+            return json!({"ok": false, "error": {"code": "K400", "message": "target 只能是 followup 或 steer"}});
+        }
+        let atts = env.payload.get("attachments").cloned();
+        match queue::enqueue(sid, text.to_string(), atts, target) {
+            Ok((id, position)) => {
+                if let Some(host) = self.host.get() {
+                    queue::try_spawn(host, sid);
+                }
+                json!({"ok": true, "queued": true, "id": id, "position": position, "target": target})
+            }
+            Err(e) => json!({"ok": false, "error": {"code": "K400", "message": e}}),
+        }
+    }
+
     /// 跨插件调用便捷封装（K2 寻址契约 + S1 贯穿，v0.1.7 消费）：按 capability 寻址，
     /// 复用内核 dispatch 全链（B5 快照 / B2 panic 隔离 / B4 背压 / deadline 竞争全部继承）。
     ///
@@ -326,6 +351,26 @@ impl Plugin for AgentLoopPlugin {
         let op = env.payload.get("op").and_then(|v| v.as_str()).unwrap_or("");
         match op {
             "chat" => Ok(self.chat_body(&env).await),
+            // Q 轮 Phase 3：显式队列 op 面（纯追加；裸并发 chat 仍走上面的 K409 闸）。
+            // 队列项经 host.call_plugin 派发，与裸 chat 共用同一 per-session 闸，
+            // 但由单消费者 pump 串行化——「显式队列」不推翻「隐式排队」旧裁决。
+            "queue/enqueue" => Ok(self.queue_enqueue(&env)),
+            "queue/status" => Ok(json!({ "ok": true, "session_id": env.payload.get("session_id").and_then(Value::as_str).unwrap_or(""), "status": queue::status(env.payload.get("session_id").and_then(Value::as_str).unwrap_or("")) })),
+            "queue/remove" => {
+                let sid = env.payload.get("session_id").and_then(Value::as_str).unwrap_or("");
+                let id = env.payload.get("id").and_then(Value::as_str).unwrap_or("");
+                Ok(json!({"ok": queue::remove(sid, id), "removed": id}))
+            }
+            "queue/interrupt" => {
+                let sid = env.payload.get("session_id").and_then(Value::as_str).unwrap_or("");
+                if sid.is_empty() {
+                    Ok(json!({"ok": false, "error": {"code": "K400", "message": "interrupt 需 session_id"}}))
+                } else {
+                    let n = queue::clear(sid);
+                    self.cancels.lock().unwrap().insert(sid.to_string());
+                    Ok(json!({"ok": true, "session_id": sid, "cleared": n, "note": "取消信号已置位；队列已清空（前端可把待发项退回编辑器）"}))
+                }
+            }
             "cancel" => {
                 // P2/T1：置位取消标志。Concurrent 语义保证本调用不被在途 chat 的锁阻塞。
                 let sid = env.payload.get("session_id").and_then(Value::as_str).unwrap_or("");
@@ -363,6 +408,7 @@ impl Plugin for AgentLoopPlugin {
         }
     }
     fn destroy(&self) -> KernelResult<()> {
+        queue::destroy();   // Q 轮：init/destroy 成对，清空进程内队列状态
         Ok(())
     }
 }
