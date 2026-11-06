@@ -1,5 +1,5 @@
 import type { Project } from '../schema.js';
-import { isCameraToken } from '../schema.js';
+import { isCameraToken, CAMERA_MOVES } from '../schema.js';
 import { err, warn, type Issue } from './types.js';
 
 export function validateStoryboard(p: Project): Issue[] {
@@ -30,8 +30,13 @@ export function validateStoryboard(p: Project): Issue[] {
     // 小津/北野武/死板喜剧都靠它），不再当"幻灯片"报错；全片画面是否够活由 V-RHY-010 统计，
     // 重音是否落到画面由 V-RHY-004 管。这里只拦没登记的词（拼错会静默退化成静止）。
     if (!isCameraToken(s.camera)) {
+      // 报错文案从词表常量派生，不手写枚举——手写的那份迟早和 schema.ts 漂移，
+      // 而漂移会骗人：「照报错写的词」反而不在词表里。
       issues.push(
-        err('V-CAM-002', `镜头 ${s.id} 运镜词「${s.camera}」不在词表（push-in/pull-out/pan/pan-left/tilt-up/tilt-down/static/none）`),
+        err(
+          'V-CAM-002',
+          `镜头 ${s.id} 运镜词「${s.camera}」不在词表（合法值：${[...CAMERA_MOVES, 'static', 'none'].join('/')}；别名如 panright/whip/punch 也会被归一化）`,
+        ),
       );
     }
     if (!s.counterpoint) {

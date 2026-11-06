@@ -30,6 +30,13 @@ export const CLOUD_POLL_MAX_MS = 600000;
 export const HYPERFRAMES_VERSION = '0.8.173';
 export const BUDDY_CLOUD_SCRIPT_ENV = 'BUDDY_CLOUD_SCRIPT';
 
+/**
+ * 离线模板占位标记（v1.1.1）。
+ * 离线 template 引擎没有内容能力，产出的只是骨架；带此标记的讲稿由内容门 V-SCP-015 硬拒，
+ * 避免「无 LLM 也当成片交付」——v1.1.0 正是踩了这个坑：8 句套话循环 3.75 遍，形式校验全绿。
+ */
+export const PLACEHOLDER_MARK = '【离线占位】';
+
 export const AUDIO_SAMPLE_RATE = 24000;
 export const MS_PER_CHAR_CN = 220;
 

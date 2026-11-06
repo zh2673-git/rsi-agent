@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { Project, Shot, StylePack } from '../core/schema.js';
 import { V } from '../core/index.js';
+import { allocateAccentShots, accentAllowedFor } from './accent-budget.js';
 import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR, SCENE_LLM_RETRIES } from '../core/constants.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
@@ -61,10 +62,20 @@ export async function drawScene(
 ): Promise<{ file: string; issues: V.Issue[] }> {
   const dir = store.projectDir(project.meta.id);
   const out = path.join(dir, 'scenes', `Scene_${shot.id}.html`);
+  const budget = allocateAccentShots(project);
+  const accentAllowed = budget.allowed.has(shot.id);
   // V-STE-003 任务幂等 + docs/12「人可精修」：场景文件已存在（上轮产物或 agent/人工精修版）
   // 则不再覆盖——校验通过直接沿用；违规则带反馈报错（failReason 即给 agent 的修改意见）
   if (exists(out)) {
-    const existing = await readTemplate(out);
+    let existing = await readTemplate(out);
+    // 存量项目同样要过规范化：重音预算（V-MOT-013）是后来才有的判据，
+    // 旧场景文件按旧提示词生成，超标是必然。就地降级后写回，
+    // 让「已有精修版」与「新生成」收敛到同一条规则（幂等：合规文件不改动）。
+    const fixed = normalizeSceneHtml(existing, { accentAllowed });
+    if (fixed !== existing) {
+      await atomicWriteText(out, fixed);
+      existing = fixed;
+    }
     const issues = validateSceneHtml(
       existing,
       shot,
@@ -83,7 +94,7 @@ export async function drawScene(
   // LLM 个性化场景（docs/04：根据剧本拍电影）→ 校验失败带反馈重试 → 耗尽回退模板 forge
   if (llm) {
     const generated = await tryLlmScene(llm, project, shot, pack);
-    if (generated) {
+    if (generated.ok) {
       const issues = validateSceneHtml(
         generated.html,
         shot,
@@ -97,7 +108,15 @@ export async function drawScene(
         await writeArtifacts(store, project, shot, 'llm');
         return { file: out, issues };
       }
+      // 走到这里说明「生成成功但终审又不过」——与内部重试的判据不同，必须留痕
+      await logSceneOrigin(store, project, shot.id, 'forge', `终审打回：${V.formatIssues(issues)}`);
+    } else {
+      // v1.1.2：回退必须可见。旧实现静默 forge 兜底，30 镜只有 8 镜是 LLM 画的，
+      // 而所有日志、所有校验、所有审计全绿——「整片降级成拼字板」在流水线上看不见。
+      await logSceneOrigin(store, project, shot.id, 'forge', generated.reason);
     }
+  } else {
+    await logSceneOrigin(store, project, shot.id, 'forge', '未接 LLM（template 模式）');
   }
   const templateName = shot.visual.template ?? 'typography';
   // canvas:<program> → 程序化电影场景（templates/canvas/cinema.html）
@@ -253,9 +272,10 @@ async function tryLlmScene(
   project: Project,
   shot: Shot,
   pack: StylePack,
-): Promise<{ html: string; template: string } | null> {
+): Promise<{ ok: true; html: string; template: string } | { ok: false; reason: string }> {
   const tokens = tokensFromPack(pack);
   const seg = project.script?.segments.find((x) => x.id === shot.segmentId);
+  const accentBudget = allocateAccentShots(project);
   const base = {
     sceneId: shot.id,
     narration: shot.narration,
@@ -269,6 +289,12 @@ async function tryLlmScene(
     // P8-T5：动作谱交给场景画师——语法选型在分镜期已定，LLM 照动作谱施工，
     // 校验器按 requiredPrimitives 验收（写了 requiredPrimitives 却不调用会被打回）
     actionSheet: shot.visual.params['actionSheet'],
+    // V-MOT-013 是全片预算，但场景画师逐镜独立生成、看不到别人的 HTML。
+    // 不告诉它「这一镜有没有资格用重音」，它只能凭直觉往每镜塞 slam（实测 50%）。
+    // 预算由 allocateAccentShots 确定性算出（纯函数，不依赖生成顺序），这里只传结论。
+    accentAllowed: accentBudget.allowed.has(shot.id),
+    accentCap: accentBudget.cap,
+    shotCount: accentBudget.totalShots,
     // 风格素材语言（V-STYLE-008）：维度/母题/纹理/禁用 + 美术-摄影-表演三条部门指令，
     // 让画面长成这一派的样子，而不是只换一套配色
     styleVisual: pack.visuals,
@@ -288,20 +314,128 @@ async function tryLlmScene(
     },
   };
   let feedback = '';
+  let lastIssues: V.Issue[] = [];
   for (let attempt = 0; attempt <= SCENE_LLM_RETRIES; attempt += 1) {
-    const res = (await llm.generate({ kind: 'scene', payload: { ...base, feedback } })) as {
-      html?: string;
-      note?: string;
-    };
+    let res: { html?: string; note?: string };
+    try {
+      res = (await llm.generate({ kind: 'scene', payload: { ...base, feedback } })) as {
+        html?: string;
+        note?: string;
+      };
+    } catch (e) {
+      // 生成抛错（超时/接口 5xx/JSON 坏）同样算回退原因，不能和「引擎无能力」混为一谈
+      return { ok: false, reason: `LLM 调用失败（第 ${attempt + 1} 次）：${(e as Error).message}` };
+    }
     const html = res?.html ?? '';
-    if (!html) return null; // 引擎无 scene 能力（template 模式声明）→ forge 兜底
-    const issues = validateSceneHtml(html, shot, project, base.template, pack.visuals?.dimension, {
+    if (!html) {
+      return { ok: false, reason: `引擎未返回 html（${res?.note ?? 'template 模式无 scene 能力'}）` };
+    }
+    // 先做机械可修项的规范化，再校验。
+    //
+    // 为什么不是「不合格就重画」：V-COMP-001（主语唯一）、V-SCENE-005（画面复述旁白）
+    // 这类判据的失败原因是**标记与措辞**，不是画面构思错了。模型一镜要 60-70s，
+    // 为「少写一个 class」重画整镜，等于把 30 镜的成片时间从 12 分钟拉到 40 分钟，
+    // 而且重画后可能又踩另一条——v1.1.2 实测：s01 因主语 0 个连打回 3 次，
+    // 而 s02 同一提示词下自己带了 subject。这是采样随机性，不是能力问题。
+    // 因此把「能确定性修好的」就地修好，只把真正需要重新构思的问题留给重试。
+    const normalized = normalizeSceneHtml(html, { accentAllowed: base.accentAllowed });
+    const issues = validateSceneHtml(normalized, shot, project, base.template, pack.visuals?.dimension, {
       enforceActionSheet: true, // LLM 拿着动作谱施工 → 按谱验收（V-MOT-023）
     });
-    if (!V.hasError(issues)) return { html, template: base.template };
+    if (!V.hasError(issues)) return { ok: true, html: normalized, template: base.template };
+    lastIssues = issues;
     feedback = `上一版被校验器打回，逐条修复后重出完整 HTML：\n${V.formatIssues(issues)}`;
   }
-  return null; // 重试耗尽 → forge 兜底（流水线不因 LLM 质量阻塞）
+  // 重试耗尽 → forge 兜底（流水线不因 LLM 质量阻塞），但把最后一批意见带出去留痕
+  return {
+    ok: false,
+    reason: `重试 ${SCENE_LLM_RETRIES + 1} 次仍被打回：\n${V.formatIssues(lastIssues)}`,
+  };
+}
+
+/**
+ * 场景 HTML 规范化：只做**确定性可修**的修补，不改变画面构思。
+ *
+ * 当前处理两类：
+ *  1. V-COMP-001 主语数量 ≠ 1
+ *     - 0 个：模型把主角当普通 div 写了。取 .stage 下第一个有内容的非装饰元素补上 subject 类。
+ *     - >1 个：模型给多个元素都打了主语标记。只保留第一个，其余降级为 deco。
+ *  2. 把模型常见的 `<div class='...'>` 单引号写法统一（校验正则只认双引号），
+ *     否则「明明写了 subject 却被判 0 个」。
+ */
+export function normalizeSceneHtml(html: string, opts: { accentAllowed?: boolean } = {}): string {
+  let out = html;
+  // 单引号 class → 双引号（只动 class 属性，避免误伤 JS 字符串）
+  out = out.replace(/class='([^']*)'/g, 'class="$1"');
+
+  // 重音预算（V-MOT-013）就地降级：本镜没有预算却写了 slam/punch/whip。
+  // 这三者与 MV.enter 签名相同（sel, opts），降级后元素照样出现、动作照样发生，
+  // 只是不再是一次「重音标点」——画面结构不变，不占全片预算。
+  // 这就是「机械可修」的判据：改动是确定性的、不涉及重新构思画面。
+  if (opts.accentAllowed === false) {
+    out = out.replace(/\bMV\.(slam|punch|whip)\s*\(/g, 'MV.enter(');
+  }
+
+  const subjectRe = /class="[^"]*\b(subject|title|hero)\b[^"]*"/g;
+  const found = out.match(subjectRe) ?? [];
+  if (found.length === 1) return out;
+
+  if (found.length === 0) {
+    // 补主语：在 .stage 内找第一个「有文字内容」的元素；找不到文字就取第一个非装饰 div
+    const stageIdx = out.indexOf('class="stage"');
+    const from = stageIdx >= 0 ? stageIdx : 0;
+    const head = out.slice(0, from);
+    const body = out.slice(from);
+    const decoRe = /\b(bg|deco|grain|vignette|letterbox|spotlight|shade|texture|halo|aura|glow)\b/;
+    let patched = false;
+    // 优先：带文字的元素（含中文/字母数字）
+    const textEl = /<([a-z][a-z0-9]*)\s+class="([^"]*)"([^>]*)>([^<]{1,200})<\/\1>/i;
+    const m = textEl.exec(body);
+    if (m && !decoRe.test(m[2]!)) {
+      const replaced = `<${m[1]} class="${m[2]} subject"${m[3]}>${m[4]}</${m[1]}>`;
+      out = head + body.replace(m[0], replaced);
+      patched = true;
+    }
+    if (!patched) {
+      // 退而求其次：第一个不带装饰类名的 div
+      const divRe = /<div\s+class="([^"]*)"([^>]*)>/g;
+      let d: RegExpExecArray | null;
+      while ((d = divRe.exec(body))) {
+        if (decoRe.test(d[1]!) || /\bstage\b/.test(d[1]!)) continue;
+        const replaced = `<div class="${d[1]} subject"${d[2]}>`;
+        out = head + body.replace(d[0], replaced);
+        patched = true;
+        break;
+      }
+    }
+    if (!patched) return html; // 实在找不到（canvas 程序镜等）→ 原样交给校验器判
+    return out;
+  }
+
+  // >1 个主语：保留第一个，其余降级为 deco（同屏只能有一个最大对比元素）
+  let seen = 0;
+  out = out.replace(subjectRe, (full, word: string) => {
+    seen += 1;
+    if (seen === 1) return full;
+    return full.replace(new RegExp(`\\b${word}\\b`), 'deco');
+  });
+  return out;
+}
+
+/** 场景来源留痕（logs/scene-origin.log）：llm/forge 各占多少，是「整片是否降级」的唯一证据 */
+async function logSceneOrigin(
+  store: ProjectStore,
+  project: Project,
+  shotId: string,
+  origin: 'llm' | 'forge',
+  reason: string,
+): Promise<void> {
+  const fs = await import('node:fs/promises');
+  await fs.mkdir(path.join(store.projectDir(project.meta.id), 'logs'), { recursive: true });
+  await fs.appendFile(
+    path.join(store.projectDir(project.meta.id), 'logs', 'scene-origin.log'),
+    `[${origin}] ${shotId}: ${reason.replace(/\n/g, ' | ')}\n`,
+  );
 }
 
 function hashSeed(s: string): number {
@@ -316,36 +450,11 @@ function hashSeed(s: string): number {
 /**
  * 重音预算分配（V-MOT-013）：全片约 1/3 的镜头带标点（slam/punch/whip）。
  *
- * 判据要让「这一镜真的需要重音」压过「均匀撒点」：
- *   1. 第一镜必须有（V-MOT-018 开头是具体小场景，需要那一下砸）；
- *   2. 最后两镜优先（收尾金句是天然的标点位置）；
- *   3. 其余按 shotId 哈希打散，配额 = ceil(n/3) - 已用。
- * 为什么不用「每 3 镜一次」：固定节拍就是节拍器，观众会感觉到规律。
+ * 唯一事实源已迁到 accent-budget.ts（LLM 场景与 forge 模板共用同一份分配），
+ * 这里保留薄封装以兼容既有调用点。
  */
 export function accentBudget(project: Project, shotId: string): boolean {
-  const n = project.shots.length;
-  if (n <= 1) return true;
-  const quota = Math.max(1, Math.ceil(n / 3));
-  const idx = project.shots.findIndex((s) => s.id === shotId);
-  if (idx < 0) return false;
-  if (idx === 0) return true;
-  // 末两镜优先占配额
-  const tail = new Set<number>();
-  for (let i = Math.max(1, n - 2); i < n && tail.size < Math.max(0, quota - 1); i += 1) tail.add(i);
-  if (tail.has(idx)) return true;
-  // 剩余配额按哈希打散到中间镜
-  const mid = [];
-  for (let i = 1; i < n; i += 1) if (!tail.has(i)) mid.push(i);
-  const remaining = Math.max(0, quota - 1 - tail.size);
-  if (remaining === 0) return false;
-  const picked = new Set<number>();
-  const scored = mid
-    .map((i) => ({ i, k: hashSeed(project.shots[i]!.id) }))
-    .sort((a, b) => a.k - b.k)
-    .slice(0, remaining)
-    .map((x) => x.i);
-  for (const i of scored) picked.add(i);
-  return picked.has(idx);
+  return accentAllowedFor(project, shotId);
 }
 
 // 各画面程序的编排节拍数（V-RHY-006 每 2-3s 一次视觉变化的校验数据源）

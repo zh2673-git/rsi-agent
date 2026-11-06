@@ -152,6 +152,20 @@
       tl.fromTo(nodes, { xPercent: -3, scale: scale }, { xPercent: 3, duration: opts.duration || 12, ease: 'none' }, 0);
     } else if (move === 'pan-left') {
       tl.fromTo(nodes, { xPercent: 3, scale: scale }, { xPercent: -3, duration: opts.duration || 12, ease: 'none' }, 0);
+    } else if (move === 'tilt-up') {
+      tl.fromTo(nodes, { yPercent: 3, scale: scale }, { yPercent: -3, duration: opts.duration || 12, ease: 'none' }, 0);
+    } else if (move === 'tilt-down') {
+      tl.fromTo(nodes, { yPercent: -3, scale: scale }, { yPercent: 3, duration: opts.duration || 12, ease: 'none' }, 0);
+    } else if (move === 'punch-in') {
+      // 急推收势是标点（全片 ≤2 次），走快起慢停而不是匀速
+      tl.fromTo(nodes, { scale: 1 }, { scale: scale + 0.12, duration: opts.duration || 1.2, ease: 'expo.out' }, 0);
+    } else if (move === 'whip-pan') {
+      tl.fromTo(nodes, { xPercent: -14, scale: scale }, { xPercent: 0, duration: opts.duration || 0.5, ease: 'power4.out' }, 0);
+    } else if (move === 'drift') {
+      tl.fromTo(nodes, { yPercent: 2, scale: scale }, { yPercent: -2, duration: opts.duration || 12, ease: 'sine.inOut' }, 0);
+    } else if (move === 'static' || move === 'none') {
+      // 真静止：只落定景别，不做任何位移（镜内表演由别的原语负责）
+      tl.set(nodes, { scale: scale }, 0);
     } else {
       tl.set(nodes, { scale: scale }, 0);
     }

@@ -305,7 +305,7 @@ export async function storyboard(
     shots.map((s, i) => [s.id, decisions[i] ?? { kind: 'code-scene', reason: '默认' }]),
   );
   project.stage = 'storyboard';
-  const issues = V.validateStoryboard(project);
+  const issues = [...V.validateStoryboard(project), ...V.validateRhythmPeriodicity(project)];
   if (V.hasError(issues)) {
     throw mvError(ERR.STORYBOARD_RULE, `分镜校验失败:\n${V.formatIssues(issues)}`);
   }

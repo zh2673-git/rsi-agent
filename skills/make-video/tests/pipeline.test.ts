@@ -8,8 +8,8 @@ import { StyleRegistry } from '../src/domain/style-registry.js';
 import { BuddyCloudBridge } from '../src/infrastructure/buddy-cloud-bridge.js';
 import { HyperFramesRenderer } from '../src/infrastructure/hyperframes-renderer.js';
 import { SilentTtsClient } from '../src/infrastructure/tts-client.js';
-import { TemplateLlmClient } from '../src/infrastructure/llm-client.js';
 import { RetryingLlmClient } from '../src/infrastructure/llm-client.js';
+import { ContentLlmStub } from './_content-stub.js';
 import { createEngine } from '../src/application/pipeline.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -36,7 +36,7 @@ function makeEngine() {
   const engine = createEngine(root, {
     store,
     registry,
-    llm: new RetryingLlmClient(new TemplateLlmClient()),
+    llm: new RetryingLlmClient(new ContentLlmStub()),
     tts: new SilentTtsClient(),
     bridge: new BuddyCloudBridge(),
     renderer: new HyperFramesRenderer(),
@@ -63,9 +63,14 @@ describe('端到端（template 模式，silent TTS）', () => {
 
     // 编剧 + 分镜
     expect(p.script?.segments.length).toBeGreaterThan(0);
-    expect(p.shots.length).toBe(p.script?.segments.length);
+    // 长镜会被 storyboard 按句拆成 a/b 两镜，故镜数 ≥ 段数；口径是「每段至少一镜」而不是相等
+    expect(p.shots.length).toBeGreaterThanOrEqual(p.script?.segments.length ?? 0);
+    for (const seg of p.script?.segments ?? []) {
+      expect(p.shots.some((s) => s.segmentId === seg.id)).toBe(true);
+    }
     expect(p.style?.id).toBeTruthy();
-    expect(p.directorNotes.length).toBe(p.shots.length);
+    // 导演批注按「段」一条（writeDirectorNotes 遍历 segments），不是按镜
+    expect(p.directorNotes.length).toBe(p.script?.segments.length);
 
     // 素材 + 旁白 + 时间线
     for (const shot of p.shots) {
@@ -131,7 +136,7 @@ describe('端到端（template 模式，silent TTS）', () => {
     const engine2 = createEngine(root, {
       store,
       registry: await freshRegistry(),
-      llm: new RetryingLlmClient(new TemplateLlmClient()),
+      llm: new RetryingLlmClient(new ContentLlmStub()),
       tts: new SilentTtsClient(),
       bridge: new BuddyCloudBridge(),
       renderer: new HyperFramesRenderer(),

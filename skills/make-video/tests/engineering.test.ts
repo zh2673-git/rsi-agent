@@ -8,7 +8,8 @@ import { StyleRegistry } from '../src/domain/style-registry.js';
 import { BuddyCloudBridge } from '../src/infrastructure/buddy-cloud-bridge.js';
 import { HyperFramesRenderer } from '../src/infrastructure/hyperframes-renderer.js';
 import { SilentTtsClient } from '../src/infrastructure/tts-client.js';
-import { TemplateLlmClient, RetryingLlmClient } from '../src/infrastructure/llm-client.js';
+import { RetryingLlmClient } from '../src/infrastructure/llm-client.js';
+import { ContentLlmStub } from './_content-stub.js';
 import { createEngine } from '../src/application/pipeline.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -33,7 +34,7 @@ function makeEngine() {
   return createEngine(root, {
     store,
     registry: new StyleRegistry(root),
-    llm: new RetryingLlmClient(new TemplateLlmClient()),
+    llm: new RetryingLlmClient(new ContentLlmStub()),
     tts: new SilentTtsClient(),
     bridge: new BuddyCloudBridge(),
     renderer: new HyperFramesRenderer(),

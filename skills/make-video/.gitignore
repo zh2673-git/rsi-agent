@@ -5,18 +5,12 @@ project-development-prompt.md
 .DS_Store
 Thumbs.db
 
-# 个人资产（头像/嗓音配置）：只存本地，绝不入库
+# 项目目录：**完全不入库**。
+# projects/ 是运行产物（IR/讲稿/场景/音频/渲染帧/成片），属于用户数据，不属于 skill 发布物；
+# 入库会让仓库随每次出片膨胀（实测 9 个项目 900MB），且不同机器的渲染结果必然不同，
+# 合进来就是噪声。要对外展示案例，放独立仓库的 docs/ 或 release 附件，不要塞进 projects/。
+projects/
+
+# 兼容历史目录名
 personal/
 templates/canvas/personal/
-
-# 项目目录：保留创作源码（IR/讲稿/画布库/场景/字幕），忽略可再生的渲染产物
-projects/*/remotion/
-projects/*/audio/
-projects/*/assets/
-projects/*/cache/
-projects/*/materials/*.jpg
-projects/*/materials/*.png
-projects/*/materials/*.mp4
-projects/*/.render.lock
-projects/*/out/*.mp4
-projects/*/*.hf-transaction-*

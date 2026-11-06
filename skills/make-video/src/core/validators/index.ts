@@ -1,5 +1,13 @@
 export { err, warn, hasError, formatIssues, type Issue, type IssueLevel } from './types.js';
-export { validateSceneFile, validateChartScene, extractKeywords, uses3d, MOTION_WHITELIST, ACCENT_PRIMITIVES, PUSH_CAMERAS } from './scene.js';
+export {
+  BOILERPLATE_PHRASES,
+  findPeriod,
+  topicBigrams,
+  topicTerms,
+  validateRhythmPeriodicity,
+  validateScriptContent,
+} from './content.js';
+export { validateSceneFile, validateChartScene, extractKeywords, uses3d, MOTION_WHITELIST, ACCENT_PRIMITIVES, PUSH_CAMERAS, CAMERA_MOVES } from './scene.js';
 export { validateStoryboard } from './storyboard.js';
 export {
   validateStyleDecision,

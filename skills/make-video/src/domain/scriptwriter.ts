@@ -1,5 +1,6 @@
 import type { LlmClient } from '../infrastructure/llm-client.js';
 import type { Project, Recipe, Script } from '../core/schema.js';
+import { MS_PER_CHAR_CN } from '../core/constants.js';
 import { V } from '../core/index.js';
 import { mvError, ERR } from '../core/errors.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
@@ -31,14 +32,65 @@ export async function writeScript(
     },
   });
   const script = parseScript(raw);
-  const issues = [...validateScript(script, recipe), ...validateCharBudget(script, recipe, tier)];
+  const issues = [
+    ...validateScript(script, recipe),
+    ...validateCharBudget(script, recipe, tier),
+    // 内容门（v1.1.1）：形式校验全绿不代表讲稿有内容——套话循环必须在这里被拦住
+    ...V.validateScriptContent(script, topic ?? project.meta.topic),
+  ];
   if (V.hasError(issues)) {
     throw mvError(ERR.SCRIPT_FUNCTION, `讲稿校验失败:\n${V.formatIssues(issues)}`);
+  }
+  // warn 级问题落盘留痕，避免「静默通过」
+  if (issues.length > 0) {
+    console.warn(`[script] 内容门提醒:\n${V.formatIssues(issues)}`);
   }
   project.script = script;
   project.stage = 'script';
   await store.save(project);
   return script;
+}
+
+/**
+ * 重音词归一化（v1.1.1）。
+ *
+ * 为什么需要兜底：真实 LLM 常漏 `emphasis` 字段（本轮案例 30/30 段全空），
+ * 而剪辑部的 V-RHY-004 要求每镜至少两路重音载体——零高亮会让整片 compose 打回，
+ * 而这其实是「模型漏字段」而不是「片子不想给重音」。所以：
+ *   - 模型给了且能对上原文 → 原样保留（去掉空串与整句）；
+ *   - 没给 / 全对不上 → 从原文派生 1-3 个可用词（中文取内容 2-gram，去掉虚词开头）。
+ * 派生只保证「有落点」，不追求最优——真正的重音语义仍以模型输出为准。
+ */
+export function normalizeEmphasis(raw: unknown, text: string): string[] {
+  const picked = Array.isArray(raw)
+    ? raw.filter((w): w is string => typeof w === 'string' && w.trim().length > 0 && text.includes(w))
+    : [];
+  if (picked.length > 0) return [...new Set(picked)].slice(0, 3);
+  return deriveEmphasis(text);
+}
+
+/** 从一句旁白里派生候选重音词：跳过虚词开头，优先带数字/英文/专有感的片段 */
+const STOP_HEADS = new Set(['的', '了', '是', '在', '和', '就', '也', '都', '而', '它', '你', '我', '这', '那', '把', '被', '让', '给', '更', '最', '不', '没']);
+
+export function deriveEmphasis(text: string): string[] {
+  const clean = text.replace(/[，。、！？；：""''（）()《》…—]/g, ' ');
+  const tokens = clean.split(/\s+/).filter((t) => t.length >= 2);
+  // 优先：含数字或英文的 token（"4GHz""流水线五个阶段"这类最像重音）
+  const strong = tokens.filter((t) => /\d|[A-Za-z]{2,}/.test(t));
+  const pool = strong.length > 0 ? strong : tokens;
+  const out: string[] = [];
+  for (const t of pool) {
+    if (out.length >= 2) break;
+    const head = [...t].slice(0, 2).join('');
+    if (STOP_HEADS.has([...t][0]!)) continue;
+    // 太短的整句片段不好高亮，取 2-4 字的内容核
+    out.push(t.length <= 4 ? t : head);
+  }
+  // 全被虚词过滤掉时，退化为「去标点前 2 字」，保证非空
+  if (out.length === 0 && clean.replace(/\s/g, '').length >= 2) {
+    out.push([...clean.replace(/\s/g, '')].slice(0, 2).join(''));
+  }
+  return [...new Set(out)];
 }
 
 export function parseScript(raw: unknown): Script {
@@ -71,7 +123,10 @@ export function parseScript(raw: unknown): Script {
       function: seg.function as Script['segments'][number]['function'],
       ...(seg.beat ? { beat: seg.beat } : {}),
       ...(seg.mood ? { mood: seg.mood as Script['segments'][number]['mood'] } : {}),
-      ...(Array.isArray(seg.emphasis) ? { emphasis: seg.emphasis } : {}),
+      // emphasis 缺失时按原文派生（详见 deriveEmphasis）：
+      // 模型漏字段是小概率常态，但整片零高亮会让 V-RHY-004 一票否决、
+      // 且观众失去重音提示——兜底派生而不是判死。
+      emphasis: normalizeEmphasis(seg.emphasis, seg.text),
       ...(Array.isArray(seg.pausesMs) ? { pausesMs: seg.pausesMs } : {}),
     };
   });
@@ -109,18 +164,24 @@ export function validateScript(script: Script, recipe: Recipe): V.Issue[] {
   return issues;
 }
 
-// V-SCP-005 字数档位 ±10%（warn）：目标字数 = wordsPerMin × 档位时长中点
+// V-SCP-005 字数档位（warn）：中文讲稿要按「字」算，不能拿 wordsPerMin（英文单词/分）当目标——
+// 旧口径 130 words/min × 2.5min = 325「字」，而中文口播真实容量是 60000/220 ≈ 273 字/分（≈682 字），
+// 于是几乎所有正常中文讲稿都被报「字数偏离」，警告变噪音、门就废了。
+// 现口径：目标字数 = 档位时长 / MS_PER_CHAR_CN，容差 ±20%（TTS 语速本身有 10-15% 波动）。
+const CHAR_BUDGET_TOLERANCE = 0.2;
 export function validateCharBudget(script: Script, recipe: Recipe, tier: string): V.Issue[] {
-  const wpm = recipe.durationTiers[tier]?.wordsPerMin;
   const minutes = TIER_MINUTES[tier];
-  if (!wpm || !minutes) return [];
-  const target = Math.round(wpm * minutes);
+  if (!minutes) return [];
+  const target = Math.round((minutes * 60 * 1000) / MS_PER_CHAR_CN);
   const actual = countChars(script);
-  const lo = target * 0.9;
-  const hi = target * 1.1;
+  const lo = target * (1 - CHAR_BUDGET_TOLERANCE);
+  const hi = target * (1 + CHAR_BUDGET_TOLERANCE);
   if (actual < lo || actual > hi) {
     return [
-      V.warn('V-SCP-005', `总字数 ${actual} 偏离档位目标 ${target}（±10%，${tier} 档）`),
+      V.warn(
+        'V-SCP-005',
+        `总字数 ${actual} 偏离档位目标 ${target}（±${Math.round(CHAR_BUDGET_TOLERANCE * 100)}%，${tier} 档，按 ${MS_PER_CHAR_CN}ms/字）`,
+      ),
     ];
   }
   return [];
