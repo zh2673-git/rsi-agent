@@ -12,8 +12,8 @@ function qState(sid) {
   return s;
 }
 
-// DOM 快照缓存：离开会话时存 feed.innerHTML / 精确 cursor / 滚动位置 / 纯数据状态；
-// 切回时同步 innerHTML 瞬时显示，再用 EventSource(after=cursor) 只补增量。
+// DOM 快照缓存：离开会话时摘下 feed 的活节点 + 精确 cursor + 滚动位置 + 纯数据状态；
+// 切回时把节点原样挂回瞬时显示，再用 EventSource(after=cursor) 只补增量。
 const sessionCache = new Map();
 const CACHE_MAX = 8;
 let queueOpen = true;
@@ -22,12 +22,21 @@ function dropSessionCache(sid) { sessionCache.delete(sid); }
 function snapshotSessionFeed(sid) {
   if (typeof feed === "undefined" || !feed) return;
   sessionCache.delete(sid);
+  // Q 轮修正：缓存的是「活的 DOM 节点」而不是 innerHTML 字符串。字符串快照经
+  // 序列化再解析后，节点上挂的 expando（_fcpath/_fcargs/chip._items）与闭包
+  // （chip.onclick / 工具卡事件）全部丢失 —— 缓存会话里「文件变更」chip 点不开、
+  // 变更抽屉定位不到工具卡、⇄ diff 取不到 args。搬移节点引用即可原样保留。
+  const nodes = [...feed.childNodes];
   sessionCache.set(sid, {
-    html: feed.innerHTML,
+    nodes,
     cursor: lastAfter,
     scrollTop: ($("stream") || {}).scrollTop ?? 0,
     userTurns: userTurns.map((u) => ({ ...u, atts: (u.atts || []).slice() })),
     doneSids: [...doneSids],
+    tail: turnTail ?? null,
+    fcBox: turnFcBox ?? null,
+    srcBox: turnSourceBox ?? null,
+    artifacts: turnArtifacts.slice(),
     streamState: typeof snapshotStreamState === "function" ? snapshotStreamState() : null,
     fcSeen: typeof snapshotFileChanges === "function" ? snapshotFileChanges() : null,
   });
@@ -37,7 +46,7 @@ function restoreSessionFeed(sid) {
   const c = sessionCache.get(sid);
   if (!c) return null;
   resetSessionFeed();                    // 集中重置（P7），随后覆盖纯数据状态
-  feed.innerHTML = c.html;               // 同步瞬时显示
+  feed.replaceChildren(...c.nodes);       // 搬移活节点：expando / 事件闭包原样保留
   lastAfter = c.cursor || 0;
   preciseCursor = lastAfter > 0;
   userTurns = c.userTurns || [];
@@ -45,9 +54,15 @@ function restoreSessionFeed(sid) {
   if (c.streamState && typeof restoreStreamState === "function") restoreStreamState(c.streamState);
   for (const s of c.doneSids || []) doneSids.add(s);
   if (c.fcSeen && typeof restoreFileChanges === "function") restoreFileChanges(c.fcSeen);
+  // 回合尾/聚合 chip 的模块级指针一并接回，否则后续事件会另起一份重复卡。
+  turnTail = c.tail ?? null;
+  turnFcBox = c.fcBox ?? null;
+  turnSourceBox = c.srcBox ?? null;
+  turnArtifacts = c.artifacts || [];
   const box = $("stream"); if (box) box.scrollTop = c.scrollTop || 0;
   return c;
 }
+
 function syncRunUI() {
   const s = qState(session);
   sendBtn.disabled = s.running;
@@ -62,9 +77,10 @@ function renderQueue() {
   if (cnt) cnt.textContent = "待发 " + q.length + " 条";
   list.innerHTML = "";
   q.forEach((item, i) => {
-    const row = el(`<div class="qitem"><span class="qtext"></span><button title="上移">↑</button><button title="删除">×</button></div>`);
+    const row = el(`<div class="qitem"><span class="qtext"></span><button class="qexec" title="立即执行这条（插到队首并停当前）">⏭</button><button title="上移">↑</button><button title="删除">×</button></div>`);
     row.querySelector(".qtext").textContent = item.text;
-    const [up, rm] = row.querySelectorAll("button");
+    const [exec, up, rm] = row.querySelectorAll("button");
+    exec.onclick = () => { runQueueNow(i); };
     up.onclick = () => { if (i > 0) { [q[i - 1], q[i]] = [q[i], q[i - 1]]; renderQueue(); } };
     rm.onclick = () => { q.splice(i, 1); renderQueue(); };
     list.appendChild(row);
@@ -118,7 +134,8 @@ async function drain(sid) {
     while (s.queue.length) {
       const item = s.queue[0];
       await postChat(sid, item);   // 每条各入队一次（服务端按序执行），或旧 host 直发兜底
-      s.queue.shift();
+      const at = s.queue.indexOf(item);   // 发送期间可能被删除/上移：按身份删除，不盲目 shift
+      if (at >= 0) s.queue.splice(at, 1);
       renderQueue();
     }
   } finally {
@@ -149,6 +166,20 @@ async function interruptAndSend() {
   } catch { /* 取消失败仍由 drain 的 K409 重试兜底 */ }
   s.abort?.abort();                           // 只断客户端 fetch；服务端到轮次边界收敛 K499
   if (!s.draining) drain(session);
+}
+async function runQueueNow(i) {
+  const s = qState(session);
+  const item = s.queue[i];
+  if (!item) return;
+  s.queue.splice(i, 1);
+  s.queue.unshift(item);            // 提到队首：drain 本轮收尾后立即取它
+  queueOpen = true; renderQueue();
+  if (!s.draining) { drain(session); return; }
+  // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快走到队首。
+  try {
+    await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
+  } catch { /* 取消失败由 drain 的 K409 重试兜底 */ }
+  s.abort?.abort();
 }
 function returnQueueToInput() {
   const s = qState(session);

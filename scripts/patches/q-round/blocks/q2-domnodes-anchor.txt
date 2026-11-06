@@ -1,0 +1,29 @@
+function snapshotSessionFeed(sid) {
+  if (typeof feed === "undefined" || !feed) return;
+  sessionCache.delete(sid);
+  sessionCache.set(sid, {
+    html: feed.innerHTML,
+    cursor: lastAfter,
+    scrollTop: ($("stream") || {}).scrollTop ?? 0,
+    userTurns: userTurns.map((u) => ({ ...u, atts: (u.atts || []).slice() })),
+    doneSids: [...doneSids],
+    streamState: typeof snapshotStreamState === "function" ? snapshotStreamState() : null,
+    fcSeen: typeof snapshotFileChanges === "function" ? snapshotFileChanges() : null,
+  });
+  while (sessionCache.size > CACHE_MAX) sessionCache.delete(sessionCache.keys().next().value);
+}
+function restoreSessionFeed(sid) {
+  const c = sessionCache.get(sid);
+  if (!c) return null;
+  resetSessionFeed();                    // 集中重置（P7），随后覆盖纯数据状态
+  feed.innerHTML = c.html;               // 同步瞬时显示
+  lastAfter = c.cursor || 0;
+  preciseCursor = lastAfter > 0;
+  userTurns = c.userTurns || [];
+  doneSids.clear();
+  if (c.streamState && typeof restoreStreamState === "function") restoreStreamState(c.streamState);
+  for (const s of c.doneSids || []) doneSids.add(s);
+  if (c.fcSeen && typeof restoreFileChanges === "function") restoreFileChanges(c.fcSeen);
+  const box = $("stream"); if (box) box.scrollTop = c.scrollTop || 0;
+  return c;
+}

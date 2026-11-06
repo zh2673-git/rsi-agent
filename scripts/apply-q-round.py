@@ -77,10 +77,15 @@ def apply(dry: bool, prefix: str = "") -> int:
             failed += 1
             continue
         src = mod._read(path)
-        if patch in src:
+        if patch and patch in src:
             print(f"[{pid}] OK   已应用过（幂等跳过）: {desc}")
             continue
         if anchor not in src:
+            # 删除型补丁（patch 为空）：锚点已消失即视为已应用，保持幂等。
+            # 空串是任何字符串的子串，不加此分支会被上面的幂等判断永久跳过。
+            if patch == "":
+                print(f"[{pid}] OK   已删除（幂等跳过）: {desc}")
+                continue
             print(f"[{pid}] FAIL 锚点未命中: {path}")
             print(f"       期望锚点: {anchor.splitlines()[0][:100]}")
             failed += 1

@@ -6,7 +6,8 @@ async function drain(sid) {
     while (s.queue.length) {
       const item = s.queue[0];
       await postChat(sid, item);   // 每条各入队一次（服务端按序执行），或旧 host 直发兜底
-      s.queue.shift();
+      const at = s.queue.indexOf(item);   // 发送期间可能被删除/上移：按身份删除，不盲目 shift
+      if (at >= 0) s.queue.splice(at, 1);
       renderQueue();
     }
   } finally {

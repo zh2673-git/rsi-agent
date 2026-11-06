@@ -1,0 +1,1 @@
+{"id":"Q4-10","description":"q-session.js：会话快照改存活 DOM 节点（innerHTML 序列化会丢 expando/闭包，致 chip 点不开、工具卡定位失效）","file":"runtime/crates/host/web-dist/vendor/q-session.js","anchor_file":"blocks/q2-domnodes-anchor.txt","patch_file":"blocks/q2-domnodes-patch.txt"}

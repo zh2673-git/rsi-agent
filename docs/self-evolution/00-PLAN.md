@@ -225,4 +225,27 @@ O 轮数据附注：bash 1133 次（占 41.7%）仍居首，但其中「python �
 - 同 session 裸并发隐式排队：旧裁决保留（见 §6.2）；
 - SSE 新增 `cursor` 事件类型：会触发 `FROZEN_EVENT_TYPES` 冻结闸与前端 render 改动，改用帧内字段。
 
+### 6.5 Q4 收尾：前端交互三症状修复（2026-11-06）
+
+Q 轮 Phase 1-3 已提交（c85e87c，34 条补丁）。收尾阶段补 4 条补丁修三个实测症状，
+关键点是把根因改在**缓存表示层**而不是逐元素打补丁。
+
+| # | 症状 | 根因 | 修复 |
+|---|---|---|---|
+| Q4-10 | 切回缓存会话后「📝 文件变更」chip 点不开、抽屉条目定位不到工具卡、⇄ diff 取不到 args | `snapshotSessionFeed` 存 `feed.innerHTML` **字符串**，`restoreSessionFeed` 再 `innerHTML =` 解析回来——序列化/重解析丢掉节点上的 expando（`_fcpath`/`_fcround`/`_fcargs`、`chip._items`）与 `onclick` 闭包 | 快照改存**活 DOM 节点数组**（`[...feed.childNodes]`），恢复用 `feed.replaceChildren(...nodes)` 原样搬回；模块级指针 `turnTail`/`turnFcBox`/`turnSourceBox`/`turnArtifacts` 一并快照恢复，避免后续事件另起重复卡 |
+| Q4-06 / Q4-11 | 待发队列缺「立即执行」；直接用 `send()` 会 push 到**队尾**，与「插队」语义相反 | 无插队入口，草稿误用 `send()` | 新增 `runQueueNow(i)`：`splice` 取出该项 → `unshift` 到队首 → 追加 `queueOpen` → 有在途则 cancel + abort 让 drain 尽快取队首；每条队列行加 `⏭` 按钮 |
+| Q4-01 | 「⏭ 插队」按钮 hover 变全黑、文字不可读 | `.btn.ghost:hover` 只覆盖 `border-color`，`background` 仍继承 `.btn:hover` 的近黑 | `.btn.ghost:hover` 补 `background: var(--card-2)` |
+
+- **顺带修正 drain 出队语义**：`s.queue.shift()` 是「盲目删队首」，插队/上移/删除与在途项并发时会误删他项、
+  重复发送。改为按身份出队（`indexOf(item)` 再 `splice`）。该改动并入既有 `Q3-14` 的 `drain` 补丁块
+  （同一个函数不拆两条补丁，否则后到的会覆盖前者的幂等基线）。
+- **已删除的草稿补丁**：`44-q4-locate`（`locateFileChange` 回读 `data-*`）与 `45-tagfilecard`（`tagFileCard` 写
+  `data-*`）——Q4-10 从表示层根治后不再需要 DOM 属性冗余；`46-index-interrupt`（移除 `#interrupt`）与
+  `47-style-interrupt`——该按钮已正确绑定 steer 语义（Phase 3），移除会让 Q1-01 的幂等基线失效且丢失入口。
+- **补丁脚本修正**：`apply-q-round.py` 的幂等判断由 `if patch in src` 改为 `if patch and patch in src`
+  （空串是任何字符串的子串，删除型补丁会被永久误判为「已应用」），并新增删除型补丁分支——`patch == ""`
+  且锚点已消失视为幂等 OK。
+- **验证矩阵**：`apply-q-round.py --dry-run` 45 条 0 FAIL / 0 DRY（全幂等稳态）· `node --check` 6 个 JS 全过 ·
+  `pytest -q` 53 passed · `cargo check --workspace` 零错误零警告。
+
 

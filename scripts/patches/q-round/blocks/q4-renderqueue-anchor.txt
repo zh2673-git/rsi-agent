@@ -1,0 +1,8 @@
+  q.forEach((item, i) => {
+    const row = el(`<div class="qitem"><span class="qtext"></span><button title="上移">↑</button><button title="删除">×</button></div>`);
+    row.querySelector(".qtext").textContent = item.text;
+    const [up, rm] = row.querySelectorAll("button");
+    up.onclick = () => { if (i > 0) { [q[i - 1], q[i]] = [q[i], q[i - 1]]; renderQueue(); } };
+    rm.onclick = () => { q.splice(i, 1); renderQueue(); };
+    list.appendChild(row);
+  });

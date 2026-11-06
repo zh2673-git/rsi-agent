@@ -1,0 +1,1 @@
+{"id":"Q4-06","description":"q-session.js：挂起栏每条加「⏭ 立即执行」（提到队首并停当前，复用 drain 单消费者）","file":"runtime/crates/host/web-dist/vendor/q-session.js","anchor_file":"blocks/q4-renderqueue-anchor.txt","patch_file":"blocks/q4-renderqueue-patch.txt"}

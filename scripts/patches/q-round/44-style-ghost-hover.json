@@ -1,0 +1,1 @@
+{"id":"Q4-01","description":"style.css：ghost 按钮 hover 不再继承 .btn:hover 的近黑背景（插队键 hover 全黑）","file":"runtime/crates/host/web-dist/style.css","anchor":"  .btn.ghost:hover { border-color: var(--accent); }","patch":"  .btn.ghost:hover { background: var(--card-2); border-color: var(--accent); }"}

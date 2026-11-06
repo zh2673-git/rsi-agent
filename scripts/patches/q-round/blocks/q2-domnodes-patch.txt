@@ -1,0 +1,43 @@
+function snapshotSessionFeed(sid) {
+  if (typeof feed === "undefined" || !feed) return;
+  sessionCache.delete(sid);
+  // Q 轮修正：缓存的是「活的 DOM 节点」而不是 innerHTML 字符串。字符串快照经
+  // 序列化再解析后，节点上挂的 expando（_fcpath/_fcargs/chip._items）与闭包
+  // （chip.onclick / 工具卡事件）全部丢失 —— 缓存会话里「文件变更」chip 点不开、
+  // 变更抽屉定位不到工具卡、⇄ diff 取不到 args。搬移节点引用即可原样保留。
+  const nodes = [...feed.childNodes];
+  sessionCache.set(sid, {
+    nodes,
+    cursor: lastAfter,
+    scrollTop: ($("stream") || {}).scrollTop ?? 0,
+    userTurns: userTurns.map((u) => ({ ...u, atts: (u.atts || []).slice() })),
+    doneSids: [...doneSids],
+    tail: turnTail ?? null,
+    fcBox: turnFcBox ?? null,
+    srcBox: turnSourceBox ?? null,
+    artifacts: turnArtifacts.slice(),
+    streamState: typeof snapshotStreamState === "function" ? snapshotStreamState() : null,
+    fcSeen: typeof snapshotFileChanges === "function" ? snapshotFileChanges() : null,
+  });
+  while (sessionCache.size > CACHE_MAX) sessionCache.delete(sessionCache.keys().next().value);
+}
+function restoreSessionFeed(sid) {
+  const c = sessionCache.get(sid);
+  if (!c) return null;
+  resetSessionFeed();                    // 集中重置（P7），随后覆盖纯数据状态
+  feed.replaceChildren(...c.nodes);       // 搬移活节点：expando / 事件闭包原样保留
+  lastAfter = c.cursor || 0;
+  preciseCursor = lastAfter > 0;
+  userTurns = c.userTurns || [];
+  doneSids.clear();
+  if (c.streamState && typeof restoreStreamState === "function") restoreStreamState(c.streamState);
+  for (const s of c.doneSids || []) doneSids.add(s);
+  if (c.fcSeen && typeof restoreFileChanges === "function") restoreFileChanges(c.fcSeen);
+  // 回合尾/聚合 chip 的模块级指针一并接回，否则后续事件会另起一份重复卡。
+  turnTail = c.tail ?? null;
+  turnFcBox = c.fcBox ?? null;
+  turnSourceBox = c.srcBox ?? null;
+  turnArtifacts = c.artifacts || [];
+  const box = $("stream"); if (box) box.scrollTop = c.scrollTop || 0;
+  return c;
+}
