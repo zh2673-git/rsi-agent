@@ -15,8 +15,10 @@ import { TEMPLATES_DIR } from '../core/constants.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
 import { atomicWriteText, copyFile, ensureDir, exists } from '../infrastructure/fs-utils.js';
 import { extractKeywords } from '../core/validators/scene.js';
+import { MAIN_ACTION_PRIMITIVES } from '../core/catalog.js';
 import { copyDir } from './composer-utils.js';
-import { escapeHtml } from './scene-forge.js';
+import { escapeHtml, normalizeSceneHtml } from './scene-forge.js';
+import { accentAllowedFor } from './accent-budget.js';
 import { buildVoTrack, buildBgm, duckBgm, buildSfx, planMix, exportSrt, checkMixAudibility } from './audiomix.js';
 import { DUCK_RATIO } from '../core/constants.js';
 import {
@@ -49,6 +51,16 @@ const MOTIF_AMP_TO_PX = 6;
 /** pulse/breathe/rotate 类：缩放母题按「400px 元素上的边移」折算，amp/8 × 400 */
 const MOTIF_SCALE_BASE_PX = 400;
 const MOTIF_SCALE_KINDS = new Set(['pulse', 'breathe', 'compress', 'settle', 'drain', 'rotate', 'shimmer', 'scan', 'sweep']);
+
+/**
+ * 「这一镜有没有主动作」的判据：主动作原语名单由 core/catalog.js 统一给出。
+ * 以前这里手写正则枚举了 18 个原语，等于第三份手写清单——白名单加了 drift 之后
+ * 它没跟上，于是纯 drift 的氛围镜被判「无主动作」。现在名单只在一处维护。
+ */
+const MAIN_ACTION_RE = new RegExp(
+  `MV\\.(?:${MAIN_ACTION_PRIMITIVES.map((p) => p.slice(3)).join('|')})\\(`,
+);
+
 
 /**
  * 从场景 HTML 抽出 motifLoop 调用 → 母题种类 + 最小可见位移（V-MOT-022 素材）。
@@ -417,13 +429,28 @@ export async function compose(
   for (const shot of project.shots) {
     const file = path.join(sceneDir, `Scene_${shot.id}.html`);
     if (!exists(file)) continue;
-    const html = await import('node:fs/promises').then((m) => m.readFile(file, 'utf8'));
+    let html = await import('node:fs/promises').then((m) => m.readFile(file, 'utf8'));
+    // 合成前对存量场景过一次规范化：重音预算（V-MOT-013）是全片判据，
+    // 单镜生成期看不见别人。旧项目/旧提示词产出的场景超标是必然，
+    // 而 compose 是直接读盘的——不在这里收口，v1.1.2 之前生成的项目永远卡在合成。
+    // 合规文件不变（幂等），只有真正超标的镜会被降级重写。
+    const fixed = normalizeSceneHtml(html, { accentAllowed: accentAllowedFor(project, shot.id) });
+    if (fixed !== html) {
+      await atomicWriteText(file, fixed);
+      html = fixed;
+    }
     scenePulse.set(shot.id, /MV\.idle|MV\.performance|MV\.emphasis|pulse/.test(html));
     const beats = html.match(/data-beats="(\d+)"/);
     if (beats) {
       sceneBeats.set(shot.id, Number(beats[1]));
     } else {
-      sceneBeats.set(shot.id, (html.match(/\.(to|from|fromTo)\(/g) ?? []).length);
+      // 回退口径：数**场景真正调用了几次动效原语**。
+      // 旧口径数 GSAP `.to|.from|.fromTo(`——但场景是通过 MV.* 原语封装的（SKILL 铁律 8 的
+      // 默认工作方式），源码里根本没有裸 GSAP 调用，于是每镜都算 0 节拍，
+      // V-RHY-006「每 2-3s 一次视觉变化」在 20/30 镜误报，告警彻底失声。
+      // motifLoop 不算节拍：它是持续循环（保证画面不死），不是「一次变化」。
+      const primitives = html.match(/MV\.(?!motifLoop)[a-zA-Z][a-zA-Z0-9]*\s*\(/g) ?? [];
+      sceneBeats.set(shot.id, primitives.length);
     }
     // 混剪审计素材（V-MOT-013~020）：从场景实际调用里数，不信任声明。
     // 但模板可以声明「本镜不带标点」（data-accent="0"）——那样场景里的 slam 走的是 else 分支，
@@ -431,9 +458,7 @@ export async function compose(
     const accentOff = /data-accent="0"/.test(html);
     sceneFacts.set(shot.id, {
       accents: accentOff ? [] : V.ACCENT_PRIMITIVES.filter((p) => html.includes(p)),
-      hasMain: /MV\.(enter|slam|staggeredIn|morphTo|counter|highlight|cards|punch|whip|maskReveal|bands|performance|emphasis|orbit|depth|tilt3d|spin3d|card3d)\(/.test(
-        html,
-      ),
+      hasMain: MAIN_ACTION_RE.test(html),
       textLed:
         ((shot.visual.params['actionSheet'] as { grammar?: string } | undefined)?.grammar ?? '').startsWith('y5') ||
         /class="[^"]*\b(kinetic|kinetic-type)\b/.test(html),
@@ -489,6 +514,8 @@ export async function compose(
     ...V.validateMixPlan(project.mixPlan),
     // V-SND-006 可听性：BGM 不许盖人声、低频不许只堆在小扬声器放不出的频段
     ...(await checkMixAudibility(audioDir)),
+    // V-SCENE-007 画面来源回退率：整片有多少镜其实是模板拼字板而不是 LLM 画的
+    ...sceneOriginIssues(dir, project.shots),
   ];
   if (V.hasError(gateIssues)) {
     throw mvError(ERR.VALIDATION, `剪辑/声音部校验失败:\n${V.formatIssues(gateIssues)}`);
@@ -1290,4 +1317,44 @@ async function appendLog(
   const fs = await import('node:fs/promises');
   await ensureDir(path.join(store.projectDir(project.meta.id), 'logs'));
   await fs.appendFile(path.join(store.projectDir(project.meta.id), 'logs', name), `${text}\n`);
+}
+
+/**
+ * V-SCENE-007 画面来源回退率（error）：forge 模板镜不能超过全片 10%。
+ *
+ * 为什么必须是一道门而不是一条日志：forge 模板是「8 套版式轮换 + 换字」，它能过掉
+ * 所有形式校验（构图、时长、动效、母题、主语唯一全绿），所以从流水线内部看不出问题；
+ * 只有观众一眼看出「就一张图片反复放」。v1.1.1 案例实测 30 镜里 22 镜是 forge
+ * （73%），而所有日志全绿、所有校验通过、帧 MD5 还各不相同（因为模板在换字）。
+ *
+ * 判据来源：logs/scene-origin.log（scene-forge 每次回退必写一行原因）。
+ * 模板模式的整片自检（无 LLM）不适用本门——那时 forge 是唯一画面来源，
+ * 由 V-SCP-015 离线占位硬闸在上游拦掉。
+ */
+function sceneOriginIssues(dir: string, shots: Project['shots']): V.Issue[] {
+  // 同步读，避免把 composer 的这一段改成 async；日志很小（每镜一行）
+  let text = '';
+  try {
+    text = readFileSync(path.join(dir, 'logs', 'scene-origin.log'), 'utf8');
+  } catch {
+    return []; // 没有日志（老项目/未走过 scene-forge）→ 本门不判
+  }
+  const forgeLines = text.split('\n').filter((l) => l.startsWith('[forge]'));
+  // 引擎根本没声明 scene 能力（template 模式 / 无 LLM）：那时 forge 是唯一画面来源，
+  // 整片自检由上游 V-SCP-015 离线占位硬闸拦，本门只负责「本该 LLM 画却退回了模板」。
+  // 判据取自日志本身而不是环境变量：测试与 CI 常常继承宿主的 LLM_BASE_URL，
+  // 用 env 判断会把「引擎没能力」误判成「引擎有能力却没画好」。
+  if (forgeLines.length > 0 && forgeLines.every((l) => l.includes('引擎未返回 html'))) return [];
+  const fallen = new Set(
+    forgeLines
+      .map((l) => l.slice('[forge]'.length).split(':')[0]!.trim())
+      .filter(Boolean),
+  );
+  const total = shots.length;
+  if (total === 0 || fallen.size === 0) return [];
+  const ratio = fallen.size / total;
+  if (ratio <= 0.1) return [];
+  const ids = [...fallen].sort();
+  const msg = `全片 ${total} 镜中 ${fallen.size} 镜（${Math.round(ratio * 100)}%）回退到 forge 模板，超过 10% 上限：${ids.join(', ')}。模板是拼字板，套用 8 套版式轮换会让成片「看起来完整、其实就几张图反复放」；请查 logs/scene-origin.log 里每镜的回退原因（多为校验器打回或 LLM 调用失败）`;
+  return [V.err('V-SCENE-007', msg)];
 }

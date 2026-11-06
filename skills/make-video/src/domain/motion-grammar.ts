@@ -290,7 +290,7 @@ export interface ActionSheet {
  * 取材于各语法 motionBeats 里点名的动作：动作谱写了什么，场景就必须做什么。
  * motifLoop 全语法必选（阿杜/花叔共同铁律「画面一直是活的」= V-MOT-021）。
  */
-const REQUIRED_BY_GRAMMAR: Record<string, string[]> = {
+export const REQUIRED_BY_GRAMMAR: Record<string, string[]> = {
   y1_flat_explainer: ['MV.enter', 'MV.motifLoop'],
   y2_collage: ['MV.staggeredIn', 'MV.highlight', 'MV.motifLoop'],
   y3_whiteboard: ['MV.maskReveal', 'MV.motifLoop'],
@@ -311,6 +311,24 @@ export function normalizeCameraBias(bias: string): string {
 }
 
 /**
+ * 语法 → 收势措辞。与 REQUIRED_BY_GRAMMAR 一样是「新增语法必须同时登记」的表，
+ * 缺项由 settleText() 显式告警（不再静默回退成「减速落定」）。
+ */
+export const SETTLE_BY_GRAMMAR: Record<string, string> = {
+  y1_flat_explainer: '尺度推进落定在可读尺度，减速 power2.out',
+  y2_collage: '材料落下后回弹 3%，再静止给读字留白',
+  y3_whiteboard: '笔尖停住，等下一句再动',
+  y4_story: '定格 + 挤压回弹（0.1s expo.out 后定住）',
+  y5_kinetic_type: '砸入 0.94 → 1.0 回弹后完全静止，焦点唯一',
+  y6_mechanism: '部件合拢回整体（morphTo 收束）后完全静止',
+  y7_system_map: '拉远回望全图，停在可读的全貌上',
+  t1_3b1b: '形变完成即停，结论留在画面上被读',
+  t2_keynote: '名词/数字落定即静止，不叠滑入',
+  t3_finance: '数据长完标一件事，镜头停住',
+  b_roll: '慢漂自然收住',
+};
+
+/**
  * 由语法 + 镜头生成动作谱。
  * prepare/settle/secondary 的措辞按语法给具体值，不是模板套话——
  * 这三条正是「画面素」与「画面有戏」的差别所在。
@@ -322,32 +340,51 @@ export function actionSheet(
   const beats = grammar.motionBeats;
   const bias = grammar.cameraBias[0] ?? 'static';
   const textLed = grammar.textShare >= 0.5;
-  const settleByGrammar: Record<string, string> = {
-    y1_flat_explainer: '尺度推进落定在可读尺度，减速 power2.out',
-    y2_collage: '材料落下后回弹 3%，再静止给读字留白',
-    y3_whiteboard: '笔尖停住，等下一句再动',
-    y4_story: '定格 + 挤压回弹（0.1s expo.out 后定住）',
-    y5_kinetic_type: '砸入 0.94 → 1.0 回弹后完全静止，焦点唯一',
-    y6_mechanism: '部件合拢回整体（morphTo 收束）后完全静止',
-    y7_system_map: '拉远回望全图，停在可读的全貌上',
-    t1_3b1b: '形变完成即停，结论留在画面上被读',
-    t2_keynote: '名词/数字落定即静止，不叠滑入',
-    t3_finance: '数据长完标一件事，镜头停住',
-    b_roll: '慢漂自然收住',
-  };
   return {
     grammar: grammar.id,
     line: shot.narration,
     subject: textLed ? '画面主体是字（关键词/数字）' : '画面主体是一个具体物件',
     prepare: textLed ? '关键字先缩小到 1.2 倍外、留 120ms 蓄势' : '主体先反向位移 3%（60-100ms anticipation）',
     main: beats[Math.min(1, beats.length - 1)]!.replace(/^→\s*/, ''),
-    settle: settleByGrammar[grammar.id] ?? '减速落定',
+    settle: settleText(grammar.id),
     secondary: '非主语元素透明度 ≤70%、压后 180ms，且在主动作落点前不动',
     cameraPath: shot.camera && shot.camera !== 'none' ? shot.camera : normalizeCameraBias(bias),
     soundCue: textLed ? 'hit 与砸入同帧' : 'whoosh 峰值落在动作启动帧',
     motif: grammar.motifs[0] ?? 'float',
-    requiredPrimitives: REQUIRED_BY_GRAMMAR[grammar.id] ?? ['MV.motifLoop'],
+    requiredPrimitives: requiredPrimitivesFor(grammar.id),
   };
+}
+
+/**
+ * 新增语法时最容易漏的两处：REQUIRED_BY_GRAMMAR（骨架）与 settleByGrammar（收势）。
+ * 以前它们用 `?? 默认值` 静默兜底——漏登记的新语法会得到「只有 motifLoop」的最松骨架，
+ * 而且没有任何人知道，等于有语法没骨架。这里改成显式告警：缺登记照旧给默认值（不阻断
+ * 出片），但一定在控制台留证，配合 tests/catalog.test.ts 的覆盖断言在 CI 阶段就红。
+ */
+const warnedGrammarGaps = new Set<string>();
+
+function warnGrammarGap(kind: 'required' | 'settle', grammarId: string): void {
+  const key = `${kind}:${grammarId}`;
+  if (warnedGrammarGaps.has(key)) return;
+  warnedGrammarGaps.add(key);
+  console.warn(
+    `[motion-grammar] 语法 ${grammarId} 未登记 ${kind === 'required' ? 'REQUIRED_BY_GRAMMAR（必选原语骨架）' : 'settleByGrammar（收势措辞）'}，` +
+      `已按默认值继续——请补登记，否则这条语法等于没有${kind === 'required' ? '骨架约束' : '收势设计'}`,
+  );
+}
+
+function requiredPrimitivesFor(grammarId: string): string[] {
+  const hit = REQUIRED_BY_GRAMMAR[grammarId];
+  if (hit) return hit;
+  warnGrammarGap('required', grammarId);
+  return ['MV.motifLoop'];
+}
+
+function settleText(grammarId: string): string {
+  const hit = SETTLE_BY_GRAMMAR[grammarId];
+  if (hit) return hit;
+  warnGrammarGap('settle', grammarId);
+  return '减速落定';
 }
 
 /* ------------------------------------------------------------------ */

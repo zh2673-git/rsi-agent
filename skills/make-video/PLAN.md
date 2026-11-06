@@ -476,3 +476,44 @@
 （`/(<|\s)data-composition-id\s*=["']/`、`/window\.__timelines\s*=/`、`/<[^>]*mv-presenter/`），
 注释与选择器文本不再误命中；单测 + 全量 124/124 复绿后复渲染成功。
 教训：**防重判断永远不要用裸 includes——只认语义形态**。
+
+## 2026-02-15 优化落点地图 + 能力清单收口（v1.2.0）
+
+**用户诉求**：要一张「优化收益地图」——不同改动（动效/语法/模板/风格/词表）各自带来什么收益、
+该在哪个文件改，以便日后遇到优秀参考项目时能直接判定「改这里有用、改那里没用」。
+
+**审计发现的四处真实漂移**（都不是 bug，是"三份手写清单互相对不上"）：
+
+1. `composer.ts` 的 `hasMain` 手写正则枚举 18 个原语，白名单加 `drift` 后未跟上
+   → 纯 drift 的氛围镜被判「无主动作」（第三份手写清单）。
+2. `REQUIRED_BY_GRAMMAR` / `settleByGrammar` 缺项用 `?? 默认值` 静默兜底
+   → 新增语法漏登记会得到「只有 motifLoop」的最松骨架且无人知晓。
+3. SKILL.md 风格菜单 16 条，`styles/` 实际只有 9 个包 → 10/16 条不可用，
+   照菜单点名直接 `STYLE_UNKNOWN`；且 `cyber-neon` 实际 id 是 `neon-tech-cinematic`，
+   真实存在的 `bright-paper`/`cinematic-dark` 菜单未收录。
+4. 计数漂移：SKILL.md「九种语法」（实为 11）、「12 个动效原语」（实为 26）；
+   README.md 同处更严重——「9 种语法」列的 9 个名字（kinetic-type/collage/…）
+   全是虚构的，与 `GRAMMARS` 真实 id（y1–y7/t1–t3/b_roll）毫无对应。
+
+**结论（收益排序被修正）**：`V-MOT-023` 只在 LLM 施工路径强制（`enforceActionSheet`
+仅 `drawScene` 传入，`adoptScene` 不传），所以「扩语法骨架」对主力路径 P-agent 基本无效。
+真实性价比：L3 风格包 visuals > L5 预算判据 > L1 原语 > L2 语法 > L4 模板文件（只救兜底）。
+
+**落地**：
+- 新增 `src/core/catalog.ts`：`NON_ACTION_PRIMITIVES`（7 个）/ `MAIN_ACTION_PRIMITIVES`
+  （白名单派生）/ `GRAMMAR_IDS` / `buildCapability()`。`drift` 归主动作（刻意的匀速慢移，
+  与 `static/none` 的真静止不同）。
+- `composer.ts` `hasMain` 改为 `MAIN_ACTION_RE` 从 `MAIN_ACTION_PRIMITIVES` 派生，消掉第三份清单。
+- `motion-grammar.ts`：`REQUIRED_BY_GRAMMAR`/`SETTLE_BY_GRAMMAR` 导出，缺项改 `console.warn`
+  显式告警（同项只报一次，不阻断出片）。
+- 新增 `make-video capability [--json]`：能力清单唯一入口。
+- 新增 `docs/13-优化落点地图.md`：六层落点 × 三条路径收益矩阵 / 5 问判定树 / 各层改动清单。
+- 新增 `tests/catalog.test.ts` 14 条防腐断言（①白名单↔motion-lib 双向 ②语法↔骨架收势
+  ③文档计数↔实际 ④机位词↔if 分支）。**断言当场抓出 3 处文档虚标**，改完后全绿。
+- 文档纠偏：SKILL.md 菜单改 9 个真实包 + 规划项单列；语法 11、原语 26；
+  README.md 语法名改真实 id。
+- 另修：`cli.ts` 的 `program.version('0.1.0')` 陈旧 → `1.2.0`（`--version` 一直报错版本）。
+
+**验证**：`npx tsc --noEmit` 干净；`vitest run` 全量 14 文件 / 165 条全绿（基线 13 文件 / 151 条，
+新增 14 条），端到端 pipeline 3 条不回归。
+
