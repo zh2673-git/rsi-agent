@@ -29,6 +29,21 @@
 //!
 //! 有界：整块 ≤ `MAX_BLOCK_CHARS`，章节 ≤ `MAX_SECTIONS`，观察 ≤ `MAX_NOTES_IN_PROMPT`
 //! 条、单条 ≤ `MAX_NOTE_CHARS`。画像会常驻每轮 prompt，不设限就是慢性上下文泄漏。
+//!
+//! v2 两级作用域（I-20261107-07）：「工作/生活」这类角色边界本就模糊（工作的技术决策
+//! 影响个人装机、个人的写作偏好影响工作文档），按角色分域会要求重复维护跨域同一事实
+//! （重复必漂移），而误判成本是「该注入的没注入」甚至「错域偏好带自信污染判断」——
+//! 后者比没有画像更坏。所以只分两级，且按**判据的作用范围**分：
+//!
+//! | 层 | 键 | 何时注入 | 判据 |
+//! |---|---|---|---|
+//! | 全局 | 顶层 `sections`/`notes` | 每轮都在 | 在任何域里都成立 |
+//! | 域 | `domains.<name>` 下同形结构 | 当前域命中时 | 换到别的域就**错** |
+//!
+//! 继承：域内未写的键回落全局（只写差异）。冲突：域写同 `id` 即覆盖，注入时显式标注
+//! `(overrides global)`——静默覆盖会让模型不知道该听谁的。切域是**显式动作**
+//! （`profile.py use <name>` 写 `current_domain`，或 `RSI_PROFILE_DOMAIN` 临时钉住），
+//! 系统**绝不**替用户猜「这轮是工作还是生活」：猜错比不猜更坏。
 
 use serde_json::Value;
 use std::path::PathBuf;
@@ -203,12 +218,129 @@ fn truncate_block(text: &str, max: usize) -> String {
     format!("{cut}\n…(profile truncated)\n")
 }
 
-/// I/O 入口：读画像 → 渲染。读不到（无工作区 / 无文件 / 坏 JSON / 空画像）一律空串。
+/// 单条域注入块上限（域内容比全局窄，单独更低的上限）。
+const MAX_DOMAIN_BLOCK_CHARS: usize = 700;
+/// 域名长度上限（与 `scripts/profile.py::MAX_DOMAIN` 同源）。
+const MAX_DOMAIN_NAME: usize = 24;
+
+/// 合法域名：形状不符一律当「没有域」——宁可退回全局，也不让脏键影响渲染。
+fn valid_domain(name: &str) -> bool {
+    if name.is_empty() || name.chars().count() > MAX_DOMAIN_NAME {
+        return false;
+    }
+    let first = match name.chars().next() {
+        Some(c) => c,
+        None => return false,
+    };
+    if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
+        return false;
+    }
+    name.chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// 当前域：`RSI_PROFILE_DOMAIN` 覆盖文件内 `current_domain`；`none`/`global`/空/非法 → None。
+///
+/// 为什么系统可以自己读、却绝不自己猜：这里读的是**用户已经做出的选择**
+/// （`profile.py use <name>` 的粘性状态），而不是猜「这轮算工作还是生活」——
+/// 后者错域的偏好会带着错误的自信污染判断，比没有画像更坏。
+fn active_domain(profile: &Value) -> Option<String> {
+    let env = std::env::var("RSI_PROFILE_DOMAIN").unwrap_or_default();
+    let raw = if env.trim().is_empty() {
+        s(profile, "current_domain").to_string()
+    } else {
+        env.trim().to_string()
+    };
+    let name = raw.trim().to_lowercase();
+    if name.is_empty() || name == "none" || name == "global" || !valid_domain(&name) {
+        return None;
+    }
+    Some(name)
+}
+
+/// 渲染当前域注入块：只讲**差异**（域内写了什么），并把被覆盖的全局 id 点出来。
+///
+/// 空域 / 无域 / 坏结构 → 空串（与全局块同纪律：不注入空壳标题）。
+/// 继承语义靠「只列 delta + 明确说明未重复的仍然有效」表达，不复制全局内容——
+/// 复制会让同一事实在 prompt 里出现两遍，模型改一处忘一处时两边打架。
+fn render_domain_block(profile: &Value, domain: &str) -> String {
+    let Some(layer) = profile.get("domains").and_then(|d| d.get(domain)) else {
+        return String::new();
+    };
+    let mut secs: Vec<&Value> = layer
+        .get("sections")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter(|x| SECTION_KINDS.contains(&s(x, "kind")))
+                .collect()
+        })
+        .unwrap_or_default();
+    secs.sort_by_key(|x| (kind_rank(s(x, "kind")), s(x, "id").to_string()));
+    secs.truncate(MAX_SECTIONS);
+
+    let notes: Vec<&Value> = layer
+        .get("notes")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter(|x| !s(x, "text").is_empty()).collect())
+        .unwrap_or_default();
+
+    if secs.is_empty() && notes.is_empty() {
+        return String::new();
+    }
+
+    let global_ids: Vec<&str> = profile
+        .get("sections")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().map(|x| s(x, "id")).collect())
+        .unwrap_or_default();
+
+    let mut out = format!(
+        "\n## Active domain: `{domain}`\n\
+         The user is currently inside this scope. What follows are **deltas** on top of the \
+         durable profile above; anything not repeated here still applies.\n"
+    );
+    for sec in secs.iter() {
+        let text = truncate(s(sec, "body"), MAX_SECTION_CHARS);
+        if text.is_empty() {
+            continue;
+        }
+        let mark = if global_ids.contains(&s(sec, "id")) {
+            " (overrides global)"
+        } else {
+            ""
+        };
+        out.push_str(&format!(
+            "- **{}** [{}]{mark}: {text}\n",
+            s(sec, "title"),
+            s(sec, "kind")
+        ));
+    }
+    if !notes.is_empty() {
+        out.push_str("### Domain observations\n");
+        let start = notes.len().saturating_sub(MAX_NOTES_IN_PROMPT);
+        for n in notes[start..].iter() {
+            out.push_str(&format!(
+                "- [{}] {}\n",
+                s(n, "kind"),
+                truncate(s(n, "text"), MAX_NOTE_CHARS)
+            ));
+        }
+    }
+    truncate_block(&out, MAX_DOMAIN_BLOCK_CHARS)
+}
+
+/// I/O 入口：读画像 → 渲染（全局块 + 当前域块）。读不到（无工作区 / 无文件 / 坏 JSON /
+/// 空画像）一律空串——画像坏了不能让 chat 起不来。
 pub(super) fn profile_context() -> String {
     let Some(profile) = load_profile() else {
         return String::new();
     };
-    render_profile(&profile)
+    let mut out = render_profile(&profile);
+    if let Some(d) = active_domain(&profile) {
+        out.push_str(&render_domain_block(&profile, &d));
+    }
+    out
 }
 
 /// 画像通道说明（提示词纪律段；只在工作区真有 `scripts/profile.py` 时注入，
@@ -231,7 +363,10 @@ pub(super) fn profile_ops_hint(full: bool) -> String {
          (kinds: user | model | workflow | env; ids are `[a-z0-9-]{1,24}`).\n\
          - `python scripts/profile.py note --file n.json` — append one observation \
          ({\"kind\",\"text\",\"tags\"?}); oldest are dropped past 60.\n\
-         - `note-rm <id>` / `section-rm <id>` — delete. Notes are cheap, sections are conclusions.\n",
+         - `note-rm <id>` / `section-rm <id>` — delete. Notes are cheap, sections are conclusions.\n\
+         - `python scripts/profile.py domains` / `use <name>` — list or switch the active \
+         domain (`use none` back to global). A domain holds only what is *wrong* outside it; \
+         everything else falls back to the global profile.\n",
     );
     if full {
         out.push_str(
@@ -240,7 +375,14 @@ pub(super) fn profile_ops_hint(full: bool) -> String {
              task, a workspace convention. Do NOT log per-turn trivia (\"user said hello\"), do \
              NOT store secrets/tokens, and do NOT duplicate what the task board already records \
              (tasks/progress/verification belong to `.rsi/board.json`). One section per theme, \
-             overwrite it as the picture sharpens rather than appending near-duplicates.\n",
+             overwrite it as the picture sharpens rather than appending near-duplicates.\n\
+             \nGlobal vs domain — decide by **scope, not by topic**: if the conclusion would be \
+             *wrong* (not merely irrelevant) in another area of the user's life or work, it \
+             belongs in a domain (`--domain <name>`); if it stays true anywhere (\"answer in \
+             Chinese\", \"never put secrets in files\"), it belongs in the global profile. Do not \
+             duplicate a global fact into a domain — inherited facts are already injected. Do \
+             not switch the active domain on your own: the user decides when the context \
+             changes, because a silently wrong domain injects confidently wrong preferences.\n",
         );
     }
     out
@@ -310,5 +452,80 @@ mod tests {
         }));
         assert!(!block.contains("第一行\n第二行"), "正文换行应压平为空格");
         assert!(block.contains('…'), "超长正文应带省略号");
+    }
+
+    /// v2：域名形状封闭——脏键（大写/中文/超长/空）一律当「没有域」，退回全局。
+    #[test]
+    fn valid_domain_is_closed() {
+        assert!(valid_domain("work"));
+        assert!(valid_domain("side-project2"));
+        assert!(!valid_domain(""));
+        assert!(!valid_domain("Work"));
+        assert!(!valid_domain("生活"));
+        assert!(!valid_domain("-lead"));
+        assert!(!valid_domain("a".repeat(25).as_str()));
+    }
+
+    /// v2：域块只讲差异 + 被覆盖的全局 id 要标注。复制全局内容会让同一事实在 prompt
+    /// 里出现两遍，模型改一处忘一处时两边打架。
+    #[test]
+    fn render_domain_block_marks_overrides_and_skips_inherited() {
+        let profile = json!({
+            "current_domain": "work",
+            "sections": [
+                {"id": "lang", "kind": "user", "title": "语言", "body": "中文回答"},
+                {"id": "tone", "kind": "user", "title": "语气", "body": "全局：简短"},
+            ],
+            "notes": [{"id": "N-0", "kind": "user", "text": "全局观察"}],
+            "domains": {"work": {
+                "sections": [{"id": "tone", "kind": "user", "title": "语气", "body": "域内：正式书面"}],
+                "notes": [{"id": "N-9", "kind": "workflow", "text": "工作域观察"}],
+            }},
+        });
+        let block = render_domain_block(&profile, "work");
+        assert!(block.contains("Active domain: `work`"), "域块要自报身份");
+        assert!(block.contains("域内：正式书面"), "域内正文要在");
+        assert!(block.contains("(overrides global)"), "覆盖全局同 id 必须标注");
+        assert!(!block.contains("中文回答"), "继承事实不重复注入（全局块已给）");
+        assert!(block.contains("工作域观察"));
+        assert!(!block.contains("全局观察"), "全局观察归全局块，域块只带域自己的");
+    }
+
+    /// v2：空域 / 不存在的域 / 只有非法 kind 的域 → 空串（不注入空壳）。
+    #[test]
+    fn render_domain_block_empty_cases() {
+        assert_eq!(render_domain_block(&json!({"domains": {}}), "work"), "");
+        assert_eq!(
+            render_domain_block(&json!({"domains": {"work": {"sections": [], "notes": []}}}), "work"),
+            ""
+        );
+        assert_eq!(
+            render_domain_block(
+                &json!({"domains": {"work": {"sections": [{"id": "x", "kind": "weird", "body": "t"}]}}}),
+                "work"
+            ),
+            ""
+        );
+    }
+
+    /// v2：域块独立有界——域内内容再多也不能撑爆它自己的上限。
+    #[test]
+    fn render_domain_block_is_bounded() {
+        let mut secs = Vec::new();
+        for i in 0..40 {
+            secs.push(json!({"id": format!("s{i:02}"), "kind": "user", "title": "t", "body": "x".repeat(600)}));
+        }
+        let profile = json!({"domains": {"work": {"sections": secs}}});
+        let block = render_domain_block(&profile, "work");
+        assert!(block.chars().count() <= MAX_DOMAIN_BLOCK_CHARS + 32, "域块应有独立上限");
+    }
+
+    /// v2：域解析读的是**用户已做的选择**（current_domain / 环境变量），不是猜。
+    #[test]
+    fn active_domain_reads_sticky_choice_and_rejects_junk() {
+        assert_eq!(active_domain(&json!({"current_domain": "work"})).as_deref(), Some("work"));
+        assert_eq!(active_domain(&json!({"current_domain": "none"})), None);
+        assert_eq!(active_domain(&json!({"current_domain": ""})), None);
+        assert_eq!(active_domain(&json!({"current_domain": "生活"})), None, "非法域等于没有域");
     }
 }

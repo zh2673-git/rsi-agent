@@ -3,7 +3,7 @@
   "skill": "rsi-steward",
   "version": "0.1.0",
   "suite": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\rsi-steward\\evals\\cases.jsonl",
-  "evaluated_at": "2026-11-08T03:05:34+08:00",
+  "evaluated_at": "2026-11-08T03:49:00+08:00",
   "summary": {
     "total": 4,
     "decided": 3,
@@ -56,7 +56,7 @@
     "recorded": false
   },
   "baseline": {
-    "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\ledger\\baseline.json",
+    "path": "ledger\\baseline.json",
     "version": "0.1.0",
     "pass_rate": 1.0
   },

@@ -1,0 +1,7 @@
+{
+ "id": "E2-PROFILE-DOMAIN-IO",
+ "description": "profile_ctx.rs：profile_context 增当前域块（active_domain 读用户已做的选择、render_domain_block 只讲 delta 并标注 overrides global、独立上限 700 字符）",
+ "file": "runtime/crates/agent-loop/src/profile_ctx.rs",
+ "anchor_file": "blocks/e-profile-ctx-io-anchor.txt",
+ "patch_file": "blocks/e-profile-ctx-io.txt"
+}

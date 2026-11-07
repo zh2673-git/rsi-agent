@@ -1,0 +1,124 @@
+/// 单条域注入块上限（域内容比全局窄，单独更低的上限）。
+const MAX_DOMAIN_BLOCK_CHARS: usize = 700;
+/// 域名长度上限（与 `scripts/profile.py::MAX_DOMAIN` 同源）。
+const MAX_DOMAIN_NAME: usize = 24;
+
+/// 合法域名：形状不符一律当「没有域」——宁可退回全局，也不让脏键影响渲染。
+fn valid_domain(name: &str) -> bool {
+    if name.is_empty() || name.chars().count() > MAX_DOMAIN_NAME {
+        return false;
+    }
+    let first = match name.chars().next() {
+        Some(c) => c,
+        None => return false,
+    };
+    if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
+        return false;
+    }
+    name.chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// 当前域：`RSI_PROFILE_DOMAIN` 覆盖文件内 `current_domain`；`none`/`global`/空/非法 → None。
+///
+/// 为什么系统可以自己读、却绝不自己猜：这里读的是**用户已经做出的选择**
+/// （`profile.py use <name>` 的粘性状态），而不是猜「这轮算工作还是生活」——
+/// 后者错域的偏好会带着错误的自信污染判断，比没有画像更坏。
+fn active_domain(profile: &Value) -> Option<String> {
+    let env = std::env::var("RSI_PROFILE_DOMAIN").unwrap_or_default();
+    let raw = if env.trim().is_empty() {
+        s(profile, "current_domain").to_string()
+    } else {
+        env.trim().to_string()
+    };
+    let name = raw.trim().to_lowercase();
+    if name.is_empty() || name == "none" || name == "global" || !valid_domain(&name) {
+        return None;
+    }
+    Some(name)
+}
+
+/// 渲染当前域注入块：只讲**差异**（域内写了什么），并把被覆盖的全局 id 点出来。
+///
+/// 空域 / 无域 / 坏结构 → 空串（与全局块同纪律：不注入空壳标题）。
+/// 继承语义靠「只列 delta + 明确说明未重复的仍然有效」表达，不复制全局内容——
+/// 复制会让同一事实在 prompt 里出现两遍，模型改一处忘一处时两边打架。
+fn render_domain_block(profile: &Value, domain: &str) -> String {
+    let Some(layer) = profile.get("domains").and_then(|d| d.get(domain)) else {
+        return String::new();
+    };
+    let mut secs: Vec<&Value> = layer
+        .get("sections")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter(|x| SECTION_KINDS.contains(&s(x, "kind")))
+                .collect()
+        })
+        .unwrap_or_default();
+    secs.sort_by_key(|x| (kind_rank(s(x, "kind")), s(x, "id").to_string()));
+    secs.truncate(MAX_SECTIONS);
+
+    let notes: Vec<&Value> = layer
+        .get("notes")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter(|x| !s(x, "text").is_empty()).collect())
+        .unwrap_or_default();
+
+    if secs.is_empty() && notes.is_empty() {
+        return String::new();
+    }
+
+    let global_ids: Vec<&str> = profile
+        .get("sections")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().map(|x| s(x, "id")).collect())
+        .unwrap_or_default();
+
+    let mut out = format!(
+        "\n## Active domain: `{domain}`\n\
+         The user is currently inside this scope. What follows are **deltas** on top of the \
+         durable profile above; anything not repeated here still applies.\n"
+    );
+    for sec in secs.iter() {
+        let text = truncate(s(sec, "body"), MAX_SECTION_CHARS);
+        if text.is_empty() {
+            continue;
+        }
+        let mark = if global_ids.contains(&s(sec, "id")) {
+            " (overrides global)"
+        } else {
+            ""
+        };
+        out.push_str(&format!(
+            "- **{}** [{}]{mark}: {text}\n",
+            s(sec, "title"),
+            s(sec, "kind")
+        ));
+    }
+    if !notes.is_empty() {
+        out.push_str("### Domain observations\n");
+        let start = notes.len().saturating_sub(MAX_NOTES_IN_PROMPT);
+        for n in notes[start..].iter() {
+            out.push_str(&format!(
+                "- [{}] {}\n",
+                s(n, "kind"),
+                truncate(s(n, "text"), MAX_NOTE_CHARS)
+            ));
+        }
+    }
+    truncate_block(&out, MAX_DOMAIN_BLOCK_CHARS)
+}
+
+/// I/O 入口：读画像 → 渲染（全局块 + 当前域块）。读不到（无工作区 / 无文件 / 坏 JSON /
+/// 空画像）一律空串——画像坏了不能让 chat 起不来。
+pub(super) fn profile_context() -> String {
+    let Some(profile) = load_profile() else {
+        return String::new();
+    };
+    let mut out = render_profile(&profile);
+    if let Some(d) = active_domain(&profile) {
+        out.push_str(&render_domain_block(&profile, &d));
+    }
+    out
+}

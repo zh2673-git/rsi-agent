@@ -1,6 +1,6 @@
 ---
 name: rsi-board
-description: 任务看板与灵感看板的写作规范：何时建任务、怎么写人财物（模型/力度/技能/工具）、每步谁干（owner）、怎么写验收、状态怎么迁移、@引用怎么解析、任务↔对话怎么反查、习惯画像记什么。Invoke when 用户交代一件成规模的事（多步交付/改造/调研）要先立计划再动手，或消息里出现 @T-xxx / @I-xxx 引用，或用户问「任务看板/灵感/进度/习惯」怎么用。
+description: 任务看板与灵感看板的写作规范：何时建任务、怎么写人财物（模型/力度/技能/工具）、每步谁干（owner）、怎么写验收、状态怎么迁移、@引用怎么解析、任务↔对话怎么反查、习惯画像记什么（含全局 vs 域的分层判据）。Invoke when 用户交代一件成规模的事（多步交付/改造/调研）要先立计划再动手，或消息里出现 @T-xxx / @I-xxx 引用，或用户问「任务看板/灵感/进度/习惯/画像」怎么用。
 origin: user
 ---
 
@@ -137,12 +137,17 @@ system prompt 的「Board references」段。**不要再去 `board.py show` 一�
 ## 6.5 习惯画像（D 轮新增）——与看板的分工
 
 看板记「这件事的人财物与进度」，画像记「**跨事的规律**」。两者都落 `.rsi/`，谁也别越界。
+落层判据的完整版（含七条通道的性格与放错层的具体后果）见
+`docs/self-evolution/04-知识落层与多域上下文.md`——本节只给结论。
 
 ```bash
 python scripts/profile.py brief                     # 有界摘要（每轮已自动注入，不必手动读）
 python scripts/profile.py section-add --file s.json # 写/覆盖一个章节（同 id 覆盖）
 python scripts/profile.py note --file n.json        # 追加一条观察（满 60 丢最旧）
 python scripts/profile.py section-rm <id>; python scripts/profile.py note-rm <N-...>
+python scripts/profile.py domains                   # 列出域与当前域
+python scripts/profile.py use work                  # 切换当前域（粘性；use none 回全局）
+python scripts/profile.py note --file n.json --domain work   # 往指定域写
 ```
 
 **写什么**：能活过本次对话的结论——用户明说的偏好、反复纠正的点、某个模型在哪类活上
@@ -151,6 +156,27 @@ python scripts/profile.py section-rm <id>; python scripts/profile.py note-rm <N-
 **不写什么**：本轮琐事（"用户问了好"）、密钥/令牌、看板已经记的东西（任务/进度/验收
 归看板）、聊天原文（trace 有全量）。**观察是素材，章节是结论**——同一个主题反复出现时，
 把它从 notes 提炼成 section，而不是继续加 note。
+
+## 6.6 全局 vs 域（E 轮新增）——按作用范围分，不按角色分
+
+判据只有一句：**这条结论换到别的场合会「错」，还是只是「无关」？**
+
+- 换到哪都对（"中文回答"、"不要往文件里放密钥"）→ **全局**（顶层，每轮注入）。
+- 换到别处就**错**（"提交信息用本仓行文"、"这个项目要在 Linux CI 上跑"）→ **域**。
+
+三条纪律：
+
+1. **不重复**：全局已写的事实不要再写进域——继承的事实本来就会注入。
+   重复会让同一事实在 prompt 里出现两遍，改一处忘一处时两边打架。
+2. **不自动切域**：`use <name>` 是**用户**的动作。系统只读 `current_domain` /
+   `RSI_PROFILE_DOMAIN`，绝不替用户猜"这轮是工作还是生活"——错域的偏好带着错误的
+   自信污染判断，比没有画像更坏。
+3. **不拿域装任务**：任务是会结束的，域是稳定的。一个任务一个域等于把画像退化成 trace；
+   任务的人财物与进度归**看板**，做完的成本与教训归**账本**。
+
+域内写同 `id` 即覆盖全局，注入时会标注 `(overrides global)`。上限 8 个域（超了说明
+在拿域装任务）。`note` 的 ID 全文件唯一——`note-rm` 的 `--domain` 有三条隐式来源，
+两层重名会让同一条命令在不同域状态下删掉不同东西。
 
 ## 7. 边界（与其它层的分工）
 
@@ -168,4 +194,6 @@ python scripts/profile.py section-rm <id>; python scripts/profile.py note-rm <N-
 - [ ] `verifying`/`done` 有 acceptance 或有明确理由为空；
 - [ ] 收到 @引用**没有**重复 `show`（已自动装载），间接文本才用 `resolve`；
 - [ ] 灵感被采纳走 `insp-adopt` 双向关联；
+- [ ] 写画像前问过「换到别处会错还是会无关」——会错的进域，不会错的进全局；
+- [ ] 没有自行 `use <domain>` 切域（那是用户的动作）；
 - [ ] 没有把看板内容整块复述进回答。

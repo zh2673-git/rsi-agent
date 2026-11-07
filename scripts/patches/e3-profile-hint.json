@@ -1,0 +1,7 @@
+{
+ "id": "E3-PROFILE-HINT",
+ "description": "profile_ctx.rs：提示词纪律段补全局 vs 域判据（按作用范围而非话题分）、禁止在域里重复全局事实、禁止自行切域",
+ "file": "runtime/crates/agent-loop/src/profile_ctx.rs",
+ "anchor_file": "blocks/e-profile-hint-anchor.txt",
+ "patch_file": "blocks/e-profile-hint.txt"
+}

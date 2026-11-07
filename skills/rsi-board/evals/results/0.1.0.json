@@ -3,10 +3,10 @@
   "skill": "rsi-board",
   "version": "0.1.0",
   "suite": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\rsi-board\\evals\\cases.jsonl",
-  "evaluated_at": "2026-11-08T03:05:16+08:00",
+  "evaluated_at": "2026-11-08T03:51:09+08:00",
   "summary": {
-    "total": 8,
-    "decided": 8,
+    "total": 9,
+    "decided": 9,
     "pending": 0,
     "invalid": 0,
     "pass_rate": 1.0
@@ -83,6 +83,15 @@
       "score": 1.0,
       "pass": true,
       "reason": "全部命中"
+    },
+    {
+      "id": "c9",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
     }
   ],
   "llm": {
@@ -92,9 +101,9 @@
     "recorded": false
   },
   "baseline": {
-    "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\ledger\\baseline.json",
-    "version": null,
-    "pass_rate": null
+    "path": "ledger\\baseline.json",
+    "version": "0.1.0",
+    "pass_rate": 1.0
   },
   "regressions": [],
   "degraded": false,

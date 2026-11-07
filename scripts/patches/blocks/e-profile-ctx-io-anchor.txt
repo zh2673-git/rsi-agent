@@ -1,0 +1,7 @@
+/// I/O 入口：读画像 → 渲染。读不到（无工作区 / 无文件 / 坏 JSON / 空画像）一律空串。
+pub(super) fn profile_context() -> String {
+    let Some(profile) = load_profile() else {
+        return String::new();
+    };
+    render_profile(&profile)
+}

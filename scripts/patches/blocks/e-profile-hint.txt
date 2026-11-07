@@ -1,0 +1,24 @@
+         - `note-rm <id>` / `section-rm <id>` — delete. Notes are cheap, sections are conclusions.\n\
+         - `python scripts/profile.py domains` / `use <name>` — list or switch the active \
+         domain (`use none` back to global). A domain holds only what is *wrong* outside it; \
+         everything else falls back to the global profile.\n",
+    );
+    if full {
+        out.push_str(
+            "Write discipline: **only conclusions that outlive this conversation** — a stated \
+             preference, a recurring correction, a model that keeps failing a certain class of \
+             task, a workspace convention. Do NOT log per-turn trivia (\"user said hello\"), do \
+             NOT store secrets/tokens, and do NOT duplicate what the task board already records \
+             (tasks/progress/verification belong to `.rsi/board.json`). One section per theme, \
+             overwrite it as the picture sharpens rather than appending near-duplicates.\n\
+             \nGlobal vs domain — decide by **scope, not by topic**: if the conclusion would be \
+             *wrong* (not merely irrelevant) in another area of the user's life or work, it \
+             belongs in a domain (`--domain <name>`); if it stays true anywhere (\"answer in \
+             Chinese\", \"never put secrets in files\"), it belongs in the global profile. Do not \
+             duplicate a global fact into a domain — inherited facts are already injected. Do \
+             not switch the active domain on your own: the user decides when the context \
+             changes, because a silently wrong domain injects confidently wrong preferences.\n",
+        );
+    }
+    out
+}

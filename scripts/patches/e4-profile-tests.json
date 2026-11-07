@@ -1,0 +1,7 @@
+{
+ "id": "E4-PROFILE-TESTS",
+ "description": "profile_ctx.rs 单测：域形状封闭 / 只讲 delta 并标注 overrides / 空域不注入 / 域块独立有界 / 域解析读粘性选择",
+ "file": "runtime/crates/agent-loop/src/profile_ctx.rs",
+ "anchor_file": "blocks/e-profile-ctx-tests-anchor.txt",
+ "patch_file": "blocks/e-profile-ctx-tests-patch.txt"
+}

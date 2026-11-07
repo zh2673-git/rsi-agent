@@ -1,0 +1,4 @@
+        assert!(!block.contains("第一行\n第二行"), "正文换行应压平为空格");
+        assert!(block.contains('…'), "超长正文应带省略号");
+    }
+}

@@ -1,0 +1,2 @@
+//! 有界：整块 ≤ `MAX_BLOCK_CHARS`，章节 ≤ `MAX_SECTIONS`，观察 ≤ `MAX_NOTES_IN_PROMPT`
+//! 条、单条 ≤ `MAX_NOTE_CHARS`。画像会常驻每轮 prompt，不设限就是慢性上下文泄漏。

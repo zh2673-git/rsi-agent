@@ -1,0 +1,7 @@
+{
+ "id": "E1-PROFILE-DOC",
+ "description": "profile_ctx.rs 文档段：补 v2 两级作用域（全局/域）判据与「不猜域」的理由",
+ "file": "runtime/crates/agent-loop/src/profile_ctx.rs",
+ "anchor_file": "blocks/e-profile-ctx-anchor.txt",
+ "patch_file": "blocks/e-profile-ctx-patch.txt"
+}

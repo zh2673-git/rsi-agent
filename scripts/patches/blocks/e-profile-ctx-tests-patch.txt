@@ -1,0 +1,79 @@
+        assert!(!block.contains("第一行\n第二行"), "正文换行应压平为空格");
+        assert!(block.contains('…'), "超长正文应带省略号");
+    }
+
+    /// v2：域名形状封闭——脏键（大写/中文/超长/空）一律当「没有域」，退回全局。
+    #[test]
+    fn valid_domain_is_closed() {
+        assert!(valid_domain("work"));
+        assert!(valid_domain("side-project2"));
+        assert!(!valid_domain(""));
+        assert!(!valid_domain("Work"));
+        assert!(!valid_domain("生活"));
+        assert!(!valid_domain("-lead"));
+        assert!(!valid_domain("a".repeat(25).as_str()));
+    }
+
+    /// v2：域块只讲差异 + 被覆盖的全局 id 要标注。复制全局内容会让同一事实在 prompt
+    /// 里出现两遍，模型改一处忘一处时两边打架。
+    #[test]
+    fn render_domain_block_marks_overrides_and_skips_inherited() {
+        let profile = json!({
+            "current_domain": "work",
+            "sections": [
+                {"id": "lang", "kind": "user", "title": "语言", "body": "中文回答"},
+                {"id": "tone", "kind": "user", "title": "语气", "body": "全局：简短"},
+            ],
+            "notes": [{"id": "N-0", "kind": "user", "text": "全局观察"}],
+            "domains": {"work": {
+                "sections": [{"id": "tone", "kind": "user", "title": "语气", "body": "域内：正式书面"}],
+                "notes": [{"id": "N-9", "kind": "workflow", "text": "工作域观察"}],
+            }},
+        });
+        let block = render_domain_block(&profile, "work");
+        assert!(block.contains("Active domain: `work`"), "域块要自报身份");
+        assert!(block.contains("域内：正式书面"), "域内正文要在");
+        assert!(block.contains("(overrides global)"), "覆盖全局同 id 必须标注");
+        assert!(!block.contains("中文回答"), "继承事实不重复注入（全局块已给）");
+        assert!(block.contains("工作域观察"));
+        assert!(!block.contains("全局观察"), "全局观察归全局块，域块只带域自己的");
+    }
+
+    /// v2：空域 / 不存在的域 / 只有非法 kind 的域 → 空串（不注入空壳）。
+    #[test]
+    fn render_domain_block_empty_cases() {
+        assert_eq!(render_domain_block(&json!({"domains": {}}), "work"), "");
+        assert_eq!(
+            render_domain_block(&json!({"domains": {"work": {"sections": [], "notes": []}}}), "work"),
+            ""
+        );
+        assert_eq!(
+            render_domain_block(
+                &json!({"domains": {"work": {"sections": [{"id": "x", "kind": "weird", "body": "t"}]}}}),
+                "work"
+            ),
+            ""
+        );
+    }
+
+    /// v2：域块独立有界——域内内容再多也不能撑爆它自己的上限。
+    #[test]
+    fn render_domain_block_is_bounded() {
+        let mut secs = Vec::new();
+        for i in 0..40 {
+            secs.push(json!({"id": format!("s{i:02}"), "kind": "user", "title": "t", "body": "x".repeat(600)}));
+        }
+        let profile = json!({"domains": {"work": {"sections": secs}}});
+        let block = render_domain_block(&profile, "work");
+        assert!(block.chars().count() <= MAX_DOMAIN_BLOCK_CHARS + 32, "域块应有独立上限");
+    }
+
+    /// v2：域解析读的是**用户已做的选择**（current_domain / 环境变量），不是猜。
+    #[test]
+    fn active_domain_reads_sticky_choice_and_rejects_junk() {
+        assert_eq!(active_domain(&json!({"current_domain": "work"})).as_deref(), Some("work"));
+        assert_eq!(active_domain(&json!({"current_domain": "none"})), None);
+        assert_eq!(active_domain(&json!({"current_domain": ""})), None);
+        assert_eq!(active_domain(&json!({"current_domain": "生活"})), None, "非法域等于没有域");
+    }
+}
