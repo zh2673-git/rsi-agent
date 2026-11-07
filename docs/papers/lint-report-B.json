@@ -1,35 +1,35 @@
 {
   "ok": true,
   "result": {
-    "file": "outputs\\rsi-agent-paper\\04-论文B-Reconstructibility-Gap-zh.md",
+    "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\docs\\papers\\04-论文B-Reconstructibility-Gap-en.md",
     "genre": "M",
-    "chars": 10790,
+    "chars": 27317,
     "sections": [
-      "1:可重建性缺口：长期 agent 会话中有损压缩的审计",
-      "2:摘要",
-      "2:1 引言",
-      "3:1.1 贡献",
-      "3:1.2 核心评测结果概要",
-      "2:2 方法：重建契约",
-      "3:2.1 定义",
-      "3:2.2 为什么既有声称不能推出该契约",
-      "3:2.3 讨论：契约的代价",
-      "2:3 所研究的系统",
-      "3:3.1 三层持久化",
-      "3:3.2 压缩记录了些什么",
-      "3:3.3 压缩摧毁了些什么",
-      "2:4 评测",
-      "3:4.1 设置",
-      "3:4.2 保真度",
-      "3:4.3 逐字段违反",
-      "3:4.4 压缩统计",
-      "3:4.5 讨论",
-      "2:5 分析：缺口为何持续存在",
-      "2:6 与既有工作的定位",
-      "2:7 结论、局限与未来方向（Conclusion, Limitations, and Future Directions）",
-      "2:附录 A 贡献与致谢",
-      "2:附录 B 测量流程",
-      "2:附录 C 字段级要求详情"
+      "1:The Reconstructibility Gap: Auditing Lossy Compaction in Long-Lived Agent Sessions",
+      "2:Abstract",
+      "2:1 Introduction",
+      "3:1.1 Contributions",
+      "3:1.2 Summary of Core Evaluation Results",
+      "2:2 Approach: The Reconstruction Contract",
+      "3:2.1 Definition",
+      "3:2.2 Why the Contract Is Not Implied by Existing Claims",
+      "3:2.3 Discussion: What the Contract Costs",
+      "2:3 The System Under Study",
+      "3:3.1 Three Persistence Layers",
+      "3:3.2 What Compaction Records",
+      "3:3.3 What Compaction Destroys",
+      "2:4 Evaluations",
+      "3:4.1 Setup",
+      "3:4.2 Fidelity",
+      "3:4.3 Per-Field Violation",
+      "3:4.4 Compression Statistics",
+      "3:4.5 Discussion",
+      "2:5 Analysis: Why the Gap Persists",
+      "2:6 Positioning Against Prior Work",
+      "2:7 Conclusion, Limitations, and Future Directions",
+      "2:Appendix A Contributions and Acknowledgments",
+      "2:Appendix B Measurement Procedures",
+      "2:Appendix C Field-Level Requirement Detail"
     ],
     "gates": [
       {
@@ -55,7 +55,7 @@
       {
         "id": "G5",
         "pass": true,
-        "detail": "标记=True, 分组=4(需2-8，形如『阶段: 口号』), bullet=24"
+        "detail": "标记=True, 分组=4(需2-8，形如『阶段: 口号』), bullet=19"
       },
       {
         "id": "G6",
@@ -70,7 +70,7 @@
       {
         "id": "G8",
         "pass": true,
-        "detail": "图0张(短caption:无), 表0个(带口径声明:0)"
+        "detail": "图1张(短caption:无), 表3个(带口径声明:1)"
       },
       {
         "id": "G9",
@@ -90,7 +90,7 @@
       {
         "id": "G12",
         "pass": true,
-        "detail": "比较级断言 0 处, 账本 compare 证据 0 条"
+        "detail": "比较级断言 0 处（未提供账本，跳过核对）"
       }
     ],
     "failed": [
@@ -106,8 +106,8 @@
       "substantial": 0,
       "impressive": 0,
       "top-tier": 0,
-      "Firstly": 0,
-      "Secondly": 0,
+      "Firstly": 1,
+      "Secondly": 1,
       "Furthermore": 0,
       "Moreover": 0
     },

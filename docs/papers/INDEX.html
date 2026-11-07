@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RSI-Agent 论文交付索引</title><style>
+<title>交付索引 — 两篇论文 + 调研 + 证据</title><style>
 :root{--ink:#1a1a1a;--mut:#666;--line:#e2e2e2;--accent:#1c4e80;--bg:#fff;--soft:#f7f8fa}
 *{box-sizing:border-box}
 body{margin:0;background:var(--soft);color:var(--ink);
@@ -43,7 +43,7 @@ a{color:var(--accent)}
 <body><div class="page">
 <h1 id="_1">交付索引 — 两篇论文 + 调研 + 证据</h1><nav class="toc"><div class="toc-t">Contents</div><ul><li class="l2"><a href="#_2">怎么读（按你想要的形态选）</a></li><li class="l2"><a href="#_3">怎么查看图表</a></li><li class="l2"><a href="#_4">一、先看这个</a></li><li class="l2"><a href="#_5">二、两篇论文</a></li><li class="l2"><a href="#url">三、调研报告（判新颖性用，全部带可核验 URL）</a></li><li class="l3"><a href="#_6">三条最重要的文献裁决</a></li><li class="l2"><a href="#_7">四、证据与图表</a></li><li class="l3"><a href="#e1">E1 闸门混淆矩阵（本轮新增实测）</a></li><li class="l2"><a href="#_8">五、本轮新增的实测数据（论文的地基）</a></li><li class="l2"><a href="#limitations">六、诚实边界（写进 Limitations 的那几条）</a></li><li class="l2"><a href="#_9">七、下一步建议（按性价比排序）</a></li></ul></nav>
 <blockquote>
-<p>生成时间 2026-11-07。全部产物在 <code>outputs/rsi-agent-paper/</code> 与 <code>outputs/*.md</code>。</p>
+<p>生成时间 2026-11-07（数字切点 2026-11-07T13:35:24）。论文与图表在本目录 <code>docs/papers/</code>，三份调研报告在 <code>outputs/*.md</code>（已入库）。</p>
 </blockquote>
 <h2 id="_2">怎么读（按你想要的形态选）</h2>
 <p>每篇论文有 <strong>4 种格式</strong>，内容完全一致，按用途挑一个：</p>
@@ -165,7 +165,7 @@ VS Code <code>Ctrl+Shift+V</code> 预览、Typora / Obsidian / GitHub 网页直�
 <tr>
 <td>核心数字</td>
 <td>1:24 内核比、4 条审计信号、70.0%/16.0% 契约税、56.2% 退役比、<strong>闸门 9/11 正确并发现 2 处漏放</strong></td>
-<td>2.44% 保真度、5 条要求满足 1 条、15 次压缩/1 次回滚、432:1 最坏压缩</td>
+<td>2.45% 保真度、5 条要求满足 1 条、15 次压缩/1 次回滚、432:1 最坏压缩</td>
 </tr>
 <tr>
 <td>一句话卖点</td>
@@ -203,13 +203,13 @@ VS Code <code>Ctrl+Shift+V</code> 预览、Typora / Obsidian / GitHub 网页直�
 </table>
 <h3 id="_6">三条最重要的文献裁决</h3>
 <ol>
-<li><strong>"无损压缩"不成立</strong> —— 自测：sidecar 保真率 2.44%，缺全部重建字段。已改写为论文 B 的"可重建性缺口"。</li>
+<li><strong>"无损压缩"不成立</strong> —— 自测：sidecar 保真率 2.45%，缺全部重建字段。已改写为论文 B 的"可重建性缺口"。</li>
 <li><strong>"冻结层保安全"不能主张</strong> —— <code>arXiv:2606.28639</code> 已证明监督者之塔无用，需靠设计限制重写 + frozen reference。论文 A 因此只主张"让缺陷可观测"，不主张安全。</li>
 <li><strong>"harness 影响成本"已被占</strong> —— <code>arXiv:2610.04433</code> 已是标题结论。论文 A 收窄到"契约违约的补偿成本"。</li>
 </ol>
 <h2 id="_7">四、证据与图表</h2>
 <ul>
-<li><strong><code>02-证据账本.json</code></strong> — <strong>28 条</strong>证据（原 26 + E-GATE-02/03），全部 <code>status: ok</code>，每条附 <code>recompute</code> 命令。正文每个数字可追到条目 id（E-XXX-NN）。</li>
+<li><strong><code>02-证据账本.json</code></strong> — <strong>28 条</strong>证据（原 26 + E-GATE-02/03），全部 <code>status: ok</code>，每条附可执行的 <code>recompute</code>；切点 <code>2026-11-07T13:35:24</code> 记在账本 <code>meta.cut_point</code>。正文每个数字可追到条目 id（E-XXX-NN）。</li>
 <li><strong>图表</strong>（全部由 <code>paper_table</code> / <code>paper_figure</code> 生成，无手写数字）：</li>
 <li><code>figures/fig1.png</code> — 三层代码规模（论文 A 图 1）</li>
 <li><code>figures/fig2.png</code> — 契约税（论文 A 图 2）</li>
@@ -260,8 +260,8 @@ VS Code <code>Ctrl+Shift+V</code> 预览、Typora / Obsidian / GitHub 网页直�
 <tbody>
 <tr>
 <td>侧车保真率</td>
-<td><strong>2.44%</strong>（487,638 / 20,009,987 字符）</td>
-<td>扫 29 个 trace + 29 个 sidecar</td>
+<td><strong>2.45%</strong>（491,611 / 20,041,120 字符）</td>
+<td><code>python scripts/e7_fidelity.py --paper</code></td>
 </tr>
 <tr>
 <td>重建字段完备性</td>
@@ -271,22 +271,22 @@ VS Code <code>Ctrl+Shift+V</code> 预览、Typora / Obsidian / GitHub 网页直�
 <tr>
 <td>压缩事件</td>
 <td><strong>15 次，最坏 432:1</strong>（761,547 → 1,764）</td>
-<td><code>kind==compaction</code> 过滤</td>
+<td>同上（<code>worst_compression</code>）</td>
 </tr>
 <tr>
 <td>工具结果截断</td>
-<td><strong>2,221 / 13,326</strong>（单会话峰 14.3%）</td>
-<td><code>memory_truncated</code> 字段计数</td>
+<td><strong>2,223 / 13,344</strong>（单会话峰 14.3%）</td>
+<td>同上（<code>memory_truncated_hits</code>）</td>
 </tr>
 <tr>
 <td>cd 前缀率</td>
 <td><strong>70.0%</strong>（3,760 / 5,368 次 bash）</td>
-<td>正则匹配 tool_call.args.command</td>
+<td><code>python scripts/e3_harness_tax.py --paper</code></td>
 </tr>
 <tr>
 <td>前缀字符占比</td>
 <td><strong>16.0%</strong>（201,868 / 1,261,369）</td>
-<td>同上</td>
+<td>同上（<code>prefix_share_pct</code>）</td>
 </tr>
 <tr>
 <td>真实 token 用量</td>
@@ -305,12 +305,21 @@ VS Code <code>Ctrl+Shift+V</code> 预览、Typora / Obsidian / GitHub 网页直�
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p><strong>一个切点，全部数字。</strong> 上表所有 trace/events 统计都取同一事件时间切点
+<code>2026-11-07T13:35:24</code>（两个脚本的 <code>--paper</code> 即此值，按每行 <code>ts</code> 过滤），
+因此结果对后续对话追加的行<strong>永久不变</strong>、可逐位复现。
+早先版本曾用两个不同时刻分别统计 traces 与 events（13:26 / 13:31），
+混算出的 2.44% 无法复算——这是本轮修掉的一个真实缺陷，两篇论文与账本已同步到 2.45%。</p>
+<p>trace 语料本身<strong>不入库</strong>（<code>runtime/plugins/memory/data/</code> 在 <code>.gitignore</code> 内，含本项目工作会话），
+入库的是测量脚本；论文 B 的表述已据此改为「发布流程，不发布语料」。</p>
+</blockquote>
 <h2 id="limitations">六、诚实边界（写进 Limitations 的那几条）</h2>
 <ol>
 <li><code>active</code> 技能 <strong>0 个</strong>、账本 <strong>1 条</strong>记录 → 闭环未在时间上收敛，正文动词已锁 <code>we design / we implement</code>，<strong>没有</strong> <code>we demonstrate that the system self-evolves</code>。</li>
 <li>无外部 benchmark → <strong>全文零比较级断言</strong>（<code>outperforms</code>/<code>surpasses</code> 各 0 处），G12 因此自动通过。这不是遗漏，是主动限制。</li>
 <li>单机、单用户、Windows-only、无多 seed。</li>
-<li>论文 B 是<strong>单系统测量，不是 benchmark</strong>，正文已显式限定"2.44% 刻画这套实现而非这类系统"。</li>
+<li>论文 B 是<strong>单系统测量，不是 benchmark</strong>，正文已显式限定"2.45% 刻画这套实现而非这类系统"。</li>
 </ol>
 <h2 id="_9">七、下一步建议（按性价比排序）</h2>
 <table>

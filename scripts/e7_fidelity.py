@@ -176,7 +176,9 @@ def collect(data_dir: Path, cutoff_ms: int | None) -> dict:
     events_dir = data_dir / "events"
 
     per_trace: dict[str, dict] = {}
+    trace_files = 0
     for p in sorted(traces_dir.glob("*.jsonl")) if traces_dir.is_dir() else []:
+        trace_files += 1
         row = trace_payload(p, cutoff_ms)
         if row["chars"] or row["tool_results"]:
             per_trace[p.stem] = row
@@ -234,6 +236,7 @@ def collect(data_dir: Path, cutoff_ms: int | None) -> dict:
         "ok": True,
         "data_dir": str(data_dir),
         "sessions": len(per_trace),
+        "trace_files": trace_files,
         "event_files": event_files,
         "traces_chars": traces_chars,
         "events_chars": events_chars,
@@ -276,7 +279,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print(f"切点    {result['as_of']}")
-    print(f"会话    {result['sessions']} 个 trace（events {result['event_files']} 文件）")
+    print(f"会话    {result['sessions']} 个会话有载荷（共 {result['trace_files']} 个 trace 文件，"
+          f"events {result['event_files']} 文件）")
     print(f"载荷    traces {result['traces_chars']:,} 字符 / events {result['events_chars']:,} 字符")
     print(f"保真度  {result['fidelity_pct']}%")
     print(f"工具结果 {result['tool_result_rows']:,} 行，其中 memory_truncated {result['memory_truncated_hits']:,} 行")
