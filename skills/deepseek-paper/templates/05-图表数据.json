@@ -1,0 +1,51 @@
+# 图表数据（工具输入格式）
+
+> `paper_figure` 与 `paper_table` 都吃这个格式。手写数字禁止——先落到这里，再出图/表。
+
+## 表数据
+
+```json
+{
+  "kind": "table",
+  "id": "tab-main",
+  "caption_lead": "Comparison among <Model> and other representative open-source models.",
+  "caption_tail": "All models are evaluated in our internal framework and share the same evaluation setting. Bold denotes the best and underline denotes the second-best. Scores with a gap smaller than 0.3 are regarded as at the same level. With only <M>B activated parameters, <Model> achieves top-tier performance among open-source models.",
+  "group_column": "Category",
+  "columns": ["Benchmark (Metric)", "# Shots", "<Baseline-A>", "<Baseline-B>", "<Model>"],
+  "highlight": {"best": true, "second": true, "tolerance": 0.3},
+  "rows": [
+    ["Knowledge", "MMLU (Acc.)", "5", "88.4", "88.5", "88.5"],
+    ["Knowledge", "MMLU-Pro (EM)", "5", "75.9", "75.2", "75.9"],
+    ["Code", "HumanEval (Pass@1)", "0", "84.0", "-", "84.8"],
+    ["Math", "GSM8K (EM)", "8", "91.2", "92.0", "93.1"]
+  ],
+  "footnotes": ["'-' denotes results that are not available."]
+}
+```
+
+规则：`rows` 每行第一列可留空以表示延续上一组；`-` 为缺失；`highlight.tolerance` 用于「同档不加粗」判定；`caption_lead`/`caption_tail` 合起来构成三件套。
+
+**`data_start` 必读**：默认数据列从第 3 列开始（`group_column` 存在时从第 4 列），即假定「类别列 + benchmark 列」两个标签列。若表只有「名称列」一个标签列（如 `Draft | Gates | Verdict`），必须显式写 `"data_start": 1`；否则 best 加粗会落到非数值列或「越低越好」列上（实测把 `Gates failed` 的 10 加粗成了最高分）。同理，混合口径的列（如同时有 Gates satisfied 与 Gates failed）要么拆表，要么只让单一方向列参与加粗。
+
+## 图数据
+
+```json
+{
+  "kind": "figure",
+  "id": "fig-main",
+  "type": "bar",
+  "caption": "Benchmark performance of <Model> and its counterparts.",
+  "y_label": "Score",
+  "series": [
+    {"name": "<Baseline-A>", "values": [88.4, 75.9, 84.0, 91.2]},
+    {"name": "<Baseline-B>", "values": [88.5, 75.2, 82.1, 92.0]},
+    {"name": "<Model>", "values": [88.5, 75.9, 84.8, 93.1], "highlight": true}
+  ],
+  "categories": ["MMLU", "MMLU-Pro", "HumanEval", "GSM8K"],
+  "style": {"grid": "three-line", "colormap": "deepseek", "legend": "bottom", "value_labels": true}
+}
+```
+
+支持的 `type`：`bar`（主对比图）、`line`（训练曲线，`x_values` 必填 + `smooth` 可选）、`scaling`（拟合图，`fit` 指定排除点）。
+
+规则：`highlight: true` 的系列用强调色并置于最后；同一图内不得混放不同口径（要混放必须在 caption 加 `*` 说明）。

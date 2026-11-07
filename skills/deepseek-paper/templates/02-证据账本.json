@@ -1,0 +1,58 @@
+{
+  "_说明": "证据账本。字段固定，别自创。每条进正文的数字都必须有一条 evidence；每条量化主张都必须 evidence_refs 非空。evidence_scan 工具会生成骨架。",
+  "_字段": {
+    "id": "ev-001 起编号，正文里用 [ev-001] 注释或直接对账",
+    "kind": "measure | compare | cost | config | artifact | failure | external",
+    "claim": "这条证据能支撑的主张（一句话，量化）",
+    "value": "原始数值或结论（不要美化，保留小数位）",
+    "unit": "%，×, s, GPU hours, tokens, ...",
+    "scope": "口径：数据集/规模/seed/评测脚本/命令",
+    "source": "文件路径 + 行号 / commit / 命令；没有就留空并置 status=todo",
+    "status": "ok | todo | dropped",
+    "verify": "复算方式，如 4.2/3.1=1.35x",
+    "used_in": "正文位置，如 §4.4 Table 3"
+  },
+  "paper": {
+    "title": "",
+    "genre": "T | M | A | S",
+    "model_name": "",
+    "evidence": [
+      {
+        "id": "ev-001",
+        "kind": "measure",
+        "claim": "",
+        "value": "",
+        "unit": "",
+        "scope": "",
+        "source": "",
+        "status": "todo",
+        "verify": "",
+        "used_in": ""
+      }
+    ]
+  },
+  "claims": [
+    {
+      "id": "cl-001",
+      "assertion": "正文里的量化主张原句",
+      "strength": "strong | weak | design",
+      "evidence_refs": ["ev-001"],
+      "allowed_verbs": ["demonstrate", "consistently"]
+    }
+  ],
+  "baselines": [
+    {
+      "name": "",
+      "size": "",
+      "how_measured": "internal-framework | paper-reported | api",
+      "marked_star": true
+    }
+  ],
+  "costs": {
+    "gpu_hours": null,
+    "unit_price_assumption": "",
+    "total_usd": null,
+    "tokens": "",
+    "note": "Note that the aforementioned costs include only ... "
+  }
+}

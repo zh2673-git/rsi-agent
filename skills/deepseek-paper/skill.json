@@ -1,0 +1,77 @@
+{
+  "name": "deepseek-paper",
+  "version": "0.1.0",
+  "status": "candidate",
+  "description": "把项目记录写成 DeepSeek 官方技术报告风格论文：证据账本 → 研究点挖掘 → 骨架/措辞/图表成稿 → G1-G12 机检。",
+  "triggers": [
+    "写论文 / 技术报告 / 把项目沉淀成论文",
+    "模仿 DeepSeek 论文风格（措辞、骨架、图表）",
+    "判断稿件像不像 DeepSeek 技术报告"
+  ],
+  "inputs": [
+    "用户想法",
+    "项目记录（计划/commit/测试报告/日志/配置）",
+    "可选：已有草稿"
+  ],
+  "outputs": [
+    "证据账本 JSON",
+    "论文正文（Markdown/LaTeX）",
+    "图表（PNG/LaTeX 表）",
+    "paper_lint 门禁报告",
+    "可读交付件（HTML 单文件 / DOCX）"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "每个正文数字可追到账本 status=ok 的条目；量化断言均有 compare 证据",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "paper_lint G1-G12 全绿，或余项在报告中写明理由并经用户确认",
+      "check": "test"
+    },
+    {
+      "id": "a3",
+      "criterion": "研究点可写成『机制名: 收益』双段式小节名，且一条挖掘线只出一个主研究点",
+      "check": "rubric"
+    },
+    {
+      "id": "a4",
+      "criterion": "至少 1 条失败尝试带机制解释；结论章 2 条局限各带原因",
+      "check": "assert"
+    },
+    {
+      "id": "a5",
+      "criterion": "图表由工具生成、每张被正文引用、caption 三件套齐全",
+      "check": "test"
+    }
+  ],
+  "requires": [
+    "creat-skill"
+  ],
+  "handoff": [
+    "file:markdown",
+    "file:latex",
+    "file:figure",
+    "file:json",
+    "file:html",
+    "file:docx"
+  ],
+  "tools": [
+    "paper_lint",
+    "paper_table",
+    "paper_figure",
+    "evidence_scan",
+    "paper_render"
+  ],
+  "verification": "partial",
+  "source_level": "research",
+  "created_at": "2026-11-07",
+  "parent": null,
+  "legacy": false,
+  "source": {
+    "path": "skills/deepseek-paper/registry/ds-corpus-evidence.md",
+    "note": "20 篇 DeepSeek 论文的骨架/措辞/图表取证（含原文引文与出处）；机检与工具已实测，风格相似度待真实投稿级稿件外部信号（E3）确认"
+  }
+}

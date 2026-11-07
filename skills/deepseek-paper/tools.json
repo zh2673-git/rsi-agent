@@ -1,0 +1,76 @@
+[
+  {
+    "name": "paper_lint",
+    "description": "对论文明文跑 DeepSeek 文体硬门禁 G1-G12（摘要数字/参数量/成本/贡献分组/章节导览/图表 caption/禁用词/图表引用/账本交叉），返回逐项 pass 与失败清单。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {"type": "string", "description": "论文正文文件路径（.md 或 .tex）"},
+        "genre": {"type": "string", "enum": ["T", "M", "A", "S"], "description": "体裁，默认 T"},
+        "ledger": {"type": "string", "description": "证据账本 JSON 路径，用于 G12 交叉核对"},
+        "strict": {"type": "boolean", "description": "任一硬门禁失败即视为不通过，默认 true"}
+      },
+      "required": ["path"]
+    },
+    "exec": {"cmd": ["python", "tools/paper_lint.py"]}
+  },
+  {
+    "name": "paper_table",
+    "description": "按 DeepSeek 表格规范（booktabs 三线、caption 在表上、best 加粗、second-best 下划线、缺失写 -、同档容差）从 JSON 生成 LaTeX 与 Markdown 表。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "data": {"type": "string", "description": "表数据文件路径（kind=table 的 JSON）"},
+        "out": {"type": "string", "description": "可选，.tex 输出路径"},
+        "fmt": {"type": "string", "enum": ["latex", "markdown", "both"], "description": "默认 both"}
+      },
+      "required": ["data"]
+    },
+    "exec": {"cmd": ["python", "tools/paper_table.py"]}
+  },
+  {
+    "name": "paper_figure",
+    "description": "按 DeepSeek 视觉规范出图（中性灰蓝底 + 单一强调色、三线网格、无上右边框、图例置底），支持 bar/line/scaling，输出 PNG/SVG/PDF 并回报 caption 句数。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "data": {"type": "string", "description": "图数据文件路径（kind=figure 的 JSON）"},
+        "out": {"type": "string", "description": "输出图片路径（.png/.svg/.pdf）"},
+        "dpi": {"type": "integer", "description": "默认 200"}
+      },
+      "required": ["data", "out"]
+    },
+    "exec": {"cmd": ["python", "tools/paper_figure.py"]}
+  },
+  {
+    "name": "evidence_scan",
+    "description": "扫项目目录产出证据账本骨架：按 measure/config/artifact 分类文件、标记是否含数字、附 git log 摘要，全部条目标 status=todo 等人工判定。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {"type": "string", "description": "项目根目录"},
+        "out": {"type": "string", "description": "账本 JSON 输出路径，默认 <path>/evidence-ledger.json"},
+        "depth": {"type": "integer", "description": "递归深度，默认 4"},
+        "max": {"type": "integer", "description": "最多文件数，默认 400"},
+        "git": {"type": "boolean", "description": "是否读 git log，默认 true"}
+      },
+      "required": ["path"]
+    },
+    "exec": {"cmd": ["python", "tools/evidence_scan.py"]}
+  },
+  {
+    "name": "paper_render",
+    "description": "把论文 Markdown 渲染成可直接阅读的 HTML（单文件、图片 base64 内联、自带目录与打印样式，Ctrl+P 即存 PDF）与 DOCX（A4、页码、中文 eastAsia 字体、三线表、图内嵌）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {"type": "string", "description": "论文 Markdown 路径"},
+        "out": {"type": "string", "description": "可选，输出路径基名（.html/.docx 自动补后缀）"},
+        "fmt": {"type": "string", "enum": ["html", "docx", "both"], "description": "默认 both"},
+        "title": {"type": "string", "description": "可选，文档标题；省略取首个 H1"}
+      },
+      "required": ["path"]
+    },
+    "exec": {"cmd": ["python", "tools/paper_render.py"]}
+  }
+]
