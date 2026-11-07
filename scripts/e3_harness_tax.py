@@ -31,8 +31,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = ROOT / "runtime" / "plugins" / "memory" / "data"
 
-# 论文 A 使用的切点。改它就必须同步改论文 A 与账本 E-HARNESS-*。
-PAPER_AS_OF = "2026-11-07T13:35:23"
+# 论文 A 使用的切点（与 e7_fidelity.py 同一切点，改则两篇论文与账本一起改）。
+PAPER_AS_OF = "2026-11-07T13:35:24"
 
 # 前缀 = `cd ... &&` 连同其后的一个分隔空格。旧探针按此口径，故论文数字沿用；
 # 若只取到 `&&` 为止，前缀字符会比记载少 3,760（= 前缀次数），占比 15.7% 而非 16.0%。
