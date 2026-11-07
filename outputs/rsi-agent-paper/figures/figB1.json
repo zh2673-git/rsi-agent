@@ -1,0 +1,12 @@
+{
+  "id": "fig_fidelity",
+  "kind": "figure",
+  "type": "bar",
+  "caption": "Figure 1: Payload retained by each persistence layer, on a logarithmic scale. Traces hold the model-visible ground truth, the sidecar holds a 200-character projection of each message, and sessions hold the post-compaction working set. The sidecar retains 2.45 percent of the trace payload, a shortfall of two orders of magnitude that is structural rather than statistical because content is projected at write time.",
+  "y_label": "Characters (log scale)",
+  "categories": ["traces", "events sidecar", "sessions working set"],
+  "series": [
+    {"name": "retained characters", "values": [20041120, 491611, 7411221], "highlight": true}
+  ],
+  "style": {"grid": "three-line", "colormap": "deepseek", "legend": "bottom", "value_labels": true}
+}

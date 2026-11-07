@@ -1,0 +1,13 @@
+{
+  "id": "fidelity",
+  "kind": "table",
+  "caption_lead": "Table 2: Fidelity of the three persistence layers against model-visible traces.",
+  "caption_tail": "Traces are treated as ground truth and include every tool call with arguments and every tool result with body. The sidecar retains 2.45 percent of the trace payload, a shortfall of two orders of magnitude. Character counts are exact; no tokenizer is applied, so token-level fidelity is not reported. All counts are taken at the same cut point (2026-11-07T13:35:24 local, filtered on each row's ts).",
+  "columns": ["Layer", "File pattern", "Characters", "Share of traces", "Role"],
+  "data_start": 3,
+  "rows": [
+    ["traces", "traces/<id>.jsonl", "20,041,120", "100.0%", "ground truth"],
+    ["events", "events/<id>.jsonl", "491,611", "2.45%", "audit index"],
+    ["sessions", "sessions/<id>.json", "7,411,221", "37.0%", "working set"]
+  ]
+}

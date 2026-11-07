@@ -1,0 +1,116 @@
+{
+  "ok": true,
+  "result": {
+    "file": "outputs\\rsi-agent-paper\\04-论文B-Reconstructibility-Gap-en.md",
+    "genre": "M",
+    "chars": 27317,
+    "sections": [
+      "1:The Reconstructibility Gap: Auditing Lossy Compaction in Long-Lived Agent Sessions",
+      "2:Abstract",
+      "2:1 Introduction",
+      "3:1.1 Contributions",
+      "3:1.2 Summary of Core Evaluation Results",
+      "2:2 Approach: The Reconstruction Contract",
+      "3:2.1 Definition",
+      "3:2.2 Why the Contract Is Not Implied by Existing Claims",
+      "3:2.3 Discussion: What the Contract Costs",
+      "2:3 The System Under Study",
+      "3:3.1 Three Persistence Layers",
+      "3:3.2 What Compaction Records",
+      "3:3.3 What Compaction Destroys",
+      "2:4 Evaluations",
+      "3:4.1 Setup",
+      "3:4.2 Fidelity",
+      "3:4.3 Per-Field Violation",
+      "3:4.4 Compression Statistics",
+      "3:4.5 Discussion",
+      "2:5 Analysis: Why the Gap Persists",
+      "2:6 Positioning Against Prior Work",
+      "2:7 Conclusion, Limitations, and Future Directions",
+      "2:Appendix A Contributions and Acknowledgments",
+      "2:Appendix B Measurement Procedures",
+      "2:Appendix C Field-Level Requirement Detail"
+    ],
+    "gates": [
+      {
+        "id": "G1",
+        "pass": false,
+        "detail": "摘要内『分数 on benchmark』0 处（需≥2）"
+      },
+      {
+        "id": "G2",
+        "pass": false,
+        "detail": "total parameters=False, activated=False"
+      },
+      {
+        "id": "G3",
+        "pass": true,
+        "detail": "GPU hours=True, tokens=True"
+      },
+      {
+        "id": "G4",
+        "pass": true,
+        "detail": "摘要末句含开源/链接=True"
+      },
+      {
+        "id": "G5",
+        "pass": true,
+        "detail": "标记=True, 分组=4(需2-8，形如『阶段: 口号』), bullet=19"
+      },
+      {
+        "id": "G6",
+        "pass": true,
+        "detail": "导览段=True, Section 引用=6次, 最大章号=7, 引用最大=7"
+      },
+      {
+        "id": "G7",
+        "pass": true,
+        "detail": "独立RelatedWork=无, Limitations=True, 体裁=M"
+      },
+      {
+        "id": "G8",
+        "pass": true,
+        "detail": "图1张(短caption:无), 表3个(带口径声明:1)"
+      },
+      {
+        "id": "G9",
+        "pass": true,
+        "detail": "失败申报=True, 成本口径澄清=True"
+      },
+      {
+        "id": "G10",
+        "pass": true,
+        "detail": "禁用词=无, SOTA 0 处/带范围 0 处"
+      },
+      {
+        "id": "G11",
+        "pass": true,
+        "detail": "未被正文引用: 无"
+      },
+      {
+        "id": "G12",
+        "pass": true,
+        "detail": "比较级断言 0 处, 账本 compare 证据 0 条"
+      }
+    ],
+    "failed": [
+      "G1",
+      "G2"
+    ],
+    "verdict": "FAIL",
+    "style_fingerprint": {
+      "remarkably": 0,
+      "notably": 0,
+      "consistently": 0,
+      "meticulously": 0,
+      "substantial": 0,
+      "impressive": 0,
+      "top-tier": 0,
+      "Firstly": 1,
+      "Secondly": 1,
+      "Furthermore": 0,
+      "Moreover": 0
+    },
+    "_strict": true
+  }
+}

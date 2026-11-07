@@ -1,0 +1,116 @@
+{
+  "ok": true,
+  "result": {
+    "file": "outputs\\rsi-agent-paper\\04-论文A-Frozen-Strata-zh.md",
+    "genre": "T",
+    "chars": 13546,
+    "sections": [
+      "1:冻结地层：以不可变边界治理的分层自我修改",
+      "2:摘要",
+      "2:1 引言",
+      "3:1.1 贡献",
+      "3:1.2 核心评测结果概要",
+      "2:2 架构：三层冻结地层",
+      "3:2.1 内核层：一套语义，四档隔离强度",
+      "3:2.2 运行时层：骨架冻结，策略可变",
+      "3:2.3 居民层：内核、裁判与账本只读",
+      "3:2.4 讨论：冻结决定了什么",
+      "2:3 不可变性所产生的审计信号",
+      "3:3.1 机制",
+      "3:3.2 四处已定位的缺陷",
+      "3:3.3 讨论",
+      "2:4 Harness 契约税：当冻结契约的规格不精确",
+      "3:4.1 缺陷",
+      "3:4.2 测量",
+      "3:4.3 讨论：成本转移，而非质量缺陷",
+      "2:5 带类型的 Harness 策略",
+      "2:6 证据分级晋升",
+      "2:7 与既有工作的定位",
+      "2:8 结论、局限与未来方向（Conclusion, Limitations, and Future Directions）",
+      "2:附录 A 贡献与致谢",
+      "2:附录 B 测量流程",
+      "2:附录 C 完整表格"
+    ],
+    "gates": [
+      {
+        "id": "G1",
+        "pass": false,
+        "detail": "摘要内『分数 on benchmark』0 处（需≥2）"
+      },
+      {
+        "id": "G2",
+        "pass": false,
+        "detail": "total parameters=False, activated=False"
+      },
+      {
+        "id": "G3",
+        "pass": true,
+        "detail": "GPU hours=True, tokens=True"
+      },
+      {
+        "id": "G4",
+        "pass": true,
+        "detail": "摘要末句含开源/链接=True"
+      },
+      {
+        "id": "G5",
+        "pass": true,
+        "detail": "标记=True, 分组=4(需2-8，形如『阶段: 口号』), bullet=20"
+      },
+      {
+        "id": "G6",
+        "pass": true,
+        "detail": "导览段=True, Section 引用=7次, 最大章号=8, 引用最大=8"
+      },
+      {
+        "id": "G7",
+        "pass": true,
+        "detail": "独立RelatedWork=无, Limitations=True, 体裁=T"
+      },
+      {
+        "id": "G8",
+        "pass": true,
+        "detail": "图0张(短caption:无), 表0个(带口径声明:0)"
+      },
+      {
+        "id": "G9",
+        "pass": true,
+        "detail": "失败申报=True, 成本口径澄清=True"
+      },
+      {
+        "id": "G10",
+        "pass": true,
+        "detail": "禁用词=无, SOTA 0 处/带范围 0 处"
+      },
+      {
+        "id": "G11",
+        "pass": true,
+        "detail": "未被正文引用: 无"
+      },
+      {
+        "id": "G12",
+        "pass": true,
+        "detail": "比较级断言 0 处, 账本 compare 证据 0 条"
+      }
+    ],
+    "failed": [
+      "G1",
+      "G2"
+    ],
+    "verdict": "FAIL",
+    "style_fingerprint": {
+      "remarkably": 0,
+      "notably": 0,
+      "consistently": 0,
+      "meticulously": 0,
+      "substantial": 0,
+      "impressive": 0,
+      "top-tier": 0,
+      "Firstly": 0,
+      "Secondly": 0,
+      "Furthermore": 0,
+      "Moreover": 0
+    },
+    "_strict": true
+  }
+}

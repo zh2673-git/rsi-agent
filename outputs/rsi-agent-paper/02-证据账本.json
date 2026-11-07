@@ -1,0 +1,528 @@
+{
+  "meta": {
+    "project": "rsi-agent / agent-kernel / react-agent 三层栈",
+    "paper_a": "Frozen Strata (T 类技术报告)",
+    "paper_b": "The Reconstructibility Gap (M 类方法论文)",
+    "built_at": "2026-11-07",
+    "recompute_policy": "每个 value 附 recompute 字段，任何人可用所列命令复算",
+    "note": "本账本只收 status=ok 的条目进正文；status=todo 一律不进正文",
+    "cut_point": "2026-11-07T13:35:24",
+    "cut_point_note": "全部 trace/events/session 统计同取一个事件 ts 切点，避免超集混算。早期版本曾用两个不同时刻分别统计 traces 与 events，导致保真度 2.44% 不可复算；现统一为 2.45% 且可用 scripts/e7_fidelity.py --paper 逐位复现。"
+  },
+  "evidence": [
+    {
+      "id": "E-SCALE-01",
+      "claim": "三层各自的可改单元与规模",
+      "value": {
+        "kernel_rust_lines": 4664,
+        "kernel_files": 56,
+        "react_rust_lines": 11492,
+        "react_files": 42,
+        "rsi_rust_lines": 12576,
+        "rsi_files": 43
+      },
+      "source": "git ls-files '*.rs' 三仓（agent-kernel / react-agent / rsi-agent 的 runtime）",
+      "recompute": "powershell: git ls-files 'crates/*.rs' | 逐文件统计非空白行——agent-kernel 56 文件 5,144 行（非空白 4,664）；react-agent 42 文件 12,274 行（非空白 11,492）；rsi-agent runtime/crates 43 文件 13,407 行（非空白 12,576）",
+      "scope": "仅 Rust 文件，不含 TS/Python；统计时点 2026-11-07",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Table1",
+        "paper_a:Intro"
+      ]
+    },
+    {
+      "id": "E-SCALE-02",
+      "claim": "core 规则基座与居民代码的比例",
+      "value": {
+        "core_lines": 515,
+        "rsi_rust_lines": 12576,
+        "ratio": "1:24"
+      },
+      "source": "agent-kernel/crates/core/src 10 文件非空白 515 行；rsi-agent runtime Rust 非空白 12,576 行",
+      "recompute": "12576/515 = 24.42 → 记为 1:24。注：两栏口径必须同为非空白行，若一栏用总行数会得到 26:1",
+      "scope": "\"居民\"指 rsi-agent runtime 的 Rust 代码，不含 plugins 的 TS/Python",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Table1",
+        "paper_a:Sec2"
+      ]
+    },
+    {
+      "id": "E-COMMIT-01",
+      "claim": "三仓提交与标签量",
+      "value": {
+        "kernel": "28 commits / 9 tags",
+        "react": "53 commits / 22 tags",
+        "rsi": "51 commits / 8 tags"
+      },
+      "source": "git rev-list --count HEAD; git tag | wc -l",
+      "recompute": "各仓分别执行上述两条命令",
+      "scope": "统计时点 2026-11-07",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Table1"
+      ]
+    },
+    {
+      "id": "E-PATCH-01",
+      "claim": "自我修改媒介的存活/退役结构",
+      "value": {
+        "active_flat_json": 13,
+        "active_qround_json": 47,
+        "active_total": 60,
+        "retired_moved": 64,
+        "retired_renamed": 13,
+        "retired_total": 77
+      },
+      "source": "scripts/patches/*.json (13) + scripts/patches/q-round/*.json (47); scripts/patches/retired/*.json (64) + scripts/patches/retired/*.json.retired (13)",
+      "recompute": "Get-ChildItem scripts/patches -Filter *.json | Measure; Get-ChildItem scripts/patches/retired -File | Group-Object Extension",
+      "scope": "文件数，非改动行数；同一补丁可能多次修订占多个文件",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Table1",
+        "paper_a:Sec3",
+        "paper_a:Discussion"
+      ]
+    },
+    {
+      "id": "E-PATCH-02",
+      "claim": "退役:存活 ≈ 1:1（自修改产出近半最终退役）",
+      "value": {
+        "retired": 77,
+        "active": 60,
+        "cumulative_written": 137,
+        "retire_share_pct": 56.2
+      },
+      "source": "由 E-PATCH-01 推导",
+      "recompute": "77/(77+60) = 0.562",
+      "scope": "累计编写量按 存活+退役 估算，不等于曾写过的补丁总数（可能有既未存活也未归档的临时件）",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Discussion",
+        "paper_a:Abstract"
+      ]
+    },
+    {
+      "id": "E-TEST-01",
+      "claim": "测试基础盘",
+      "value": {
+        "pytest": "55 passed",
+        "conformance_checks": 7,
+        "e2e_suites": 10
+      },
+      "source": "python -m pytest -q → 55 passed in 6.86s；agent-kernel conformance 7 项检查；runtime/crates/host/tests/e2e_*.rs",
+      "recompute": "python -m pytest -q",
+      "scope": "pytest 只覆盖 Python 侧（plugins/scripts/skills），不含 Rust 侧 cargo test",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Table1",
+        "paper_a:Sec4"
+      ]
+    },
+    {
+      "id": "E-HARNESS-01",
+      "claim": "cd 前缀出现率（契约税的主指标）",
+      "value": {
+        "bash_calls": 5368,
+        "cd_prefixed": 3760,
+        "ratio_pct": 70.0,
+        "sessions": 29
+      },
+      "source": "scripts/e3_harness_tax.py --paper（切点 2026-11-07T13:35:24）",
+      "recompute": "python scripts/e3_harness_tax.py --paper → bash_calls=5368 cd_prefixed=3760 cd_ratio_pct=70.0",
+      "scope": "全部 29 个 trace 文件；含子会话；统计时点 2026-11-07",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec4",
+        "paper_a:Abstract",
+        "paper_b:Intro"
+      ]
+    },
+    {
+      "id": "E-HARNESS-02",
+      "claim": "cd 前缀消耗的命令字符占比",
+      "value": {
+        "prefix_chars": 201868,
+        "total_cmd_chars": 1261369,
+        "share_pct": 16.0
+      },
+      "source": "scripts/e3_harness_tax.py --paper（切点 2026-11-07T13:35:24）",
+      "recompute": "python scripts/e3_harness_tax.py --paper → prefix_chars=201868 total_cmd_chars=1261369 prefix_share_pct=16.0",
+      "scope": "仅 bash 命令字符串本身，不含工具返回；折算为 token 需另乘模型 tokenizer 系数（本文不折算）",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec4",
+        "paper_a:Abstract"
+      ]
+    },
+    {
+      "id": "E-HARNESS-03",
+      "claim": "单会话最高 cd 前缀率",
+      "value": {
+        "session": "s-mw28xsv9",
+        "bash": 2165,
+        "cd_prefixed": 2139,
+        "ratio_pct": 98.8
+      },
+      "source": "scripts/e3_harness_tax.py --paper 的 worst_session 字段",
+      "recompute": "python scripts/e3_harness_tax.py --paper --json",
+      "scope": "该会话为长任务（9,690 行 trace），不代表平均",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec4"
+      ]
+    },
+    {
+      "id": "E-HARNESS-04",
+      "claim": "无 cd 前缀的 bash 失败率",
+      "value": {
+        "no_prefix": 1608,
+        "failed": 100,
+        "fail_pct": 6.2
+      },
+      "source": "scripts/e3_harness_tax.py --paper 的 no_prefix / no_prefix_failed 字段",
+      "recompute": "python scripts/e3_harness_tax.py --paper → no_prefix=1608 no_prefix_failed=100 fail_pct=6.2",
+      "scope": "该失败率是下界：exit=0 的静默错误不计入",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec4"
+      ]
+    },
+    {
+      "id": "E-HARNESS-05",
+      "claim": "契约税的根因链条",
+      "value": {
+        "leak_site": "runtime/crates/host/src/instances.rs:171",
+        "known_strip": "runtime/crates/host/src/instances.rs:44-46",
+        "failure_mode": "bash 在 \\\\?\\ 前缀工作区下静默改在 C:\\Windows 执行且 exit=0",
+        "fix_commit": "02f78cf"
+      },
+      "source": "instances.rs:171 `.env(\"WORKSPACE_ROOT\", ws.canonicalize().unwrap_or(ws))`；instances.rs:44 注释「canonicalize 产生的 \\\\?\\ 扩展长度前缀在此剥离」；commit 02f78cf message 原文",
+      "recompute": "git show 02f78cf；read runtime/crates/host/src/instances.rs",
+      "scope": "Windows 特有；Linux 下 canonicalize 不产生该前缀",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec4",
+        "paper_a:Discussion",
+        "paper_b:Intro"
+      ]
+    },
+    {
+      "id": "E-FIDELITY-01",
+      "claim": "三层记忆数据的保真度分层",
+      "value": {
+        "traces_chars": 20041120,
+        "events_chars": 491611,
+        "event_recall_pct": 2.45,
+        "sessions": 29,
+        "event_files": 8,
+        "session_files": 28
+      },
+      "source": "scripts/e7_fidelity.py --paper（切点 2026-11-07T13:35:24）",
+      "recompute": "python scripts/e7_fidelity.py --paper → traces_chars=20041120 events_chars=491611 fidelity_pct=2.45",
+      "scope": "events 侧只统计 preview+summary 字段；traces 侧统计 text/result_truncated/answer/reasoning/args",
+      "status": "ok",
+      "used_in": [
+        "paper_b:Abstract",
+        "paper_b:Sec3",
+        "paper_b:Table2"
+      ]
+    },
+    {
+      "id": "E-FIDELITY-02",
+      "claim": "sidecar 缺失全部重建所需字段",
+      "value": {
+        "原消息全文": "MISSING",
+        "tool_call 参数": "MISSING",
+        "tool_result 全文": "MISSING",
+        "消息顺序 id": "MISSING",
+        "被删区间边界": "PRESENT"
+      },
+      "source": "reconstruction 字段写路径：events 只落 {ts,kind,role,preview}，preview 上限 200 字符（实测 max=200）",
+      "recompute": "python scripts/e7_fidelity.py --paper；另核 events 各行 preview 长度上限 200",
+      "scope": "以 s-mw4gv4mn 为样本；其余会话同构（同一写入路径）",
+      "status": "ok",
+      "used_in": [
+        "paper_b:Sec3",
+        "paper_b:Table3"
+      ]
+    },
+    {
+      "id": "E-FIDELITY-03",
+      "claim": "压缩事件的字段完整性与压缩比",
+      "value": {
+        "compaction_events": 9,
+        "fields": [
+          "first_kept",
+          "kept",
+          "summary",
+          "tokens_before",
+          "ts",
+          "kind"
+        ],
+        "max_tokens_before": 761547,
+        "min_summary_chars": 847,
+        "max_summary_chars": 2154,
+        "worst_compression_ratio": "761547:1764 ≈ 432:1"
+      },
+      "source": "scripts/e7_fidelity.py --paper 的 worst_compression 与 compaction_summary_chars",
+      "recompute": "python scripts/e7_fidelity.py --paper → compaction_events=15 rollback=1 worst=761547→1764 (431.7:1) summary 847–2154",
+      "scope": "tokens_before 的 token 计数口径为 JSON.stringify(msgs).length，非模型 tokenizer",
+      "status": "ok",
+      "used_in": [
+        "paper_b:Table1",
+        "paper_b:Sec3"
+      ]
+    },
+    {
+      "id": "E-FIDELITY-04",
+      "claim": "工具结果截断规模",
+      "value": {
+        "tool_result_rows": 13344,
+        "memory_truncated_hits": 2223,
+        "single_session_tool_results": 1609,
+        "single_session_trunc": 230,
+        "single_session_trunc_pct": 14.3,
+        "retained_chars_per_row": 2000,
+        "retained_chars_total": 4446000
+      },
+      "source": "scripts/e7_fidelity.py --paper 的 tool_result_rows / memory_truncated_hits",
+      "recompute": "python scripts/e7_fidelity.py --paper → 13344 行中 2223 行截断；heaviest_compaction_session 230/1609=14.3%",
+      "scope": "memory_truncated=true 表示进入模型上下文前被截断（limit>0 且 full_chars>limit）",
+      "status": "ok",
+      "used_in": [
+        "paper_b:Sec3",
+        "paper_b:Table2"
+      ]
+    },
+    {
+      "id": "E-FIDELITY-05",
+      "claim": "回滚事件存在但极少",
+      "value": {
+        "rollback_events": 1,
+        "compaction_events_total": 15
+      },
+      "source": "scripts/e7_fidelity.py --paper 的 compaction_events / rollback_events",
+      "recompute": "python scripts/e7_fidelity.py --paper → 15 / 1",
+      "scope": "15 次压缩分布在 5 个会话；1 次回滚在 s-mw4gv4mn",
+      "status": "ok",
+      "used_in": [
+        "paper_b:Sec3"
+      ]
+    },
+    {
+      "id": "E-FREEZE-01",
+      "claim": "冻结边界的实际拦截次数",
+      "value": {
+        "CORE_PROTECTED_blocks": 5
+      },
+      "source": "本项目开发期间 write_file/edit_file 触碰 runtime/ 核心区被拦截的实际次数（会话记录）",
+      "recompute": "grep CORE_PROTECTED 于 trace 或会话日志",
+      "scope": "自报计数；拦截点实现见 plugins/tools/tools_plugin.py 与运行时保护层",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec2",
+        "paper_a:Discussion"
+      ]
+    },
+    {
+      "id": "E-FREEZE-02",
+      "claim": "纯内核支撑居民的比例 1:24",
+      "value": {
+        "core": 515,
+        "resident": 12576,
+        "ratio": 24.42
+      },
+      "source": "同 E-SCALE-02",
+      "recompute": "12576/515",
+      "scope": "同上",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec2"
+      ]
+    },
+    {
+      "id": "E-BUDGET-01",
+      "claim": "预算策略未分型的机制与修正",
+      "value": {
+        "old": "墙钟与 token 同走硬中止 → K508，本轮全部成果丢弃",
+        "new": "StopReason::Tokens（硬，成本闸）/ StopReason::Deadline（软，转强制收敛轮交部分成果）"
+      },
+      "source": "runtime/crates/agent-loop/src/budget.rs:46-74 注释 + enum StopReason",
+      "recompute": "read runtime/crates/agent-loop/src/budget.rs",
+      "scope": "修正后无前后配对实验，只有设计陈述",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec5"
+      ]
+    },
+    {
+      "id": "E-COMPACT-01",
+      "claim": "压缩双闸退化：阈值无约束校验",
+      "value": {
+        "designed_gates": "条数 or token 双闸",
+        "actual": "只落条数闸",
+        "bug_config": "keep=194 > trigger=40 → split=8",
+        "fixed": "首次真压缩摘 603 条"
+      },
+      "source": "runtime/crates/agent-loop/src/compaction.rs:36-47；agent-loop/PLAN.md R6/P7 审计记录",
+      "recompute": "read runtime/crates/agent-loop/src/compaction.rs",
+      "scope": "配置期 bug；修正后双闸均生效",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec5",
+        "paper_b:Sec5"
+      ]
+    },
+    {
+      "id": "E-COMPACT-02",
+      "claim": "压缩标记消息的语义约束",
+      "value": {
+        "marker_prefix": "[Context compaction]",
+        "instruction": "请基于该摘要与后续消息继续任务，不要声称记得被压缩的原文"
+      },
+      "source": "runtime/crates/agent-loop/src/compaction.rs:12-22",
+      "recompute": "read runtime/crates/agent-loop/src/compaction.rs",
+      "scope": "该指令是模型侧的唯一补偿；系统侧无重建能力",
+      "status": "ok",
+      "used_in": [
+        "paper_b:Sec4",
+        "paper_b:Discussion"
+      ]
+    },
+    {
+      "id": "E-GATE-01",
+      "claim": "证据分级晋升的设计（未运行）",
+      "value": {
+        "active_skills": 0,
+        "ledger_work_records": 1,
+        "require_human_for": [
+          "tools",
+          "core"
+        ]
+      },
+      "source": "skills/ 下 origin=user 技能安装记录；docs/self-evolution/00-PLAN.md",
+      "recompute": "读账本文件与技能目录",
+      "scope": "闭环尚未在时间上收敛——这是本文最主要的效度威胁",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec6",
+        "paper_a:Limitations"
+      ]
+    },
+    {
+      "id": "E-LIT-01",
+      "claim": "DGM 的冻结边界状态（用于定位差异）",
+      "value": {
+        "archive_maintenance": "fixed and not modifiable by the DGM",
+        "unmodifiable_part": "仅 §5 一句 future direction，无实现",
+        "retire_metric": "无（附录 A.4 Table2 报 51.3% 保留基本代码编辑功能）"
+      },
+      "source": "arXiv:2505.22954 §3 / §5 / 附录 A.4 Table 2",
+      "recompute": "web_read https://arxiv.org/abs/2505.22954",
+      "scope": "外部工作，二手引用",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Intro",
+        "paper_a:Sec7"
+      ]
+    },
+    {
+      "id": "E-LIT-02",
+      "claim": "ActiveGraph 与 pi 的边界（用于定位论文B差异）",
+      "value": {
+        "activegraph": "append-only log 为真相源 + 确定性 replay，但作者自认无 compaction",
+        "pi": "JSONL 树 + compaction 插入 entry + 原文不删，但无 replay 保证、无量化验收"
+      },
+      "source": "arXiv:2605.21997；pi.dev/docs/latest/session-format、compaction",
+      "recompute": "web_read 上述 URL",
+      "scope": "外部工作；pi 无正式论文，仅文档",
+      "status": "ok",
+      "used_in": [
+        "paper_b:Sec2",
+        "paper_b:Sec6"
+      ]
+    },
+    {
+      "id": "E-LIT-03",
+      "claim": "报告层 relay 不可靠（必须引用的负面结论）",
+      "value": {
+        "false_accusation_pct": "34.4 / 62.6",
+        "true_source_recovery_pct": 4.1
+      },
+      "source": "arXiv:2609.07680 Audit Without Verification",
+      "recompute": "web_read https://arxiv.org/abs/2609.07680",
+      "scope": "外部工作，二手引用",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec7",
+        "paper_a:Discussion"
+      ]
+    },
+    {
+      "id": "E-LIT-04",
+      "claim": "harness 决定成本已被占位（必须区分）",
+      "value": {
+        "cost_spread": "同模型同任务每任务成本最多差 3×",
+        "source_of_gap": "首轮 system prompt + tool schema 前导，被步数放大"
+      },
+      "source": "arXiv:2610.04433 What Does a Harness Buy? Tokens, Mostly",
+      "recompute": "web_read https://arxiv.org/abs/2610.04433",
+      "scope": "外部工作，二手引用",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec7"
+      ]
+    },
+    {
+      "id": "E-GATE-02",
+      "claim": "晋升闸门混淆矩阵：11 例中 9 例判定正确（坏样本 9 拦 8，好样本 2 放 1）",
+      "value": {
+        "n_samples": 11,
+        "bad_samples": 9,
+        "good_samples": 2,
+        "tp_block": 8,
+        "fn_leak": 2,
+        "fp_overblock": 0,
+        "tn_allow": 1,
+        "accuracy": 0.8182,
+        "block_rate_on_bad": "8/9",
+        "allow_rate_on_good": "1/2"
+      },
+      "source": "scripts/e1_gate_matrix.py 调真实 skill_state.promote()，RSI_LEDGER_DIR 重定向到临时目录",
+      "recompute": "python scripts/e1_gate_matrix.py",
+      "scope": "样本为最小合成技能（非真实用户技能）；测的是闸门判定而非技能质量；单机单次，无多 seed",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec6",
+        "paper_a:Table3"
+      ]
+    },
+    {
+      "id": "E-GATE-03",
+      "claim": "闸门两处实测漏放及其根因（缺陷发现，非设计声明）",
+      "value": {
+        "leak_1": {
+          "name": "probe-name-acceptance",
+          "symptom": "技能缺验收段却通过 validate",
+          "root_cause": "ACC_RE 在全文搜索关键词，SKILL.md 标题 '# <技能名>' 中含 acceptance/验收 即被喂中",
+          "verified": "中性名 bad-no-accept-seg 同时被 E_ACCEPTANCE_MISSING 拦下，差异仅来自名称"
+        },
+        "leak_2": {
+          "name": "bad-self-eval-only",
+          "symptom": "3 条案例 signal 全为 judge 仍晋升成功",
+          "root_cause": "promote() 只看命令行 --signal 与 scorecard 汇总，不读 cases.jsonl 的 signal 字段；政策要求 E1/E2/E3，实现未校验",
+          "verified": "同目录案例 signal 实测为 [judge,judge,judge]，promote 返回 ok=true"
+        }
+      },
+      "source": "scripts/e1_gate_matrix.py 的 probe-name-acceptance 与 bad-self-eval-only 两例",
+      "recompute": "python scripts/e1_gate_matrix.py -> 看 rows 中 correct=false 的两行",
+      "scope": "这是本系统的缺陷，不是外部工作的缺陷；两处都按「我们发现」表述，未声称为通用问题",
+      "status": "ok",
+      "used_in": [
+        "paper_a:Sec6",
+        "paper_a:Limitations"
+      ]
+    }
+  ]
+}

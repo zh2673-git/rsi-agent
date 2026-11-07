@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\caption{Table 3: The five field-level reconstruction requirements and their status on the deployed system. Four of five requirements are violated. The sidecar satisfies range addressability and nothing else, which is the precise sense in which the system knows what it lost: first_kept is recorded exactly while the discarded content is unavailable. Requirement status is determined by inspection of the write path, not by attempting reconstruction, because reconstruction is provably impossible once content is projected at write time.}
+\label{tab:field_requirements}
+\begin{tabular}{llccc}
+\toprule
+\textbf{#} & \textbf{Requirement} & \textbf{What reconstruction needs} & \textbf{Status} & \textbf{Observed} \\
+\midrule
+1 & Content & full message body & VIOLATED & slice(0, 200) preview \\
+2 & Arguments & full tool-call payload & VIOLATED & field absent \\
+3 & Results & full tool-result body & VIOLATED & field absent \\
+4 & Order & stable sequence identifier & VIOLATED & file position only \\
+5 & Range & deleted range addressable & SATISFIED & first_kept, kept \\
+\bottomrule
+\end{tabular}
+\end{table}

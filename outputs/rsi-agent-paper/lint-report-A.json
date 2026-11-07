@@ -1,0 +1,116 @@
+{
+  "ok": true,
+  "result": {
+    "file": "outputs\\rsi-agent-paper\\04-论文A-Frozen-Strata-en.md",
+    "genre": "T",
+    "chars": 34717,
+    "sections": [
+      "1:Frozen Strata: Layered Self-Modification Governed by Immutability Boundaries",
+      "2:Abstract",
+      "2:1 Introduction",
+      "3:1.1 Contributions",
+      "3:1.2 Summary of Core Evaluation Results",
+      "2:2 Architecture: Three Frozen Strata",
+      "3:2.1 Kernel Stratum: One Semantics, Four Isolation Strengths",
+      "3:2.2 Runtime Stratum: Skeleton Frozen, Policy Variable",
+      "3:2.3 Resident Stratum: Kernel, Judge, and Ledger Read-Only",
+      "3:2.4 Discussion: What the Freeze Determines",
+      "2:3 Audit Signals Produced by Immutability",
+      "3:3.1 The Mechanism",
+      "3:3.2 Four Located Defects",
+      "3:3.3 Discussion",
+      "2:4 The Harness Tax: When a Frozen Contract Is Specified Imprecisely",
+      "3:4.1 The Defect",
+      "3:4.2 Measurement",
+      "3:4.3 Discussion: Cost Transfer, Not Quality Defect",
+      "2:5 Typed Harness Policies",
+      "2:6 Evidence-Gated Promotion",
+      "2:7 Positioning Against Prior Work",
+      "2:8 Conclusion, Limitations, and Future Directions",
+      "2:Appendix A Contributions and Acknowledgments",
+      "2:Appendix B Measurement Procedures",
+      "2:Appendix C Full Tables"
+    ],
+    "gates": [
+      {
+        "id": "G1",
+        "pass": false,
+        "detail": "摘要内『分数 on benchmark』0 处（需≥2）"
+      },
+      {
+        "id": "G2",
+        "pass": false,
+        "detail": "total parameters=False, activated=False"
+      },
+      {
+        "id": "G3",
+        "pass": true,
+        "detail": "GPU hours=True, tokens=True"
+      },
+      {
+        "id": "G4",
+        "pass": true,
+        "detail": "摘要末句含开源/链接=True"
+      },
+      {
+        "id": "G5",
+        "pass": true,
+        "detail": "标记=True, 分组=4(需2-8，形如『阶段: 口号』), bullet=17"
+      },
+      {
+        "id": "G6",
+        "pass": true,
+        "detail": "导览段=True, Section 引用=7次, 最大章号=8, 引用最大=8"
+      },
+      {
+        "id": "G7",
+        "pass": true,
+        "detail": "独立RelatedWork=无, Limitations=True, 体裁=T"
+      },
+      {
+        "id": "G8",
+        "pass": true,
+        "detail": "图2张(短caption:无), 表3个(带口径声明:2)"
+      },
+      {
+        "id": "G9",
+        "pass": true,
+        "detail": "失败申报=True, 成本口径澄清=True"
+      },
+      {
+        "id": "G10",
+        "pass": true,
+        "detail": "禁用词=无, SOTA 0 处/带范围 0 处"
+      },
+      {
+        "id": "G11",
+        "pass": true,
+        "detail": "未被正文引用: 无"
+      },
+      {
+        "id": "G12",
+        "pass": true,
+        "detail": "比较级断言 0 处, 账本 compare 证据 0 条"
+      }
+    ],
+    "failed": [
+      "G1",
+      "G2"
+    ],
+    "verdict": "FAIL",
+    "style_fingerprint": {
+      "remarkably": 0,
+      "notably": 0,
+      "consistently": 0,
+      "meticulously": 0,
+      "substantial": 1,
+      "impressive": 0,
+      "top-tier": 0,
+      "Firstly": 1,
+      "Secondly": 1,
+      "Furthermore": 0,
+      "Moreover": 0
+    },
+    "_strict": true
+  }
+}

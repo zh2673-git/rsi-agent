@@ -1,0 +1,12 @@
+{
+  "id": "fig_strata",
+  "kind": "figure",
+  "type": "bar",
+  "caption": "Figure 1: Code size of the three frozen strata on a logarithmic scale. Each stratum freezes a different object and admits a different improvement medium, so the bars measure not module weight but the surface each layer makes writable. The kernel is 515 lines at its core and 4,664 lines in total, supporting 12,576 lines of resident code at a ratio of 1 to 24.",
+  "y_label": "Rust lines (log scale)",
+  "categories": ["kernel core", "kernel", "runtime", "resident"],
+  "series": [
+    {"name": "Rust lines", "values": [515, 4664, 11492, 12576], "highlight": true}
+  ],
+  "style": {"grid": "three-line", "colormap": "deepseek", "legend": "bottom", "value_labels": true}
+}

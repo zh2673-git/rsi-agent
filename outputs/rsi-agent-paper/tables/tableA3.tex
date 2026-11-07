@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\caption{}
+\label{tab:main}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Sample} & \textbf{Broken dimension} & \textbf{Expected} & \textbf{Observed} & \textbf{Error code} \\
+\midrule
+good-baseline & — (control) & allow & allow &  \\
+good-tools-no-human & tools.json without --human & block & block & E_TOOLS_HUMAN \\
+bad-no-frontmatter & missing frontmatter & block & block & E_VALIDATE \\
+bad-dir-name-mismatch & dir name ≠ name & block & block & E_VALIDATE \\
+bad-no-accept-seg & no acceptance section & block & block & E_ACCEPTANCE_MISSING \\
+probe-name-acceptance & no acceptance section, name contains it & block & **allow** &  \\
+bad-cases-missing & no cases.jsonl & block & block & E_VALIDATE \\
+bad-eval-missing & no scorecard & block & block & E_EVAL_MISSING \\
+bad-low-score & pass_rate 0.33 < 0.80 & block & block & E_EVAL_GATE \\
+bad-regression & prior case regressed & block & block & E_EVAL_GATE \\
+bad-self-eval-only & all cases signal=judge & block & **allow** &  \\
+\bottomrule
+\end{tabular}
+\end{table}

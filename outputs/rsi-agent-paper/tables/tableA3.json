@@ -1,0 +1,22 @@
+{
+  "kind": "table",
+  "label": "Table 3",
+  "caption": "Promotion-gate confusion matrix over 11 synthetic skill directories. Each defective sample differs from the well-formed baseline along exactly one dimension. Verdicts are produced by the shipped `skill_state.promote()` entry point with the ledger redirected to a temporary directory; no decision logic was rewritten for the test. \"Expected\" is the design intent stated in `policies/promotion.md`; \"Observed\" is what the implementation did.",
+  "columns": ["Sample", "Broken dimension", "Expected", "Observed", "Error code"],
+  "rows": [
+    ["good-baseline", "— (control)", "allow", "allow", "—"],
+    ["good-tools-no-human", "tools.json without --human", "block", "block", "E_TOOLS_HUMAN"],
+    ["bad-no-frontmatter", "missing frontmatter", "block", "block", "E_VALIDATE"],
+    ["bad-dir-name-mismatch", "dir name ≠ name", "block", "block", "E_VALIDATE"],
+    ["bad-no-accept-seg", "no acceptance section", "block", "block", "E_ACCEPTANCE_MISSING"],
+    ["probe-name-acceptance", "no acceptance section, name contains it", "block", "**allow**", "—"],
+    ["bad-cases-missing", "no cases.jsonl", "block", "block", "E_VALIDATE"],
+    ["bad-eval-missing", "no scorecard", "block", "block", "E_EVAL_MISSING"],
+    ["bad-low-score", "pass_rate 0.33 < 0.80", "block", "block", "E_EVAL_GATE"],
+    ["bad-regression", "prior case regressed", "block", "block", "E_EVAL_GATE"],
+    ["bad-self-eval-only", "all cases signal=judge", "block", "**allow**", "—"]
+  ],
+  "note": "Confusion matrix over defective samples: 8 blocked, 1 leaked. Well-formed samples: 1 admitted, 1 correctly blocked pending human authorization. Bold marks the two leaks. The 0.33 figure is the synthetic scorecard's pass_rate, not a measured model score.",
+  "best_col": null,
+  "caption_rule": "no ranking column; bold marks gate leaks only, not performance"
+}

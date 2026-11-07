@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\caption{Table 2: Harness contract tax measured over all 29 session traces. A command counts as prefixed when it begins with a `cd` to an explicit path. Character share is the ratio of prefix characters to total command characters; no tokenizer is applied, so the token cost is at least as large as the character share suggests. The failure count is a lower bound because silent success is invisible in the trace.}
+\label{tab:harness_tax}
+\begin{tabular}{ll}
+\toprule
+\textbf{Quantity} & \textbf{Value} \\
+\midrule
+Sessions scanned & 29 \\
+Model-visible trace payload & 20,041,120 chars \\
+bash invocations & 5,368 \\
+with cd prefix & 3,760 (70.0%) \\
+prefix characters & 201,868 \\
+total command characters & 1,261,369 \\
+prefix character share & 16.0% \\
+peak session prefix rate & 98.8% (2,139 / 2,165) \\
+unprefixed invocations & 1,608 \\
+unprefixed failures & 100 (6.2%, lower bound) \\
+\bottomrule
+\end{tabular}
+\end{table}

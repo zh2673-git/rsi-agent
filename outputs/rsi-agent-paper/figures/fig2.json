@@ -1,0 +1,13 @@
+{
+  "id": "fig_harness_tax",
+  "kind": "figure",
+  "type": "bar",
+  "caption": "Figure 2: Harness contract tax across sessions. The left group aggregates all 29 scanned sessions and the right group is the long-horizon session with the highest observed rate. A command counts as paying the tax when it carries a redundant cd prefix compensating for a silently lost working directory. The compensation is not marginal: 70.0 percent of all invocations and 98.8 percent of invocations in the longest session pay it, consuming 16.0 percent of all command characters.",
+  "y_label": "Percent of bash invocations",
+  "categories": ["all 29 sessions (n=5,368)", "long session (n=2,165)"],
+  "series": [
+    {"name": "carries cd prefix", "values": [70.0, 98.8], "highlight": true},
+    {"name": "no prefix", "values": [30.0, 1.2]}
+  ],
+  "style": {"grid": "three-line", "colormap": "deepseek", "legend": "bottom", "value_labels": true}
+}

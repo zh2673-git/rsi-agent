@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RSI-Agent 论文交付索引</title><style>
+:root{--ink:#1a1a1a;--mut:#666;--line:#e2e2e2;--accent:#1c4e80;--bg:#fff;--soft:#f7f8fa}
+*{box-sizing:border-box}
+body{margin:0;background:var(--soft);color:var(--ink);
+ font-family:"-apple-system",BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+ font-size:16px;line-height:1.8;-webkit-font-smoothing:antialiased}
+.page{max-width:860px;margin:0 auto;background:var(--bg);padding:56px 64px 88px;
+ box-shadow:0 1px 3px rgba(0,0,0,.07)}
+h1{font-size:1.85em;line-height:1.35;margin:0 0 .5em;letter-spacing:-.01em}
+h2{font-size:1.32em;margin:2.4em 0 .7em;padding-bottom:.35em;border-bottom:1px solid var(--line)}
+h3{font-size:1.08em;margin:1.8em 0 .55em;color:#222}
+p{margin:.85em 0;text-align:justify}
+strong{font-weight:600}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.88em;background:#f2f3f5;
+ padding:.1em .35em;border-radius:3px;color:#0f4c81}
+hr{border:0;border-top:1px solid var(--line);margin:2.6em 0}
+img{max-width:100%;height:auto;display:block;margin:1.4em auto}
+table{border-collapse:collapse;width:100%;margin:.6em 0 1.6em;font-size:.9em;
+ font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:.5em .7em;text-align:left;vertical-align:top}
+thead th{border-top:2px solid #333;border-bottom:1.5px solid #333;background:#fafafa;font-weight:600}
+tbody tr:last-child td{border-bottom:2px solid #333}
+ul,ol{margin:.7em 0;padding-left:1.6em}
+li{margin:.3em 0}
+.cap{font-size:.86em;color:var(--mut);text-align:center;margin:-.6em 0 1.8em;line-height:1.6}
+.toc{background:var(--soft);border:1px solid var(--line);border-radius:6px;
+ padding:18px 26px;margin:2em 0 2.6em;font-size:.92em}
+.toc-t{font-weight:600;margin-bottom:.6em;font-size:.95em;color:var(--mut);
+ letter-spacing:.06em;text-transform:uppercase}
+.toc ul{list-style:none;padding-left:0;margin:0}
+.toc li{margin:.25em 0}
+.toc li.l3{padding-left:1.5em;font-size:.95em;color:#444}
+.toc a{color:var(--accent);text-decoration:none}
+.toc a:hover{text-decoration:underline}
+a{color:var(--accent)}
+@media(max-width:760px){.page{padding:28px 20px 56px}}
+@media print{body{background:#fff;font-size:11pt}.page{box-shadow:none;max-width:none;padding:0}
+ .toc{background:#fff}img{page-break-inside:avoid}table{page-break-inside:avoid}}
+</style></head>
+<body><div class="page">
+<h1 id="_1">交付索引 — 两篇论文 + 调研 + 证据</h1><nav class="toc"><div class="toc-t">Contents</div><ul><li class="l2"><a href="#_2">怎么读（按你想要的形态选）</a></li><li class="l2"><a href="#_3">怎么查看图表</a></li><li class="l2"><a href="#_4">一、先看这个</a></li><li class="l2"><a href="#_5">二、两篇论文</a></li><li class="l2"><a href="#url">三、调研报告（判新颖性用，全部带可核验 URL）</a></li><li class="l3"><a href="#_6">三条最重要的文献裁决</a></li><li class="l2"><a href="#_7">四、证据与图表</a></li><li class="l3"><a href="#e1">E1 闸门混淆矩阵（本轮新增实测）</a></li><li class="l2"><a href="#_8">五、本轮新增的实测数据（论文的地基）</a></li><li class="l2"><a href="#limitations">六、诚实边界（写进 Limitations 的那几条）</a></li><li class="l2"><a href="#_9">七、下一步建议（按性价比排序）</a></li></ul></nav>
+<blockquote>
+<p>生成时间 2026-11-07。全部产物在 <code>outputs/rsi-agent-paper/</code> 与 <code>outputs/*.md</code>。</p>
+</blockquote>
+<h2 id="_2">怎么读（按你想要的形态选）</h2>
+<p>每篇论文有 <strong>4 种格式</strong>，内容完全一致，按用途挑一个：</p>
+<table>
+<thead>
+<tr>
+<th>想做什么</th>
+<th>打开这个</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>浏览器里正常看</strong></td>
+<td><code>04-xxx.html</code></td>
+<td><strong>推荐</strong>。双击即开，图片已内嵌、带目录锚点、排版好</td>
+</tr>
+<tr>
+<td><strong>Word 里看/改/评审批注</strong></td>
+<td><code>04-xxx.docx</code></td>
+<td>A4、页码、中文宋体/微软雅黑、三线表、图内嵌</td>
+</tr>
+<tr>
+<td>打印或存 PDF</td>
+<td>同 HTML</td>
+<td>浏览器里 <code>Ctrl+P</code> → 另存为 PDF，打印样式已适配</td>
+</tr>
+<tr>
+<td>投 LaTeX 模板</td>
+<td><code>04-xxx.md</code> + <code>tables/*.tex</code></td>
+<td><code>.tex</code> 是投稿原件，正文里表格已内联不必看它</td>
+</tr>
+</tbody>
+</table>
+<p><strong>中文版就在这里</strong>（之前只写了文件名没给链接，容易以为缺失）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>中文版</th>
+<th>英文版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文 A</td>
+<td><code>04-论文A-Frozen-Strata-zh.html</code> / <code>.docx</code> / <code>.md</code></td>
+<td><code>04-论文A-Frozen-Strata-en.*</code></td>
+</tr>
+<tr>
+<td>论文 B</td>
+<td><code>04-论文B-Reconstructibility-Gap-zh.html</code> / <code>.docx</code> / <code>.md</code></td>
+<td><code>04-论文B-Reconstructibility-Gap-en.*</code></td>
+</tr>
+</tbody>
+</table>
+<p>四篇 × 3 种格式 = 12 个文件，全部已生成并实测可打开。</p>
+<h2 id="_3">怎么查看图表</h2>
+<p><strong>HTML / DOCX（推荐）</strong>：图已内嵌、表已排版，打开就是成品，无需任何操作。</p>
+<p><strong>Markdown 源码</strong>：图用 <code>![图 1](figures/fig1.png)</code> 图片语法，需支持渲染的编辑器而非纯文本查看——
+VS Code <code>Ctrl+Shift+V</code> 预览、Typora / Obsidian / GitHub 网页直接打开。</p>
+<ul>
+<li><code>figures/fig1.png</code> 1258×599 — 论文 A 图 1，三层代码规模</li>
+<li><code>figures/fig2.png</code> 1227×599 — 论文 A 图 2，契约税</li>
+<li><code>figures/figB1.png</code> 1219×626 — 论文 B 图 1，三层保真度</li>
+</ul>
+<p><strong>表格</strong>：在 md 里已内联为 Markdown 表格（不是链接），任何渲染器都能看到。原始 <code>.tex</code> 版在 <code>tables/</code>
+下，供投 LaTeX 模板时使用。</p>
+<blockquote>
+<p>修订记录 2026-11-07（二次）：用户反馈「md 里图表看不到、中文版找不到」。实测确认两处真缺陷：
+① 表格原为 <code>[表 1](tables/table1.tex)</code> 链接，点开只见 LaTeX 源码；论文 B 的图误写成普通链接。
+② 中文版存在但 INDEX 只列文件名、无链接，形同隐藏。
+已修：表格全部内联、论文 B 图改图片语法、新增 <code>paper_render</code> 工具产出 HTML+DOCX。
+实测：HTML 内 <code>&lt;table&gt;/&lt;img&gt;</code> 数与源一致（A 2/2、B 3/1），DOCX 可被 <code>python-docx</code> 重开且
+表图计数一致，OOXML 元素顺序校验 0 违规。</p>
+</blockquote>
+<h2 id="_4">一、先看这个</h2>
+<p><strong><code>00-方向讨论.md</code></strong> — 方向裁决与文献重定位。先读它，否则会看不懂为什么最终写的是这两篇而不是原来那六个点。</p>
+<p><strong>关键结论（v3）</strong>：原先设想的几条主张在 2026 年被密集占位，其中一条被自己的实测推翻。因此最终成品不是「把六个点都写成论文」，而是：</p>
+<ul>
+<li>一条主张被<strong>证伪</strong>（"无损压缩"），改写成一个可测量的缺口 → <strong>论文 B</strong></li>
+<li>其余被收窄/合并，加上新增的硬数据 → <strong>论文 A</strong>（跨层总账）</li>
+</ul>
+<h2 id="_5">二、两篇论文</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>论文 A</th>
+<th>论文 B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>标题</td>
+<td>Frozen Strata: Layered Self-Modification Governed by Immutability Boundaries</td>
+<td>The Reconstructibility Gap: Auditing Lossy Compaction in Long-Lived Agent Sessions</td>
+</tr>
+<tr>
+<td>体裁</td>
+<td>T 技术报告（跨层总账）</td>
+<td>M 方法论文（一个契约 + 一次测量）</td>
+</tr>
+<tr>
+<td>英文</td>
+<td><code>04-论文A-Frozen-Strata-en.md</code></td>
+<td><code>04-论文B-Reconstructibility-Gap-en.md</code></td>
+</tr>
+<tr>
+<td>中文</td>
+<td><code>04-论文A-Frozen-Strata-zh.md</code></td>
+<td><code>04-论文B-Reconstructibility-Gap-zh.md</code></td>
+</tr>
+<tr>
+<td>lint</td>
+<td>10/12（G1/G2 体裁豁免，见 <code>lint-report-A.json</code>）</td>
+<td>10/12（同，见 <code>lint-report-B.json</code>）</td>
+</tr>
+<tr>
+<td>核心数字</td>
+<td>1:24 内核比、4 条审计信号、70.0%/16.0% 契约税、56.2% 退役比、<strong>闸门 9/11 正确并发现 2 处漏放</strong></td>
+<td>2.44% 保真度、5 条要求满足 1 条、15 次压缩/1 次回滚、432:1 最坏压缩</td>
+</tr>
+<tr>
+<td>一句话卖点</td>
+<td>自我改进系统的设计对象是「哪一层不许改」，冻结本身产出审计信号</td>
+<td>声称「日志为真相源」的系统，在有损压缩之后能否重建——没人测过，我们测了</td>
+</tr>
+</tbody>
+</table>
+<h2 id="url">三、调研报告（判新颖性用，全部带可核验 URL）</h2>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>覆盖</th>
+<th>对成品的作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>outputs/self-evolving-agents-litreview-2026.md</code></td>
+<td>DGM / Gödel Agent / ADAS / SICA / SEAL / 安全边界 20+ 篇</td>
+<td>确认「冻结层」作为工程主张已被 Unfireable Safety Kernel 占满；确认「退役率」指标仍是空白</td>
+</tr>
+<tr>
+<td><code>outputs/context-memory-literature-review.md</code></td>
+<td>ACE / pi / MemGPT / Zep / E-mem / ActiveGraph / 重放断言</td>
+<td><strong>直接推翻「无损压缩」</strong>；确认「压缩×严格重放」交叉点空白</td>
+</tr>
+<tr>
+<td><code>outputs/harness-litreview-2026.md</code></td>
+<td>harness 差异 / 静默失败 / 预算策略 / 平台陷阱</td>
+<td>收窄 R1：harness 决定成本已被占，但「契约违约→补偿行为→成本折算」是空白</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_6">三条最重要的文献裁决</h3>
+<ol>
+<li><strong>"无损压缩"不成立</strong> —— 自测：sidecar 保真率 2.44%，缺全部重建字段。已改写为论文 B 的"可重建性缺口"。</li>
+<li><strong>"冻结层保安全"不能主张</strong> —— <code>arXiv:2606.28639</code> 已证明监督者之塔无用，需靠设计限制重写 + frozen reference。论文 A 因此只主张"让缺陷可观测"，不主张安全。</li>
+<li><strong>"harness 影响成本"已被占</strong> —— <code>arXiv:2610.04433</code> 已是标题结论。论文 A 收窄到"契约违约的补偿成本"。</li>
+</ol>
+<h2 id="_7">四、证据与图表</h2>
+<ul>
+<li><strong><code>02-证据账本.json</code></strong> — <strong>28 条</strong>证据（原 26 + E-GATE-02/03），全部 <code>status: ok</code>，每条附 <code>recompute</code> 命令。正文每个数字可追到条目 id（E-XXX-NN）。</li>
+<li><strong>图表</strong>（全部由 <code>paper_table</code> / <code>paper_figure</code> 生成，无手写数字）：</li>
+<li><code>figures/fig1.png</code> — 三层代码规模（论文 A 图 1）</li>
+<li><code>figures/fig2.png</code> — 契约税（论文 A 图 2）</li>
+<li><code>figures/figB1.png</code> — 三层保真度（论文 B 图 1）</li>
+<li><code>tables/table1.tex</code>、<code>table2.tex</code> — 论文 A 表 1、2</li>
+<li><strong><code>tables/tableA3.tex</code> — 论文 A 表 3：晋升闸门混淆矩阵（E1 产物）</strong></li>
+<li><code>tables/tableB1.tex</code>、<code>tableB2.tex</code>、<code>tableB3.tex</code> — 论文 B 表 1、2、3</li>
+</ul>
+<h3 id="e1">E1 闸门混淆矩阵（本轮新增实测）</h3>
+<p><code>scripts/e1_gate_matrix.py</code> —— 调<strong>真实</strong> <code>skill_state.promote()</code>，把账本重定向到临时目录，
+不重写任何判定逻辑。</p>
+<pre><code>11 例：9 坏 + 2 好
+  坏样本 9 → 拦 8（tp=8）      好样本 2 → 放 1（tn=1）
+  漏放 fn=2   误拦 fp=0   准确率 0.8182
+</code></pre>
+<p>两个漏放不是噪声，是<strong>发现的缺陷</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>漏放</th>
+<th>症状</th>
+<th>根因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>probe-name-acceptance</code></td>
+<td>无验收段却通过 validate</td>
+<td><code>ACC_RE</code> 全文搜索关键词，H1 标题 <code>&lt;技能名&gt;</code> 含 acceptance 即喂中</td>
+</tr>
+<tr>
+<td><code>bad-self-eval-only</code></td>
+<td>3 案例全 <code>judge</code> 仍晋升</td>
+<td><code>promote()</code> 只查命令行 <code>--signal</code>，从不读 <code>cases.jsonl</code> 的 <code>signal</code> 字段</td>
+</tr>
+</tbody>
+</table>
+<p>两处<strong>均未修补</strong>，论文如实报告——修补清单已写入 §8 未来方向。重算：<code>python scripts/e1_gate_matrix.py</code>。</p>
+<h2 id="_8">五、本轮新增的实测数据（论文的地基）</h2>
+<table>
+<thead>
+<tr>
+<th>测量</th>
+<th>结果</th>
+<th>复算方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>侧车保真率</td>
+<td><strong>2.44%</strong>（487,638 / 20,009,987 字符）</td>
+<td>扫 29 个 trace + 29 个 sidecar</td>
+</tr>
+<tr>
+<td>重建字段完备性</td>
+<td>5 条要求满足 <strong>1</strong> 条</td>
+<td>逐字段检查写路径</td>
+</tr>
+<tr>
+<td>压缩事件</td>
+<td><strong>15 次，最坏 432:1</strong>（761,547 → 1,764）</td>
+<td><code>kind==compaction</code> 过滤</td>
+</tr>
+<tr>
+<td>工具结果截断</td>
+<td><strong>2,221 / 13,326</strong>（单会话峰 14.3%）</td>
+<td><code>memory_truncated</code> 字段计数</td>
+</tr>
+<tr>
+<td>cd 前缀率</td>
+<td><strong>70.0%</strong>（3,760 / 5,368 次 bash）</td>
+<td>正则匹配 tool_call.args.command</td>
+</tr>
+<tr>
+<td>前缀字符占比</td>
+<td><strong>16.0%</strong>（201,868 / 1,261,369）</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>真实 token 用量</td>
+<td><strong>229.42M</strong> 输入输出 + 567.45M 缓存</td>
+<td><code>chat_summary.tokens</code> 聚合</td>
+</tr>
+<tr>
+<td>补丁存活</td>
+<td><strong>60 活跃 / 77 退役</strong>（退役占 56.2%）</td>
+<td>文件计数</td>
+</tr>
+<tr>
+<td>测试</td>
+<td><strong>55 passed</strong>（pytest 6.97s）</td>
+<td><code>python -m pytest -q</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="limitations">六、诚实边界（写进 Limitations 的那几条）</h2>
+<ol>
+<li><code>active</code> 技能 <strong>0 个</strong>、账本 <strong>1 条</strong>记录 → 闭环未在时间上收敛，正文动词已锁 <code>we design / we implement</code>，<strong>没有</strong> <code>we demonstrate that the system self-evolves</code>。</li>
+<li>无外部 benchmark → <strong>全文零比较级断言</strong>（<code>outperforms</code>/<code>surpasses</code> 各 0 处），G12 因此自动通过。这不是遗漏，是主动限制。</li>
+<li>单机、单用户、Windows-only、无多 seed。</li>
+<li>论文 B 是<strong>单系统测量，不是 benchmark</strong>，正文已显式限定"2.44% 刻画这套实现而非这类系统"。</li>
+</ol>
+<h2 id="_9">七、下一步建议（按性价比排序）</h2>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>动作</th>
+<th>成本</th>
+<th>收益</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~1~~ ✅</td>
+<td>~~<strong>E1 闸门混淆矩阵</strong>：注入 6 类坏技能 + 2 个好技能~~ <strong>已完成</strong></td>
+<td>~0（纯脚本）</td>
+<td>论文 A §6 从"设计陈述"变"11 例中 9 例正确"，并实测发现 2 处漏放</td>
+</tr>
+<tr>
+<td>1</td>
+<td><strong>修补 E1 发现的 2 处漏放</strong>：验收检查改为章节结构判定；<code>promote</code> 读取逐案例 <code>signal</code></td>
+<td>低</td>
+<td>漏放 2→0，闸门才敢称"可靠"；同一矩阵可直接作回归</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>E7 落地为测试</strong>：把本轮的保真度探针 + E1 矩阵写成 pytest 案例</td>
+<td>~0</td>
+<td>论文 B 的契约变成可回归的验收</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>E2 四档隔离代价表</strong>：同插件 × 四档</td>
+<td>低（本机）</td>
+<td>论文 A 的 K1 从"支持四种"变"有代价曲线"</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>E4 硬中止 vs 软收敛配对</strong></td>
+<td>中</td>
+<td>补上论文 A §5 承认缺的那个实验</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>E5 外部基准</strong>（SWE-bench-lite 20 例）</td>
+<td>高</td>
+<td>唯一能解锁比较级断言、也是 G1 通过的唯一途径</td>
+</tr>
+</tbody>
+</table>
+</div></body></html>

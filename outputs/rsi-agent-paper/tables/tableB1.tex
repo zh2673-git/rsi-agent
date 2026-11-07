@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Table 1: The nine compaction events recorded in the most active session. Each event carries kind, ts, summary, first_kept, kept, and tokens_before, so the system has a precise account of every compaction it performed. tokens_before is the serialized length of the pre-compaction message array as the system computed it, not a model tokenizer count. The worst case compresses 761,547 characters into a 1,764-character summary, a ratio of roughly 432 to 1.}
+\label{tab:compaction_events}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{#} & \textbf{tokens_before} & \textbf{kept} & \textbf{first_kept} & \textbf{summary chars} & \textbf{ratio} \\
+\midrule
+1 & $\mathbf{761,547}$ & 30 & 604 & $\underline{1,764}$ & 432:1 \\
+2 & $\mathbf{271,480}$ & 30 & 110 & $\underline{1,033}$ & 263:1 \\
+3 & $\mathbf{95,869}$ & 30 & 49 & $\underline{847}$ & 113:1 \\
+4 & $\mathbf{270,225}$ & 30 & 169 & $\underline{2,154}$ & 125:1 \\
+5 & $\mathbf{170,492}$ & 30 & 151 & $\underline{1,369}$ & 125:1 \\
+6 & $\mathbf{63,790}$ & 30 & 19 & $\underline{1,035}$ & 62:1 \\
+7 & $\mathbf{167,239}$ & 30 & 145 & $\underline{1,450}$ & 115:1 \\
+8 & $\mathbf{238,393}$ & 29 & 219 & $\underline{1,238}$ & 193:1 \\
+9 & $\mathbf{65,962}$ & 29 & 35 & $\underline{1,354}$ & 49:1 \\
+\bottomrule
+\end{tabular}
+\end{table}
