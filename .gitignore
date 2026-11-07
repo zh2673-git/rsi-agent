@@ -21,6 +21,9 @@ config.magpie.local.json
 *.qpatchbak
 # Q 轮隔离构建目录（运行中 host 锁住 debug/*.exe 时使用）
 runtime/target-q/
+# RSI 基线构建缓存（cargo target，实测 913MB / 1765 文件，非源码）
+runtime/target-base/
+
 
 # Magpie 账号台账（含邮箱等 PII，仅本机）
 config/magpie-accounts.json
