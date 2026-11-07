@@ -1,9 +1,9 @@
 {
   "ok": true,
   "result": {
-    "file": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\docs\\papers\\04-论文A-Frozen-Strata-en.md",
+    "file": "docs\\papers\\04-论文A-Frozen-Strata-en.md",
     "genre": "T",
-    "chars": 34717,
+    "chars": 34810,
     "sections": [
       "1:Frozen Strata: Layered Self-Modification Governed by Immutability Boundaries",
       "2:Abstract",
@@ -90,7 +90,7 @@
       {
         "id": "G12",
         "pass": true,
-        "detail": "比较级断言 0 处（未提供账本，跳过核对）"
+        "detail": "比较级断言 0 处, 账本 compare 证据 0 条"
       }
     ],
     "failed": [

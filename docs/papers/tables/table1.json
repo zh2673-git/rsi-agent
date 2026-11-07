@@ -2,11 +2,11 @@
   "id": "strata",
   "kind": "table",
   "caption_lead": "Table 1: The three frozen strata and their improvement media.",
-  "caption_tail": "Line counts are Rust only, measured on 2026-11-07. The kernel core alone is 515 lines across 10 files, so the ratio of kernel lines to resident lines is 1:24. The frozen surface of the stack is thus one twenty-fourth the size of the code it governs.",
+  "caption_tail": "Line counts are Rust only (whitespace excluded), measured on 2026-11-07 against agent-kernel@47b93dc, react-agent@cc9d785 and rsi-agent@679f5d3. The kernel core alone is 515 lines across 10 files, so the ratio of kernel lines to resident lines is 1:25. The frozen surface of the stack is thus one twenty-fifth the size of the code it governs.",
   "columns": ["Stratum", "Writable unit", "Frozen surface", "Rust lines", "Improvement medium"],
   "rows": [
-    ["Kernel", "plugin", "one semantics + wire schema + lifecycle", "4,664", "add a plugin"],
-    ["Runtime", "policy / tool wiring", "ReAct skeleton + tool wire contract", "11,492", "out-of-tree patch"],
-    ["Resident", "skill asset", "kernel + judge + ledger", "12,576", "new skill directory"]
+    ["Kernel", "plugin", "one semantics + wire schema + lifecycle", "4,669", "add a plugin"],
+    ["Runtime", "policy / tool wiring", "ReAct skeleton + tool wire contract", "11,990", "out-of-tree patch"],
+    ["Resident", "skill asset", "kernel + judge + ledger", "12,920", "new skill directory"]
   ]
 }

@@ -14,16 +14,17 @@
       "id": "E-SCALE-01",
       "claim": "三层各自的可改单元与规模",
       "value": {
-        "kernel_rust_lines": 4664,
+        "kernel_rust_lines": 4669,
         "kernel_files": 56,
-        "react_rust_lines": 11492,
+        "react_rust_lines": 11990,
         "react_files": 42,
-        "rsi_rust_lines": 12576,
+        "rsi_rust_lines": 12920,
         "rsi_files": 43
       },
-      "source": "git ls-files '*.rs' 三仓（agent-kernel / react-agent / rsi-agent 的 runtime）",
-      "recompute": "powershell: git ls-files 'crates/*.rs' | 逐文件统计非空白行——agent-kernel 56 文件 5,144 行（非空白 4,664）；react-agent 42 文件 12,274 行（非空白 11,492）；rsi-agent runtime/crates 43 文件 13,407 行（非空白 12,576）",
-      "scope": "仅 Rust 文件，不含 TS/Python；统计时点 2026-11-07",
+      "source": "三仓 *.rs 全量（含 tests/benches/examples）+ 逐文件统计非空白行；agent-kernel@47b93dc / react-agent@cc9d785 / rsi-agent@679f5d3",
+      "recompute": "python: 对每仓 rglob('*.rs') 逐文件 sum(1 for l in read_text().splitlines() if l.strip())——agent-kernel crates 56 文件 5,150 行（非空白 4,669）；react-agent crates 42 文件 12,798 行（非空白 11,990）；rsi-agent runtime/crates 43 文件 13,773 行（非空白 12,920）。复算脚本 .scratch 未入库，等价命令见 scope",
+      "scope": "仅 Rust 文件，不含 TS/Python；含各仓 tests/。统计时点 2026-11-07 复核。",
+      "correction": "本条目原值 4,664 / 11,492 / 12,576（合计口径含 13,407）经复核不可复现：三个数在各自仓库的完整 git 历史中从未出现（react-agent 25 个触及 *.rs 的提交、agent-kernel 9 个、rsi-agent 19 个），原 recompute 所写 'git ls-files crates/*.rs' 在 rsi-agent 中根本不存在（crates/ 目录在 runtime/ 下，该命令返回 0 文件）。已改为逐仓实测定值；表 1 与正文数字同步更正，比值 1:24 → 1:25。",
       "status": "ok",
       "used_in": [
         "paper_a:Table1",
@@ -35,11 +36,11 @@
       "claim": "core 规则基座与居民代码的比例",
       "value": {
         "core_lines": 515,
-        "rsi_rust_lines": 12576,
-        "ratio": "1:24"
+        "rsi_rust_lines": 12920,
+        "ratio": "1:25"
       },
-      "source": "agent-kernel/crates/core/src 10 文件非空白 515 行；rsi-agent runtime Rust 非空白 12,576 行",
-      "recompute": "12576/515 = 24.42 → 记为 1:24。注：两栏口径必须同为非空白行，若一栏用总行数会得到 26:1",
+      "source": "agent-kernel/crates/core/src 10 文件非空白 515 行（实核，10 文件 564 总行）；rsi-agent runtime Rust 非空白 12,920 行",
+      "recompute": "12920/515 = 25.09 → 记为 1:25。注：两栏口径必须同为非空白行。原值 12576/515 = 24.42 记为 1:24，因居民行数不可复现已更正。",
       "scope": "\"居民\"指 rsi-agent runtime 的 Rust 代码，不含 plugins 的 TS/Python",
       "status": "ok",
       "used_in": [
@@ -327,14 +328,14 @@
     },
     {
       "id": "E-FREEZE-02",
-      "claim": "纯内核支撑居民的比例 1:24",
+      "claim": "纯内核支撑居民的比例 1:25",
       "value": {
         "core": 515,
-        "resident": 12576,
-        "ratio": 24.42
+        "resident": 12920,
+        "ratio": 25.09
       },
       "source": "同 E-SCALE-02",
-      "recompute": "12576/515",
+      "recompute": "12920/515 = 25.09",
       "scope": "同上",
       "status": "ok",
       "used_in": [
