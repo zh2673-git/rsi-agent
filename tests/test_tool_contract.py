@@ -301,15 +301,19 @@ class ExternalPatchTest(unittest.TestCase):
         spec.loader.exec_module(self.mod)
 
     def test_load_external_picks_up_json(self):
-        """真实外挂文件被加载为合法补丁元组。"""
+        """真实外挂文件被加载为合法补丁描述（v9：dict 形态，含 create 分支）。"""
         with patch.object(self.mod, "ROOT", RSI_ROOT):
             ext = self.mod._load_external()
         self.assertTrue(ext, "scripts/patches/ 下应有外挂补丁")
-        for pid, desc, path, anchor, patch_text in ext:
-            self.assertTrue(str(pid))
-            self.assertTrue(str(anchor))
-            self.assertTrue(str(patch_text))
-            self.assertTrue(str(path))
+        for item in ext:
+            self.assertTrue(str(item["id"]))
+            self.assertTrue(str(item["desc"]))
+            self.assertTrue(str(item["path"]))
+            if item["create"]:
+                self.assertTrue(item["content"], f"{item['id']} create 补丁必须有内容")
+            else:
+                self.assertTrue(str(item["anchor"]), f"{item['id']} 锚点不能为空")
+                self.assertTrue(str(item["patch"]), f"{item['id']} 补丁体不能为空")
 
     def test_corrupt_external_skipped_not_fatal(self):
         """单个外挂 JSON 损坏 → 跳过并提示，不拖垮补丁流程。"""
@@ -322,6 +326,33 @@ class ExternalPatchTest(unittest.TestCase):
                 self.assertEqual(self.mod._load_external(), [])
             # 内置清单不受影响（P5b/P4a/P4b 已退役：2026-11-03/04，计数 11→8）
             self.assertEqual(len(self.mod.PATCHES), 8)
+
+    def test_external_create_patch_writes_new_file(self):
+        """v9 create 补丁：整文件新建、幂等、--revert 只删「补丁创建且未被演进」的文件。"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            fake_root = Path(td)
+            pdir = fake_root / "scripts" / "patches"
+            (pdir / "blocks").mkdir(parents=True)
+            (pdir / "blocks" / "new.txt").write_text("// created by patch\n", encoding="utf-8")
+            (pdir / "c1.json").write_text(json.dumps({
+                "id": "C1", "description": "新建模块", "file": "src/new_mod.rs",
+                "create": True, "content_file": "blocks/new.txt",
+            }), encoding="utf-8")
+            target = fake_root / "src" / "new_mod.rs"
+            with patch.object(self.mod, "ROOT", fake_root):
+                self.assertEqual(self.mod.apply(dry=False), 0)
+                self.assertEqual(target.read_text(encoding="utf-8"), "// created by patch\n")
+                # 幂等：内容一致 → 跳过，不报错
+                self.assertEqual(self.mod.apply(dry=False), 0)
+                self.assertEqual(target.read_text(encoding="utf-8"), "// created by patch\n")
+                # 用户演进后 revert：内容不一致 → 保留，不误删
+                target.write_text("// created by patch\nextra();\n", encoding="utf-8")
+                self.mod.revert()
+                self.assertTrue(target.exists(), "被演进的新建文件不应被 revert 删除")
+                target.write_text("// created by patch\n", encoding="utf-8")
+                self.mod.revert()
+                self.assertFalse(target.exists(), "未演进的补丁新建文件应被 revert 删除")
 
     def test_external_patch_applies_and_reverts(self):
         """外挂补丁走与内置一致的 apply/--revert 语义（锚点替换 + 备份还原）。"""

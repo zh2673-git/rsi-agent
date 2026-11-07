@@ -1,0 +1,7 @@
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><span class="logo">R</span><span>react-agent</span><span class="inst-badge" id="inst-badge" hidden></span></div>
+  <button class="newchat" id="newchat">＋ 新建对话</button>
+  <button class="newchat win" id="btn-newwin" title="新建独立窗口：绑定另一个工作区，独立会话/回滚/配置（多实例并行）">▣ 新窗口</button>
+  <div class="sess-label">会话</div>
+  <div class="sessions" id="sessions"></div>
+</aside>

@@ -1,0 +1,7 @@
+{
+ "id": "B2",
+ "description": "api/mod.rs 声明 board 子模块并导出 get_board/post_board",
+ "file": "runtime/crates/host/src/web/api/mod.rs",
+ "anchor": "mod config;\nmod misc;\nmod skills;\n\npub(super) use config::{get_config, put_config};",
+ "patch": "mod board;\nmod config;\nmod misc;\nmod skills;\n\npub(super) use board::{get_board, post_board};\npub(super) use config::{get_config, put_config};"
+}

@@ -49,6 +49,7 @@ impl AgentLoopPlugin {
         src: &Envelope,
         cfg: &AgentLoopConfig,
         want_skill_build: bool,
+        want_task_plan: bool,
     ) -> String {
         let Ok(v) = self.call(src, CAP_ASSETS, json!({"op": "skills.list"}), ASSETS_DEADLINE).await else {
             return String::new();
@@ -75,6 +76,13 @@ impl AgentLoopPlugin {
         if let Some(section) = Self::self_extension_section(root, want_skill_build) {
             lines.push(section);
         }
+        // 任务看板（单会话形态）：把「人的思维模式」落成可执行纪律——先想清怎么做（plan）、
+        // 成立什么部门（skills）、用多少人力（model/effort）、需要什么物力（tools）、
+        // 好坏标准（acceptance），再动手。按需注入（同 B2 理由），通道写死 bash 调 CLI。
+        let board = Self::task_board_section(want_task_plan);
+        if !board.is_empty() {
+            lines.push(board);
+        }
         // 产物输出约定（方案 A）：给用户的成品文件统一落产物目录——模型不再把产物
         // 混写进技能目录/仓库根。提示词约束非硬边界，越界拦截仍在文件工具侧。
         lines.push(format!(
@@ -91,7 +99,95 @@ impl AgentLoopPlugin {
         lines.join("\n")
     }
 
-    /// 判定本轮用户文本是否明确要求「造技能/打包工具」——B2 按需注入的触发条件。
+    /// 任务看板纪律段（单会话形态）：把「人的思维模式」写进提示词——从需求出发先想清
+    /// 怎么做（plan）、成立什么部门/角色（skills）、用多少人力（model/effort）、需要什么
+    /// 物力（tools）、好坏标准（acceptance），再动手。
+    ///
+    /// **按需注入**（与 B2 同一理由）：`skills_appendix` 每轮随 system prompt 重发，长规范
+    /// 对「不建任务」的轮次是纯 token 开销。`full=false` 只给一行指针（有这个权力 + 通道在哪），
+    /// `full=true` 才给完整写作规范——判定见 `user_wants_task_plan`。
+    ///
+    /// **通道写死 bash 调 CLI**：`python scripts/board.py`。不走技能 `tools.json`（装载后默认
+    /// 未启用，闭环会断在用户点配置上）。**不要求每轮更新**：只在建任务/阶段迁移/阻塞/完成
+    /// 四个时刻写，其余时间靠 plan 步态自然累积——每轮刷看板是形式主义，纯烧 token。
+    pub(super) fn task_board_section(full: bool) -> String {
+        // 看板存在性探测：只有工作区里真有 scripts/board.py 才注入（别的项目工作区不该多这段）。
+        let Ok(ws) = std::env::var("WORKSPACE_ROOT") else {
+            return String::new();
+        };
+        let cli = std::path::Path::new(&ws).join("scripts").join("board.py");
+        if !cli.is_file() {
+            return String::new();
+        }
+        let brief = "\n## Task board (single-conversation UI)\n\
+             The left panel is a TASK BOARD, not a session list: the user talks to you in one \
+             continuous conversation and never manages project categories — you do that. When a \
+             request becomes real work (not a one-liner), register it with \
+             `python scripts/board.py` (bash is enabled by default; skill tools are not). \
+             Board ops: `task-upsert --file <json|->`, `task-status <ID> <status> [--note ..]`, \
+             `task-progress <ID> <done>/<total>`, `list`, `show <ID>`, `stats`. \
+             The board lives in `.rsi/board.json`; do not put its content into every reply.\n";
+        if !full {
+            return brief.to_string();
+        }
+        brief.to_string()
+            + "\n### How to register a task (human-shaped thinking: people / money / materials)\n\
+             Before executing, answer four questions and write them into the task:\n\
+             1. **How is it done** → `goal` (one line) + `plan` (ordered steps, each `pending`/\
+             `in_progress`/`completed`). If you cannot state the plan, you do not understand the task yet.\n\
+             2. **Which department / roles** → `resourcing.skills` (existing skill names; if none fits, \
+             that is exactly when a new skill is worth building — see the skill self-extension section).\n\
+             3. **How much manpower (model) is efficient** → `resourcing.model` = `current` (stay on this \
+             model), `cheap` (mechanical, high-volume, low-judgement work), or `strong` (judgement-heavy: \
+             architecture, review, root-cause). Add `resourcing.effort` = `small`/`medium`/`large`. \
+             Rule of thumb: do NOT spend a strong model on file shuffling, and do NOT spend a cheap one \
+             on a decision you cannot verify afterwards.\n\
+             4. **Which materials (tools)** → `resourcing.tools` (e.g. `bash`, `write_file`, `grep`, \
+             `image_gen`). A task with no tool for its core step is not executable — say so instead of faking it.\n\
+             Plus **the standard of good** → `acceptance`: 1-3 checkable items. `verifying`/`done` with an \
+             empty `acceptance` is a self-report, not a verification (the CLI warns you; do not ignore it).\n\
+             \nExample (write to a temp file, then `task-upsert --file`):\n\
+             ```json\n\
+             {\"title\": \"左栏改为任务看板\", \"goal\": \"UI 不再分会话层级，左侧只看任务与灵感\",\n\
+              \"status\": \"planning\", \"priority\": \"P1\",\n\
+              \"plan\": [{\"step\": \"数据契约\"}, {\"step\": \"Rust 路由\"}, {\"step\": \"前端\"}],\n\
+              \"resourcing\": {\"model\": \"current\", \"effort\": \"large\",\n\
+                              \"skills\": [\"project-dev\"], \"tools\": [\"bash\", \"write_file\"]},\n\
+              \"acceptance\": [\"GET /api/board 返回任务与灵感\", \"左栏无会话列表\"]}\n\
+             ```\n\
+             Lifecycle: `planning → doing → verifying → done` (`blocked`/`cancelled` on the side). \
+             Update at four moments only: task created, status changed, blocked, done. Do not narrate \
+             the board in replies — the UI already shows it.\n\
+             \n### @-references from the user\n\
+             The user may write `@T-...` (a task) or `@I-...` (an inspiration) in a message. Resolve it \
+             before answering: `python scripts/board.py show <ID>`. An inspiration the user wants acted on \
+             becomes work via `task-upsert` + `insp-adopt <I-ID> <T-ID>`.\n"
+    }
+
+    /// 判定本轮用户文本是否在「交代一件成规模的事」——任务看板完整规范按需注入的触发条件。
+    ///
+    /// 保守取词：宁可只给一行指针（brief 已说明「有这个权力」），也不要每轮灌长规范。
+    /// 命中条件 = 有「任务性动作词」或「显式看板/任务词」；"在吗/谢谢/这是什么" 之类不触发。
+    pub(super) fn user_wants_task_plan(user_text: &str) -> bool {
+        let t = user_text.to_lowercase();
+        if t.trim().len() < 4 {
+            return false;
+        }
+        // 显式任务/看板语义
+        if t.contains("任务") || t.contains("看板") || t.contains("计划") || t.contains("@t-") || t.contains("@i-") {
+            return true;
+        }
+        // 成规模的交付动作（中英）
+        [
+            "做", "实现", "开发", "改造", "重构", "优化", "升级", "设计", "搭建", "迁移", "修复",
+            "迭代", "接入", "拆分", "补齐", "落地", "部署", "调研", "审计", "写一", "帮我",
+            "build", "implement", "refactor", "optimi", "design", "migrate", "fix", "add ", "upgrade",
+            "integrate", "review", "audit", "research", "write a",
+        ]
+        .iter()
+        .any(|kw| t.contains(kw))
+    }
+
     ///
     /// 保守取词：宁可少注入（brief 已说明「有这个权力」），也不要每轮灌长教程。
     /// 覆盖中英文常见表述；`skill`/`技能` 与「造/做/建/打包/新建/写一个」共现才算。

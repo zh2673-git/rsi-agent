@@ -1,0 +1,7 @@
+{
+ "id": "B4a",
+ "description": "skills.rs：skills_appendix 增 want_task_plan 形参（任务看板按需注入的开关）",
+ "file": "runtime/crates/agent-loop/src/skills.rs",
+ "anchor_file": "blocks/b4a-anchor.txt",
+ "patch_file": "blocks/b4a-patch.txt"
+}

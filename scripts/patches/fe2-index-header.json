@@ -1,0 +1,7 @@
+{
+ "id": "FE2",
+ "description": "index.html header：去掉 session-tag 小标（单会话无会话名可显示）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/fe2-header-anchor.txt",
+ "patch_file": "blocks/fe2-header.txt"
+}

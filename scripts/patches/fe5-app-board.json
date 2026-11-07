@@ -1,0 +1,8 @@
+{
+ "id": "FE5",
+ "description": "新建 web-dist/vendor/app-board.js（任务看板 + 灵感看板渲染、@引用、20s 轮询）",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "create": true,
+ "content_file": "blocks/fe5-app-board.txt",
+ "create_marker": "async function refreshBoard()"
+}

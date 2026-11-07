@@ -1,0 +1,7 @@
+{
+ "id": "FE6",
+ "description": "style.css：追加看板样式（任务组/任务行/详情/灵感区）",
+ "file": "runtime/crates/host/web-dist/style.css",
+ "anchor_file": "blocks/fe6-style-anchor.txt",
+ "patch_file": "blocks/fe6-style-patch.txt"
+}

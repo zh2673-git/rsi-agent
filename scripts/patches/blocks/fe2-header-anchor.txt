@@ -1,0 +1,9 @@
+  <header>
+    <button class="toggle" id="toggle" title="折叠/展开会话栏">☰</button>
+    <span class="title">react-agent <small id="session-tag">session: -</small><small id="ws-tag" title="当前工作区（文件工具/文件树/产物的根）"></small></span>
+    <span class="spacer"></span>
+    <span class="dot" id="conn"></span>
+    <span class="status" id="status"></span>
+    <button class="treebtn" id="btn-tree" title="工作区文件树（只读预览/下载）">📁 文件</button>
+    <button class="gear" id="gear" title="配置中心：LLM / 工具 / 技能 / Agent">⚙ 设置</button>
+  </header>

@@ -18,6 +18,15 @@ agent 只写 JSON（scripts/ 在可写区），**执行仍由用户跑本脚本*
 幂等语义与内置补丁完全一致。同文件多补丁时共享一份 .patchbak，--revert 会把
 该文件还原到最初态（覆盖所有已应用补丁）。
 
+长文本块（v9）：`anchor`/`patch` 可替换为 `anchor_file`/`patch_file`，值是指向
+`scripts/patches/blocks/*.txt` 的相对路径——长 Rust/JS 代码无需 JSON 转义转义符，
+显著降低锚点写错概率（Q 轮 apply-q-round.py 已用同款约定，此处上收到通用脚本）。
+
+新建文件（v9）：`{"id","description","file","create":true,"content_file":"blocks/x.txt"}`
+——`create` 补丁不做锚点替换，只在文件不存在时整文件写入（幂等：已存在即跳过，
+不覆盖后续演进）。用于「新增 Rust 模块 / 新增前端文件」这类无锚点可依的改动；
+`--revert` 对 create 补丁做删除（文件由补丁创建才删，用户手写的不动）。
+
 补丁清单：
   P1  bash.py     多行命令 fail-loud（MULTILINE_UNSUPPORTED）
   P2  skills.rs   产物段补「中间物不是产物」反向约定
@@ -275,28 +284,50 @@ PATCHES = (
 )
 
 
-def _load_external() -> list[tuple[str, str, Path, str, str]]:
-    """v8：scripts/patches/*.json 外挂补丁（agent 只写 JSON，执行仍由用户跑本脚本）。
+def _load_external() -> list[dict]:
+    """v8/v9：scripts/patches/*.json 外挂补丁（agent 只写 JSON，执行仍由本脚本跑）。
 
+    单条形状（三者之一）：
+      {"id","description","file","anchor","patch"}                    锚点替换（短文本内联）
+      {"id","description","file","anchor_file","patch_file"}          锚点替换（长文本走 blocks/）
+      {"id","description","file","create":true,"content_file"}        新建文件（无锚点）
     单个外挂文件格式错误 → 打印 SKIP 并跳过，不影响内置补丁与其它外挂补丁。
     """
-    out: list[tuple[str, str, Path, str, str]] = []
+    out: list[dict] = []
     pdir = ROOT / "scripts" / "patches"
     if not pdir.is_dir():
         return out
     for jf in sorted(pdir.glob("*.json")):
         try:
             d = json.loads(jf.read_text(encoding="utf-8"))
-            out.append((
-                str(d["id"]),
-                str(d.get("description", jf.stem)),
-                ROOT / str(d["file"]),
-                str(d["anchor"]),
-                str(d["patch"]),
-            ))
         except Exception as e:  # 外挂文件损坏不能拖垮整个补丁流程
             print(f"[{jf.name}] SKIP 外挂补丁格式错误: {e}")
+            continue
+        try:
+            item = {
+                "id": str(d["id"]),
+                "desc": str(d.get("description", jf.stem)),
+                "path": ROOT / str(d["file"]),
+                "create": bool(d.get("create")),
+            }
+            if item["create"]:
+                item["content"] = (pdir / str(d["content_file"])).read_text(encoding="utf-8")
+                item["marker"] = str(d.get("create_marker", ""))
+            else:
+                item["anchor"] = _block_or_inline(pdir, d, "anchor")
+                item["patch"] = _block_or_inline(pdir, d, "patch")
+            out.append(item)
+        except Exception as e:
+            print(f"[{jf.name}] SKIP 外挂补丁字段缺失: {e}")
     return out
+
+
+def _block_or_inline(pdir: Path, d: dict, key: str) -> str:
+    """取 block 文件（长文本免 JSON 转义）或内联字符串。"""
+    fk = key + "_file"
+    if fk in d:
+        return (pdir / str(d[fk])).read_text(encoding="utf-8")
+    return str(d[key])
 
 
 def _read(p: Path) -> str:
@@ -309,33 +340,77 @@ def _bak(p: Path) -> Path:
 
 def apply(dry: bool) -> int:
     failed = 0
-    for pid, desc, path, anchor, patch in tuple(PATCHES) + tuple(_load_external()):
-        if not path.is_file():
-            print(f"[{pid}] SKIP 文件不存在: {path}")
-            failed += 1
-            continue
-        src = _read(path)
-        if patch in src:
-            print(f"[{pid}] OK   已应用过（幂等跳过）: {desc}")
-            continue
-        if anchor not in src:
-            print(f"[{pid}] FAIL 锚点未命中（源码已漂移，需人工核对）: {path}")
-            print(f"       期望锚点: {anchor.splitlines()[0][:80]}")
-            failed += 1
-            continue
-        if dry:
-            print(f"[{pid}] DRY  将替换 1 处: {desc}  ({path.relative_to(ROOT)}）")
-            continue
-        if not _bak(path).exists():
-            shutil.copy2(path, _bak(path))
-        path.write_text(src.replace(anchor, patch, 1), encoding="utf-8")
-        print(f"[{pid}] APPLY 已写入: {desc}  ({path.relative_to(ROOT)}，备份 {_bak(path).name})")
+    for pid, desc, path, anchor, patch in tuple(PATCHES):
+        for item in _iter_builtin(pid, desc, path, anchor, patch):
+            failed += _apply_one(item, dry)
+    for item in _load_external():
+        failed += _apply_one(item, dry)
     return 1 if failed else 0
+
+
+def _iter_builtin(pid, desc, path, anchor, patch):
+    yield {"id": pid, "desc": desc, "path": path, "anchor": anchor, "patch": patch, "create": False}
+
+
+def _apply_one(item: dict, dry: bool) -> int:
+    """应用单条补丁，返回失败计数（0/1）。create 与锚点替换在此分流。"""
+    pid, desc, path = item["id"], item["desc"], item["path"]
+    if item["create"]:
+        content = item["content"]
+        marker = item.get("marker", "")
+        if path.is_file():
+            cur = _read(path)
+            # 幂等判据：显式 marker 命中，或无 marker 时整文件内容一致
+            if (marker and marker in cur) or cur == content:
+                print(f"[{pid}] OK   已创建（幂等跳过）: {desc}")
+                return 0
+            print(f"[{pid}] FAIL 目标文件已存在且内容不同（不覆盖，需人工核对）: {path}")
+            return 1
+        if dry:
+            print(f"[{pid}] DRY  将新建文件: {desc}  ({path.relative_to(ROOT)})")
+            return 0
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        print(f"[{pid}] CREATE 已新建: {desc}  ({path.relative_to(ROOT)})")
+        return 0
+
+    if not path.is_file():
+        print(f"[{pid}] SKIP 文件不存在: {path}")
+        return 1
+    src = _read(path)
+    anchor, patch = item["anchor"], item["patch"]
+    if patch in src:
+        print(f"[{pid}] OK   已应用过（幂等跳过）: {desc}")
+        return 0
+    if anchor not in src:
+        print(f"[{pid}] FAIL 锚点未命中（源码已漂移，需人工核对）: {path}")
+        print(f"       期望锚点: {anchor.splitlines()[0][:80]}")
+        return 1
+    if dry:
+        print(f"[{pid}] DRY  将替换 1 处: {desc}  ({path.relative_to(ROOT)}）")
+        return 0
+    if not _bak(path).exists():
+        shutil.copy2(path, _bak(path))
+    path.write_text(src.replace(anchor, patch, 1), encoding="utf-8")
+    print(f"[{pid}] APPLY 已写入: {desc}  ({path.relative_to(ROOT)}，备份 {_bak(path).name})")
+    return 0
 
 
 def revert() -> int:
     n = 0
-    for pid, desc, path, _a, _p in tuple(PATCHES) + tuple(_load_external()):
+    for item in _load_external():
+        if item["create"]:
+            # 只删「补丁当初创建的文件」：内容与补丁一致才删，否则视作已被用户演进，保留。
+            path = item["path"]
+            if not path.is_relative_to(ROOT) or not path.is_file():
+                continue
+            if _read(path) == item["content"]:
+                path.unlink()
+                print(f"[{item['id']}] REVERT 已删除新建文件: {item['desc']}")
+                n += 1
+            else:
+                print(f"[{item['id']}] SKIP 新建文件已被修改，保留: {item['desc']}")
+    for pid, desc, path, _a, _p in tuple(PATCHES):
         # 与 apply() 同款护栏：测试假 ROOT 下跳过烘焙的真实路径，防 stale 备份回灌。
         if not path.is_relative_to(ROOT):
             continue
@@ -346,6 +421,20 @@ def revert() -> int:
         shutil.copy2(bak, path)
         bak.unlink()
         print(f"[{pid}] REVERT 已还原: {desc}")
+        n += 1
+    for item in _load_external():
+        if item["create"]:
+            continue
+        path = item["path"]
+        if not path.is_relative_to(ROOT):
+            continue
+        bak = _bak(path)
+        if not bak.exists():
+            print(f"[{item['id']}] SKIP 无备份可还原: {item['desc']}")
+            continue
+        shutil.copy2(bak, path)
+        bak.unlink()
+        print(f"[{item['id']}] REVERT 已还原: {item['desc']}")
         n += 1
     return 0 if n else 1
 
@@ -362,8 +451,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  [{pid}] {desc}  ({path.relative_to(ROOT)})")
         ext = _load_external()
         print(f"外挂（scripts/patches/*.json）：{len(ext)} 个")
-        for pid, desc, path, _a, _p in ext:
-            print(f"  [{pid}] {desc}  ({path.relative_to(ROOT)})")
+        for item in ext:
+            kind = "新建" if item["create"] else "替换"
+            print(f"  [{item['id']}] ({kind}) {item['desc']}  ({item['path'].relative_to(ROOT)})")
         return 0
     if ns.revert:
         return revert()

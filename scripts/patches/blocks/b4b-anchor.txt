@@ -1,0 +1,3 @@
+        if let Some(section) = Self::self_extension_section(root, want_skill_build) {
+            lines.push(section);
+        }

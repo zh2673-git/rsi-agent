@@ -6,10 +6,12 @@
 //! - [`skills`]：技能 CRUD（/api/skills）与 frontmatter 校验 / origin 打标
 //! - [`misc`]：session-exists / presets / models / reveal / 多实例端点（W17）
 //! 本文件保留共享件：R3 附件校验（`/api/chat` 闸）。
+mod board;
 mod config;
 mod misc;
 mod skills;
 
+pub(super) use board::{get_board, post_board};
 pub(super) use config::{get_config, put_config};
 pub(super) use misc::{
     create_instance, delete_instance, get_models, get_presets, list_instances, pick_folder,

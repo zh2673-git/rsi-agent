@@ -1,0 +1,7 @@
+{
+ "id": "B4b",
+ "description": "skills.rs：skills_appendix 末尾追加任务看板段（brief 常驻 / full 按需）",
+ "file": "runtime/crates/agent-loop/src/skills.rs",
+ "anchor_file": "blocks/b4b-anchor.txt",
+ "patch_file": "blocks/b4b-patch.txt"
+}

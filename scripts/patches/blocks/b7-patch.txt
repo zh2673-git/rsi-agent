@@ -1,0 +1,19 @@
+                // title 是看板唯一必读字段：缺失/空白/超长一律归一（前端按字数截断显示，
+                // 但落盘必须是规整值——否则看板与 board.py 的校验口径会漂移）。
+                let bad_title = match obj.get("title").and_then(Value::as_str) {
+                    Some(s) => s.trim().is_empty() || s.chars().count() > MAX_TITLE,
+                    None => true,
+                };
+                if bad_title {
+                    let keep: String = obj
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .trim()
+                        .chars()
+                        .take(MAX_TITLE)
+                        .collect();
+                    let t = if keep.is_empty() { "(未命名任务)".to_string() } else { keep };
+                    obj.insert("title".into(), json!(t));
+                    fixed += 1;
+                }

@@ -43,7 +43,12 @@ class QRoundContractTest(unittest.TestCase):
             self.assertIn(marker, core, f"q-session.js 缺 {marker}")
         events = read("runtime/crates/host/web-dist/vendor/app-events.js")
         self.assertIn("typeof ev.cursor === \"number\"", events)
-        self.assertIn("connect(undefined, true)", read("runtime/crates/host/web-dist/vendor/app-core.js"))
+        # B 轮改为单会话：切会话入口（旧 switchSession 里的 connect(undefined, true)）不再存在，
+        # 但「缓存命中则瞬时显示 + 增量追赶」的能力仍在 connect() 内，靠 useCache 形参承接。
+        self.assertIn("function connect(after, useCache)", events)
+        self.assertIn("restoreSessionFeed(session)", events)
+        core = read("runtime/crates/host/web-dist/vendor/app-core.js")
+        self.assertIn('const SESSION_ID = "main"', core, "单会话：会话标识固定")
         gw = read("runtime/crates/host/src/web/gateway.rs")
         self.assertIn("\"cursor\"", gw)
         # 精确游标必须是字段而非新事件类型

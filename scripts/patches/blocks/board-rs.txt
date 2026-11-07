@@ -1,0 +1,448 @@
+//! 任务看板 / 灵感看板（`GET|POST /api/board`）。
+//!
+//! 为什么在 host 而不是新插件：看板是**视图数据**不是业务能力——它没有自己的执行流，
+//! 只有「读一份 JSON、按校验改几个字段、原子写回」。放进内核会污染运行时语义（内核不
+//! 感知任务），放进 guest 插件又要跨进程只为读一个文件。host 是组合根，读 UI 数据的
+//! 位置天然在这里（与 `/api/config`、`/api/instances` 同层）。
+//!
+//! 契约与 `scripts/board.py` 逐字同源（`docs/self-evolution/01-单会话与任务看板.md` §2）：
+//! host 侧**只写灵感**（用户视角的入口），任务的增删改一律由 agent 经 `board.py` 完成
+//! ——用户构想是「用户不需要管背后的项目分类」。两侧都用「读-改-写 + 按 id 合并 +
+//! tmp/rename 原子替换」，因此并发写不会互相吞条目。
+//!
+//! 数据落点：`WORKSPACE_ROOT/.rsi/board.json`（`RSI_BOARD_PATH` 可覆盖，工作区相对或绝对）。
+//! 坏 JSON **不覆盖**：按空板返回并带 `corrupt:true`，让用户看见而不是被悄悄清零。
+
+use super::super::{bad_request, json_resp};
+use crate::config;
+use serde_json::{json, Map, Value};
+use std::path::{Path, PathBuf};
+use tokio::net::TcpStream;
+
+// ── 契约常量（与 scripts/board.py 同源，改一侧必须改另一侧）─────────────────
+pub(super) const TASK_STATUSES: &[&str] = &["planning", "doing", "verifying", "done", "blocked", "cancelled"];
+pub(super) const INSP_STATUSES: &[&str] = &["open", "adopted", "archived"];
+const MAX_TASKS: usize = 200;
+const MAX_INSP: usize = 500;
+const MAX_INSP_TEXT: usize = 2000;
+const MAX_TAGS: usize = 10;
+const MAX_TAG: usize = 32;
+const MAX_TITLE: usize = 120;
+
+/// 看板文件路径：环境覆盖 → 工作区相对 → `<WORKSPACE_ROOT>/.rsi/board.json`。
+pub(super) fn board_path() -> PathBuf {
+    let raw = std::env::var("RSI_BOARD_PATH").unwrap_or_default();
+    let raw = raw.trim();
+    let p = if raw.is_empty() {
+        PathBuf::from(".rsi").join("board.json")
+    } else {
+        PathBuf::from(raw)
+    };
+    if p.is_absolute() {
+        p
+    } else {
+        PathBuf::from(config::workspace_root()).join(p)
+    }
+}
+
+fn now_iso() -> String {
+    // 无 chrono 依赖（不新增 crate）：用 SystemTime 秒数拼一个可排序的固定宽度时间戳。
+    // 前端只做展示与排序，不需要人类可读的 RFC3339——但为了与 board.py 的
+    // `%Y-%m-%dT%H:%M:%SZ` 同源可比，这里换算为 UTC 分解后拼装。
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let (y, m, d, hh, mm, ss) = civil_from_unix(secs);
+    format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}Z")
+}
+
+fn today_stamp() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let (y, m, d, _, _, _) = civil_from_unix(secs);
+    format!("{y:04}{m:02}{d:02}")
+}
+
+/// Unix 秒 → (Y, M, D, h, m, s)。Howard Hinnant 的 civil_from_days 算法（无外部依赖）。
+fn civil_from_unix(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
+    let days = (secs / 86_400) as i64;
+    let rem = secs % 86_400;
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let y = if m <= 2 { y + 1 } else { y };
+    ((y), m, d, (rem / 3600) as u32, ((rem % 3600) / 60) as u32, (rem % 60) as u32)
+}
+
+fn empty_board() -> Value {
+    json!({"version": 1, "updated_at": now_iso(), "tasks": [], "inspirations": []})
+}
+
+/// 读板：缺文件 → 空板；坏 JSON / 非对象 → 空板 + `corrupt:true`（原文件不动）。
+pub(super) fn load_board() -> Value {
+    let p = board_path();
+    let Ok(text) = std::fs::read_to_string(&p) else {
+        return empty_board();
+    };
+    match serde_json::from_str::<Value>(&text) {
+        Ok(Value::Object(obj)) => {
+            let mut board = empty_board();
+            for key in ["tasks", "inspirations"] {
+                if let Some(Value::Array(items)) = obj.get(key) {
+                    let kept: Vec<Value> = items.iter().filter(|x| x.is_object()).cloned().collect();
+                    board[key] = Value::Array(kept);
+                }
+            }
+            if let Some(Value::String(u)) = obj.get("updated_at") {
+                board["updated_at"] = json!(u);
+            }
+            board
+        }
+        _ => {
+            let mut board = empty_board();
+            board["corrupt"] = json!(true);
+            board
+        }
+    }
+}
+
+/// 原子写回：tmp 同目录 + rename（NTFS 上是替换语义，崩溃不留半截 JSON）。
+pub(super) fn save_board(board: &mut Value) -> std::io::Result<PathBuf> {
+    let p = board_path();
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    board["version"] = json!(1);
+    board["updated_at"] = json!(now_iso());
+    if let Some(obj) = board.as_object_mut() {
+        obj.remove("corrupt");
+    }
+    let text = serde_json::to_string_pretty(board).unwrap_or_else(|_| "{}".into());
+    let tmp = p.with_file_name(match p.file_name().and_then(|n| n.to_str()) {
+        Some(n) => format!("{n}.tmp"),
+        None => "board.json.tmp".into(),
+    });
+    std::fs::write(&tmp, format!("{text}\n"))?;
+    std::fs::rename(&tmp, &p)?;
+    Ok(p)
+}
+
+fn next_id(items: &[Value], prefix: &str) -> String {
+    let stamp = today_stamp();
+    let used: Vec<&str> = items.iter().filter_map(|i| i.get("id").and_then(Value::as_str)).collect();
+    for n in 1..100 {
+        let cand = format!("{prefix}-{stamp}-{n:02}");
+        if !used.contains(&cand.as_str()) {
+            return cand;
+        }
+    }
+    format!("{prefix}-{stamp}-99")
+}
+
+fn err(code: &str, message: impl Into<String>, field: Option<&str>) -> Value {
+    let mut e = json!({"code": code, "message": message.into()});
+    if let Some(f) = field {
+        e["field"] = json!(f);
+    }
+    json!({"ok": false, "error": e})
+}
+
+fn take_str(v: &Value, field: &str, limit: usize) -> Result<String, Value> {
+    let Some(s) = v.get(field).and_then(Value::as_str) else {
+        return Err(err("K400", format!("{field} 缺失或非字符串"), Some(field)));
+    };
+    let s = s.trim();
+    if s.is_empty() {
+        return Err(err("K400", format!("{field} 不能为空"), Some(field)));
+    }
+    if s.chars().count() > limit {
+        return Err(err("K400", format!("{field} 超过 {limit} 字符"), Some(field)));
+    }
+    Ok(s.to_string())
+}
+
+fn parse_tags(v: &Value) -> Result<Vec<String>, Value> {
+    let Some(Value::Array(arr)) = v.get("tags") else {
+        return Ok(Vec::new());
+    };
+    if arr.len() > MAX_TAGS {
+        return Err(err("K400", format!("tags 最多 {MAX_TAGS} 个"), Some("tags")));
+    }
+    let mut out = Vec::with_capacity(arr.len());
+    for (i, t) in arr.iter().enumerate() {
+        let Some(s) = t.as_str() else {
+            return Err(err("K400", format!("tags[{i}] 必须是字符串"), Some("tags")));
+        };
+        let s = s.trim();
+        if s.is_empty() || s.chars().count() > MAX_TAG {
+            return Err(err("K400", format!("tags[{i}] 长度须为 1..={MAX_TAG}"), Some("tags")));
+        }
+        out.push(s.to_string());
+    }
+    Ok(out)
+}
+
+/// GET /api/board：返回整块看板 + 路径 + 汇总计数（前端一次拿全，不做多次往返）。
+pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let board = load_board();
+    let tasks = board.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default();
+    let insps = board.get("inspirations").and_then(Value::as_array).cloned().unwrap_or_default();
+    let mut by_status: Map<String, Value> = Map::new();
+    for s in TASK_STATUSES {
+        let n = tasks.iter().filter(|t| t.get("status").and_then(Value::as_str) == Some(s)).count();
+        by_status.insert((*s).to_string(), json!(n));
+    }
+    let mut insp_by: Map<String, Value> = Map::new();
+    for s in INSP_STATUSES {
+        let n = insps.iter().filter(|i| i.get("status").and_then(Value::as_str) == Some(s)).count();
+        insp_by.insert((*s).to_string(), json!(n));
+    }
+    json_resp(
+        stream,
+        200,
+        json!({
+            "ok": true,
+            "path": board_path().display().to_string(),
+            "board": board,
+            "summary": {
+                "tasks": {"total": tasks.len(), "by_status": Value::Object(by_status)},
+                "inspirations": {"total": insps.len(), "by_status": Value::Object(insp_by)},
+            },
+            "limits": {"tasks": MAX_TASKS, "inspirations": MAX_INSP},
+        }),
+    )
+    .await
+}
+
+/// POST /api/board：UI 侧支持的三个 op。
+///
+/// `inspiration.add` / `inspiration.set` / `refresh`——**故意不提供 task 写 op**：
+/// 任务由 agent 经 `scripts/board.py` 建与推进；用户在 UI 只能记灵感、归档灵感，
+/// 这正是「用户不管背后的项目分类，agent 自己分」的界面落点。
+pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::Result<()> {
+    let req: Value = match serde_json::from_slice(body) {
+        Ok(v) => v,
+        Err(e) => {
+            return json_resp(stream, 400, err("K400", format!("body 非法 JSON: {e}"), None)).await;
+        }
+    };
+    let Some(op) = req.get("op").and_then(Value::as_str) else {
+        return json_resp(stream, 400, bad_request("缺 op", Some("op"))).await;
+    };
+    let mut board = load_board();
+    if board.get("corrupt").and_then(Value::as_bool) == Some(true) {
+        // 坏板拒绝写入：否则会把用户手改的正确内容按空板覆盖掉。
+        return json_resp(
+            stream,
+            409,
+            err(
+                "K409",
+                format!("看板文件无法解析，拒绝写入以免覆盖：{}（请先修正或删除该文件）", board_path().display()),
+                None,
+            ),
+        )
+        .await;
+    }
+    match op {
+        "inspiration.add" => {
+            let text = match take_str(&req, "text", MAX_INSP_TEXT) {
+                Ok(t) => t,
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let tags = match parse_tags(&req) {
+                Ok(t) => t,
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let items = board["inspirations"].as_array().cloned().unwrap_or_default();
+            if items.len() >= MAX_INSP {
+                return json_resp(
+                    stream,
+                    400,
+                    err("LIMIT", format!("灵感数已达上限 {MAX_INSP}，请先归档"), Some("inspirations")),
+                )
+                .await;
+            }
+            let id = next_id(&items, "I");
+            let ts = now_iso();
+            let item = json!({
+                "id": id, "text": text, "tags": tags, "status": "open", "tasks": [],
+                "created_at": ts, "updated_at": ts,
+            });
+            let mut merged = vec![item.clone()];
+            merged.extend(items);
+            board["inspirations"] = Value::Array(merged);
+            match save_board(&mut board) {
+                Ok(p) => json_resp(stream, 200, json!({"ok": true, "id": id, "path": p.display().to_string()})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
+        "inspiration.set" => {
+            let id = match take_str(&req, "id", 40) {
+                Ok(v) => v,
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let status = match take_str(&req, "status", 16) {
+                Ok(s) if INSP_STATUSES.contains(&s.as_str()) => s,
+                Ok(s) => {
+                    return json_resp(
+                        stream,
+                        400,
+                        err("K400", format!("status 必须是 {INSP_STATUSES:?} 之一，收到 {s:?}"), Some("status")),
+                    )
+                    .await
+                }
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let mut items = board["inspirations"].as_array().cloned().unwrap_or_default();
+            let Some(slot) = items.iter_mut().find(|i| i.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
+                return json_resp(stream, 404, err("K404", format!("未找到灵感 {id}"), Some("id"))).await;
+            };
+            slot["status"] = json!(status);
+            slot["updated_at"] = json!(now_iso());
+            board["inspirations"] = Value::Array(items);
+            match save_board(&mut board) {
+                Ok(_) => json_resp(stream, 200, json!({"ok": true, "id": id, "status": status})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
+        // 只补缺失字段，不删条目——手改坏的板子可安全修复。
+        "refresh" => {
+            let mut fixed = 0u32;
+            let mut tasks = board["tasks"].as_array().cloned().unwrap_or_default();
+            for t in tasks.iter_mut() {
+                let Some(obj) = t.as_object_mut() else { continue };
+                for (k, dv) in [("status", json!("planning")), ("priority", json!("P2")),
+                                ("plan", json!([])), ("acceptance", json!([])),
+                                ("inspirations", json!([])), ("artifacts", json!([]))] {
+                    if !obj.contains_key(k) {
+                        obj.insert(k.into(), dv);
+                        fixed += 1;
+                    }
+                }
+                if !obj.get("resourcing").map(Value::is_object).unwrap_or(false) {
+                    obj.insert("resourcing".into(), json!({"model": "current", "effort": "medium",
+                        "skills": [], "tools": [], "budget_secs": 0}));
+                    fixed += 1;
+                }
+                if !obj.get("progress").map(Value::is_object).unwrap_or(false) {
+                    obj.insert("progress".into(), json!({"done": 0, "total": 0, "note": ""}));
+                    fixed += 1;
+                }
+                if !obj.get("title").map(Value::is_string).unwrap_or(false) {
+                    obj.insert("title".into(), json!("(未命名任务)"));
+                    fixed += 1;
+                }
+            }
+            board["tasks"] = Value::Array(tasks);
+            let mut insps = board["inspirations"].as_array().cloned().unwrap_or_default();
+            for i in insps.iter_mut() {
+                let Some(obj) = i.as_object_mut() else { continue };
+                for (k, dv) in [("tags", json!([])), ("tasks", json!([])), ("status", json!("open"))] {
+                    if !obj.contains_key(k) {
+                        obj.insert(k.into(), dv);
+                        fixed += 1;
+                    }
+                }
+            }
+            board["inspirations"] = Value::Array(insps);
+            match save_board(&mut board) {
+                Ok(p) => json_resp(stream, 200, json!({"ok": true, "fixed": fixed, "path": p.display().to_string()})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
+        other => {
+            json_resp(
+                stream,
+                400,
+                err(
+                    "K400",
+                    format!("未知 op: {other}（可选 inspiration.add / inspiration.set / refresh；任务写走 scripts/board.py）"),
+                    Some("op"),
+                ),
+            )
+            .await
+        }
+    }
+}
+
+/// 看板文件是否位于工作区内（诊断用：UI 与 agent 必须看到同一份文件）。
+#[allow(dead_code)]
+pub(super) fn board_in_workspace() -> bool {
+    let ws = Path::new(&config::workspace_root()).to_path_buf();
+    let Ok(ws) = ws.canonicalize() else { return false };
+    let Ok(b) = board_path().canonicalize() else { return true }; // 尚未创建 = 正常（首次读）
+    b.starts_with(&ws)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// civil_from_unix 必须与人类历法对齐（无 chrono 依赖时的正确性锚点）。
+    #[test]
+    fn civil_from_unix_matches_known_dates() {
+        // 1970-01-01T00:00:00Z
+        assert_eq!(civil_from_unix(0), (1970, 1, 1, 0, 0, 0));
+        // 2026-11-07T00:00:00Z = 1794009600
+        assert_eq!(civil_from_unix(1_794_009_600), (2026, 11, 7, 0, 0, 0));
+        // 闰日 2024-02-29T12:34:56Z = 1709210096
+        assert_eq!(civil_from_unix(1_709_210_096), (2024, 2, 29, 12, 34, 56));
+        // 年末边界 2025-12-31T23:59:59Z = 1767225599
+        assert_eq!(civil_from_unix(1_767_225_599), (2025, 12, 31, 23, 59, 59));
+    }
+
+    #[test]
+    fn next_id_skips_used_and_is_shape_valid() {
+        let used = vec![json!({"id": "I-20261107-01"}), json!({"id": "I-20261107-02"})];
+        let stamp = today_stamp();
+        let id = next_id(&used, "I");
+        assert!(id.starts_with(&format!("I-{stamp}-")), "got {id}");
+        assert!(!used.iter().any(|u| u["id"] == json!(id)), "不得返回已用 ID");
+        // 空表 → -01
+        assert_eq!(next_id(&[], "T").rsplit('-').next().unwrap(), "01");
+    }
+
+    #[test]
+    fn empty_and_corrupt_board_shapes() {
+        // 空板形状：三键齐备、数组为空
+        let b = empty_board();
+        assert_eq!(b["version"], json!(1));
+        assert!(b["tasks"].as_array().unwrap().is_empty());
+        assert!(b["inspirations"].as_array().unwrap().is_empty());
+        assert!(b.get("corrupt").is_none(), "全新空板不得带 corrupt 标记");
+    }
+
+    #[test]
+    fn take_str_rejects_blank_and_overlong() {
+        assert!(take_str(&json!({"text": "  "}), "text", 10).is_err(), "空白必须拒绝");
+        assert!(take_str(&json!({}), "text", 10).is_err(), "缺失必须拒绝");
+        assert!(take_str(&json!({"text": "一二三四五六七八九十一"}), "text", 10).is_err(), "超长必须拒绝");
+        assert!(take_str(&json!({"text": " 正常 "}), "text", 10).is_ok());
+    }
+
+    #[test]
+    fn parse_tags_bounds() {
+        assert!(parse_tags(&json!({"tags": ["a", "b"]})).unwrap() == vec!["a", "b"]);
+        assert!(parse_tags(&json!({})).unwrap().is_empty(), "缺省无标签");
+        assert!(parse_tags(&json!({"tags": [""]})).is_err(), "空标签拒绝");
+        let too_many: Vec<String> = (0..11).map(|i| format!("t{i}")).collect();
+        assert!(parse_tags(&json!({"tags": too_many})).is_err(), "超量拒绝");
+    }
+
+    /// board_path 必须落在工作区内（除非显式给了绝对路径）——防 UI 与 agent 看两份文件。
+    #[test]
+    fn board_path_is_workspace_relative_by_default() {
+        std::env::remove_var("RSI_BOARD_PATH");
+        let p = board_path();
+        assert!(p.ends_with(Path::new(".rsi").join("board.json")), "got {p:?}");
+    }
+}

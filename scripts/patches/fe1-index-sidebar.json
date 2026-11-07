@@ -1,0 +1,7 @@
+{
+ "id": "FE1",
+ "description": "index.html 左栏：会话列表换成任务看板 + 灵感看板（分区顺序固定、无「新建对话」）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/fe1-index-anchor.txt",
+ "patch_file": "blocks/fe1-index-sidebar.txt"
+}

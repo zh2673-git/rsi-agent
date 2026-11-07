@@ -8,17 +8,46 @@
 </head>
 <body>
 <aside class="sidebar" id="sidebar">
-  <div class="brand"><span class="logo">R</span><span>react-agent</span><span class="inst-badge" id="inst-badge" hidden></span></div>
-  <button class="newchat" id="newchat">＋ 新建对话</button>
-  <button class="newchat win" id="btn-newwin" title="新建独立窗口：绑定另一个工作区，独立会话/回滚/配置（多实例并行）">▣ 新窗口</button>
-  <div class="sess-label">会话</div>
-  <div class="sessions" id="sessions"></div>
+  <div class="brand"><span class="logo">R</span><span>rsi-agent</span><span class="inst-badge" id="inst-badge" hidden></span></div>
+
+  <!-- 左侧是「人的看板」而不是会话列表：用户面对 agent 永远只有一个会话框，
+       项目分类由 agent 自己在工作区完成（docs/self-evolution/01-单会话与任务看板.md）。
+       分区顺序固定（任务 → 灵感 → 窗口），组内排序由状态机与时间决定——不给自由排布。 -->
+  <section class="board-sec" id="sec-tasks">
+    <div class="sec-head">
+      <span class="sec-title">任务看板</span>
+      <span class="sec-count" id="task-count"></span>
+      <button class="sec-btn" id="task-refresh" title="重新读取看板（.rsi/board.json）">⟳</button>
+    </div>
+    <div class="sec-filter" id="task-filter" hidden>
+      <button data-f="all" class="on">全部</button>
+      <button data-f="open">未完成</button>
+      <button data-f="done">已完成</button>
+    </div>
+    <div class="sec-body" id="tasks"></div>
+  </section>
+
+  <section class="board-sec grow" id="sec-insp">
+    <div class="sec-head">
+      <span class="sec-title">灵感</span>
+      <span class="sec-count" id="insp-count"></span>
+    </div>
+    <div class="insp-add">
+      <input id="insp-input" placeholder="记一条灵感，回车保存" maxlength="2000">
+      <button id="insp-save" title="保存灵感">＋</button>
+    </div>
+    <div class="sec-body" id="inspects"></div>
+  </section>
+
+  <div class="sec-foot">
+    <button class="newchat win" id="btn-newwin" title="新建独立窗口：绑定另一个工作区，独立会话/回滚/配置（多实例并行）">▣ 新窗口</button>
+  </div>
 </aside>
 
 <div class="main">
   <header>
-    <button class="toggle" id="toggle" title="折叠/展开会话栏">☰</button>
-    <span class="title">react-agent <small id="session-tag">session: -</small><small id="ws-tag" title="当前工作区（文件工具/文件树/产物的根）"></small></span>
+    <button class="toggle" id="toggle" title="折叠/展开左侧看板">☰</button>
+    <span class="title">rsi-agent <small id="ws-tag" title="当前工作区（文件工具/文件树/产物的根）"></small></span>
     <span class="spacer"></span>
     <span class="dot" id="conn"></span>
     <span class="status" id="status"></span>
@@ -181,6 +210,12 @@
 <script src="/vendor/app-stream.js" defer></script>
 <script src="/vendor/app-files.js" defer></script>
 <script src="/vendor/app-settings.js" defer></script>
+<script src="/vendor/q-session.js" defer></script>
+<script src="/vendor/app-core.js" defer></script>
+<script src="/vendor/app-stream.js" defer></script>
+<script src="/vendor/app-files.js" defer></script>
+<script src="/vendor/app-settings.js" defer></script>
 <script src="/vendor/app-events.js" defer></script>
+<script src="/vendor/app-board.js" defer></script>
 </body>
 </html>

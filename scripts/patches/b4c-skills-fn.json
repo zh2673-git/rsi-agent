@@ -1,0 +1,7 @@
+{
+ "id": "B4c",
+ "description": "skills.rs：新增 task_board_section + user_wants_task_plan 两个函数（插在 user_wants_skill_build 之前）",
+ "file": "runtime/crates/agent-loop/src/skills.rs",
+ "anchor": "    /// 判定本轮用户文本是否明确要求「造技能/打包工具」——B2 按需注入的触发条件。",
+ "patch_file": "blocks/b4-task-board-section.txt"
+}

@@ -1,0 +1,6 @@
+        let want_skill_build = Self::user_wants_skill_build(&req.user_text);
+        let system = format!(
+            "{}{}",
+            self.resolve_system_prompt(env, &cfg).await,
+            self.skills_appendix(env, &cfg, want_skill_build).await
+        );

@@ -1,0 +1,7 @@
+{
+ "id": "B6",
+ "description": "lib.rs：新增 want_task_plan_detection / task_board_section_requires_cli_and_scales_by_flag 两测",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor_file": "blocks/b6-test-anchor.txt",
+ "patch_file": "blocks/b6-test-patch.txt"
+}

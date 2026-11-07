@@ -1,0 +1,10 @@
+        if let Some(section) = Self::self_extension_section(root, want_skill_build) {
+            lines.push(section);
+        }
+        // 任务看板（单会话形态）：把「人的思维模式」落成可执行纪律——先想清怎么做（plan）、
+        // 成立什么部门（skills）、用多少人力（model/effort）、需要什么物力（tools）、
+        // 好坏标准（acceptance），再动手。按需注入（同 B2 理由），通道写死 bash 调 CLI。
+        let board = Self::task_board_section(want_task_plan);
+        if !board.is_empty() {
+            lines.push(board);
+        }

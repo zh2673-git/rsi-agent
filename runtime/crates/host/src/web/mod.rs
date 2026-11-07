@@ -311,6 +311,10 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
             serve_static(&mut stream, r.trim_start_matches('/')).await
         }
         ("GET", "/api/events") => gateway::sse_events(stream, kernel, query).await,
+        // 任务看板 / 灵感看板（单会话形态：左侧顶栏是任务与灵感，不是会话列表）。
+        // GET 返回整块板 + 汇总；POST 只承接 UI 侧写（灵感增/改、补字段），任务写走 scripts/board.py。
+        ("GET", "/api/board") => api::get_board(&mut stream).await,
+        ("POST", "/api/board") => api::post_board(&mut stream, &body).await,
         ("GET", "/api/config") => api::get_config(&mut stream, &kernel).await,
         ("GET", "/api/models") => api::get_models(&mut stream, &kernel, query).await,
         ("GET", "/api/presets") => api::get_presets(&mut stream, &kernel).await,

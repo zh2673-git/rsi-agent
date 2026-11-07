@@ -1,0 +1,8 @@
+{
+ "id": "B1",
+ "description": "新建 host/src/web/api/board.rs（任务看板 + 灵感看板，GET/POST /api/board）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "create": true,
+ "content_file": "blocks/board-rs.txt",
+ "create_marker": "pub(crate) async fn post_board"
+}

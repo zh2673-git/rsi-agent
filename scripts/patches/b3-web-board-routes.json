@@ -1,0 +1,7 @@
+{
+ "id": "B3",
+ "description": "web/mod.rs 加 GET/POST /api/board 两条路由（放在 /api/config 前，与其它 /api 端点同群）",
+ "file": "runtime/crates/host/src/web/mod.rs",
+ "anchor": "        (\"GET\", \"/api/config\") => api::get_config(&mut stream, &kernel).await,",
+ "patch": "        // 任务看板 / 灵感看板（单会话形态：左侧顶栏是任务与灵感，不是会话列表）。\n        // GET 返回整块板 + 汇总；POST 只承接 UI 侧写（灵感增/改、补字段），任务写走 scripts/board.py。\n        (\"GET\", \"/api/board\") => api::get_board(&mut stream).await,\n        (\"POST\", \"/api/board\") => api::post_board(&mut stream, &body).await,\n        (\"GET\", \"/api/config\") => api::get_config(&mut stream, &kernel).await,"
+}

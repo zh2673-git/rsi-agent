@@ -1,0 +1,7 @@
+{
+ "id": "FE3",
+ "description": "index.html 脚本表：末尾加 app-board.js（在 events 之后，看板只读 API 不依赖其它模块初始化顺序）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/fe3-scripts-anchor.txt",
+ "patch_file": "blocks/fe3-scripts.txt"
+}

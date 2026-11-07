@@ -1,0 +1,31 @@
+// ── 单一会话（单会话形态）──
+// 用户面对 agent 永远只有一个会话框：不再有会话列表、新建对话、重命名/删除。
+// 历史靠「一份连续 trace + SSE 游标续传」自然累积，项目分类由 agent 自己在工作区完成
+// （左侧看板才是分类视图，见 app-board.js）。旧的多会话 key 一次性清理，避免残留数据
+// 在新形态下变成幽灵状态。
+const WS_KEY = String(window.RA_WS ?? "");
+const CKEY = "ra.session#" + WS_KEY;
+const SESSION_ID = "main";
+// 兼容层：旧代码（app-events/q-session）仍以 session 变量为当前会话标识。
+let session = SESSION_ID;
+localStorage.setItem(CKEY, session);
+(function dropLegacySessionLists() {
+  try {
+    localStorage.removeItem("ra.sessions#" + WS_KEY);
+    localStorage.removeItem("ra.sessions");
+    localStorage.removeItem("ra.session");
+  } catch { /* 隐私模式：忽略 */ }
+})();
+// 旧调用点（touchSession/autoName/renderSessions 等）保留为空操作或最简实现：
+// 删掉它们要同步改 app-events.js 的发送路径，收益只是少几行——先保接口稳定，
+// 语义上「单会话 = 无标题需维护、无列表需重绘」。
+function touchSession() {}
+function autoName() {}
+function renderSessions() {}
+function refreshSessionTag() {
+  const tag = $("ws-tag");
+  if (tag) tag.title = "当前工作区（文件工具/文件树/产物的根）";
+}
+function switchSession() {}
+refreshSessionTag();
+$("toggle").onclick = () => $("sidebar").classList.toggle("collapsed");

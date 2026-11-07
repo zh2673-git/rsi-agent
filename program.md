@@ -119,6 +119,14 @@ react-agent-host
 - [ ] 账本不含密钥、令牌、个人隐私；写入前做字段白名单。
 - [ ] 状态机无死循环：每次任务有最大尝试次数与预算上限。
 - [ ] 有兄弟源仓库的技能，部署副本与源仓库无漂移（`python scripts/sync_skills.py --check` 退出码 0）。
+- [ ] **单会话形态**：UI 左栏是任务看板 + 灵感看板，不是会话列表（`index.html` 无 `id="sessions"` / `id="newchat"`）；
+      看板分区顺序与任务组序固定，不提供自由拖拽（约束排布是看板可被信任的前提）。
+- [ ] **看板单写点**：任务/灵感数据只落 `WORKSPACE_ROOT/.rsi/board.json`（`RSI_BOARD_PATH` 可覆盖），
+      不进 `ledger/`、不进会话上下文、不入 git；host（Rust）与 agent（`scripts/board.py`）两侧
+      都是「读-改-写 + 按 id 合并 + tmp/rename 原子替换」，并发写不互相吞条目。
+- [ ] **任务归 agent、灵感归用户**：`POST /api/board` 只承接灵感增改与补字段；任务增删改一律走
+      `scripts/board.py`（UI 侧对 task op 返回 400 并指向 CLI）——用户不维护项目分类。
+- [ ] **坏板不覆盖**：`board.json` 解析失败时按空板返回并带 `corrupt:true`，原文件一字不动，写操作 409 拒绝。
 
 ## 7. 范围
 
@@ -128,12 +136,16 @@ react-agent-host
 - 预置技能：`rsi-steward`、`skill-eval`；随附改造后的 `creat-skill`、`project-dev`。
 - 薄工具：`skill_validate`、`run_evals`、`ledger_append/query`。
 - 策略与 schema：技能契约、案例格式、状态机、晋升规则。
+- **任务看板 / 灵感看板**（B 轮，2026-11-07）：`scripts/board.py`（任务写口）+ `skills/rsi-board`（写作规范）
+  + host `GET/POST /api/board`（灵感写口）+ 左栏看板 UI；单会话形态（无会话列表）。
+  详见 `docs/self-evolution/01-单会话与任务看板.md`。
 
 ### 不包含
 
 - 新 ReAct 引擎、新插件调度器、新数据库。
 - 面向公众的技能市场。
 - 自动修改核心代码的「自我改写」。
+- 看板的自动派发/编排器（谁跑哪个任务是 agent 的判断，不是看板的字段）；看板也不做甘特图/拖拽排布。
 
 ## 8. 约束
 

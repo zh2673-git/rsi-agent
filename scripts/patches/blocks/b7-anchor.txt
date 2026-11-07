@@ -1,0 +1,4 @@
+                if !obj.get("title").map(Value::is_string).unwrap_or(false) {
+                    obj.insert("title".into(), json!("(未命名任务)"));
+                    fixed += 1;
+                }

@@ -299,10 +299,11 @@ impl AgentLoopPlugin {
         // 系统提示词 = 组装链（07 §2.1）+ 技能附录（软）
         // B2：技能自扩展长教程按需注入——仅当本轮用户文本明确要求造技能/打包工具。
         let want_skill_build = Self::user_wants_skill_build(&req.user_text);
+        let want_task_plan = Self::user_wants_task_plan(&req.user_text);
         let system = format!(
             "{}{}",
             self.resolve_system_prompt(env, &cfg).await,
-            self.skills_appendix(env, &cfg, want_skill_build).await
+            self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await
         );
         let mut messages: Vec<MemoryMsg> = vec![MemoryMsg {
             role: "system".into(),

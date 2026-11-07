@@ -337,5 +337,34 @@ Q 轮 Phase 1-3 已提交（c85e87c，34 条补丁）。收尾阶段补 4 条补
   分流逻辑另用等价 JS 脚本穷举三结局：`user-stop → [B]`、`interrupt → [B, A*]`、`ok → []`。
 - **生效需重启 host**（前端 + Rust 双改）。
 
+## 7. B 轮（2026-11-07）：单会话形态 + 任务看板 / 灵感看板
+
+> 出发点不是「加面板」，而是用户对 agent 理想形态的第一个**结构性**要求：
+> 「它应该具备人的思维模式……UI 其实不需要分会话层级，面对用户就是一个会话框……
+> 左侧应该是任务看板，每个任务包含它对『人财物』的分配，以及具体进度……还要有碎片化灵感看板，可 @ 引入会话。」
+> 完整方案与迭代记录：**`docs/self-evolution/01-单会话与任务看板.md`**（本质/时空契约/四层设计/数据规范/P·Q·I/活体验证）。
+
+| # | 目标与动作 | P（产物） | Q（质量门） | I（影响） | 状态 |
+|---|---|---|---|---|---|
+| B0 | **补丁机制升级**（先解锁再动手）：外挂补丁支持 `create`（新建文件）+ `anchor_file`/`patch_file`（长块免 JSON 转义）；`--revert` 只删「补丁创建且未被演进」的新建文件 | `scripts/apply-tool-patches.py` v9；`tests/test_tool_contract.py` 新增 create 语义锁 | `pytest` 67 passed（新增 1 例覆盖新建/幂等/演进保护三态） | 新增 Rust 模块与前端文件也能走补丁通道，不必再动核心写授权 | ☑ |
+| B1 | **看板数据契约 + agent 写入通道**：单写点 `.rsi/board.json`；任务状态机 `planning→doing→verifying→done`（+`blocked`/`cancelled`）；人财物四问字段；验收提示闸 | `scripts/board.py`（11 子命令）+ `skills/rsi-board/SKILL.md` | `pytest` 13 例（生命周期/枚举封闭/越界拒绝/坏板不覆盖/两侧按 id 合并/refresh 不删条目） | agent 有了「先想清怎么做再动手」的可核对载体；用户不再维护项目分类 | ☑ |
+| B2 | **host 读 + 灵感写**：`GET /api/board`（整板 + 汇总 + 上限）、`POST /api/board`（`inspiration.add`/`inspiration.set`/`refresh`，**拒 task op**）；坏板 409 拒写 | `web/api/board.rs`（含 `civil_from_unix` 零依赖时间戳 + 6 单测）、路由与导出补丁 B2/B3/B7 | `cargo check` 零警告；host lib 29/29 | UI 与 agent 看到同一份文件；坏板不会被静默清零 | ☑ |
+| B3 | **提示词纪律**：`task_board_section`（brief 常驻一行 / full 按需完整规范）+ `user_wants_task_plan` 触发判定；通道写死 `python scripts/board.py`（技能工具默认未启用，不能承载闭环）；仅工作区有 `board.py` 时注入 | `skills.rs`（B4a/B4b/B4c）、`chat.rs`（B5）、`lib.rs`（B6 两测） | agent-loop lib 26/26（含触发词正负例、CLI 存在性与两档注入） | 会办事的轮次自动获得四问模板，闲聊轮次零额外 token | ☑ |
+| B4 | **UI 单会话 + 看板**：左栏换「任务看板 + 灵感」双区（分区顺序固定、组序由状态机定、无拖拽）；header 去会话名；`app-board.js` 分组渲染/详情/`@` 引用/20s 可见性轮询 | `index.html`（FE1-3）、`app-core.js`（FE4 单会话）、`app-board.js`（FE5 新建）、`style.css`（FE6） | `node --check` 4 文件全过；`pytest` UI 契约 4 例（无 sessions/newchat、组序固定、UI 不写任务、兼容层在位） | 左栏从「会话管理」变成「人财物与进度管理」，与用户的构想对齐 | ☑ |
+| B5 | **活体验证**：独立实例 8799（独立端口/工作区/记忆），13 项端到端 | 见 01 文档 §5.3 | 全项符合预期；关键证据 = CLI 建任务与 UI 写灵感**互不吞条目** | 「两侧并发写同一份看板」这个最易错的设计点被实测证明可用 | ☑ |
+
+**跨轮纪律遵守情况**：本轮 15 条核心补丁全部走 `scripts/patches/*.json`（`--dry-run` 0 FAIL），
+`runtime/` 下的改动只可能来自补丁重放；本轮**未触碰** SSE 事件类型集合、`rollback` 语义、
+`memory` 视图、`queue` 语义；新增依赖 0（Rust 侧自带日期换算，Python 侧纯标准库）。
+
+**过程留档**：① B4b 首版插入点拆散了既有 P2 补丁锚点（`--dry-run` 报 FAIL），改插入点到
+「自扩展段之后、产物段之前」而非退役 P2；② `write_file` 全量覆盖误伤过一个 19KB block 文件，
+用已落地的 `runtime/` 同名文件 + `.bak` 逐字节比对还原——反证了「补丁终态即可复原的权威副本」。
+
+**反哺上游的候选**（下一轮，非本轮范围）：`web/api/board.rs` 与 `app-board.js` 是通用 UI 能力，
+`skills.rs` 的「按需注入长纪律段」模式已是第二次复用（B2 → 任务看板）——这两处可整体移植回
+react-agent，作为「发行形态可挂 UI 视图 + 可挂按需提示段」的正式接缝。
+
+
 
 

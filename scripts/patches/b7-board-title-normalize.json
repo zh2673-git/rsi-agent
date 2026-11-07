@@ -1,0 +1,7 @@
+{
+ "id": "B7",
+ "description": "board.rs refresh：title 缺失/空白/超长归一（让 MAX_TITLE 成为真实校验而非死常量）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor_file": "blocks/b7-anchor.txt",
+ "patch_file": "blocks/b7-patch.txt"
+}

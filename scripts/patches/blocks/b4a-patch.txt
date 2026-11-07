@@ -1,0 +1,7 @@
+    pub(super) async fn skills_appendix(
+        &self,
+        src: &Envelope,
+        cfg: &AgentLoopConfig,
+        want_skill_build: bool,
+        want_task_plan: bool,
+    ) -> String {

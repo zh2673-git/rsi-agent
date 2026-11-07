@@ -1,0 +1,93 @@
+.sess .ops .del:hover { color: #ff6b6b; }
+
+/* ── 左侧看板（任务 + 灵感）：单会话形态 ─────────────────────────────────────
+   分区顺序固定、组序由状态机决定——「有约束的排布」是看板可被信任的前提。
+   折叠复用既有 .sidebar.collapsed（margin-left:-264px），故分区必须撑满同一宽度。 */
+.board-sec { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.board-sec.grow { flex: 1; }
+.sec-head { display: flex; align-items: center; gap: 6px; padding: 6px 6px 2px;
+  color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+.sec-head .sec-title { font-weight: 700; }
+.sec-head .sec-count { margin-left: auto; letter-spacing: 0; text-transform: none; }
+.sec-btn { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 13px;
+  padding: 0 2px; line-height: 1; }
+.sec-btn:hover { color: var(--accent); }
+.sec-filter { display: flex; gap: 4px; padding: 0 6px; }
+.sec-filter button { flex: 1; background: var(--card); border: 1px solid var(--border-soft);
+  color: var(--muted); border-radius: 7px; padding: 3px 0; font-size: 11px; cursor: pointer; }
+.sec-filter button.on { border-color: var(--accent); color: var(--text); }
+.sec-body { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+#sec-tasks .sec-body { max-height: 46vh; }
+.sec-body .empty { color: var(--faint); font-size: 12px; padding: 10px 8px; line-height: 1.6; }
+.sec-foot { margin-top: auto; }
+
+/* 任务组（状态机固定 6 组，只显示非空组） */
+.tgroup { display: flex; align-items: center; gap: 6px; padding: 8px 6px 2px;
+  color: var(--faint); font-size: 10.5px; letter-spacing: .4px; }
+.tgroup .tcnt { margin-left: auto; }
+.tdot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: 0 0 auto; }
+.tdot.doing { background: var(--accent); }
+.tdot.verifying { background: var(--point); }
+.tdot.done { background: var(--ok); }
+.tdot.blocked { background: #ff6b6b; }
+.tdot.cancelled { background: var(--border); }
+
+/* 任务行 */
+.trow { padding: 7px 8px; border-radius: 9px; cursor: pointer; display: flex;
+  flex-direction: column; gap: 4px; border: 1px solid transparent; }
+.trow:hover { background: var(--panel); border-color: var(--border-soft); }
+.trow.st-done .ttitle { color: var(--muted); }
+.trow.st-cancelled .ttitle { color: var(--faint); text-decoration: line-through; }
+.tline { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tprio { flex: 0 0 auto; font-size: 10px; font-weight: 700; padding: 0 4px; border-radius: 5px;
+  color: var(--muted); border: 1px solid var(--border); line-height: 15px; }
+.tprio.p-P0 { color: #ff6b6b; border-color: #ff6b6b; }
+.tprio.p-P1 { color: var(--point); border-color: var(--point); }
+.ttitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text); font-size: 12.5px; }
+.tratio { flex: 0 0 auto; font-size: 10.5px; color: var(--faint); }
+.tref, .iref, .iarc { flex: 0 0 auto; background: none; border: none; color: var(--faint);
+  cursor: pointer; font-size: 12px; line-height: 1; padding: 0 1px; opacity: 0; }
+.trow:hover .tref, .irow:hover .iref, .irow:hover .iarc { opacity: 1; }
+.tref:hover, .iref:hover { color: var(--accent); }
+.iarc:hover { color: var(--ok); }
+.tbar { height: 3px; background: var(--card-2); border-radius: 2px; overflow: hidden; }
+.tbar i { display: block; height: 100%; background: var(--accent); }
+.tmeta { display: flex; flex-wrap: wrap; gap: 4px; }
+.tmeta span { font-size: 10px; color: var(--faint); border: 1px solid var(--border-soft);
+  border-radius: 5px; padding: 0 4px; }
+.tdetail { border-top: 1px dashed var(--border-soft); padding-top: 6px; display: flex;
+  flex-direction: column; gap: 5px; }
+.dsec b { font-size: 10.5px; color: var(--faint); display: block; margin-bottom: 1px; }
+.dsec p { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.55; word-break: break-word; }
+.dsec ul { margin: 0; padding-left: 14px; }
+.dsec li { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.dplan .pdot { display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--faint); margin-right: 5px; vertical-align: middle; }
+.dplan .pdot.in_progress { background: var(--accent); }
+.dplan .pdot.completed { background: var(--ok); }
+.dplan .pdot.cancelled { background: var(--border); }
+.dacc li::marker { color: var(--point); }
+.dsec a { color: var(--accent); text-decoration: none; }
+.did { font-size: 10px; color: var(--faint); font-family: ui-monospace, monospace; }
+
+/* 灵感区 */
+.insp-add { display: flex; gap: 4px; padding: 0 6px; }
+.insp-add input { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border-soft);
+  border-radius: 8px; color: var(--text); font-size: 12px; padding: 6px 8px; }
+.insp-add input:focus { outline: none; border-color: var(--accent); }
+.insp-add button { flex: 0 0 auto; width: 28px; background: var(--card); border: 1px solid var(--border-soft);
+  border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; }
+.insp-add button:hover { border-color: var(--accent); color: var(--accent); }
+.irow { padding: 6px 8px; border-radius: 9px; display: flex; flex-direction: column; gap: 3px; }
+.irow:hover { background: var(--panel); }
+.irow.st-archived .itext { color: var(--faint); text-decoration: line-through; }
+.irow.st-adopted .itext { color: var(--muted); }
+.iline { display: flex; align-items: flex-start; gap: 5px; }
+.itext { flex: 1; min-width: 0; font-size: 12px; color: var(--text); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.imeta { display: flex; flex-wrap: wrap; gap: 4px; }
+.itag { font-size: 10px; color: var(--muted); border: 1px solid var(--border-soft);
+  border-radius: 5px; padding: 0 4px; }
+.ist { font-size: 10px; color: var(--faint); }
+

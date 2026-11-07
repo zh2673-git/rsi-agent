@@ -1,0 +1,7 @@
+{
+ "id": "FE4",
+ "description": "app-core.js：会话管理块换成单会话（无列表/新建/重命名，旧调用点降为空操作保留接口）",
+ "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+ "anchor_file": "blocks/fe4-core-anchor.txt",
+ "patch_file": "blocks/fe4-core-session.txt"
+}

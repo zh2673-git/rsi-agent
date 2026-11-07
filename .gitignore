@@ -16,6 +16,9 @@ config.magpie.local.json
 # 中间物（探针/一次性分析脚本）：只留痕不入库
 .scratch/
 
+# 任务看板（本机状态，不是发行资产；由 scripts/board.py 与 /api/board 运行时生成）
+.rsi/
+
 # 补丁回滚备份（scripts/apply-tool-patches.py / apply-q-round.py 自动生成）
 *.patchbak
 *.qpatchbak

@@ -1,0 +1,39 @@
+    /// 任务看板触发词判定：交代成规模的事才注入完整规范，闲聊不触发。
+    #[test]
+    fn want_task_plan_detection() {
+        // 命中：任务性动作词 / 显式看板语义 / @引用
+        for t in ["帮我把左栏改成任务看板", "实现单会话形态", "优化一下前端", "@T-20261107-01 继续",
+                  "@I-20261107-01 这个想法做掉", "refactor the web layer", "build a new module"] {
+            assert!(AgentLoopPlugin::user_wants_task_plan(t), "应命中: {t}");
+        }
+        // 不命中：闲聊 / 过短
+        for t in ["在吗", "谢谢", "这是什么", "hi", "   "] {
+            assert!(!AgentLoopPlugin::user_wants_task_plan(t), "不应命中: {t}");
+        }
+    }
+
+    /// 任务看板提示段：工作区有 scripts/board.py 才注入；full 才给规范；brief 必须点明通道。
+    #[test]
+    fn task_board_section_requires_cli_and_scales_by_flag() {
+        let old = std::env::var("WORKSPACE_ROOT").ok();
+        let dir = std::env::temp_dir().join(format!("ra-board-test-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("scripts")).expect("mkdir");
+        std::env::set_var("WORKSPACE_ROOT", &dir);
+        // 无 CLI → 不注入（别的项目工作区不该多这一段）
+        assert!(AgentLoopPlugin::task_board_section(true).is_empty(), "无 board.py 时不得注入");
+        std::fs::write(dir.join("scripts").join("board.py"), "print('x')\n").expect("write");
+        let brief = AgentLoopPlugin::task_board_section(false);
+        let full = AgentLoopPlugin::task_board_section(true);
+        assert!(brief.contains("scripts/board.py"), "brief 必须点明 CLI 通道");
+        assert!(!brief.contains("resourcing.model"), "brief 不得含完整规范");
+        assert!(full.contains("resourcing.model"), "full 必须讲人财物");
+        assert!(full.contains("acceptance"), "full 必须讲验收标准");
+        assert!(full.len() > brief.len(), "full 应比 brief 长");
+        match old {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// B1 效率约束：内置提示词必须含批量/专用工具/收敛三条，且不删原有纪律。

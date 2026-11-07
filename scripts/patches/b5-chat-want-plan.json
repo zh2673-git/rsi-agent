@@ -1,0 +1,7 @@
+{
+ "id": "B5",
+ "description": "chat.rs：算出 want_task_plan 并透传给 skills_appendix",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/b5-chat-anchor.txt",
+ "patch_file": "blocks/b5-chat-patch.txt"
+}
