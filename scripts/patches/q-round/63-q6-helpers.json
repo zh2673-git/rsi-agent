@@ -1,0 +1,7 @@
+{
+  "id": "Q6-01",
+  "description": "q-session.js：drain 前插入 markRunningStopped / markRunningInterrupted（打断来源标记）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q6-helpers-anchor.txt",
+  "patch_file": "blocks/q6-helpers-patch.txt"
+}

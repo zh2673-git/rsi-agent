@@ -1,0 +1,7 @@
+{
+  "id": "Q6-10",
+  "description": "contract.rs：ChatReq 增 resume 字段（续跑不重复落 user 消息）",
+  "file": "runtime/crates/agent-loop/src/contract.rs",
+  "anchor_file": "blocks/q6-contract-anchor.txt",
+  "patch_file": "blocks/q6-contract-patch.txt"
+}

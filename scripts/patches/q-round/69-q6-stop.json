@@ -1,0 +1,7 @@
+{
+  "id": "Q6-07",
+  "description": "app-events.js：stopBtn 标记「用户停止」（被打断那条丢弃，不续跑）",
+  "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+  "anchor_file": "blocks/q6-stop-anchor.txt",
+  "patch_file": "blocks/q6-stop-patch.txt"
+}

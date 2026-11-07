@@ -1,0 +1,2 @@
+  s.queue.splice(s.draining ? 1 : 0, 0, { text, atts });
+  queueOpen = true; renderQueue();

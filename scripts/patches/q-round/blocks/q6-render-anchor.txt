@@ -1,0 +1,7 @@
+    if (running) {
+      row.classList.add("running");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "执行中";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
+    row.querySelector(".qtext").textContent = item.text;

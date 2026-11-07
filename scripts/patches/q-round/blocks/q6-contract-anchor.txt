@@ -1,0 +1,6 @@
+    /// R3 用户附件（可选）：host 已做形状/条数/体量校验，此处仅透传。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<Attachment>>,
+}
+
+fn default_session() -> String {

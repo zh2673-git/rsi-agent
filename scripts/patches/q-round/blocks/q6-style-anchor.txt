@@ -1,0 +1,1 @@
+#queue-list .qitem.running { outline: 1px solid var(--accent); }

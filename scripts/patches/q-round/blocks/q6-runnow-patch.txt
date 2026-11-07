@@ -1,0 +1,10 @@
+  if (!s.draining) { drain(session); return; }
+  // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快轮到它。
+  // Q6：先标记被打断的是「插队」而非「用户停止」——drain 据此把原任务挂起续跑，
+  // 而不是像停止那样直接丢弃。（顺序要紧：必须在 abort 之前落标记。）
+  markRunningInterrupted(session);
+  try {
+    await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
+  } catch { /* 取消失败由 drain 的 K409 重试兜底 */ }
+  s.abort?.abort();
+}

@@ -283,4 +283,59 @@ Q 轮 Phase 1-3 已提交（c85e87c，34 条补丁）。收尾阶段补 4 条补
   app-events.js 全过 · `pytest -q` **53 passed** · 终态核验：无 `#interrupt`、无 `postChat`、
   `#interrupt` 孤儿 CSS 已清、`#stop` 在位、`drain` 走 `postChatDirect`·生效需重启 host。
 
+### 6.7 Q6：插队打断 vs 用户停止——原任务该不该回头（2026-11-06）
+
+用户报障：「两个任务，一个在执行、一个在排队。排队的插进来做完了，**就回不去原来那个了**——
+因为原来是直接取消的。插队这种情况，插队的做完应该自动回头继续之前被插队的任务；
+除非之前那个是用户自己按停止取消的。」
+
+- **根因（不在取消，而在出队）**：插队与停止走**同一条** `POST /api/chat/cancel` + `abort`，
+  而 `drain` 拿到 `postChatDirect` 返回后**无条件出队**（`indexOf` + `splice`）。于是两条路径
+  终态一致——原任务既没跑完，也没留在队列里，从界面与队列双双消失。判别依据不该是「有没有被
+  取消」（两者都取消），而是**谁发起的取消**。
+- **修复轴：把打断来源记在被打断那条 item 自己身上**，drain 按结局分流。
+  - `markRunningStopped(sid)`（停止键 / Esc）→ `queue[0].stopped = true` → 出队即丢弃；
+  - `markRunningInterrupted(sid)`（⏭ 立即执行 / Alt+Enter）→ `queue[0].interrupted = true`
+    → 出队后**重新插回 index 1**（紧跟在插队条之后）：插队条跑完出队，它自然回到队首续跑，
+    且仍优先于插队条之后的所有待发项 = 「做完插队的活就回头」。
+  - 标记必须在 `abort()` **之前**落，否则 `postChatDirect` 的 catch 先跑、读不到来源。
+- **`postChatDirect` 必须返回结局**：原来 `return;`（undefined），drain 无从判断是跑完还是被打断。
+  改为返回 `"ok" | "error" | "aborted"`；且每轮尝试开头若已带 `interrupted/stopped` 立即返回，
+  不再空转 K409 的 24×250ms 重试窗（否则续跑白等 6 秒）。
+- **续跑不得重复落 user 消息（本轮第二处真实缺陷）**：`chat_run` 在轮次循环**之前**就
+  `memory.append` user 消息并发 `trace` 的 `user` 事件（`chat.rs:287/295`）。直接重发会让
+  memory 多一条 user、前端多一个气泡。故加 `resume` 标记贯穿四层：
+  `q-session.js`（`item.pendingResume` → body.resume）→ `web/mod.rs`（透传
+  `chat_payload["resume"]`）→ `contract.rs`（`ChatReq.resume: bool`，缺省 false 向后兼容）→
+  `chat.rs`（`if !req.resume { …append + trace… }`，跳过落库直接基于现有工作集继续）。
+- **有界**：`MAX_RESUME = 8`，超限放弃并提示——防「插队↔被插队」极端来回 ping-pong 无界重放。
+- **可见**：待续跑那条加 `.qitem.resume`（虚描边）+「⟲ 待续跑」标签，让用户看见它没丢。
+
+| # | 改动 | 说明 |
+|---|---|---|
+| Q6-01 | `q-session.js` 增 `MAX_RESUME` / `markRunningStopped` / `markRunningInterrupted` | 来源标记的两个入口 |
+| Q6-02 | `postChatDirect` 返回结局 + 带 `resume` | 打断时立即让位，不空转重试窗 |
+| Q6-03 | `drain` 结局分流 | 本轮的语义核心：续跑 vs 丢弃 |
+| Q6-04 | `renderQueue` 加「⟲ 待续跑」 | 状态可见 |
+| Q6-05/06 | `runQueueNow` / `interruptAndSend` 置 interrupted | ⏭ 与 Alt+Enter 两入口 |
+| Q6-07 | `stopBtn` 置 stopped | 用户停止 = 丢弃 |
+| Q6-08 | `style.css` `.qitem.resume` 虚描边 | 与执行中实描边区分 |
+| Q6-10..12 | `resume` 贯穿 contract / chat / web | 防重复 user 轮次 |
+
+- **补丁基线处理**：Q6 合法改写了 5 条旧补丁产出的区域（`Q1-08`、`Q5-01`、`Q5-03`、`Q5-06`、
+  `Q5-08`），终态内容均由 Q6 承接 → 退役至 `scripts/patches/retired/*.retired`。
+  另：`Q6-10` 初版锚点误命中 `MemoryMsg` 的同名字段块（两处都有
+  `pub attachments: Option<Vec<Attachment>>`），`cargo check` 报 `E0063 missing field resume`
+  才暴露；已给锚点补上 `fn default_session` 尾行使其唯一。`Q6-09`（单独补 `MAX_RESUME`）
+  因上游补丁应用后锚点失效，已并入 Q6-01 的补丁块。
+- **验证矩阵**：`apply-q-round.py --dry-run` **46 条 0 FAIL / 0 DRY** · `node --check`
+  q-session.js & app-events.js 全过 · `pytest -q` **55 passed**（新增 2 条 Q6 契约断言：
+  续跑/丢弃分流、resume 不重复落 user）· `cargo check --workspace` Finished 零错误 ·
+  `cargo test --workspace --lib` 中 `agent-loop` 24/24 全绿；`host` 的
+  `web::api::config::tests::agent_config_applies_to_env_and_validates_numbers` 在**并行全量**
+  下红、单独跑绿——是既有测试间环境变量串扰（摘要在案），与本轮无关。
+  分流逻辑另用等价 JS 脚本穷举三结局：`user-stop → [B]`、`interrupt → [B, A*]`、`ok → []`。
+- **生效需重启 host**（前端 + Rust 双改）。
+
+
 

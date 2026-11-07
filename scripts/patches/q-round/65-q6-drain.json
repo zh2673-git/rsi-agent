@@ -1,0 +1,7 @@
+{
+  "id": "Q6-03",
+  "description": "q-session.js：drain 结局分流——插队打断→挂起续跑，用户停止→丢弃，防 ping-pong 上限 8",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q6-drain-anchor.txt",
+  "patch_file": "blocks/q6-drain-patch.txt"
+}

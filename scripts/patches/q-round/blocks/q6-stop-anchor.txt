@@ -1,0 +1,5 @@
+    if (v.ok) {
+      setStatus("正在停止…");
+      returnQueueToInput();             // pi 语义：排队消息退回编辑器，不静默丢弃
+      qState(session).abort?.abort();
+    } else setStatus("停止失败: " + (v.error?.message ?? r.status));

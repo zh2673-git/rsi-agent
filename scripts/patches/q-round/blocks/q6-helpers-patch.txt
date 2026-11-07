@@ -1,0 +1,14 @@
+// Q6：续跑上限——防「插队↔被插队」极端来回 ping-pong 无界重放（超限即放弃并提示）。
+const MAX_RESUME = 8;
+function markRunningStopped(sid) {
+  const s = qState(sid);
+  // Q6：用户主动停止（停止键 / Esc）→ 被打断的那条不再续跑，直接丢弃。
+  if (s.draining && s.queue[0]) s.queue[0].stopped = true;
+}
+function markRunningInterrupted(sid) {
+  const s = qState(sid);
+  // Q6：插队（⏭ / Alt+Enter）→ 被打断的那条挂起，等插队条跑完自动续跑。
+  // 此刻被打断的仍在 index 0（插队条已排到它后面），故只标队首。
+  if (s.draining && s.queue[0]) s.queue[0].interrupted = true;
+}
+async function drain(sid) {

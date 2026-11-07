@@ -84,6 +84,31 @@ class QRoundContractTest(unittest.TestCase):
         self.assertIn("≤25KB", s)
         self.assertIn("不返回全文", s)
 
+    def test_interrupt_resumes_but_stop_discards(self):
+        """Q6：插队打断 → 原任务回头续跑；用户停止 → 丢弃。两者共用 cancel+abort，
+        唯一区别是打断前落在队首 item 上的标记，drain 据此分流。"""
+        q = read("runtime/crates/host/web-dist/vendor/q-session.js")
+        # 来源标记：停止置 stopped、插队置 interrupted，且都必须在 abort 之前
+        self.assertIn("s.queue[0].stopped = true", q)
+        self.assertIn("s.queue[0].interrupted = true", q)
+        # 结局分流：只有 interrupted（且未 stopped）才续跑，且按身份重新入队
+        self.assertIn('outcome === "aborted" && item.interrupted && !item.stopped', q)
+        self.assertIn("const MAX_RESUME", q)          # 有界，防无界 ping-pong
+        self.assertIn('return "aborted"', q)          # postChatDirect 不再吞掉打断结局
+        events = read("runtime/crates/host/web-dist/vendor/app-events.js")
+        stop = events.split("stopBtn.onclick")[1][:900]
+        self.assertIn("markRunningStopped(session)", stop)
+        # 插队两入口（⏭ 与 Alt+Enter）都要标记为「可续跑」
+        self.assertGreaterEqual(q.count("markRunningInterrupted(session)"), 2)
+
+    def test_resume_path_does_not_duplicate_user_message(self):
+        """Q6：续跑不重复落 user 消息/重放 user 事件，否则 memory 多一条、前端多一个气泡。"""
+        self.assertIn("pub resume: bool", read("runtime/crates/agent-loop/src/contract.rs"))
+        chat = read("runtime/crates/agent-loop/src/chat.rs")
+        self.assertIn("if !req.resume {", chat)
+        self.assertIn('chat_payload["resume"] = json!(true)', read("runtime/crates/host/src/web/mod.rs"))
+        self.assertIn("item.pendingResume ? { resume: true }", read("runtime/crates/host/web-dist/vendor/q-session.js"))
+
 
 if __name__ == "__main__":
     unittest.main()

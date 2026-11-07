@@ -124,6 +124,11 @@ pub struct ChatReq {
     /// R3 用户附件（可选）：host 已做形状/条数/体量校验，此处仅透传。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<Attachment>>,
+    /// Q6 续跑：true = 本条 user 消息此前已落库过（被插队打断后自动回头），
+    /// 不再 append memory / 重发 trace user 事件，直接基于现有工作集继续做完。
+    /// 缺省 false 向后兼容所有既有调用方。
+    #[serde(default)]
+    pub resume: bool,
 }
 
 fn default_session() -> String {

@@ -1,0 +1,7 @@
+{
+  "id": "Q6-08",
+  "description": "style.css：待续跑行（.qitem.resume）虚描边",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/q6-style-anchor.txt",
+  "patch_file": "blocks/q6-style-patch.txt"
+}

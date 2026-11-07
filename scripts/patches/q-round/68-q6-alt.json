@@ -1,0 +1,7 @@
+{
+  "id": "Q6-06",
+  "description": "q-session.js：interruptAndSend（Alt+Enter）标记插队打断，与用户停止区分",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q6-alt-anchor.txt",
+  "patch_file": "blocks/q6-alt-patch.txt"
+}

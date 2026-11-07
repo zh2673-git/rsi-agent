@@ -1,0 +1,7 @@
+{
+  "id": "Q6-05",
+  "description": "q-session.js：runQueueNow 在 abort 前标记「插队打断」（原任务事后续跑而非丢弃）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q6-runnow-anchor.txt",
+  "patch_file": "blocks/q6-runnow-patch.txt"
+}

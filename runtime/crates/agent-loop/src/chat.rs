@@ -281,18 +281,20 @@ impl AgentLoopPlugin {
             .insert(req.session_id.clone(), std::time::SystemTime::now());
         // 用户消息先入记忆（持久化），随后拉取全量历史。
         // R3：文本附件拼入 content，图片附件走结构化字段（llm-adapter 按 provider 映射）。
-        let user_msg = build_user_msg(&req.user_text, req.attachments.as_deref(), cfg.text_attach_limit);
-        // LOOP-P2/A2：开局用户消息都落不了盘 = 会话记录已断档，本轮跑完下一轮也接不回
-        // ——立即熔断（K503），不烧 LLM token。
-        if !self.observe(env, &req.session_id, &[user_msg.clone()]).await {
-            return json!({"ok": false, "error": {"code": "K503", "message": "memory.append 失败，已熔断本轮（持久层与工作集会静默分叉）；请检查 memory 插件后重试"}});
+        if !req.resume {
+            let user_msg = build_user_msg(&req.user_text, req.attachments.as_deref(), cfg.text_attach_limit);
+            // LOOP-P2/A2：开局用户消息都落不了盘 = 会话记录已断档，本轮跑完下一轮也接不回
+            // ——立即熔断（K503），不烧 LLM token。
+            if !self.observe(env, &req.session_id, &[user_msg.clone()]).await {
+                return json!({"ok": false, "error": {"code": "K503", "message": "memory.append 失败，已熔断本轮（持久层与工作集会静默分叉）；请检查 memory 插件后重试"}});
+            }
+            // trace 带全量原始附件（含文本 b64）：UI 重放展示缩略图/文件条，重新生成需原始 data_b64 重发
+            let mut user_event = json!({"type": "user", "text": req.user_text});
+            if let Some(att) = req.attachments.as_deref() {
+                user_event["attachments"] = json!(att);
+            }
+            self.trace(env, &req.session_id, user_event).await;
         }
-        // trace 带全量原始附件（含文本 b64）：UI 重放展示缩略图/文件条，重新生成需原始 data_b64 重发
-        let mut user_event = json!({"type": "user", "text": req.user_text});
-        if let Some(att) = req.attachments.as_deref() {
-            user_event["attachments"] = json!(att);
-        }
-        self.trace(env, &req.session_id, user_event).await;
 
         // 系统提示词 = 组装链（07 §2.1）+ 技能附录（软）
         // B2：技能自扩展长教程按需注入——仅当本轮用户文本明确要求造技能/打包工具。

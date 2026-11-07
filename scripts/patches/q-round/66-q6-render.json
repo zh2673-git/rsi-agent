@@ -1,0 +1,7 @@
+{
+  "id": "Q6-04",
+  "description": "q-session.js：renderQueue 给「待续跑」行加 ⟲ 标记（用户可见原任务没丢）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q6-render-anchor.txt",
+  "patch_file": "blocks/q6-render-patch.txt"
+}

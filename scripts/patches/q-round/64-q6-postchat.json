@@ -1,0 +1,7 @@
+{
+  "id": "Q6-02",
+  "description": "q-session.js：postChatDirect 返回结局 ok/error/aborted，并在被打断时立即让位",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q6-postchat-anchor.txt",
+  "patch_file": "blocks/q6-postchat-patch.txt"
+}

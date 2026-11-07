@@ -1,0 +1,15 @@
+    if (running) {
+      row.classList.add("running");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "执行中";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
+    // Q6：被插队打断、已排队等待「回头续跑」的那条——显式标注，让用户看见它没丢。
+    if (item.pendingResume && !running) {
+      row.classList.add("resume");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "⟲ 待续跑";
+      tag.title = "被插队打断，插队那条跑完自动回头继续这条";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
+    row.querySelector(".qtext").textContent = item.text;

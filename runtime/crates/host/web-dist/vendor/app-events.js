@@ -319,6 +319,8 @@ stopBtn.onclick = async () => {
     const v = await r.json();
     if (v.ok) {
       setStatus("正在停止…");
+      // Q6：用户主动停止——被打断那条直接丢弃（不续跑）。标记须在 abort 之前落。
+      markRunningStopped(session);
       returnQueueToInput();             // pi 语义：排队消息退回编辑器，不静默丢弃
       qState(session).abort?.abort();
     } else setStatus("停止失败: " + (v.error?.message ?? r.status));

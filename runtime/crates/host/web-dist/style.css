@@ -424,5 +424,7 @@
   #queue-list button { border: 0; background: transparent; color: var(--text); cursor: pointer; padding: 0 4px; }
   #queue-list button:hover { color: var(--accent); }
   #queue-list .qitem.running { outline: 1px solid var(--accent); }
+/* Q6：被插队打断、排队等「回头续跑」的那条——虚描边区别于执行中，提示原任务没丢 */
+#queue-list .qitem.resume { outline: 1px dashed var(--muted); }
   #queue-list .qitem .qrun { color: var(--muted); font-size: 12px; padding: 0 6px; }
   #queue-list button:disabled { opacity: .35; cursor: default; }

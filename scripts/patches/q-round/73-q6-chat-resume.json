@@ -1,0 +1,7 @@
+{
+  "id": "Q6-11",
+  "description": "chat.rs：resume=true 时跳过 user 消息落盘与 trace 重放（防续跑造成重复 user 轮次）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/q6-chat-resume-anchor.txt",
+  "patch_file": "blocks/q6-chat-resume-patch.txt"
+}

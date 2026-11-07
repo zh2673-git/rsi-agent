@@ -1,0 +1,1 @@
+            let mut chat_payload = json!({"op": "chat", "session_id": session, "user_text": message});

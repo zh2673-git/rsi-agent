@@ -1,0 +1,4 @@
+  s.queue.splice(s.draining ? 1 : 0, 0, { text, atts });
+  queueOpen = true; renderQueue();
+  // Q6：Alt+Enter 同样是「插队打断」——被打断那条要回头续跑，不能当用户停止丢掉。
+  markRunningInterrupted(session);

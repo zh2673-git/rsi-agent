@@ -1,0 +1,7 @@
+  if (!s.draining) { drain(session); return; }
+  // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快轮到它。
+  try {
+    await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
+  } catch { /* 取消失败由 drain 的 K409 重试兜底 */ }
+  s.abort?.abort();
+}

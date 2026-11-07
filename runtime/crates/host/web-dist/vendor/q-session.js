@@ -86,6 +86,14 @@ function renderQueue() {
       tag.className = "qrun"; tag.textContent = "执行中";
       row.insertBefore(tag, row.querySelector(".qexec"));
     }
+    // Q6：被插队打断、已排队等待「回头续跑」的那条——显式标注，让用户看见它没丢。
+    if (item.pendingResume && !running) {
+      row.classList.add("resume");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "⟲ 待续跑";
+      tag.title = "被插队打断，插队那条跑完自动回头继续这条";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
     row.querySelector(".qtext").textContent = item.text;
     const [exec, up, rm] = row.querySelectorAll("button");
     exec.title = running ? "正在执行" : "立即执行这条（打断当前任务，优先跑它）";
@@ -102,12 +110,19 @@ async function postChatDirect(sid, item) {
   const s = qState(sid);
   // 显式队列内部消化 K409：cancel/abort 后服务端仍要跑到轮次边界才释放同会话闸，
   // 直接发下一条会撞 409。K409 在 memory.append 之前返回，重试不会重复落 user 事件。
+  // Q6：返回结局 "ok" | "error" | "aborted"——drain 据此区分「正常完成出队」与
+  // 「被插队打断 → 挂起续跑」，不再依赖「await 一返回就出队」这条隐式约定。
   for (let attempt = 0; attempt < 24; attempt++) {
+    // Q6：本条已被插队打断 / 被用户停止 → 立即让位，不再空转 K409 重试窗口
+    // （最长 24×250ms），否则续跑要白等 6 秒。
+    if (item.interrupted || item.stopped) return "aborted";
     s.abort = new AbortController();
     try {
       const r = await fetch("/api/chat", {
         method: "POST", headers: { "content-type": "application/json" }, signal: s.abort.signal,
-        body: JSON.stringify({ session_id: sid, message: item.text, ...(item.atts && item.atts.length ? { attachments: item.atts } : {}) }),
+        // Q6：pendingResume = 被插队打断后回头续跑。带 resume:true 让服务端跳过
+        // 重复落库/重放 user 消息（否则前端多一个气泡、memory 多一条 user 轮次）。
+        body: JSON.stringify({ session_id: sid, message: item.text, ...(item.atts && item.atts.length ? { attachments: item.atts } : {}), ...(item.pendingResume ? { resume: true } : {}) }),
       });
       const v = await r.json();
       if (v && v.error && v.error.code === "K409" && attempt < 23) {
@@ -115,13 +130,31 @@ async function postChatDirect(sid, item) {
         continue;
       }
       if (session === sid) setStatus(v.ok ? "" : "失败: " + (v.error?.message ?? r.status));
-      return;
+      return v.ok ? "ok" : "error";
     } catch (e) {
-      if (e?.name === "AbortError") { if (session === sid) setStatus("已停止（后台正在收敛）"); return; }
+      if (e?.name === "AbortError") {
+        // 打断了不要谎报「已停止」：结局由 drain 按 item 上的标记分流
+        if (session === sid) setStatus(item.stopped ? "已停止（后台正在收敛）" : "已打断，稍后回到本条继续");
+        return "aborted";
+      }
       if (session === sid) setStatus("请求失败: " + e);
-      return;
+      return "error";
     } finally { s.abort = null; }
   }
+  return "error";
+}
+// Q6：续跑上限——防「插队↔被插队」极端来回 ping-pong 无界重放（超限即放弃并提示）。
+const MAX_RESUME = 8;
+function markRunningStopped(sid) {
+  const s = qState(sid);
+  // Q6：用户主动停止（停止键 / Esc）→ 被打断的那条不再续跑，直接丢弃。
+  if (s.draining && s.queue[0]) s.queue[0].stopped = true;
+}
+function markRunningInterrupted(sid) {
+  const s = qState(sid);
+  // Q6：插队（⏭ / Alt+Enter）→ 被打断的那条挂起，等插队条跑完自动续跑。
+  // 此刻被打断的仍在 index 0（插队条已排到它后面），故只标队首。
+  if (s.draining && s.queue[0]) s.queue[0].interrupted = true;
 }
 async function drain(sid) {
   const s = qState(sid);
@@ -132,9 +165,26 @@ async function drain(sid) {
       const item = s.queue[0];
       // Q5：队列本地驻留——第 0 条即「执行中」。postChatDirect 的 Promise 覆盖整段执行，
       // 跑完才出队；待发面板因此在整轮执行期间都可见，行内 ⏭/↑/× 才有操作窗口。
-      await postChatDirect(sid, item);
+      item.pendingResume = false;         // Q6：轮到它了，不再是「待续跑」
+      const outcome = await postChatDirect(sid, item);
       const at = s.queue.indexOf(item);   // 执行期间可能被删除/上移：按身份删除，不盲目 shift
       if (at >= 0) s.queue.splice(at, 1);
+      // Q6：结局分流——「插队打断」与「用户停止」走同一条 cancel+abort，但语义相反：
+      //   · 插队（item.interrupted）：本条没做完，挂起，等插队条跑完自动回头续跑；
+      //   · 停止（item.stopped）：用户就是要它别做了，直接丢弃。
+      // 修复前两者都被无条件出队 → 插队一次，原任务从队列里永久消失（用户看到「回不去了」）。
+      if (outcome === "aborted" && item.interrupted && !item.stopped) {
+        item.interrupted = false;
+        item.resumes = (item.resumes || 0) + 1;
+        if (item.resumes > MAX_RESUME) {
+          if (session === sid) setStatus("多次被插队中断，已放弃续跑：" + item.text.slice(0, 24));
+        } else {
+          // 插到刚打断它的那条（现 index 0）之后：插队条跑完出队，本条即回到队首续跑，
+          // 且仍优先于插队条之后的所有待发项——「做完插队的活就回头」。
+          item.pendingResume = true;
+          s.queue.splice(Math.min(1, s.queue.length), 0, item);
+        }
+      }
       renderQueue();
     }
   } finally {
@@ -161,6 +211,8 @@ async function interruptAndSend() {
   // Q5：队列驻留后 index 0 是「执行中」，新条插到它之后，否则会把执行中的行顶成待发。
   s.queue.splice(s.draining ? 1 : 0, 0, { text, atts });
   queueOpen = true; renderQueue();
+  // Q6：Alt+Enter 同样是「插队打断」——被打断那条要回头续跑，不能当用户停止丢掉。
+  markRunningInterrupted(session);
   try {
     await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
   } catch { /* 取消失败仍由 drain 的 K409 重试兜底 */ }
@@ -179,6 +231,9 @@ async function runQueueNow(i) {
   queueOpen = true; renderQueue();
   if (!s.draining) { drain(session); return; }
   // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快轮到它。
+  // Q6：先标记被打断的是「插队」而非「用户停止」——drain 据此把原任务挂起续跑，
+  // 而不是像停止那样直接丢弃。（顺序要紧：必须在 abort 之前落标记。）
+  markRunningInterrupted(session);
   try {
     await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
   } catch { /* 取消失败由 drain 的 K409 重试兜底 */ }

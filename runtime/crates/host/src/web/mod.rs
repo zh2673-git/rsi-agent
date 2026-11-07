@@ -528,6 +528,13 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
             // R3 附件（可选）：[{name, mime, data_b64}]——校验形状与体量上限后透传
             // agent-loop（构造多模态 user 消息）。非法/超限 = 确定性 K400，不静默丢弃。
             let mut chat_payload = json!({"op": "chat", "session_id": session, "user_text": message});
+            // Q6：续跑（被插队打断后自动回头）不重复落库/重放 user 消息——被打断那轮
+            // 已在 chat_run 开头 append 过 user 消息并发出 trace user 事件，重发会造成
+            // memory 多一条 user、前端多一个气泡。resume=true 让 chat_run 跳过这两步，
+            // 直接用已有工作集继续（见 chat.rs resume 分支）。
+            if req.get("resume").and_then(Value::as_bool) == Some(true) {
+                chat_payload["resume"] = json!(true);
+            }
             if let Some(att) = req.get("attachments") {
                 match api::validate_attachments(att) {
                     Ok(Some(list)) => {

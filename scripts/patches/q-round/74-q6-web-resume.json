@@ -1,0 +1,7 @@
+{
+  "id": "Q6-12",
+  "description": "web/mod.rs：透传 resume 标记到 agent-loop chat payload",
+  "file": "runtime/crates/host/src/web/mod.rs",
+  "anchor_file": "blocks/q6-web-resume-anchor.txt",
+  "patch_file": "blocks/q6-web-resume-patch.txt"
+}
