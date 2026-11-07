@@ -1,0 +1,2 @@
+  const interrupt = $("interrupt");
+  if (interrupt) interrupt.onclick = () => { interruptAndSend(); };

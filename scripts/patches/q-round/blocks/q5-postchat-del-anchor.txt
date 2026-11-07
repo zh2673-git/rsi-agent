@@ -1,0 +1,15 @@
+async function postChat(sid, item) {
+  const s = qState(sid);
+  // Q 轮 Phase 3：优先走服务端显式队列（跨标签页共享「待发」视图）。
+  // 服务端 queue/enqueue 返回 accepted；本 fetch 立即结束，不阻塞等 chat 收敛。
+  // 队列 full / 端点不存在（旧 host）→ 回退本地 postChatDirect。
+  try {
+    const r = await fetch("/api/queue", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ session_id: sid, message: item.text, target: "followup", ...(item.atts && item.atts.length ? { attachments: item.atts } : {}) }),
+    });
+    const v = await r.json();
+    if (v && v.ok) return true;
+  } catch { /* 旧版 host：走本地直发兜底 */ }
+  return postChatDirect(sid, item);
+}

@@ -1,0 +1,7 @@
+{
+  "id": "Q5-07",
+  "description": "q-session.js：bindQueueUI 解绑已移除的 #interrupt 键（函数本体保留，Alt+Enter 仍可用）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q5-bind-anchor.txt",
+  "patch_file": "blocks/q5-bind-patch.txt"
+}

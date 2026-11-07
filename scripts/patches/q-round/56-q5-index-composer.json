@@ -1,0 +1,7 @@
+{
+  "id": "Q5-04",
+  "description": "index.html：composer 撤掉「⏭ 插队」，恢复纯「停止」；placeholder 改为「运行中再按 Enter 加入待发」",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/q5-index-composer-anchor.txt",
+  "patch_file": "blocks/q5-index-composer-patch.txt"
+}

@@ -1,0 +1,3 @@
+  const s = qState(session);
+  // Q5：队列驻留后 index 0 是「执行中」，新条插到它之后，否则会把执行中的行顶成待发。
+  s.queue.splice(s.draining ? 1 : 0, 0, { text, atts });

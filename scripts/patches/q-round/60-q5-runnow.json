@@ -1,0 +1,7 @@
+{
+  "id": "Q5-08",
+  "description": "q-session.js：runQueueNow 适配队列驻留（目标插到执行中那条之后），打断当前任务",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q5-runnow-anchor.txt",
+  "patch_file": "blocks/q5-runnow-patch.txt"
+}

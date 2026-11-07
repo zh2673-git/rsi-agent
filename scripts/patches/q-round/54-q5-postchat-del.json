@@ -1,0 +1,7 @@
+{
+  "id": "Q5-02",
+  "description": "q-session.js：删除 postChat（/api/queue 转手即返回导致待发队列毫秒级清空，已无引用）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q5-postchat-del-anchor.txt",
+  "patch": ""
+}

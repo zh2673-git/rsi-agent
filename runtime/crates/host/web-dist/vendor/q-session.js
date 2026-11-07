@@ -72,34 +72,31 @@ function syncRunUI() {
 function renderQueue() {
   const box = $("queue-box"), list = $("queue-list"), cnt = $("queue-count");
   if (!box || !list) return;
-  const q = qState(session).queue;
+  const st = qState(session), q = st.queue;
   box.hidden = !queueOpen || q.length === 0;
   if (cnt) cnt.textContent = "待发 " + q.length + " 条";
   list.innerHTML = "";
   q.forEach((item, i) => {
-    const row = el(`<div class="qitem"><span class="qtext"></span><button class="qexec" title="立即执行这条（插到队首并停当前）">⏭</button><button title="上移">↑</button><button title="删除">×</button></div>`);
+    // Q5：第 0 条即「正在执行」的那条（drain 驻留到它跑完）；其余才是真待发。
+    const running = st.draining && i === 0;
+    const row = el(`<div class="qitem"><span class="qtext"></span><button class="qexec">⏭</button><button class="qup">↑</button><button class="qrm">×</button></div>`);
+    if (running) {
+      row.classList.add("running");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "执行中";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
     row.querySelector(".qtext").textContent = item.text;
     const [exec, up, rm] = row.querySelectorAll("button");
+    exec.title = running ? "正在执行" : "立即执行这条（打断当前任务，优先跑它）";
+    up.title = "上移（更早执行）"; rm.title = "从待发队列删除";
+    exec.disabled = running; up.disabled = running || (st.draining && i === 1); rm.disabled = running;
     exec.onclick = () => { runQueueNow(i); };
-    up.onclick = () => { if (i > 0) { [q[i - 1], q[i]] = [q[i], q[i - 1]]; renderQueue(); } };
+    // 执行中那条（index 0）不可被上移顶掉；故 index 1 的上移在 draining 期间禁用。
+    up.onclick = () => { if (i > 0 && !(st.draining && i === 1)) { [q[i - 1], q[i]] = [q[i], q[i - 1]]; renderQueue(); } };
     rm.onclick = () => { q.splice(i, 1); renderQueue(); };
     list.appendChild(row);
   });
-}
-async function postChat(sid, item) {
-  const s = qState(sid);
-  // Q 轮 Phase 3：优先走服务端显式队列（跨标签页共享「待发」视图）。
-  // 服务端 queue/enqueue 返回 accepted；本 fetch 立即结束，不阻塞等 chat 收敛。
-  // 队列 full / 端点不存在（旧 host）→ 回退本地 postChatDirect。
-  try {
-    const r = await fetch("/api/queue", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ session_id: sid, message: item.text, target: "followup", ...(item.atts && item.atts.length ? { attachments: item.atts } : {}) }),
-    });
-    const v = await r.json();
-    if (v && v.ok) return true;
-  } catch { /* 旧版 host：走本地直发兜底 */ }
-  return postChatDirect(sid, item);
 }
 async function postChatDirect(sid, item) {
   const s = qState(sid);
@@ -133,8 +130,10 @@ async function drain(sid) {
   try {
     while (s.queue.length) {
       const item = s.queue[0];
-      await postChat(sid, item);   // 每条各入队一次（服务端按序执行），或旧 host 直发兜底
-      const at = s.queue.indexOf(item);   // 发送期间可能被删除/上移：按身份删除，不盲目 shift
+      // Q5：队列本地驻留——第 0 条即「执行中」。postChatDirect 的 Promise 覆盖整段执行，
+      // 跑完才出队；待发面板因此在整轮执行期间都可见，行内 ⏭/↑/× 才有操作窗口。
+      await postChatDirect(sid, item);
+      const at = s.queue.indexOf(item);   // 执行期间可能被删除/上移：按身份删除，不盲目 shift
       if (at >= 0) s.queue.splice(at, 1);
       renderQueue();
     }
@@ -159,7 +158,8 @@ async function interruptAndSend() {
     if (v && v.ok) { setStatus(v.position === 0 ? "已加入轮次边界注入" : "已排队"); return; }
   } catch { /* 旧版 host：回退「取消+重启」近似 */ }
   const s = qState(session);
-  s.queue.unshift({ text, atts });            // 队首：drain 在当前 fetch finally 之后才取它
+  // Q5：队列驻留后 index 0 是「执行中」，新条插到它之后，否则会把执行中的行顶成待发。
+  s.queue.splice(s.draining ? 1 : 0, 0, { text, atts });
   queueOpen = true; renderQueue();
   try {
     await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
@@ -171,11 +171,14 @@ async function runQueueNow(i) {
   const s = qState(session);
   const item = s.queue[i];
   if (!item) return;
+  // Q5：队列驻留后第 0 条是「执行中」，目标是让它插到执行中那条之后（index 1），
+  // 再打断当前任务——drain 的 await 一返回就出队第 0 条，随即轮到它。
   s.queue.splice(i, 1);
-  s.queue.unshift(item);            // 提到队首：drain 本轮收尾后立即取它
+  const at = s.draining ? 1 : 0;
+  s.queue.splice(at, 0, item);
   queueOpen = true; renderQueue();
   if (!s.draining) { drain(session); return; }
-  // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快走到队首。
+  // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快轮到它。
   try {
     await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
   } catch { /* 取消失败由 drain 的 K409 重试兜底 */ }
@@ -200,6 +203,5 @@ function bindQueueUI() {
     toggle.textContent = queueOpen ? "隐藏" : "展开";
     renderQueue();
   };
-  const interrupt = $("interrupt");
-  if (interrupt) interrupt.onclick = () => { interruptAndSend(); };
+  // Q5：composer 不再有「插队」键（恢复为纯「停止」），Alt+Enter 仍走 interruptAndSend。
 }

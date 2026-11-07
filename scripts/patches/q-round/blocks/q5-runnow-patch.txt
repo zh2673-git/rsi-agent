@@ -1,0 +1,17 @@
+async function runQueueNow(i) {
+  const s = qState(session);
+  const item = s.queue[i];
+  if (!item) return;
+  // Q5：队列驻留后第 0 条是「执行中」，目标是让它插到执行中那条之后（index 1），
+  // 再打断当前任务——drain 的 await 一返回就出队第 0 条，随即轮到它。
+  s.queue.splice(i, 1);
+  const at = s.draining ? 1 : 0;
+  s.queue.splice(at, 0, item);
+  queueOpen = true; renderQueue();
+  if (!s.draining) { drain(session); return; }
+  // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快轮到它。
+  try {
+    await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
+  } catch { /* 取消失败由 drain 的 K409 重试兜底 */ }
+  s.abort?.abort();
+}

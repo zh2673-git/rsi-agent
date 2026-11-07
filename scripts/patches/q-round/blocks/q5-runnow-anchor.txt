@@ -1,0 +1,14 @@
+async function runQueueNow(i) {
+  const s = qState(session);
+  const item = s.queue[i];
+  if (!item) return;
+  s.queue.splice(i, 1);
+  s.queue.unshift(item);            // 提到队首：drain 本轮收尾后立即取它
+  queueOpen = true; renderQueue();
+  if (!s.draining) { drain(session); return; }
+  // 有在途任务：取消服务端回合 + 断客户端 fetch，让 drain 尽快走到队首。
+  try {
+    await fetch(`/api/chat/cancel?session=${encodeURIComponent(session)}`, { method: "POST" });
+  } catch { /* 取消失败由 drain 的 K409 重试兜底 */ }
+  s.abort?.abort();
+}

@@ -1,0 +1,7 @@
+{
+  "id": "Q5-01",
+  "description": "q-session.js：drain 改走 postChatDirect，队列本地驻留（第 0 条=执行中，跑完才出队，行内 ⏭/↑/× 才有操作窗口）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q5-drain-anchor.txt",
+  "patch_file": "blocks/q5-drain-patch.txt"
+}

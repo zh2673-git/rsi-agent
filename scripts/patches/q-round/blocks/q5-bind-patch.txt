@@ -1,0 +1,1 @@
+  // Q5：composer 不再有「插队」键（恢复为纯「停止」），Alt+Enter 仍走 interruptAndSend。

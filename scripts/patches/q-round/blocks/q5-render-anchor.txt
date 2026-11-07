@@ -1,0 +1,17 @@
+function renderQueue() {
+  const box = $("queue-box"), list = $("queue-list"), cnt = $("queue-count");
+  if (!box || !list) return;
+  const q = qState(session).queue;
+  box.hidden = !queueOpen || q.length === 0;
+  if (cnt) cnt.textContent = "待发 " + q.length + " 条";
+  list.innerHTML = "";
+  q.forEach((item, i) => {
+    const row = el(`<div class="qitem"><span class="qtext"></span><button class="qexec" title="立即执行这条（插到队首并停当前）">⏭</button><button title="上移">↑</button><button title="删除">×</button></div>`);
+    row.querySelector(".qtext").textContent = item.text;
+    const [exec, up, rm] = row.querySelectorAll("button");
+    exec.onclick = () => { runQueueNow(i); };
+    up.onclick = () => { if (i > 0) { [q[i - 1], q[i]] = [q[i], q[i - 1]]; renderQueue(); } };
+    rm.onclick = () => { q.splice(i, 1); renderQueue(); };
+    list.appendChild(row);
+  });
+}

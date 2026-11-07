@@ -1,0 +1,7 @@
+{
+  "id": "Q5-10",
+  "description": "q-session.js：interruptAndSend 回退路径同样避开执行中那条（unshift 会把它顶成待发）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q5-alt-anchor.txt",
+  "patch_file": "blocks/q5-alt-patch.txt"
+}

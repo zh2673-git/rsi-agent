@@ -1,0 +1,7 @@
+{
+  "id": "Q5-03",
+  "description": "q-session.js：renderQueue 第 0 条（执行中）不给操作按钮、标「执行中」，其余条给 ⏭/↑/×",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/q5-render-anchor.txt",
+  "patch_file": "blocks/q5-render-patch.txt"
+}

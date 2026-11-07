@@ -1,0 +1,2 @@
+  const s = qState(session);
+  s.queue.unshift({ text, atts });            // 队首：drain 在当前 fetch finally 之后才取它

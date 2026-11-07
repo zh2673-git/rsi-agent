@@ -1,0 +1,2 @@
+      <!-- Q5：⏭ 插队键已移除（composer 恢复为纯「停止」）；拦截能力下放到待发队列行内，Alt+Enter 仍可插队 -->
+      <button id="stop" hidden style="background: var(--card-2); color: var(--text);">停止</button>

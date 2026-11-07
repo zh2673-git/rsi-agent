@@ -1,0 +1,1 @@
+      <div class="qhead"><span>待发指令（Enter 排队；⏭ 停止当前并插队）</span><span id="queue-count"></span><button class="btn ghost" id="queue-toggle" type="button">隐藏</button></div>

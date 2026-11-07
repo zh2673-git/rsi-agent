@@ -1,0 +1,7 @@
+{
+  "id": "Q5-06",
+  "description": "style.css：清掉 #interrupt 孤儿样式，补执行中行/禁用钮样式",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/q5-style-interrupt-anchor.txt",
+  "patch_file": "blocks/q5-style-interrupt-patch.txt"
+}

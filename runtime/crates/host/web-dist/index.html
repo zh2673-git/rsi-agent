@@ -28,14 +28,14 @@
   <div id="stream"><div class="wrap" id="feed"></div></div>
   <footer>
     <div id="queue-box" hidden>
-      <div class="qhead"><span>待发指令（Enter 排队；⏭ 停止当前并插队）</span><span id="queue-count"></span><button class="btn ghost" id="queue-toggle" type="button">隐藏</button></div>
+      <div class="qhead"><span>待发指令（Enter 排队；行内 ⏭ 立即执行 / ↑ 上移 / × 删除）</span><span id="queue-count"></span><button class="btn ghost" id="queue-toggle" type="button">隐藏</button></div>
       <div id="queue-list"></div>
     </div>
     <div class="atts" id="atts" hidden></div>
     <div class="composer">
       <button id="attach" class="attach" title="附加图片或文本文件（最多 4 个，单个 ≤2MB）">📎</button>
       <textarea id="input" placeholder="输入消息，Enter 发送 / 排队（Shift+Enter 换行；Alt+Enter 插队；可直接粘贴图片）"></textarea>
-      <button id="interrupt" class="btn ghost" title="停止当前回合并优先执行新指令">⏭ 插队</button>
+      <!-- Q5：⏭ 插队键已移除（composer 恢复为纯「停止」）；拦截能力下放到待发队列行内，Alt+Enter 仍可插队 -->
       <button id="stop" hidden style="background: var(--card-2); color: var(--text);">停止</button>
       <button id="send">发送</button>
       <input type="file" id="file" multiple hidden

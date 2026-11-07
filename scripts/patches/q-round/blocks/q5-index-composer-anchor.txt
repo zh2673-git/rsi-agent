@@ -1,0 +1,2 @@
+      <button id="interrupt" class="btn ghost" title="停止当前回合并优先执行新指令">⏭ 插队</button>
+      <button id="stop" hidden style="background: var(--card-2); color: var(--text);">停止</button>

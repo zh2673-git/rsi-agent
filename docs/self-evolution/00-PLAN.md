@@ -248,4 +248,39 @@ Q 轮 Phase 1-3 已提交（c85e87c，34 条补丁）。收尾阶段补 4 条补
 - **验证矩阵**：`apply-q-round.py --dry-run` 45 条 0 FAIL / 0 DRY（全幂等稳态）· `node --check` 6 个 JS 全过 ·
   `pytest -q` 53 passed · `cargo check --workspace` 零错误零警告。
 
+### 6.6 Q5：插队交互归位（2026-11-06）
+
+用户裁决：「composer 的 `⏭ 插队` 恢复为原来的**停止**按钮；拦截能力下放到待发队列行内——
+每条给 `⏭ 立即执行` / `↑ 上移` / `× 删除`」。且明确 **⏭ = A**（打断当前任务立刻跑它），
+不点则轮到它才跑。
+
+- **致命前提（本轮真根因）**：`postChat` 把每条 `POST /api/queue` 后，服务端只回 `accepted`
+  不等执行，`drain` 随即出队 → 本地待发队列**毫秒级清空**，行内三按钮来不及点。
+  仅加按钮无效，必须让队列**本地驻留**：`drain` 改走 `postChatDirect`（Promise 覆盖整段执行，
+  跑完才出队），删除只做转手的 `postChat`。Q5-02 删除型补丁接住这一步。
+- **执行中那条的表示**：第 0 条 = 执行中（`st.draining && i === 0`），行加 `.qitem.running` 描边 +
+  「执行中」标签，三按钮 `disabled`；其余条才是真待发。`↑` 在 `i === 1` 且 draining 时禁用，
+  否则会把执行中的行顶成待发。
+- **插入位置**：`runQueueNow` / `interruptAndSend` 回退路径都改成 `splice(s.draining ? 1 : 0, 0, …)`
+  ——插到执行中那条**之后**，再 cancel + abort 让 drain 尽快轮到它（A 语义）。
+
+| # | 改动 | 说明 |
+|---|---|---|
+| Q5-01 | `drain` 改 `postChatDirect` + 队列驻留 | 行内按钮的操作窗口来源 |
+| Q5-02 | 删除 `postChat` | 转手即返回是队列清空的直接原因，已无引用 |
+| Q5-03 | `renderQueue` 执行中行不给按钮 | 含 `↑` 不能顶掉执行中那条的护栏 |
+| Q5-04/05 | `index.html` 撤 `#interrupt`、改 placeholder 与 qhead 文案 | composer 恢复纯「停止」 |
+| Q5-06 | `style.css` 清 `#interrupt` 孤儿样式，补执行中/禁用样式 | 无死样式残留 |
+| Q5-07 | `bindQueueUI` 解绑 `#interrupt` | 函数本体保留（契约测试要求），Alt+Enter 仍可用 |
+| Q5-08 | `runQueueNow` 插到执行中那条之后 | 适配驻留语义 |
+| Q5-10 | `interruptAndSend` 回退路径同样避开 index 0 | 否则 unshift 会把执行中行顶成待发 |
+
+- **补丁基线处理（本轮主要工程成本）**：Q5 合法改写了 7 条旧补丁产出的区域，会让它们在
+  `--dry-run` 中 FAIL/DRY，全量重放会重复插入（CSS 块、`runQueueNow` 定义）。按 P5b/O 轮先例
+  **退役**（终态内容均已在位，锚点只是被后继补丁拆散）：`Q1-01`、`Q1-02`、`Q3-12`、`Q3-13`、
+  `Q3-14`、`Q4-06`、`Q4-11` → `scripts/patches/retired/*.retired`。
+- **验证矩阵**：`apply-q-round.py --dry-run` 40 条 0 FAIL / 0 DRY · `node --check` q-session.js &
+  app-events.js 全过 · `pytest -q` **53 passed** · 终态核验：无 `#interrupt`、无 `postChat`、
+  `#interrupt` 孤儿 CSS 已清、`#stop` 在位、`drain` 走 `postChatDirect`·生效需重启 host。
+
 
