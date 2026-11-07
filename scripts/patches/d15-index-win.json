@@ -1,0 +1,7 @@
+{
+ "id": "D15-INDEX-WIN",
+ "description": "index.html：看板弹窗骨架（#board-win / 标签栏 / 内容根 / 底栏）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/d-index-win-anchor.txt",
+ "patch_file": "blocks/d-index-win.txt"
+}

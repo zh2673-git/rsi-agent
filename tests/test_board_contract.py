@@ -60,26 +60,44 @@ class PatchSetTest(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)), "补丁 id 必须全局唯一")
 
     def test_b_round_patches_present(self):
-        """B/FE 两轮补丁在位（被误删时立刻可见）。
+        """B/FE/C/D 四轮补丁在位（被误删时立刻可见）。
 
-        C 轮退役：`B5`（chat.rs 透传）与 `FE1`（index.html 会话列表→看板分区）的区域被
-        `C-CTX-CHAT` 与 `FE8-SIDEBAR` 合法改写（B 轮那条塞在 skills_appendix 调用同一行、
-        FE1 的整块 sidebar 被布局容器取代），按 P5b/O 轮先例转 `retired/` 留档，终态内容
-        由 C 轮补丁承接——退役不等于功能消失，故这里改查 retired 目录。
+        退役口径（P5b 先例，逐轮累积）：区域被后继补丁合法改写、**终态内容仍在位**时，
+        补丁转 `retired/` 留档——退役不等于功能消失。故这里查「活跃 ∪ retired」并集，
+        另单独断言「退役的那批确实有留档」，防止有人删了补丁又删了留档。
+        C 轮退役：`B5`、`FE1`（区域被 `C-CTX-CHAT` / `FE8-SIDEBAR` 改写）。
+        D 轮退役：`B2`/`B3`/`C5-LAYOUT-OP`（board.rs 与 web 路由被 D6/D11/D13 拆散）、
+        `C-CTX-MOD`/`C-CTX-CHAT`（chat.rs/lib.rs 被 D3/D5 改写）、`FE2`/`FE7-BOARD`
+        （index.html 与 app-board.js 被 D9/D14/D16 改写）。
         """
         ids = {json.loads(f.read_text(encoding="utf-8"))["id"] for f in PDIR.glob("*.json")}
-        for pid in ("B1", "B2", "B3", "B4a", "B4b", "B4c", "B6", "B7",
-                    "FE2", "FE3", "FE4", "FE5", "FE6"):
-            self.assertIn(pid, ids, f"补丁 {pid} 缺失")
-        retired = {f.name for f in (PDIR / "retired").glob("*.retired")}
-        for fname in ("b5-chat-want-plan.json.retired", "fe1-index-sidebar.json.retired"):
-            self.assertIn(fname, retired, f"退役补丁需留档: {fname}")
-        # C 轮新增补丁在位
-        for pid in ("C-CTX-MODULE", "C-CTX-MOD", "C-CTX-CHAT", "C-CTX-SKILLS", "C-TESTS",
-                    "C1-BOARD-FNS", "C2-LOAD-LAYOUT", "C3-GET-HEAD", "C4-GET-BODY",
-                    "C5-LAYOUT-OP", "C6-OP-DOC", "C8-BOARD-TESTS",
-                    "C-STYLE", "FE7-BOARD", "FE8-SIDEBAR"):
-            self.assertIn(pid, ids, f"C 轮补丁 {pid} 缺失")
+        retired_names = {f.name for f in (PDIR / "retired").glob("*.retired")}
+        retired_ids = set()
+        for f in (PDIR / "retired").glob("*.retired"):
+            try:
+                retired_ids.add(json.loads(f.read_text(encoding="utf-8"))["id"])
+            except (ValueError, KeyError):
+                continue
+        every = ids | retired_ids
+        for pid in ("B1", "B4a", "B4b", "B4c", "B6", "B7", "FE3", "FE4", "FE5", "FE6",
+                    "C-CTX-MODULE", "C-CTX-SKILLS", "C-TESTS", "C1-BOARD-FNS", "C2-LOAD-LAYOUT",
+                    "C3-GET-HEAD", "C4-GET-BODY", "C6-OP-DOC", "C8-BOARD-TESTS", "C-STYLE",
+                    "FE8-SIDEBAR"):
+            self.assertIn(pid, every, f"补丁 {pid} 缺失（活跃或 retired 都应有）")
+        for fname in ("b5-chat-want-plan.json.retired", "fe1-index-sidebar.json.retired",
+                      "b2-api-mod-export.json.retired", "b3-web-board-routes.json.retired",
+                      "c5-layout-op.json.retired", "c-ctx-mod.json.retired",
+                      "c-ctx-chat.json.retired", "fe2-index-header.json.retired",
+                      "fe7-board.json.retired"):
+            self.assertIn(fname, retired_names, f"退役补丁需留档: {fname}")
+        # D 轮新增补丁在位（活跃）
+        for pid in ("D1-PROFILE-MODULE", "D2-PROFILE-MOD", "D3-CHAT-PROFILE", "D4-SKILLS-PROFILE",
+                    "D5-USER-REFS", "D6-BOARD-INSP-OPS", "D7-INSP-EDIT-FNS", "D8-INSP-ROW-ED",
+                    "D9-BOARD-WIN", "D10-REFRESH-WIN", "D11-BOARD-LINK", "D12-BOARD-LINK-EXPORT",
+                    "D13-BOARD-LINK-ROUTE", "D14-INDEX-HEAD", "D15-INDEX-WIN", "D16-INDEX-SCRIPTS",
+                    "D17-STYLE-WIN", "D18-QUEUE-EDIT", "D19-ROLLBACK-DRAFT", "D20-INDEX-QHEAD",
+                    "D21-BOARD-DECOMPOSE", "D22-SKILLS-DECOMPOSE"):
+            self.assertIn(pid, ids, f"D 轮补丁 {pid} 缺失")
 
 
 class SingleSessionUITest(unittest.TestCase):

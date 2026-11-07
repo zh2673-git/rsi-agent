@@ -1,0 +1,285 @@
+refreshBoard();
+boardTimer = setInterval(boardTick, 20000);
+
+// D 轮：弹窗初始化放在这里而不是文件顶部——`initBoardWin` 会读 localStorage 并按需
+// 立刻 open（open 会调 refreshBoard），必须等全部函数声明与常量就位后再绑。
+initBoardWin();
+
+// ── D 轮：看板弹窗（"任务看板是一个标签，点进去是活的界面"）───────────────
+// 设计取舍（对齐 I-20261107-03）：
+// 1. **同源不同壳**：弹窗复用侧栏同一份 `layout.sections` 与同一批数据——不是第二套
+//    看板实现。侧栏是「一眼看进度」的窄栏，弹窗是「能摊开细看」的宽面：同一个任务
+//    在侧栏只有一行摘要，在弹窗里展开完整的人财物 / 计划 / 验收 / 检查 / 产物。
+// 2. **一个弹窗分标签**：按 kind 出标签（任务 / 指标 / 灵感），任务标签内再按 layout
+//    的 group_by 分组。多开窗要额外处理 z-order 与状态同步，收益不抵成本。
+// 3. **活的**：跟随既有 boardTimer 轮询；打开弹窗只多一次 GET，之后共用同一份数据。
+// 4. **可关可记**：Esc / ✕ / 点遮罩关闭；开着状态存 localStorage，刷新页面还记得。
+const BOARDWIN_KEY = "ra.boardwin";
+
+function boardWinEl() { return $("board-win"); }
+function boardWinOpen() { const w = boardWinEl(); return !!w && !w.hidden; }
+
+// 弹窗任务卡：**默认展开**详情（与侧栏相反——侧栏省空间要折叠，弹窗就是要看细节）。
+function winTaskCard(t) {
+  const card = el("div", `bw-card st-${boardEsc(t.status)}`);
+  const done = Number(t.progress?.done ?? 0), total = Number(t.progress?.total ?? 0);
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const res = t.resourcing ?? {};
+  const skillTags = (res.skills ?? []).map((s) => `<span class="bw-skill">${boardEsc(s)}</span>`).join("");
+  const toolTags = (res.tools ?? []).map((s) => `<span class="bw-skill tool">${boardEsc(s)}</span>`).join("");
+  const verdict = t.evaluation?.verdict ?? "none";
+
+  const head = el("div", "bw-head");
+  head.innerHTML =
+    `<span class="tprio p-${boardEsc(t.priority ?? "P2")}">${boardEsc(t.priority ?? "P2")}</span>` +
+    `<span class="bw-title">${boardEsc(t.title)}</span>` +
+    `<span class="bw-st st-${boardEsc(t.status)}">${boardEsc(BOARD_LABEL[t.status] ?? t.status)}</span>` +
+    `<span class="tverdict v-${boardEsc(verdict)}">${boardEsc(VERDICT_LABEL[verdict] ?? verdict)}</span>` +
+    `<button class="bw-ref" title="在输入框引用这个任务（@T）">@ 引用</button>` +
+    `<button class="bw-link" title="查哪几轮对话提过它（读 trace 的 refs 字段）">⌕ 对话</button>`;
+  card.appendChild(head);
+
+  if (t.goal) {
+    const g = el("p", "bw-goal");
+    g.textContent = t.goal;
+    card.appendChild(g);
+  }
+  if (total > 0) {
+    const bar = el("div", "bw-bar");
+    bar.innerHTML = `<i style="width:${pct}%"></i><span>${done}/${total}（${pct}%）</span>`;
+    card.appendChild(bar);
+  }
+
+  // 人财物：模型 / 力度 / 部门（技能）/ 工具 / 预算
+  const resRow = el("div", "bw-res");
+  resRow.innerHTML =
+    `<span class="bw-k">模型</span><span>${boardEsc(res.model ?? "current")}</span>` +
+    `<span class="bw-k">力度</span><span>${boardEsc({ small: "轻", medium: "中", large: "重" }[res.effort] ?? res.effort ?? "medium")}</span>` +
+    (skillTags ? `<span class="bw-k">部门</span><span>${skillTags}</span>` : "") +
+    (toolTags ? `<span class="bw-k">工具</span><span>${toolTags}</span>` : "") +
+    (Number(res.budget_secs) > 0 ? `<span class="bw-k">预算</span><span>${Number(res.budget_secs)}s</span>` : "");
+  card.appendChild(resRow);
+
+  // 计划（含 D 轮 owner：self / subagent / skill —— 谁执行这一步是决策记录）
+  const plan = t.plan ?? [];
+  if (plan.length) {
+    const sec = el("div", "bw-sec");
+    const ownerLabel = { self: "本体", subagent: "子代理", skill: "现造技能" };
+    sec.innerHTML = `<b>计划</b><ul class="dplan">` + plan.map((s) =>
+      `<li><span class="pdot ${boardEsc(s.status)}"></span>${boardEsc(s.step)}` +
+      (s.owner && s.owner !== "self"
+        ? `<span class="bw-owner o-${boardEsc(s.owner)}">${boardEsc(ownerLabel[s.owner] ?? s.owner)}</span>` : "") +
+      `</li>`).join("") + `</ul>`;
+    card.appendChild(sec);
+  }
+
+  // 分解：子任务一眼可见（parent 只一层，够用且不引入第二套层级系统）
+  const kids = (boardData?.board?.tasks ?? []).filter((x) => x.parent === t.id);
+  if (kids.length) {
+    const sec = el("div", "bw-sec");
+    sec.innerHTML = `<b>拆成 ${kids.length} 件</b><div class="bw-kids">` + kids.map((k) =>
+      `<span class="bw-kid st-${boardEsc(k.status)}">${boardEsc(k.title)}` +
+      `<i>${boardEsc(BOARD_LABEL[k.status] ?? k.status)}</i></span>`).join("") + `</div>`;
+    card.appendChild(sec);
+  }
+
+  const acc = t.acceptance ?? [];
+  if (acc.length) {
+    const sec = el("div", "bw-sec");
+    sec.innerHTML = `<b>验收标准</b><ul class="dacc">` + acc.map((a) => `<li>${boardEsc(a)}</li>`).join("") + `</ul>`;
+    card.appendChild(sec);
+  }
+  const checks = t.checks ?? [];
+  if (checks.length) {
+    const ev = t.evaluation ?? {};
+    const sec = el("div", "bw-sec");
+    sec.innerHTML = `<b>可执行检查</b><ul class="dchecks">` + checks.map(checkLine).join("") + `</ul>` +
+      `<p class="dverdict v-${boardEsc(ev.verdict ?? "none")}">结论 ${boardEsc(VERDICT_LABEL[ev.verdict] ?? ev.verdict ?? "未跑")}` +
+      (ev.pass || ev.fail || ev.skip ? ` · pass ${Number(ev.pass)} / fail ${Number(ev.fail)} / skip ${Number(ev.skip)}` : "") +
+      (ev.ran_at ? ` · ${boardEsc(ev.ran_at)}` : "") + `</p>`;
+    card.appendChild(sec);
+  }
+
+  // 产物 / 来源灵感 / 上级 / 对话关联（点 ⌕ 现查，不预加载——查一个任务才发一次请求）
+  const meta = el("div", "bw-sec bw-meta");
+  const arts = t.artifacts ?? [];
+  let metaHtml = "";
+  if (arts.length) {
+    metaHtml += `<div><b>产物</b> ` + arts.map((a) =>
+      `<a href="/files/${encodeURI(a)}" target="_blank" rel="noopener">${boardEsc(a.split("/").pop())}</a>`).join(" · ") + `</div>`;
+  }
+  const insps = t.inspirations ?? [];
+  if (insps.length) {
+    metaHtml += `<div><b>来源灵感</b> ` + insps.map((i) => `<span class="bw-insp">${boardEsc(i)}</span>`).join(" · ") + `</div>`;
+  }
+  if (t.parent) {
+    metaHtml += `<div><b>上级</b> <span class="bw-insp">${boardEsc(t.parent)}</span></div>`;
+  }
+  metaHtml += `<div class="bw-links" hidden></div><div class="bw-foot"><span class="did">${boardEsc(t.id)}</span></div>`;
+  meta.innerHTML = metaHtml;
+  card.appendChild(meta);
+
+  head.querySelector(".bw-ref").onclick = () => { mentionRef(t.id); closeBoardWin(); };
+  head.querySelector(".bw-link").onclick = async (e) => {
+    const box = meta.querySelector(".bw-links");
+    e.target.disabled = true;
+    try {
+      const v = await boardReq("GET", `/api/board/link?id=${encodeURIComponent(t.id)}`);
+      const turns = v.turns ?? [];
+      box.hidden = false;
+      box.innerHTML = turns.length
+        ? `<b>提到它的对话</b> ` + turns.map((x) =>
+            `<span class="bw-turn" title="${boardEsc(x.text)}">第 ${Number(x.user_index) + 1} 轮</span>`).join(" ")
+        : `<span class="empty-inline">没有对话引用过它（在消息里写 @${boardEsc(t.id)} 即建立关联）</span>`;
+    } catch (err) {
+      box.hidden = false;
+      box.innerHTML = `<span class="empty-inline">查询失败: ${boardEsc(err.message)}</span>`;
+    } finally {
+      e.target.disabled = false;
+    }
+  };
+  return card;
+}
+
+function renderWinTasks(sec, root) {
+  const body = el("div", "bw-body");
+  const all = boardData?.board?.tasks ?? [];
+  if (!all.length) {
+    body.appendChild(el("div", "empty", "还没有任务。把一件成规模的事交代下来，agent 会把它登记到这里。"));
+    root.appendChild(body);
+    return;
+  }
+  const groupBy = sec.group_by ?? "status";
+  const grouped = groupTasks(all.filter((t) => taskVisible(t, sec.filter)), groupBy);
+  const limit = Number(sec.limit ?? 30);
+  let shown = 0;
+  for (const [g, arr] of grouped) {
+    if (shown >= limit) break;
+    const label = groupBy === "status" ? (BOARD_LABEL[g] ?? g) : g;
+    const head = el("div", "bw-group");
+    head.innerHTML = `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
+      `<span class="tcnt">${arr.length}</span>`;
+    body.appendChild(head);
+    for (const t of arr) {
+      if (shown >= limit) break;
+      body.appendChild(winTaskCard(t));
+      shown += 1;
+    }
+  }
+  if (all.length > shown) {
+    body.appendChild(el("div", "empty", `…还有 ${all.length - shown} 个任务（调高该章节的 limit 可全部显示）`));
+  }
+  root.appendChild(body);
+}
+
+function renderWinMetrics(sec, root) {
+  const body = el("div", "bw-body metrics");
+  const tasks = boardData?.board?.tasks ?? [];
+  if (!tasks.length) {
+    body.appendChild(el("div", "empty", "还没有任务，指标暂无意义。"));
+    root.appendChild(body);
+    return;
+  }
+  const wanted = new Set(sec.metrics ?? []);
+  for (const tile of metricTiles(tasks).filter((t) => !wanted.size || wanted.has(t.id))) {
+    const row = el("div", "metric wide");
+    row.innerHTML = `<span class="mlabel">${boardEsc(tile.label)}</span>` +
+      `<span class="mvalue">${boardEsc(tile.value)}</span>` +
+      `<span class="mhint">${boardEsc(tile.hint)}</span>`;
+    body.appendChild(row);
+  }
+  // 指标之外补一屏「按状态的活」——弹窗有地方，侧栏没有。
+  const bs = boardData?.summary?.tasks?.by_status ?? {};
+  const line = el("p", "bw-statline");
+  line.textContent = BOARD_ORDER.map((s) => `${BOARD_LABEL[s]} ${Number(bs[s] ?? 0)}`).join(" · ");
+  body.appendChild(line);
+  root.appendChild(body);
+}
+
+function renderWinInsp(sec, root) {
+  const body = el("div", "bw-body");
+  const items = boardData?.board?.inspirations ?? [];
+  if (!items.length) {
+    body.appendChild(el("div", "empty", "把零碎想法记在侧栏，需要时在对话里 @ 引入。"));
+    root.appendChild(body);
+    return;
+  }
+  for (const it of items) {
+    const row = el("div", `bw-insp-row st-${boardEsc(it.status)}`);
+    row.innerHTML =
+      `<span class="itext">${boardEsc(it.text)}</span>` +
+      `<span class="bw-insp-meta">${(it.tags ?? []).map((x) => `<span class="itag">${boardEsc(x)}</span>`).join("")}` +
+      `<span class="ist">${boardEsc(INSP_LABEL[it.status] ?? it.status)}</span></span>` +
+      `<span class="bw-insp-act">` +
+      `<button class="bw-i-edit" title="改正文">✎</button>` +
+      `<button class="bw-i-rm" title="删除">🗑</button>` +
+      `<button class="bw-i-ref" title="在输入框引用（@I）">@</button>` +
+      `</span>`;
+    row.querySelector(".bw-i-ref").onclick = () => { mentionRef(it.id); closeBoardWin(); };
+    row.querySelector(".bw-i-edit").onclick = () => editInspiration(it, row);
+    row.querySelector(".bw-i-rm").onclick = () => removeInspiration(it, row);
+    body.appendChild(row);
+  }
+  root.appendChild(body);
+}
+
+function renderBoardWin() {
+  const win = boardWinEl();
+  if (!win || win.hidden) return;
+  const secs = boardSections();
+  const tabs = $("bw-tabs"), root = $("bw-root");
+  if (!tabs || !root) return;
+  if (!secs.length) {
+    tabs.innerHTML = "";
+    root.innerHTML = `<div class="empty">看板布局为空（layout.sections 无合法章节）</div>`;
+    return;
+  }
+  // 当前选中标签：记住 kind 而不是 id——改布局删掉某章节后仍能落到同类上。
+  const cur = win.dataset.kind || secs[0].kind;
+  const active = secs.some((s) => s.kind === cur) ? cur : secs[0].kind;
+  win.dataset.kind = active;
+  tabs.innerHTML = "";
+  for (const s of secs) {
+    const b = el("button", s.kind === active ? "on" : "");
+    b.textContent = s.title || KIND_LABEL[s.kind] || s.id;
+    b.onclick = () => { win.dataset.kind = s.kind; renderBoardWin(); };
+    tabs.appendChild(b);
+  }
+  root.innerHTML = "";
+  const sec = secs.find((s) => s.kind === active);
+  const renderers = { tasks: renderWinTasks, metrics: renderWinMetrics, inspirations: renderWinInsp };
+  const fn = renderers[sec.kind];
+  if (fn) fn(sec, root);
+}
+
+function openBoardWin() {
+  const win = boardWinEl();
+  if (!win) return;
+  win.hidden = false;
+  try { localStorage.setItem(BOARDWIN_KEY, "1"); } catch { /* 隐私模式：忽略 */ }
+  renderBoardWin();
+  refreshBoard();  // 打开即拉一次，不等下个轮询周期
+}
+
+function closeBoardWin() {
+  const win = boardWinEl();
+  if (!win) return;
+  win.hidden = true;
+  try { localStorage.setItem(BOARDWIN_KEY, "0"); } catch { /* 隐私模式：忽略 */ }
+}
+
+function initBoardWin() {
+  const win = boardWinEl();
+  if (!win) return;
+  const close = $("bw-close");
+  if (close) close.onclick = closeBoardWin;
+  win.addEventListener("click", (e) => { if (e.target === win) closeBoardWin(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && boardWinOpen()) closeBoardWin();
+  });
+  const btn = $("btn-board");
+  if (btn) btn.onclick = openBoardWin;
+  let wantOpen = false;
+  try { wantOpen = localStorage.getItem(BOARDWIN_KEY) === "1"; } catch { /* 隐私模式 */ }
+  if (wantOpen) openBoardWin();
+}

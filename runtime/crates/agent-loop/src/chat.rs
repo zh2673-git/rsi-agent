@@ -293,6 +293,15 @@ impl AgentLoopPlugin {
             if let Some(att) = req.attachments.as_deref() {
                 user_event["attachments"] = json!(att);
             }
+            // D 轮：把本轮的 @引用 落成 user 事件的**字段**（不是新事件类型）。
+            // 为什么：任务详情要能回答「这件事是在哪几轮对话里谈的」，「这一轮谈了什么任务」
+            // 就是那条 user 事件。而 @引用已经由用户明文写出，是天然的关联键——不需要
+            // 让模型再显式登记一次（它忘了就会断链）。空引用不写字段，保持旧 trace 形状。
+            // 与 Q 轮 cursor 同一先例：加字段不改 FROZEN_EVENT_TYPES，前端 render() 无需改。
+            let refs = super::board_ctx::extract_refs(&req.user_text);
+            if !refs.is_empty() {
+                user_event["refs"] = json!(refs);
+            }
             self.trace(env, &req.session_id, user_event).await;
         }
 
@@ -305,11 +314,16 @@ impl AgentLoopPlugin {
         // 退化为在办任务摘要（跨任务归纳的最小落点：先知道自己手上有哪些活）。
         // 失败静默（文件缺失/坏 JSON → 空串），绝不让看板坏掉拖垮 chat。
         let board_ctx = super::board_ctx::refs_context(&req.user_text, want_task_plan);
+        // D 轮：习惯画像。与看板引用同一取舍——画像属于**输入**，不该让模型每轮
+        // 花一次工具往返去 `profile.py brief` 取自己的长期记忆；读一份本机 JSON 是纯 I/O。
+        // 失败静默（无文件/坏 JSON/空画像 → 空串），画像坏了不能拖垮 chat。
+        let profile_ctx = super::profile_ctx::profile_context();
         let system = format!(
-            "{}{}{}",
+            "{}{}{}{}",
             self.resolve_system_prompt(env, &cfg).await,
             self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await,
-            board_ctx
+            board_ctx,
+            profile_ctx
         );
         let mut messages: Vec<MemoryMsg> = vec![MemoryMsg {
             role: "system".into(),

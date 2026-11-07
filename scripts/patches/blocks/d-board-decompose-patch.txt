@@ -1,0 +1,56 @@
+    workspace_root()
+        .map(|ws| ws.join("scripts").join("board.py").is_file())
+        .unwrap_or(false)
+}
+
+/// D 轮：任务分解与委派纪律（I-20261107-01 的落点）。
+///
+/// 用户原话：「具体计划怎么执行，需要哪些部门哪些人，是否需要进一步的进行细分。
+/// 这些 agent 需要自行在计划中写清楚，全盘考虑，是否需要调用子代理等。考虑好任务的
+/// 复杂度。」
+///
+/// 为什么做成 plan 步上的 `owner` 字段而不是一段「请考虑复杂度」的软提示：
+/// 软提示的产物是模型的自述（"这个任务比较复杂，我会分解"），无法核对；字段化之后
+/// 每一步都必须回答「谁干」，验收时能数出来（几步委派、几步要现造技能）。
+///
+/// 三种 owner 的判据（写进提示词，避免模型凭感觉选）：
+/// - `self`：需要本轮上下文才能做的步（改刚读过的那个函数、按上一次输出继续）；
+/// - `subagent`：可自包含且**产物是结论而非改动**的步（大范围调研、跨文件阅读后总结、
+///   多方案对比）——把它们的原文阅读留在子会话里，主上下文只收结论；
+/// - `skill`：仓库里没有现成能力、要现造技能/工具才能做的步（这是「物力自造」的
+///   入口：先写 SKILL.md 或 tools.json，再按 plan 走）。
+///
+/// 什么时候**才**该把一件事拆成多个任务（parent）：拆开的价值是「各自可独立验收」，
+/// 若子件验收条件与父任务相同，拆了只是把进度条切成两段——那种情况就别拆。
+pub(super) fn decompose_hint() -> String {
+    if !has_board_cli() {
+        return String::new();
+    }
+    String::from(
+        "\n### Decomposition & delegation (`plan[].owner`, `parent`)\n\
+         Each plan step records **who executes it** — this is how \"how complex is this, do I need \
+         a sub-agent\" becomes checkable instead of self-reported:\n\
+         - `owner: \"self\"` — needs this turn's context (edit the function you just read, continue \
+         from the last output).\n\
+         - `owner: \"subagent\"` — self-contained, and the deliverable is a *conclusion*, not an edit: \
+         broad research, reading many files to summarise, comparing options. The raw reading stays \
+         in the sub-session; this context only receives the answer.\n\
+         - `owner: \"skill\"` — no existing capability in this workspace: author a skill/tool first \
+         (skills self-extension), then run the step.\n\
+         Default is `self` when omitted; do not mark everything `subagent` — delegation costs a \
+         fresh context that knows nothing about this conversation.\n\
+         \n\
+         Split a request into child tasks (each with its own `parent: \"T-...\"`) **only when the \
+         children are independently verifiable**. If a child's acceptance criteria are the same as \
+         the parent's, splitting just cuts the progress bar in two — don't.\n\
+         ```json\n\
+         \"plan\": [\n\
+           {\"step\": \"读现有看板实现，定位写通道\", \"status\": \"in_progress\", \"owner\": \"self\"},\n\
+           {\"step\": \"调研同类工具怎么表达『人财物』\", \"owner\": \"subagent\"},\n\
+           {\"step\": \"现造一个导出 CSV 的工具\", \"owner\": \"skill\"}\n\
+         ]\n\
+         ```\n\
+         Sub-tasks: `task-upsert` with `\"parent\": \"T-...\"`; deleting a parent never deletes \
+         children — `board.py task-rm` detaches them (`parent` cleared).\n",
+    )
+}

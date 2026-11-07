@@ -1,6 +1,6 @@
 ---
 name: rsi-board
-description: 任务看板与灵感看板的写作规范：何时建任务、怎么写人财物（模型/力度/技能/工具）、怎么写验收、状态怎么迁移、@引用怎么解析。Invoke when 用户交代一件成规模的事（多步交付/改造/调研）要先立计划再动手，或消息里出现 @T-xxx / @I-xxx 引用，或用户问「任务看板/灵感/进度」怎么用。
+description: 任务看板与灵感看板的写作规范：何时建任务、怎么写人财物（模型/力度/技能/工具）、每步谁干（owner）、怎么写验收、状态怎么迁移、@引用怎么解析、任务↔对话怎么反查、习惯画像记什么。Invoke when 用户交代一件成规模的事（多步交付/改造/调研）要先立计划再动手，或消息里出现 @T-xxx / @I-xxx 引用，或用户问「任务看板/灵感/进度/习惯」怎么用。
 origin: user
 ---
 
@@ -25,9 +25,17 @@ origin: user
 | 问 | 落到字段 | 写法要求 |
 |---|---|---|
 | 这事怎么做？ | `goal` + `plan[]` | goal 一句话；plan 3-8 步，每步可判定完成。**写不出 plan = 还没想清，别开工**。 |
+| 每步谁干？（复杂度判断） | `plan[].owner` | `self`（要本轮上下文的活）/`subagent`（可自包含、产物是**结论**而非改动）/`skill`（没有现成能力，要先造技能/工具）。缺省 `self`——**不写 ≠ 委派**。 |
 | 成立什么部门/角色？ | `resourcing.skills[]` | 用**已有**技能名（先看技能目录）。没有合适的技能，正是「值得造技能」的信号（走 creat-skill）。 |
 | 用多少人/多强的模型？ | `resourcing.model` + `effort` | `current`（留在此模型）/`cheap`（机械、量大、不需判断）/`strong`（架构、评审、归因）。effort = small/medium/large。 |
 | 要什么物力（工具）？ | `resourcing.tools[]` | 核心步骤所需的工具（bash/write_file/grep/image_gen…）。核心步骤没有工具 = 不可执行，如实说，不要伪造。 |
+| 要不要拆成几件？ | `parent` | 只有**子件能各自独立验收**时才拆。子件验收条件与父任务相同 → 拆了只是把进度条切两段，别拆。 |
+
+`owner` 是**决策记录**，不是调度指令：写下 `subagent` 不会自动派发，你得真的调 `task`。
+但它让「这一步该不该委派」变成可核对的东西——收工时能数出来几步交出去了。
+
+**委派的真实代价**：子代理是全新上下文，不知道这次对话发生过什么。所以「需要本轮上下文
+才能做的步」一律 `self`；把整件事都标 `subagent` 只会得到一堆重新摸索的答案。
 
 外加**好坏标准**（两层，缺一层就是自述）：
 
@@ -68,7 +76,11 @@ python scripts/board.py check-add T-20261107-01 --file c.json   # 追加一条�
 python scripts/board.py eval T-20261107-01 [--only c1,c2]        # 跑检查写结论
 python scripts/board.py digest --skill project-dev --brief        # 同类任务归纳
 python scripts/board.py resolve "接着 @T-20261107-01"             # 引用解析成上下文块
+python scripts/board.py link T-20261107-01                        # 哪几轮对话提过它
 python scripts/board.py layout [--file layout.json]               # 读/写左栏章节
+python scripts/board.py insp-edit I-... --text "改后的原话" [--tags a,b]   # 改灵感
+python scripts/board.py insp-rm I-... [--force]                   # 删灵感（已采纳需 --force）
+python scripts/board.py task-rm T-... [--force]                   # 删任务（子任务摘 parent）
 ```
 
 `task-upsert` 的 JSON（省略 `id` 即新建）：
@@ -122,6 +134,24 @@ system prompt 的「Board references」段。**不要再去 `board.py show` 一�
   `metrics`（验收指标：未跑/通过/不通过）、`inspirations`。顺序由 kind 钉死
   （任务→指标→灵感），**没有自由排布**。要加/改章节用 `board.py layout --file`。
 
+## 6.5 习惯画像（D 轮新增）——与看板的分工
+
+看板记「这件事的人财物与进度」，画像记「**跨事的规律**」。两者都落 `.rsi/`，谁也别越界。
+
+```bash
+python scripts/profile.py brief                     # 有界摘要（每轮已自动注入，不必手动读）
+python scripts/profile.py section-add --file s.json # 写/覆盖一个章节（同 id 覆盖）
+python scripts/profile.py note --file n.json        # 追加一条观察（满 60 丢最旧）
+python scripts/profile.py section-rm <id>; python scripts/profile.py note-rm <N-...>
+```
+
+**写什么**：能活过本次对话的结论——用户明说的偏好、反复纠正的点、某个模型在哪类活上
+反复失败、本工作区的既有约定与踩过的坑。
+
+**不写什么**：本轮琐事（"用户问了好"）、密钥/令牌、看板已经记的东西（任务/进度/验收
+归看板）、聊天原文（trace 有全量）。**观察是素材，章节是结论**——同一个主题反复出现时，
+把它从 notes 提炼成 section，而不是继续加 note。
+
 ## 7. 边界（与其它层的分工）
 
 - 看板是**人读的管理视图**，不是执行日志：trace 记过程，账本记证据，看板记「人财物 + 进度」。
@@ -132,6 +162,7 @@ system prompt 的「Board references」段。**不要再去 `board.py show` 一�
 ## 验收
 
 - [ ] 建任务时四问都答了（plan/resourcing/acceptance 非空），且 plan 步可判定；
+- [ ] plan 里有需要「不需要本轮上下文、产物是结论」的步时，标了 `owner: subagent`；
 - [ ] 有可跑标准时写了 `checks`，收尾前跑过 `eval` 且 `verdict=pass`；
 - [ ] 状态只在四个时刻迁移，`blocked` 带 note；
 - [ ] `verifying`/`done` 有 acceptance 或有明确理由为空；

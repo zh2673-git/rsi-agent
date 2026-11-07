@@ -1,0 +1,4 @@
+    workspace_root()
+        .map(|ws| ws.join("scripts").join("board.py").is_file())
+        .unwrap_or(false)
+}

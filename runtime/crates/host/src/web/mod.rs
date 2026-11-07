@@ -315,6 +315,8 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         // GET 返回整块板 + 汇总；POST 只承接 UI 侧写（灵感增/改、补字段），任务写走 scripts/board.py。
         ("GET", "/api/board") => api::get_board(&mut stream).await,
         ("POST", "/api/board") => api::post_board(&mut stream, &body).await,
+        // D 轮：任务/灵感 ↔ 对话轮次反查（读 trace 的 refs 字段，只读、与 board.py link 同口径）。
+        ("GET", "/api/board/link") => api::get_board_link(&mut stream, query).await,
         ("GET", "/api/config") => api::get_config(&mut stream, &kernel).await,
         ("GET", "/api/models") => api::get_models(&mut stream, &kernel, query).await,
         ("GET", "/api/presets") => api::get_presets(&mut stream, &kernel).await,

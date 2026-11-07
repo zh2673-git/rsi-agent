@@ -1,0 +1,7 @@
+{
+ "id": "D4-SKILLS-PROFILE",
+ "description": "skills.rs 提示词追加画像通道段（独立成段，锚点稳、可独立回退）",
+ "file": "runtime/crates/agent-loop/src/skills.rs",
+ "anchor_file": "blocks/d-skills-profile-anchor.txt",
+ "patch_file": "blocks/d-skills-profile.txt"
+}

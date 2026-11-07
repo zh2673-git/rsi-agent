@@ -1,0 +1,18 @@
+  // 兜底：布局里若漏了任务或灵感章节，补一个可见提示（不静默少一块）
+  const kinds = new Set(secs.map((s) => s.kind));
+  for (const k of ["tasks", "inspirations"]) {
+    if (!kinds.has(k)) {
+      root.appendChild(el("div", "empty", `布局未包含 ${KIND_LABEL[k]} 章节（\`board.py layout --file\` 可调整）`));
+    }
+  }
+  // D 轮：弹窗与侧栏共用同一份 boardData / layout——一次 GET 喂两处，不额外请求。
+  renderBoardWin();
+  const foot = $("board-win-foot");
+  if (foot) {
+    const sum = boardData?.summary?.tasks;
+    const bs = sum?.by_status ?? {};
+    foot.textContent = `共 ${sum?.total ?? 0} 个任务 · 未完成 ${
+      (bs.planning ?? 0) + (bs.doing ?? 0) + (bs.verifying ?? 0)} · 验收通过 ${
+      sum?.by_verdict?.pass ?? 0}`;
+  }
+}

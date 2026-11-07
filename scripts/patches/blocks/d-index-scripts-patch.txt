@@ -1,0 +1,9 @@
+<!-- D 轮修正：五个模块各被引入过两次（历史补丁叠加所致）。defer 会按文档序执行两次，
+     顶层 const/let（runState / $ / feed / …）重复声明直接 SyntaxError → 整个前端白屏。 -->
+<script src="/vendor/q-session.js" defer></script>
+<script src="/vendor/app-core.js" defer></script>
+<script src="/vendor/app-stream.js" defer></script>
+<script src="/vendor/app-files.js" defer></script>
+<script src="/vendor/app-settings.js" defer></script>
+<script src="/vendor/app-events.js" defer></script>
+<script src="/vendor/app-board.js" defer></script>

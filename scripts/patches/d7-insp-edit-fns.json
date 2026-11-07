@@ -1,0 +1,7 @@
+{
+ "id": "D7-INSP-EDIT-FNS",
+ "description": "app-board.js：新增 editInspiration / removeInspiration（就地改 + 行内两步删除，不做乐观更新）",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "anchor_file": "blocks/d-app-board-insp-ed-anchor.txt",
+ "patch_file": "blocks/d-app-board-insp-ed-full.txt"
+}

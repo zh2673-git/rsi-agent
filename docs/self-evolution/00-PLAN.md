@@ -389,3 +389,38 @@ SSE 事件类型、`rollback`、`memory` 视图、`queue`；新增依赖 0。**�
 
 **仍未做（下一轮候选）**：`resourcing.model` 真正影响调度（需处理同会话换模型的上下文/缓存语义）；
 「物力自造」（按 plan 现造技能/工具 + 灰跑验收）；`metrics` 历史趋势（需按天快照，属数据层扩张）。
+
+## 9. D 轮（2026-11-08）：五条构想的完整落地
+
+> 来源：用户五条灵感 `I-20261107-01` … `05`，采纳进 `T-20261108-02`，要求「完整梳理落实，
+> 形成方案并完整执行，过程中不需要再问」。
+> 完整方案与迭代记录：**`docs/self-evolution/03-五条构想落地.md`**（含五条原话对照、
+> 时空契约、逐条设计、四个坑的过程留档）。
+
+| # | 目标与动作 | P（产物） | Q（质量门） | I（影响） | 状态 |
+|---|---|---|---|---|---|
+| D1 | **可编辑与删除**（I-02）：灵感 `insp-edit`/`insp-rm`（已采纳需 --force）、任务 `task-rm`（子任务摘 parent、灵感引用清空）、队列行 `✎` 编辑 / `⧉` 复制、回滚草稿保留 | `board.py`、`board.rs`（`inspiration.edit`/`.rm`）、`app-board.js`、`q-session.js`、`app-events.js`、`index.html` | pytest 8 例（部分更新/空文本/超长/adopted 拒绝/引用完整性/未完结 warning）；活体 1–3 + 回滚草稿 | 记错的东西能就地改、能删；打上去的指令不必整段重打 | ☑ |
+| D2 | **看板弹窗**（I-03）：`▤ 看板` → `#board-win`，按 kind 分标签、任务卡默认全展开（人财物/计划/分解/验收/检查/产物/来源/上级） | `index.html`（骨架+按钮+脚本去重）、`app-board.js`（`renderBoardWin`/`winTaskCard` 等）、`style.css` | pytest 前端契约 4 例；活体页面/JS/CSS 200 且骨架在位；`node --check` 过 | 侧栏「一眼看进度」＋弹窗「摊开看细节」，同一份 layout 与数据，零额外请求 | ☑ |
+| D3 | **习惯留存**（I-04）：`.rsi/profile.json`（章节 4 类 + 观察）+ `scripts/profile.py`（6 子命令）+ `profile_ctx.rs` 有界注入 + 提示词纪律段 | `scripts/profile.py`（新）、`agent-loop/src/profile_ctx.rs`（新，4 单测）、`chat.rs`、`lib.rs`、`skills.rs` | pytest 6 例；agent-loop 33/33（新增 4）；活体章节顺序 + brief 非空 | trace 存原文、profile 存结论；画像每轮有界注入，空画像不注入空壳 | ☑ |
+| D4 | **任务↔对话**（I-05，采用 @ 形式）：`user` trace 事件带 `refs` 字段 + `GET /api/board/link` + `board.py link` + 弹窗 `⌕ 对话` | `chat.rs`（D5-USER-REFS）、`board.rs`（`get_board_link`）、`web/mod.rs`、`api/mod.rs`、`board.py`、`app-board.js` | pytest 3 例；活体 HTTP 与 CLI **同口径**（各 1 条、`user_index` 一致） | 一件活在哪几轮谈过可反查；关联键用用户明文写的 @，不靠模型登记 | ☑ |
+| D5 | **分解与委派**（I-01）：`plan[].owner`（self/subagent/skill，缺省 self）+ `task.parent` + `decompose_hint` 提示词段（含「什么时候别拆」） | `board.py`（`PLAN_OWNERS`/`parent` 校验/`refresh` 补齐）、`board_ctx.rs`、`skills.rs` | pytest 4 例（缺省/闭枚举/跨语言同源/parent 形状与自指）；活体 host 读到 `owner=subagent` | 「考虑好复杂度」从自述变成可核对的字段：每步必须回答谁干 | ☑ |
+| D6 | **验证矩阵** | 见 03 文档 §5 | `pytest 134`（基线 108）· agent-loop 33/33 + host 31/31（单线程口径）· cargo check 零警告 · 补丁 0 FAIL/0 DRY · `node --check` ×3 · 活体 **16/16** | 五项能力在活体上三方一致（CLI / host / HTTP） | ☑ |
+
+**跨轮纪律**：D 轮 22 条补丁全走 `scripts/patches/d*.json`（`--dry-run` 0 FAIL / 0 DRY）；
+未触碰 SSE 事件类型集合（`refs` 是**字段**不是新 type）、`rollback` 语义、`memory` 视图、
+`queue` 语义；新增依赖 0（画像与 link 全用标准库/serde）。
+
+**退役**：`B2`、`B3`、`C5-LAYOUT-OP`、`C-CTX-MOD`、`C-CTX-CHAT`、`FE2`、`FE7-BOARD` 共 7 条
+区域被 D 轮合法改写（终态内容均由 D 承接），按 P5b/O 轮先例转 `retired/`；
+`tests/test_board_contract.py` 的在位断言改为「活跃 ∪ retired 并集 + 退役留档单独断言」。
+
+**过程留档（四个坑，详见 03 文档 §6）**：① **patch 是 anchor 的子串** → 幂等判据失效，
+收缩型补丁必须有独占标记行；② 锚点取整段函数体导致 `E0428` 重复定义——锚点要像手术切口，
+只取不重复的最小片段；③ **宿主 env 被子进程继承**，`board.py link` 读到另一个工作区的
+trace → 判定顺序改为「工作区内实据 → env → 缺省」；④ **grep 检查把看板自己扫进去**
+（marker 已写进 `.rsi/board.json`）→ 判文件内容的检查要把 scope 收到最窄目录。
+
+**仍未做（下一轮候选）**：见 03 文档 §8（`resourcing.model` 真正影响调度、`owner: skill` 的
+现造闭环、`metrics` 历史趋势、`config_agent_section_applies_to_env` 的 env 隔离修复、
+弹窗内的任务编辑是否放开写权限需重新裁决）。
+

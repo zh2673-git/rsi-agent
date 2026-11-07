@@ -1,0 +1,10 @@
+        let board_ops = super::board_ctx::board_ops_hint(want_task_plan, super::board_ctx::has_board_cli());
+        if !board_ops.is_empty() {
+            lines.push(board_ops);
+        }
+        // D 轮：习惯画像通道（同「新增能力单独成段」纪律）。按需注入：问「是不是交代
+        // 一件成规模的事」时不谈画像——画像写的是跨会话结论，与当轮任务规划无关。
+        let profile_ops = super::profile_ctx::profile_ops_hint(want_task_plan);
+        if !profile_ops.is_empty() {
+            lines.push(profile_ops);
+        }

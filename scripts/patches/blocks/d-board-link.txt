@@ -1,0 +1,131 @@
+/// GET /api/board/link?id=T-...：反查引用过该任务/灵感的对话轮次（D4）。
+///
+/// 数据来源是 trace 的 `user` 事件里的 `refs` 字段（chat.rs 在写 user 事件时落盘）。
+/// 为什么不让前端自己读 trace：trace 在 `MEMORY_DATA_DIR` 下、可能上百万字节，
+/// 前端全量拉一遍只为找几条引用是不划算的；而且**筛选口径只该有一处**（
+/// `scripts/board.py link` 是同一口径的 CLI 版），两边分头实现必然漂移。
+///
+/// 只读、无写面。session 名过安全校验（它会被拼进文件名）。
+pub(crate) async fn get_board_link(stream: &mut TcpStream, query: &str) -> anyhow::Result<()> {
+    let q: std::collections::HashMap<String, String> = query
+        .split('&')
+        .filter(|s| !s.is_empty())
+        .filter_map(|kv| {
+            let (k, v) = kv.split_once('=')?;
+            Some((k.to_string(), url_decode(v)))
+        })
+        .collect();
+    let id = q.get("id").cloned().unwrap_or_default();
+    if id.is_empty() {
+        return json_resp(stream, 400, bad_request("缺 id 参数", Some("id"))).await;
+    }
+    let session = q.get("session").cloned().unwrap_or_else(|| "main".into());
+    // session 来自 URL：只允许字母/数字/连字符/下划线/#（与 trace_file_for 的校验同向）。
+    if session.is_empty()
+        || session.len() > 64
+        || !session
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '#'))
+    {
+        return json_resp(stream, 400, bad_request("session 名不合法", Some("session"))).await;
+    }
+    let limit: usize = q
+        .get("limit")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(12)
+        .clamp(1, 100);
+
+    let dir = match std::env::var("MEMORY_DATA_DIR") {
+        Ok(v) if !v.trim().is_empty() => std::path::PathBuf::from(v.trim()).join("traces"),
+        _ => std::path::PathBuf::from(config::workspace_root())
+            .join("runtime")
+            .join("plugins")
+            .join("memory")
+            .join("data")
+            .join("traces"),
+    };
+    let path = dir.join(format!("{session}.jsonl"));
+    let mut turns: Vec<Value> = Vec::new();
+    let mut user_index: i64 = -1;
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let Ok(ev) = serde_json::from_str::<Value>(line) else { continue };
+            if ev.get("type").and_then(Value::as_str) != Some("user") {
+                continue;
+            }
+            user_index += 1;
+            let Some(Value::Array(refs)) = ev.get("refs") else { continue };
+            if !refs.iter().any(|r| r.as_str() == Some(id.as_str())) {
+                continue;
+            }
+            let text_preview: String = ev
+                .get("text")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .chars()
+                .take(200)
+                .collect();
+            turns.push(json!({
+                "user_index": user_index,
+                "ts": ev.get("ts").cloned().unwrap_or(Value::Null),
+                "text": text_preview,
+                "refs": refs,
+            }));
+        }
+    }
+    let total = turns.len();
+    if turns.len() > limit {
+        turns = turns.split_off(total - limit);
+    }
+    json_resp(
+        stream,
+        200,
+        json!({
+            "ok": true,
+            "id": id,
+            "session": session,
+            "turns": turns,
+            "total": total,
+            "trace": path.display().to_string(),
+        }),
+    )
+    .await
+}
+
+/// 极简 URL 解码（只处理 %XX 与 +；query 里的 id/session 形状受限，不需要完整实现）。
+fn url_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b'%' if i + 2 < bytes.len() => {
+                let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("");
+                match u8::from_str_radix(hex, 16) {
+                    Ok(b) => {
+                        out.push(b);
+                        i += 3;
+                    }
+                    Err(_) => {
+                        out.push(bytes[i]);
+                        i += 1;
+                    }
+                }
+            }
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+/// 看板文件是否位于工作区内（诊断用：UI 与 agent 必须看到同一份文件）。

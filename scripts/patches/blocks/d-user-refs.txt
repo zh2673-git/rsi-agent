@@ -1,0 +1,15 @@
+            // trace 带全量原始附件（含文本 b64）：UI 重放展示缩略图/文件条，重新生成需原始 data_b64 重发
+            let mut user_event = json!({"type": "user", "text": req.user_text});
+            if let Some(att) = req.attachments.as_deref() {
+                user_event["attachments"] = json!(att);
+            }
+            // D 轮：把本轮的 @引用 落成 user 事件的**字段**（不是新事件类型）。
+            // 为什么：任务详情要能回答「这件事是在哪几轮对话里谈的」，「这一轮谈了什么任务」
+            // 就是那条 user 事件。而 @引用已经由用户明文写出，是天然的关联键——不需要
+            // 让模型再显式登记一次（它忘了就会断链）。空引用不写字段，保持旧 trace 形状。
+            // 与 Q 轮 cursor 同一先例：加字段不改 FROZEN_EVENT_TYPES，前端 render() 无需改。
+            let refs = super::board_ctx::extract_refs(&req.user_text);
+            if !refs.is_empty() {
+                user_event["refs"] = json!(refs);
+            }
+            self.trace(env, &req.session_id, user_event).await;

@@ -1,0 +1,21 @@
+  for (const it of items) {
+    const row = el("div", `irow st-${boardEsc(it.status)}`);
+    const tags = (it.tags ?? []).map((t) => `<span class="itag">${boardEsc(t)}</span>`).join("");
+    row.innerHTML =
+      `<div class="iline"><span class="itext" title="${boardEsc(it.text)}">${boardEsc(it.text)}</span>` +
+      `<button class="iref" title="在输入框引用（@I）">@</button>` +
+      `<button class="iedit" title="改这条灵感（Enter 保存 / Esc 取消）">✎</button>` +
+      `<button class="irm" title="删除这条灵感">🗑</button>` +
+      `<button class="iarc" title="${it.status === "archived" ? "恢复为待议" : "归档"}">${it.status === "archived" ? "↺" : "✓"}</button></div>` +
+      (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}</span></div>` : "");
+    row.querySelector(".iref").onclick = (e) => { e.stopPropagation(); mentionRef(it.id); };
+    row.querySelector(".iedit").onclick = (e) => { e.stopPropagation(); editInspiration(it, row); };
+    row.querySelector(".irm").onclick = (e) => { e.stopPropagation(); removeInspiration(it, row); };
+    row.querySelector(".iarc").onclick = async (e) => {
+      e.stopPropagation();
+      const next = it.status === "archived" ? "open" : "archived";
+      try { await boardReq("POST", "/api/board", { op: "inspiration.set", id: it.id, status: next }); refreshBoard(); }
+      catch (err) { setStatus("归档失败: " + err.message); }
+    };
+    body.appendChild(row);
+  }

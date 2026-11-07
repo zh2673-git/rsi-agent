@@ -1,0 +1,8 @@
+  if (!confirm(resend ? `回滚本问题并重新生成回答？${undoNote}` : `回滚到该问题之前？（该问题及其后的对话将被删除）${undoNote}`)) return;
+  try {
+    const v = await api("POST", "/api/chat/rollback", { session_id: session, upto_user_index: idx });
+    const un = v.undone?.length ?? 0, sk = v.skipped?.length ?? 0;
+    var undoMsg = (un || sk) ? `已撤销 ${un} 个文件改动` + (sk ? `，${sk} 个跳过（文件已被修改）` : "") : null;
+  } catch (e) { setStatus("回滚失败: " + e.message); return; }
+  dropSessionCache(session); // 回滚会 connect(0)，缓存必须失效，防已删内容复活
+  connect(0); // 全量重放截断后的历史（重置 SSE 游标）

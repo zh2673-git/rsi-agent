@@ -1,0 +1,7 @@
+{
+ "id": "D20-INDEX-QHEAD",
+ "description": "index.html 待发指令行提示：补 ✎ 编辑 / ⧉ 复制（与 renderQueue 实际按钮一致）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/d-index-qhead-anchor.txt",
+ "patch_file": "blocks/d-index-qhead.txt"
+}

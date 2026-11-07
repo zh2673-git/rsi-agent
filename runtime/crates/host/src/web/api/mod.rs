@@ -11,7 +11,7 @@ mod config;
 mod misc;
 mod skills;
 
-pub(super) use board::{get_board, post_board};
+pub(super) use board::{get_board, get_board_link, post_board};
 pub(super) use config::{get_config, put_config};
 pub(super) use misc::{
     create_instance, delete_instance, get_models, get_presets, list_instances, pick_folder,

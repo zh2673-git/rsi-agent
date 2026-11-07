@@ -1,0 +1,7 @@
+{
+ "id": "D16-INDEX-SCRIPTS",
+ "description": "index.html 脚本表去重（q-session/app-core/app-stream/app-files/app-settings 各被引入两次→顶层 const/let 会重复声明报错）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/d-index-scripts-anchor.txt",
+ "patch_file": "blocks/d-index-scripts-patch.txt"
+}

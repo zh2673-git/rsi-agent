@@ -1,0 +1,12 @@
+        let board_ctx = super::board_ctx::refs_context(&req.user_text, want_task_plan);
+        // D 轮：习惯画像。与看板引用同一取舍——画像属于**输入**，不该让模型每轮
+        // 花一次工具往返去 `profile.py brief` 取自己的长期记忆；读一份本机 JSON 是纯 I/O。
+        // 失败静默（无文件/坏 JSON/空画像 → 空串），画像坏了不能拖垮 chat。
+        let profile_ctx = super::profile_ctx::profile_context();
+        let system = format!(
+            "{}{}{}{}",
+            self.resolve_system_prompt(env, &cfg).await,
+            self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await,
+            board_ctx,
+            profile_ctx
+        );

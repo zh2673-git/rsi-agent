@@ -299,6 +299,8 @@ async function rollbackTo(idx, resend, ut) {
     ? `\n\n同时撤销该轮起 agent 的文件改动（${affected.length} 个）：\n${fileList}${affected.length > 8 ? `\n…等共 ${affected.length} 个` : ""}\n（变更后又被手动修改的文件将自动跳过）`
     : "";
   if (!confirm(resend ? `回滚本问题并重新生成回答？${undoNote}` : `回滚到该问题之前？（该问题及其后的对话将被删除）${undoNote}`)) return;
+  // D 轮：回滚前把输入框内容存成草稿——用户重打过的字不该因为点了回滚就没了。
+  stashDraftForRollback();
   try {
     const v = await api("POST", "/api/chat/rollback", { session_id: session, upto_user_index: idx });
     const un = v.undone?.length ?? 0, sk = v.skipped?.length ?? 0;
@@ -306,6 +308,8 @@ async function rollbackTo(idx, resend, ut) {
   } catch (e) { setStatus("回滚失败: " + e.message); return; }
   dropSessionCache(session); // 回滚会 connect(0)，缓存必须失效，防已删内容复活
   connect(0); // 全量重放截断后的历史（重置 SSE 游标）
+  restoreDraftAfterRollback(); // D 轮：输入框/附件还回去（输入框已有新内容则不覆盖）
+  if (undoMsg) setStatus(undoMsg);
   if (undoMsg) setStatus(undoMsg);
   if (resend && ut) send(ut.text, ut.atts || []);
 }

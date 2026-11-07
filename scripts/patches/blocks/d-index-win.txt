@@ -1,0 +1,15 @@
+<!-- D 轮：看板弹窗（对标「任务看板是一个标签，点进去是一个活的界面」）。
+     与侧栏同源：章节清单照样来自 .rsi/board.json 的 layout.sections，弹窗只换壳不换数据，
+     标签页按 kind 出（任务 / 指标 / 灵感），不新增可配置维度。 -->
+<div class="board-win" id="board-win" hidden>
+  <div class="bw-panel">
+    <div class="bw-top">
+      <div class="bw-tabs" id="bw-tabs"></div>
+      <button class="bw-close" id="bw-close" title="关闭（Esc）">✕</button>
+    </div>
+    <div class="bw-root" id="bw-root"></div>
+    <div class="bw-foot2" id="board-win-foot"></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="win-modal" hidden>

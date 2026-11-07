@@ -1,0 +1,7 @@
+{
+ "id": "D12-BOARD-LINK-EXPORT",
+ "description": "api/mod.rs：导出 get_board_link（路由表经本文件 re-export）",
+ "file": "runtime/crates/host/src/web/api/mod.rs",
+ "anchor": "pub(super) use board::{get_board, post_board};\n",
+ "patch": "pub(super) use board::{get_board, get_board_link, post_board};\n"
+}

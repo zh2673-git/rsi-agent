@@ -1,0 +1,6 @@
+            // trace 带全量原始附件（含文本 b64）：UI 重放展示缩略图/文件条，重新生成需原始 data_b64 重发
+            let mut user_event = json!({"type": "user", "text": req.user_text});
+            if let Some(att) = req.attachments.as_deref() {
+                user_event["attachments"] = json!(att);
+            }
+            self.trace(env, &req.session_id, user_event).await;

@@ -1,0 +1,7 @@
+{
+ "id": "D2-PROFILE-MOD",
+ "description": "lib.rs 注册 profile_ctx 模块（紧跟 board_ctx：两者都是「只读本机 JSON、注入提示词」的同族能力）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "mod board_ctx; // C 轮：任务看板上下文装载（@引用 + 在办任务摘要，只读 .rsi/board.json）\n",
+ "patch": "mod board_ctx; // C 轮：任务看板上下文装载（@引用 + 在办任务摘要，只读 .rsi/board.json）\nmod profile_ctx; // D 轮：习惯画像装载（.rsi/profile.json 的有界摘要，只读；写口是 scripts/profile.py）\n"
+}

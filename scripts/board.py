@@ -40,6 +40,9 @@ from pathlib import Path
 # ── 契约常量（与 Rust 侧 board.rs 逐字一致；改一侧必须改另一侧）────────────────
 TASK_STATUSES = ("planning", "doing", "verifying", "done", "blocked", "cancelled")
 PLAN_STATUSES = ("pending", "in_progress", "completed", "cancelled")
+# D5 分解与委派：每个 plan 步必须显式说是谁干——否则「计划」只是一句话列表，
+# 看不出哪步该交给子代理/哪步要现造技能。owner 是**决策记录**，不是调度指令。
+PLAN_OWNERS = ("self", "subagent", "skill")
 PRIORITIES = ("P0", "P1", "P2", "P3")
 EFFORTS = ("small", "medium", "large")
 INSP_STATUSES = ("open", "adopted", "archived")
@@ -334,10 +337,18 @@ def validate_task(raw: dict, existing: dict | None) -> dict:
         for i, st in enumerate(plan_raw):
             if not isinstance(st, dict):
                 raise BoardError(f"plan[{i}] 必须是对象", field="plan")
-            plan.append({
+            step = {
                 "step": _str(st.get("step"), f"plan[{i}].step", MAX_STEP),
                 "status": _enum(st.get("status"), f"plan[{i}].status", PLAN_STATUSES, default="pending"),
-            })
+                # D5：谁执行这一步。self=本体会做；subagent=该交给子代理（省上下文）；
+                # skill=要现造/现装技能或工具（物力自造的入口）。缺省 self 是安全的：
+                # 不写 ≠ 委派，避免模型用「没填」隐式放大工作量。
+                "owner": _enum(st.get("owner"), f"plan[{i}].owner", PLAN_OWNERS, default="self"),
+            }
+            note = st.get("note")
+            if note is not None:
+                step["note"] = _str(note, f"plan[{i}].note", MAX_STEP, required=False)
+            plan.append(step)
     elif plan_raw is not None:
         raise BoardError("plan 必须是数组", field="plan")
     task["plan"] = plan
@@ -397,6 +408,15 @@ def validate_task(raw: dict, existing: dict | None) -> dict:
     task["inspirations"] = _str_list(
         raw.get("inspirations", base.get("inspirations")), "inspirations", MAX_ID, 20
     )
+    # D5 分解：parent = 本任务由哪个任务分解而来（空 = 顶层任务）。只做一层引用，
+    # 不做递归树——「分解」的用途是「看这一大坨被拆成了哪几件」，不是另一套层级系统。
+    parent = _str(raw.get("parent", base.get("parent")), "parent", MAX_ID, required=False)
+    if parent:
+        if not TASK_ID_RE.match(parent):
+            raise BoardError(f"parent 形状不合法（应形如 T-20261107-01），收到 {parent!r}", field="parent")
+        if parent == task["id"]:
+            raise BoardError("parent 不能指向自己", field="parent")
+    task["parent"] = parent
     task["artifacts"] = _str_list(raw.get("artifacts", base.get("artifacts")), "artifacts", 300, 50)
     task["session"] = _str(raw.get("session", base.get("session", "main")), "session", 64, required=False) or "main"
     task["created_at"] = str(base.get("created_at") or now_iso())
@@ -912,10 +932,16 @@ def cmd_refresh(args: argparse.Namespace) -> dict:
     for t in board["tasks"]:
         for key, default in (("status", "planning"), ("priority", "P2"), ("plan", []),
                              ("acceptance", []), ("inspirations", []), ("artifacts", []),
-                             ("checks", [])):
+                             ("checks", []), ("parent", "")):
             if key not in t:
                 t[key] = default
                 fixed += 1
+        # D5：旧板子的 plan 步没有 owner —— 补 self（不写 ≠ 委派，补缺省是保守方向）。
+        if isinstance(t.get("plan"), list):
+            for st in t["plan"]:
+                if isinstance(st, dict) and "owner" not in st:
+                    st["owner"] = "self"
+                    fixed += 1
         if not isinstance(t.get("evaluation"), dict):
             t["evaluation"] = {"verdict": "none", "ran_at": "", "pass": 0, "fail": 0, "skip": 0, "note": ""}
             fixed += 1
@@ -932,6 +958,158 @@ def cmd_refresh(args: argparse.Namespace) -> dict:
                 fixed += 1
     save(board)
     return {"ok": True, "fixed": fixed, "path": str(board_path())}
+
+
+def cmd_task_rm(args: argparse.Namespace) -> dict:
+    """删除任务（D1 可编辑的一部分）。
+
+    为什么需要：用户原话「看板没有可编辑的功能吗，比如可以删除掉」——记错的任务
+    若只能靠改状态成 cancelled 滚雪球，看板会越看越脏。删除是真删（不是归档），
+    但**保留引用完整性**：被其他任务当 parent 的子任务会被摘掉 parent（不跟着删），
+    灵感的 tasks 里指向它的引用一并清掉，避免留下指向空气的 ID。
+    """
+    board = load()
+    idx = next((n for n, t in enumerate(board["tasks"]) if t.get("id") == args.id), None)
+    if idx is None:
+        raise BoardError(f"未找到任务 {args.id}", code="NOT_FOUND", field="id")
+    removed = board["tasks"].pop(idx)
+    detached = []
+    for t in board["tasks"]:
+        if t.get("parent") == args.id:
+            t["parent"] = ""
+            t["updated_at"] = now_iso()
+            detached.append(t.get("id"))
+    unlinked = []
+    for i in board["inspirations"]:
+        tasks = i.get("tasks") if isinstance(i.get("tasks"), list) else []
+        if args.id in tasks:
+            i["tasks"] = [x for x in tasks if x != args.id]
+            i["updated_at"] = now_iso()
+            unlinked.append(i.get("id"))
+    save(board)
+    out = {"ok": True, "id": args.id, "title": removed.get("title"),
+           "path": str(board_path()), "detached": detached, "unlinked": unlinked}
+    if not args.force and removed.get("status") not in ("done", "cancelled"):
+        out["warning"] = f"删除的是未完结任务（status={removed.get('status')}）：若只是暂时不做，考虑 task-status {args.id} blocked"
+    return out
+
+
+def cmd_insp_edit(args: argparse.Namespace) -> dict:
+    """改灵感正文/标签（D1：灵感看板要可编辑，否则记错只能归档再重打一遍）。"""
+    board = load()
+    item = next((i for i in board["inspirations"] if i.get("id") == args.id), None)
+    if item is None:
+        raise BoardError(f"未找到灵感 {args.id}", code="NOT_FOUND", field="id")
+    if args.text is not None:
+        item["text"] = _str(args.text, "text", MAX_INSP_TEXT)
+    if args.tags is not None:
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+        tags = [_str(t, f"tags[{n}]", MAX_TAG) for n, t in enumerate(tags)]
+        if len(tags) > MAX_TAGS:
+            raise BoardError(f"tags 最多 {MAX_TAGS} 个", field="tags")
+        item["tags"] = tags
+    item["updated_at"] = now_iso()
+    save(board)
+    return {"ok": True, "inspiration": item}
+
+
+def cmd_insp_rm(args: argparse.Namespace) -> dict:
+    """删除灵感。已采纳（adopted）的默认拒绝：它已经变成任务的来源记录，
+    删掉会让任务凭空出现——要删先显式 --force。"""
+    board = load()
+    idx = next((n for n, i in enumerate(board["inspirations"]) if i.get("id") == args.id), None)
+    if idx is None:
+        raise BoardError(f"未找到灵感 {args.id}", code="NOT_FOUND", field="id")
+    item = board["inspirations"][idx]
+    if item.get("status") == "adopted" and not args.force:
+        raise BoardError(
+            f"灵感 {args.id} 已被任务采纳（{', '.join(item.get('tasks') or []) or '无记录'}）："
+            "删除会断掉任务来源链，确认请加 --force",
+            code="ADOPTED", field="id",
+        )
+    board["inspirations"].pop(idx)
+    save(board)
+    return {"ok": True, "id": args.id, "text": item.get("text"), "path": str(board_path())}
+
+
+def trace_dir() -> Path:
+    """记忆插件的 trace 目录。
+
+    判定顺序（次序本身就是结论，改动前先读这段）：
+    1. **工作区里真有 trace 目录** → 用它。为什么排第一：`board.py` 是「贴在工作区里
+       的工具」，它该描述**这个工作区**的记忆；而 `MEMORY_DATA_DIR` 是宿主进程 env，
+       会被子进程继承——实测在宿主里跑 `board.py link` 时，env 指向的是**宿主自己**的
+       记忆目录，于是 CLI 读到了另一个工作区的 trace（端到端发现的真实串扰）。
+    2. 否则用 `MEMORY_DATA_DIR`（host 对 agent 子进程下发，两者同工作区时无歧义）。
+    3. 都没有：回仓库缺省（调用方得到「文件不存在→空结果」，不误报）。
+    """
+    ws = workspace_root()
+    for cand in (ws / "runtime" / "plugins" / "memory" / "data",
+                 ws / "memory",
+                 ws / "mem",
+                 ws / "data" / "memory"):
+        if (cand / "traces").is_dir():
+            return cand / "traces"
+    env = os.environ.get("MEMORY_DATA_DIR", "").strip()
+    if env:
+        p = Path(env)
+        p = p if p.is_absolute() else ws / p
+        return p / "traces"
+    return ws / "runtime" / "plugins" / "memory" / "data" / "traces"
+
+
+def scan_ref_turns(ref_id: str, session: str = "main", limit: int = 12) -> list[dict]:
+    """D4 任务↔对话绑定：扫 trace 里带 refs 字段的 user 事件，找出引用过 ref_id 的轮次。
+
+    为什么从 trace 反查而不是让模型登记：`@T-…` 是用户**明文**写出来的，天然就是
+    关联键；让模型额外登记一次，它忘了就断链，而 trace 是系统写的、跑不掉的。
+    `user_index`（第几条 user 事件，0 基）与前端回滚定位口径一致——点进去能直接跳到
+    那一轮，不是「大概在这个会话里」。
+    """
+    f = trace_dir() / f"{session}.jsonl"
+    if not f.is_file():
+        return []
+    out: list[dict] = []
+    user_index = -1
+    try:
+        for line in f.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(ev, dict) or ev.get("type") != "user":
+                continue
+            user_index += 1
+            refs = ev.get("refs")
+            if not isinstance(refs, list) or ref_id not in refs:
+                continue
+            out.append({
+                "user_index": user_index,
+                "ts": ev.get("ts"),
+                "text": (str(ev.get("text") or ""))[:200],
+                "refs": refs,
+            })
+    except OSError:
+        return []
+    return out[-limit:]
+
+
+def cmd_link(args: argparse.Namespace) -> dict:
+    """任务/灵感 ↔ 对话轮次：读 trace 的 refs 字段（D4）。"""
+    board = load()
+    ids = {t.get("id") for t in board["tasks"]} | {i.get("id") for i in board["inspirations"]}
+    if args.id not in ids:
+        raise BoardError(f"未找到 {args.id}", code="NOT_FOUND", field="id")
+    turns = scan_ref_turns(args.id, args.session, max(1, int(args.limit)))
+    out = {"ok": True, "id": args.id, "session": args.session, "turns": turns,
+           "total": len(turns), "trace": str(trace_dir() / f"{args.session}.jsonl")}
+    if not turns:
+        out["note"] = ("没有对话引用过它：只有在消息里写 `@" + str(args.id) +
+                       "` 的轮次才会留下关联（@引用同时会把这件的上下文自动装进当轮提示词）")
+    return out
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -972,6 +1150,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--inspiration", action="append")
     p.set_defaults(fn=cmd_task_append)
 
+    p = sub.add_parser("task-rm", help="删除任务（子任务摘 parent，灵感引用清空）")
+    p.add_argument("id")
+    p.add_argument("--force", action="store_true", help="未完结任务也删，不再提示")
+    p.set_defaults(fn=cmd_task_rm)
+
     p = sub.add_parser("insp-add", help="记一条灵感")
     p.add_argument("text")
     p.add_argument("--tags", default="")
@@ -986,6 +1169,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("id")
     p.add_argument("task")
     p.set_defaults(fn=cmd_insp_adopt)
+
+    p = sub.add_parser("insp-edit", help="改灵感正文/标签（可编辑）")
+    p.add_argument("id")
+    p.add_argument("--text", default=None)
+    p.add_argument("--tags", default=None, help="逗号分隔；给空串=清空标签")
+    p.set_defaults(fn=cmd_insp_edit)
+
+    p = sub.add_parser("insp-rm", help="删除灵感（已采纳需 --force）")
+    p.add_argument("id")
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(fn=cmd_insp_rm)
 
     p = sub.add_parser("refresh", help="补齐缺失字段（不删条目）")
     p.set_defaults(fn=cmd_refresh)
@@ -1016,6 +1210,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("resolve", help="解析文本里的 @T-/@I- 引用为上下文块")
     p.add_argument("text", nargs="?", default="")
     p.set_defaults(fn=cmd_resolve)
+
+    p = sub.add_parser("link", help="反查引用过该任务/灵感的对话轮次（读 trace 的 refs 字段）")
+    p.add_argument("id")
+    p.add_argument("--session", default="main")
+    p.add_argument("--limit", default=12)
+    p.set_defaults(fn=cmd_link)
     return ap
 
 

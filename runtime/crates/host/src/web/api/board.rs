@@ -507,6 +507,82 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
                 Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
             }
         }
+        // D 轮：改灵感正文/标签。B 轮只给了 add/set——用户实测「记错了只能归档再重打一遍」。
+        // 与 agent 侧 `board.py insp-edit` 同一契约：text ≤2000、tags ≤10×32，原子写回。
+        "inspiration.edit" => {
+            let id = match take_str(&req, "id", 40) {
+                Ok(v) => v,
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let mut items = board["inspirations"].as_array().cloned().unwrap_or_default();
+            let Some(slot) = items.iter_mut().find(|i| i.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
+                return json_resp(stream, 404, err("K404", format!("未找到灵感 {id}"), Some("id"))).await;
+            };
+            // 两字段都可选，但**至少要改一个**：全空的 edit 是误调用，静默成功会掩盖前端 bug。
+            let has_text = req.get("text").is_some();
+            let has_tags = req.get("tags").is_some();
+            if !has_text && !has_tags {
+                return json_resp(stream, 400, err("K400", "text 与 tags 至少给一个", Some("text"))).await;
+            }
+            if has_text {
+                match take_str(&req, "text", MAX_INSP_TEXT) {
+                    Ok(t) => slot["text"] = json!(t),
+                    Err(e) => return json_resp(stream, 400, e).await,
+                }
+            }
+            if has_tags {
+                match parse_tags(&req) {
+                    Ok(t) => slot["tags"] = json!(t),
+                    Err(e) => return json_resp(stream, 400, e).await,
+                }
+            }
+            slot["updated_at"] = json!(now_iso());
+            let out = slot.clone();
+            board["inspirations"] = Value::Array(items);
+            match save_board(&mut board) {
+                Ok(_) => json_resp(stream, 200, json!({"ok": true, "inspiration": out})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
+        // D 轮：删除灵感。已采纳（adopted）默认拒绝——它已经是任务的来源记录，删掉会让
+        // 任务凭空出现；要删必须显式 force。与 `board.py insp-rm` 同语义。
+        "inspiration.rm" => {
+            let id = match take_str(&req, "id", 40) {
+                Ok(v) => v,
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let force = req.get("force").and_then(Value::as_bool).unwrap_or(false);
+            let items = board["inspirations"].as_array().cloned().unwrap_or_default();
+            let Some(slot) = items.iter().find(|i| i.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
+                return json_resp(stream, 404, err("K404", format!("未找到灵感 {id}"), Some("id"))).await;
+            };
+            if slot.get("status").and_then(Value::as_str) == Some("adopted") && !force {
+                let tasks: Vec<&str> = slot
+                    .get("tasks")
+                    .and_then(Value::as_array)
+                    .map(|a| a.iter().filter_map(Value::as_str).collect())
+                    .unwrap_or_default();
+                return json_resp(
+                    stream,
+                    409,
+                    err(
+                        "K409",
+                        format!("灵感 {id} 已被任务采纳（{}）：删除会断掉任务来源链，确认请带 force:true", tasks.join(", ")),
+                        Some("id"),
+                    ),
+                )
+                .await;
+            }
+            let kept: Vec<Value> = items
+                .into_iter()
+                .filter(|i| i.get("id").and_then(Value::as_str) != Some(id.as_str()))
+                .collect();
+            board["inspirations"] = Value::Array(kept);
+            match save_board(&mut board) {
+                Ok(_) => json_resp(stream, 200, json!({"ok": true, "id": id})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
         // 只补缺失字段，不删条目——手改坏的板子可安全修复。
         "refresh" => {
             let mut fixed = 0u32;
@@ -582,6 +658,136 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
     }
 }
 
+/// GET /api/board/link?id=T-...：反查引用过该任务/灵感的对话轮次（D4）。
+///
+/// 数据来源是 trace 的 `user` 事件里的 `refs` 字段（chat.rs 在写 user 事件时落盘）。
+/// 为什么不让前端自己读 trace：trace 在 `MEMORY_DATA_DIR` 下、可能上百万字节，
+/// 前端全量拉一遍只为找几条引用是不划算的；而且**筛选口径只该有一处**（
+/// `scripts/board.py link` 是同一口径的 CLI 版），两边分头实现必然漂移。
+///
+/// 只读、无写面。session 名过安全校验（它会被拼进文件名）。
+pub(crate) async fn get_board_link(stream: &mut TcpStream, query: &str) -> anyhow::Result<()> {
+    let q: std::collections::HashMap<String, String> = query
+        .split('&')
+        .filter(|s| !s.is_empty())
+        .filter_map(|kv| {
+            let (k, v) = kv.split_once('=')?;
+            Some((k.to_string(), url_decode(v)))
+        })
+        .collect();
+    let id = q.get("id").cloned().unwrap_or_default();
+    if id.is_empty() {
+        return json_resp(stream, 400, bad_request("缺 id 参数", Some("id"))).await;
+    }
+    let session = q.get("session").cloned().unwrap_or_else(|| "main".into());
+    // session 来自 URL：只允许字母/数字/连字符/下划线/#（与 trace_file_for 的校验同向）。
+    if session.is_empty()
+        || session.len() > 64
+        || !session
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '#'))
+    {
+        return json_resp(stream, 400, bad_request("session 名不合法", Some("session"))).await;
+    }
+    let limit: usize = q
+        .get("limit")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(12)
+        .clamp(1, 100);
+
+    let dir = match std::env::var("MEMORY_DATA_DIR") {
+        Ok(v) if !v.trim().is_empty() => std::path::PathBuf::from(v.trim()).join("traces"),
+        _ => std::path::PathBuf::from(config::workspace_root())
+            .join("runtime")
+            .join("plugins")
+            .join("memory")
+            .join("data")
+            .join("traces"),
+    };
+    let path = dir.join(format!("{session}.jsonl"));
+    let mut turns: Vec<Value> = Vec::new();
+    let mut user_index: i64 = -1;
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let Ok(ev) = serde_json::from_str::<Value>(line) else { continue };
+            if ev.get("type").and_then(Value::as_str) != Some("user") {
+                continue;
+            }
+            user_index += 1;
+            let Some(Value::Array(refs)) = ev.get("refs") else { continue };
+            if !refs.iter().any(|r| r.as_str() == Some(id.as_str())) {
+                continue;
+            }
+            let text_preview: String = ev
+                .get("text")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .chars()
+                .take(200)
+                .collect();
+            turns.push(json!({
+                "user_index": user_index,
+                "ts": ev.get("ts").cloned().unwrap_or(Value::Null),
+                "text": text_preview,
+                "refs": refs,
+            }));
+        }
+    }
+    let total = turns.len();
+    if turns.len() > limit {
+        turns = turns.split_off(total - limit);
+    }
+    json_resp(
+        stream,
+        200,
+        json!({
+            "ok": true,
+            "id": id,
+            "session": session,
+            "turns": turns,
+            "total": total,
+            "trace": path.display().to_string(),
+        }),
+    )
+    .await
+}
+
+/// 极简 URL 解码（只处理 %XX 与 +；query 里的 id/session 形状受限，不需要完整实现）。
+fn url_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b'%' if i + 2 < bytes.len() => {
+                let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("");
+                match u8::from_str_radix(hex, 16) {
+                    Ok(b) => {
+                        out.push(b);
+                        i += 3;
+                    }
+                    Err(_) => {
+                        out.push(bytes[i]);
+                        i += 1;
+                    }
+                }
+            }
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
 /// 看板文件是否位于工作区内（诊断用：UI 与 agent 必须看到同一份文件）。
 #[allow(dead_code)]
 pub(super) fn board_in_workspace() -> bool {

@@ -1,0 +1,8 @@
+  // 兜底：布局里若漏了任务或灵感章节，补一个可见提示（不静默少一块）
+  const kinds = new Set(secs.map((s) => s.kind));
+  for (const k of ["tasks", "inspirations"]) {
+    if (!kinds.has(k)) {
+      root.appendChild(el("div", "empty", `布局未包含 ${KIND_LABEL[k]} 章节（\`board.py layout --file\` 可调整）`));
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+ "id": "D13-BOARD-LINK-ROUTE",
+ "description": "web/mod.rs：挂 GET /api/board/link（紧跟 /api/board）",
+ "file": "runtime/crates/host/src/web/mod.rs",
+ "anchor": "        (\"POST\", \"/api/board\") => api::post_board(&mut stream, &body).await,\n",
+ "patch": "        (\"POST\", \"/api/board\") => api::post_board(&mut stream, &body).await,\n        // D 轮：任务/灵感 ↔ 对话轮次反查（读 trace 的 refs 字段，只读、与 board.py link 同口径）。\n        (\"GET\", \"/api/board/link\") => api::get_board_link(&mut stream, query).await,\n"
+}

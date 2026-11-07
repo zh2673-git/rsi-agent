@@ -1,0 +1,7 @@
+{
+ "id": "D6-BOARD-INSP-OPS",
+ "description": "board.rs POST：新增 inspiration.edit（改正文/标签，至少一项）与 inspiration.rm（已采纳需 force）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor_file": "blocks/d-board-res-ops-anchor.txt",
+ "patch_file": "blocks/d-board-res-ops.txt"
+}

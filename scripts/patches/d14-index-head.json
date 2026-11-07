@@ -1,0 +1,7 @@
+{
+ "id": "D14-INDEX-HEAD",
+ "description": "index.html 顶栏：加「▤ 看板」按钮（打开看板弹窗）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/d-index-head-anchor.txt",
+ "patch_file": "blocks/d-index-head.txt"
+}

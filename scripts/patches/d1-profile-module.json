@@ -1,0 +1,8 @@
+{
+ "id": "D1-PROFILE-MODULE",
+ "description": "新建 agent-loop/src/profile_ctx.rs：习惯画像装载（render_profile 纯函数 + profile_context I/O + 提示词纪律段 + 4 单测）",
+ "file": "runtime/crates/agent-loop/src/profile_ctx.rs",
+ "create": true,
+ "content_file": "blocks/d-profile-ctx.txt",
+ "create_marker": "pub(super) fn render_profile"
+}

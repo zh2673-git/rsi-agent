@@ -79,7 +79,7 @@ function renderQueue() {
   q.forEach((item, i) => {
     // Q5：第 0 条即「正在执行」的那条（drain 驻留到它跑完）；其余才是真待发。
     const running = st.draining && i === 0;
-    const row = el(`<div class="qitem"><span class="qtext"></span><button class="qexec">⏭</button><button class="qup">↑</button><button class="qrm">×</button></div>`);
+    const row = el(`<div class="qitem"><span class="qtext"></span><button class="qexec">⏭</button><button class="qup">↑</button><button class="qedit">✎</button><button class="qcp">⧉</button><button class="qrm">×</button></div>`);
     if (running) {
       row.classList.add("running");
       const tag = document.createElement("span");
@@ -95,16 +95,93 @@ function renderQueue() {
       row.insertBefore(tag, row.querySelector(".qexec"));
     }
     row.querySelector(".qtext").textContent = item.text;
-    const [exec, up, rm] = row.querySelectorAll("button");
+    const [exec, up, edit, cp, rm] = row.querySelectorAll("button");
     exec.title = running ? "正在执行" : "立即执行这条（打断当前任务，优先跑它）";
-    up.title = "上移（更早执行）"; rm.title = "从待发队列删除";
+    up.title = "上移（更早执行）";
+    edit.title = "编辑这条（改完就地生效；已执行中那条不能改）";
+    cp.title = "复制到输入框（内容太多时就地改不如下去改）";
+    rm.title = "从待发队列删除";
     exec.disabled = running; up.disabled = running || (st.draining && i === 1); rm.disabled = running;
+    // D 轮：编辑只对「待发」开放。执行中那条的文本已经进了 chat，改本地串不改服务端事实，
+    // 只会让用户以为改生效了——所以按钮直接禁用而不是「点了没反应」。
+    edit.disabled = running;
     exec.onclick = () => { runQueueNow(i); };
     // 执行中那条（index 0）不可被上移顶掉；故 index 1 的上移在 draining 期间禁用。
     up.onclick = () => { if (i > 0 && !(st.draining && i === 1)) { [q[i - 1], q[i]] = [q[i], q[i - 1]]; renderQueue(); } };
+    edit.onclick = () => startQueueEdit(row, item, running);
+    cp.onclick = () => copyQueueItem(item);
     rm.onclick = () => { q.splice(i, 1); renderQueue(); };
     list.appendChild(row);
   });
+}
+
+// D 轮：队列行就地编辑。I-20261107-02 原话「执行排队（待发指令）也可以支持编辑或者
+// 复制？否则打上去就只能删除了」——原实现只有 × 删除，删了就得整段重打。
+// 就地换 input 而不是弹框：一行指令的编辑半径就在这一行。
+function startQueueEdit(row, item, running) {
+  if (running) return;
+  const textEl = row.querySelector(".qtext");
+  if (!textEl || textEl.dataset.editing === "1") return;
+  textEl.dataset.editing = "1";
+  const input = document.createElement("input");
+  input.className = "qedit-input";
+  input.value = item.text;
+  textEl.replaceWith(input);
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  let done = false;
+  const finish = (save) => {
+    if (done) return;
+    done = true;
+    const next = input.value.trim();
+    if (save && next && next !== item.text) {
+      item.text = next;
+      setStatus("已更新待发指令");
+    }
+    renderQueue();
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+}
+
+// D 轮：复制一条到输入框。为什么不直接 copy 到剪贴板：用户要的通常是「拿这条当基础
+// 改一版」，落进输入框才改得动；剪贴板还要切窗口粘贴。
+function copyQueueItem(item) {
+  const cur = input.value;
+  const sep = cur && !/\s$/.test(cur) ? "\n" : "";
+  input.value = cur + sep + item.text;
+  input.dispatchEvent(new Event("input"));
+  input.focus();
+  queueOpen = true;
+  renderQueue();
+  setStatus("已复制到输入框");
+}
+
+// D 轮：回滚保留草稿（I-20261107-02 原话「回滚的时候自动保留之前的文字，否则都要
+// 再重新打一遍」）。回滚会 connect(0) 清空 feed，但**输入框与待发队列是用户的东西**，
+// 不该被"清场"牵连：这里在回滚前把当前输入框内容存成草稿，回滚后若输入框还空着就还回去。
+// 不存 localStorage——草稿的生命周期就该是这一次操作。
+let rollbackDraft = null;
+
+function stashDraftForRollback() {
+  rollbackDraft = { text: input.value, atts: pendingAtts.slice() };
+}
+
+function restoreDraftAfterRollback() {
+  if (!rollbackDraft) return;
+  const d = rollbackDraft;
+  rollbackDraft = null;
+  // 只在输入框仍为空时还回：用户如果已经在回滚后打了新字，不要覆盖他刚打的。
+  if (d.text && !input.value.trim()) {
+    input.value = d.text;
+    input.style.height = "48px";
+    input.style.height = Math.min(input.scrollHeight, 180) + "px";
+  }
+  if (d.atts?.length && !pendingAtts.length) pendingAtts = d.atts.slice();
+  renderAtts();
 }
 async function postChatDirect(sid, item) {
   const s = qState(sid);

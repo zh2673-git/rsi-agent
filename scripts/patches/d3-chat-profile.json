@@ -1,0 +1,7 @@
+{
+ "id": "D3-CHAT-PROFILE",
+ "description": "chat.rs 系统提示词拼接：board_ctx 之后追加 profile_ctx（画像属于输入，不让模型每轮自己去取）",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/d-chat-profile-anchor.txt",
+ "patch_file": "blocks/d-chat-profile.txt"
+}

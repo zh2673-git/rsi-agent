@@ -90,6 +90,21 @@ impl AgentLoopPlugin {
         if !board_ops.is_empty() {
             lines.push(board_ops);
         }
+        // D 轮：习惯画像通道（同「新增能力单独成段」纪律）。按需注入：问「是不是交代
+        // 一件成规模的事」时不谈画像——画像写的是跨会话结论，与当轮任务规划无关。
+        let profile_ops = super::profile_ctx::profile_ops_hint(want_task_plan);
+        if !profile_ops.is_empty() {
+            lines.push(profile_ops);
+        }
+        // D 轮：习惯画像通道（同「新增能力单独成段」纪律）。按需注入：问「是不是交代
+        // 一件成规模的事」时不谈画像——画像写的是跨会话结论，与当轮任务规划无关。
+        // D 轮：任务分解与委派纪律（I-20261107-01 的落点）。B 轮已要求「先想清怎么做
+        // 再动手」，但 plan 只是一串句子——看不出**哪一步该交给子代理**、**哪一步该现造
+        // 技能**。这里把「复杂度判断」变成 plan 上的一个字段，模型必须对每步作答。
+        let decompose = super::board_ctx::decompose_hint();
+        if !decompose.is_empty() {
+            lines.push(decompose);
+        }
         // 产物输出约定（方案 A）：给用户的成品文件统一落产物目录——模型不再把产物
         // 混写进技能目录/仓库根。提示词约束非硬边界，越界拦截仍在文件工具侧。
         lines.push(format!(

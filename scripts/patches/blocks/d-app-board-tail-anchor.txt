@@ -1,0 +1,2 @@
+refreshBoard();
+boardTimer = setInterval(boardTick, 20000);

@@ -1,0 +1,7 @@
+{
+ "id": "D5-USER-REFS",
+ "description": "chat.rs：user trace 事件带 refs 字段（@引用落为字段而非新事件类型，任务↔对话由此可互查）",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/d-user-refs-anchor.txt",
+ "patch_file": "blocks/d-user-refs.txt"
+}

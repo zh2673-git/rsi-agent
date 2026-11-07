@@ -29,6 +29,7 @@
 mod budget;
 mod queue;   // Q 轮 Phase 3：服务端显式队列（全局有界状态，不动插件结构体）
 mod board_ctx; // C 轮：任务看板上下文装载（@引用 + 在办任务摘要，只读 .rsi/board.json）
+mod profile_ctx; // D 轮：习惯画像装载（.rsi/profile.json 的有界摘要，只读；写口是 scripts/profile.py）
 mod chat;
 mod compaction;
 mod config;

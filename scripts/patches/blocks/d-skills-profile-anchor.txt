@@ -1,0 +1,4 @@
+        let board_ops = super::board_ctx::board_ops_hint(want_task_plan, super::board_ctx::has_board_cli());
+        if !board_ops.is_empty() {
+            lines.push(board_ops);
+        }

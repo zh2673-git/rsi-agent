@@ -28,13 +28,17 @@
     <span class="spacer"></span>
     <span class="dot" id="conn"></span>
     <span class="status" id="status"></span>
+    <span class="spacer"></span>
+    <span class="dot" id="conn"></span>
+    <span class="status" id="status"></span>
+    <button class="treebtn" id="btn-board" title="任务看板：摊开看人财物 / 计划 / 验收 / 分解（Esc 关闭）">▤ 看板</button>
     <button class="treebtn" id="btn-tree" title="工作区文件树（只读预览/下载）">📁 文件</button>
     <button class="gear" id="gear" title="配置中心：LLM / 工具 / 技能 / Agent">⚙ 设置</button>
   </header>
   <div id="stream"><div class="wrap" id="feed"></div></div>
   <footer>
     <div id="queue-box" hidden>
-      <div class="qhead"><span>待发指令（Enter 排队；行内 ⏭ 立即执行 / ↑ 上移 / × 删除）</span><span id="queue-count"></span><button class="btn ghost" id="queue-toggle" type="button">隐藏</button></div>
+      <div class="qhead"><span>待发指令（Enter 排队；行内 ⏭ 立即执行 / ↑ 上移 / ✎ 编辑 / ⧉ 复制 / × 删除）</span><span id="queue-count"></span><button class="btn ghost" id="queue-toggle" type="button">隐藏</button></div>
       <div id="queue-list"></div>
     </div>
     <div class="atts" id="atts" hidden></div>
@@ -162,6 +166,20 @@
   </div>
 </aside>
 
+<!-- D 轮：看板弹窗（对标「任务看板是一个标签，点进去是一个活的界面」）。
+     与侧栏同源：章节清单照样来自 .rsi/board.json 的 layout.sections，弹窗只换壳不换数据，
+     标签页按 kind 出（任务 / 指标 / 灵感），不新增可配置维度。 -->
+<div class="board-win" id="board-win" hidden>
+  <div class="bw-panel">
+    <div class="bw-top">
+      <div class="bw-tabs" id="bw-tabs"></div>
+      <button class="bw-close" id="bw-close" title="关闭（Esc）">✕</button>
+    </div>
+    <div class="bw-root" id="bw-root"></div>
+    <div class="bw-foot2" id="board-win-foot"></div>
+  </div>
+</div>
+
 <div class="modal-mask" id="win-modal" hidden>
   <div class="modal">
     <div class="mhead">▣ 新建窗口（独立实例）</div>
@@ -182,11 +200,8 @@
 <!-- W17 迭代八拆分（原 app.js 单文件 → 五模块，vendor/ 前缀复用既有白名单规则零 Rust 改动；defer 按文档序执行）。
      顺序约束：events 顶层立即调用 api()/connect()（api 声明在 settings）→ settings 必须先于 events；
      settings/files 顶层仅赋值与 let 声明，无立即调用，故 core → stream → files → settings → events 安全。 -->
-<script src="/vendor/q-session.js" defer></script>
-<script src="/vendor/app-core.js" defer></script>
-<script src="/vendor/app-stream.js" defer></script>
-<script src="/vendor/app-files.js" defer></script>
-<script src="/vendor/app-settings.js" defer></script>
+<!-- D 轮修正：五个模块各被引入过两次（历史补丁叠加所致）。defer 会按文档序执行两次，
+     顶层 const/let（runState / $ / feed / …）重复声明直接 SyntaxError → 整个前端白屏。 -->
 <script src="/vendor/q-session.js" defer></script>
 <script src="/vendor/app-core.js" defer></script>
 <script src="/vendor/app-stream.js" defer></script>

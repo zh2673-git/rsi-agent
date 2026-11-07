@@ -1,0 +1,7 @@
+{
+ "id": "D9-BOARD-WIN",
+ "description": "app-board.js：新增看板弹窗（同源布局分标签 + 任务卡全展开 + 对话关联 + 人财物/计划/分解/检查）",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "anchor_file": "blocks/d-app-board-tail-anchor.txt",
+ "patch_file": "blocks/d-app-board-tail.txt"
+}

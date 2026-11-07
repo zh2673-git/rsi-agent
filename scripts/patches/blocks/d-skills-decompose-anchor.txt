@@ -1,0 +1,5 @@
+        let profile_ops = super::profile_ctx::profile_ops_hint(want_task_plan);
+        if !profile_ops.is_empty() {
+            lines.push(profile_ops);
+        }
+        // 产物输出约定（方案 A）：给用户的成品文件统一落产物目录——模型不再把产物

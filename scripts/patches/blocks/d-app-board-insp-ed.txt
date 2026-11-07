@@ -1,0 +1,62 @@
+// ── D 轮：灵感可编辑 / 可删除（I-20261107-02）───────────────────────────────
+// 原话：「任务看板和灵感看板没有可编辑的功能吗，比如可以删除掉。回滚的时候自动
+// 保留之前的文字，否则都要再重新打一遍。」
+// 三条取舍：
+// 1. **就地改而不是开编辑器**：一条灵感最多 2000 字，把文本行换成 input 就够；
+//    开抽屉/模态会引入「到底存了什么」的额外状态面。
+// 2. **删除两步且行内确认**：已采纳（adopted）的灵感是任务来源，一次误点就断链。
+//    不用 window.confirm——它会遮住列表上下文，用户看不见自己在删哪一条。
+// 3. **不做乐观更新**：看板是轮询源，本地先改、服务端后到的写法会让「没删掉」
+//    与「删掉了」在下一轮刷新时来回跳。改完即 refreshBoard。
+async function editInspiration(it, row) {
+  const textEl = row.querySelector(".itext");
+  if (!textEl || textEl.dataset.editing === "1") return;
+  textEl.dataset.editing = "1";
+  const input = document.createElement("input");
+  input.className = "insp-edit";
+  input.maxLength = 2000;
+  input.value = it.text;
+  textEl.replaceWith(input);
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  let done = false;
+  const finish = async (save) => {
+    if (done) return;
+    done = true;
+    const next = input.value.trim();
+    if (save && next && next !== it.text) {
+      try {
+        await boardReq("POST", "/api/board", { op: "inspiration.edit", id: it.id, text: next });
+      } catch (err) {
+        setStatus("灵感修改失败: " + err.message);
+      }
+    }
+    await refreshBoard();
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+}
+
+async function removeInspiration(it, row) {
+  const adopted = it.status === "adopted";
+  const old = row.querySelector(".insp-confirm");
+  if (old) old.remove();
+  const bar = document.createElement("div");
+  bar.className = "insp-confirm";
+  bar.innerHTML = `<span>${adopted ? "它已被任务采纳，删掉会断掉任务来源链。" : "确认删除这条灵感？"}</span>` +
+    `<button class="yes">删除</button><button class="no">取消</button>`;
+  row.appendChild(bar);
+  bar.querySelector(".no").onclick = () => bar.remove();
+  bar.querySelector(".yes").onclick = async () => {
+    bar.remove();
+    try {
+      await boardReq("POST", "/api/board", { op: "inspiration.rm", id: it.id, force: adopted });
+    } catch (err) {
+      setStatus("删除失败: " + err.message);
+    }
+    await refreshBoard();
+  };
+}
