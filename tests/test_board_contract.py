@@ -60,11 +60,26 @@ class PatchSetTest(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)), "补丁 id 必须全局唯一")
 
     def test_b_round_patches_present(self):
-        """B/FE 两轮补丁在位（被误删时立刻可见）。"""
+        """B/FE 两轮补丁在位（被误删时立刻可见）。
+
+        C 轮退役：`B5`（chat.rs 透传）与 `FE1`（index.html 会话列表→看板分区）的区域被
+        `C-CTX-CHAT` 与 `FE8-SIDEBAR` 合法改写（B 轮那条塞在 skills_appendix 调用同一行、
+        FE1 的整块 sidebar 被布局容器取代），按 P5b/O 轮先例转 `retired/` 留档，终态内容
+        由 C 轮补丁承接——退役不等于功能消失，故这里改查 retired 目录。
+        """
         ids = {json.loads(f.read_text(encoding="utf-8"))["id"] for f in PDIR.glob("*.json")}
-        for pid in ("B1", "B2", "B3", "B4a", "B4b", "B4c", "B5", "B6", "B7",
-                    "FE1", "FE2", "FE3", "FE4", "FE5", "FE6"):
+        for pid in ("B1", "B2", "B3", "B4a", "B4b", "B4c", "B6", "B7",
+                    "FE2", "FE3", "FE4", "FE5", "FE6"):
             self.assertIn(pid, ids, f"补丁 {pid} 缺失")
+        retired = {f.name for f in (PDIR / "retired").glob("*.retired")}
+        for fname in ("b5-chat-want-plan.json.retired", "fe1-index-sidebar.json.retired"):
+            self.assertIn(fname, retired, f"退役补丁需留档: {fname}")
+        # C 轮新增补丁在位
+        for pid in ("C-CTX-MODULE", "C-CTX-MOD", "C-CTX-CHAT", "C-CTX-SKILLS", "C-TESTS",
+                    "C1-BOARD-FNS", "C2-LOAD-LAYOUT", "C3-GET-HEAD", "C4-GET-BODY",
+                    "C5-LAYOUT-OP", "C6-OP-DOC", "C8-BOARD-TESTS",
+                    "C-STYLE", "FE7-BOARD", "FE8-SIDEBAR"):
+            self.assertIn(pid, ids, f"C 轮补丁 {pid} 缺失")
 
 
 class SingleSessionUITest(unittest.TestCase):
@@ -74,11 +89,10 @@ class SingleSessionUITest(unittest.TestCase):
         self.assertNotIn('id="sessions"', html, "左栏不得再有会话列表容器")
         self.assertNotIn('id="newchat"', html, "左栏不得再有「新建对话」")
         self.assertNotIn('id="session-tag"', html, "header 不得再显示会话名")
-        # 看板与灵感两区在位，且顺序固定（任务在灵感之前）
-        self.assertIn('id="tasks"', html)
-        self.assertIn('id="inspects"', html)
-        self.assertLess(html.index('id="sec-tasks"'), html.index('id="sec-insp"'),
-                        "分区顺序必须固定：任务在灵感之前")
+        # C 轮：左栏不再是两个写死分区，而是布局装配容器（章节由 app-board.js 按 layout 装配）
+        self.assertIn('id="board-sections"', html, "左栏必须有布局装配容器")
+        self.assertLess(html.index('id="board-sections"'), html.index('id="btn-newwin"'),
+                        "章节容器必须在底部窗口操作之前")
         # 新窗口入口保留（多实例仍需要）
         self.assertIn('id="btn-newwin"', html)
 

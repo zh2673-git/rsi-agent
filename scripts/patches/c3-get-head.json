@@ -1,0 +1,7 @@
+{
+ "id": "C3-GET-HEAD",
+ "description": "board.rs get_board 头部：规整 layout + 统计 verdict（指标章节与前端的数据源）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor": "pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {\n    let board = load_board();\n    let tasks = board.get(\"tasks\").and_then(Value::as_array).cloned().unwrap_or_default();\n",
+ "patch_file": "blocks/c3-get-head.txt"
+}

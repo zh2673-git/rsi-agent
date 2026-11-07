@@ -1,0 +1,5 @@
+  <!-- C 轮：左栏改为布局驱动的章节装配（任务 / 指标 / 灵感，顺序由 kind 钉死）。
+       章节清单来自 .rsi/board.json 的 layout.sections（scripts/board.py layout 可读写），
+       前端只认三类 kind + 封闭枚举参数——插件化指加章节不改前端，有约束指
+       能加的东西是白名单，不是任意 DOM（见 docs/self-evolution/02 文档）。 -->
+  <div id="board-sections"></div>

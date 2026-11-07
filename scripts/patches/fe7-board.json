@@ -1,0 +1,7 @@
+{
+ "id": "FE7-BOARD",
+ "description": "app-board.js 改为布局驱动（章节来自 layout.sections：tasks/metrics/inspirations，kind 顺序钉死）+ 验收结论/检查列表/指标卡",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "anchor_file": "blocks/fe7-board-anchor.txt",
+ "patch_file": "blocks/fe7-app-board.txt"
+}

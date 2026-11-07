@@ -300,10 +300,16 @@ impl AgentLoopPlugin {
         // B2：技能自扩展长教程按需注入——仅当本轮用户文本明确要求造技能/打包工具。
         let want_skill_build = Self::user_wants_skill_build(&req.user_text);
         let want_task_plan = Self::user_wants_task_plan(&req.user_text);
+        // C 轮：看板上下文装载。@T-/@I- 引用是**输入的一部分**（先解析再回答，不让模型
+        // 花一次工具往返去 show 自己刚引用的条目）；无引用但本轮像「交代一件成规模的事」时，
+        // 退化为在办任务摘要（跨任务归纳的最小落点：先知道自己手上有哪些活）。
+        // 失败静默（文件缺失/坏 JSON → 空串），绝不让看板坏掉拖垮 chat。
+        let board_ctx = super::board_ctx::refs_context(&req.user_text, want_task_plan);
         let system = format!(
-            "{}{}",
+            "{}{}{}",
             self.resolve_system_prompt(env, &cfg).await,
-            self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await
+            self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await,
+            board_ctx
         );
         let mut messages: Vec<MemoryMsg> = vec![MemoryMsg {
             role: "system".into(),

@@ -1,0 +1,9 @@
+            if let Some(Value::String(u)) = obj.get("updated_at") {
+                board["updated_at"] = json!(u);
+            }
+            // C 轮：layout 是看板的**表现层配置**，与任务/灵感同文件——读时必须原样带出，
+            // 否则每次 GET 都退回兜底布局，`layout --file` 写的配置永远看不见。
+            if let Some(lay) = obj.get("layout") {
+                board["layout"] = lay.clone();
+            }
+            board

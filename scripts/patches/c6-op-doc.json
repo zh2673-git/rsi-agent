@@ -1,0 +1,7 @@
+{
+ "id": "C6-OP-DOC",
+ "description": "board.rs：未知 op 文案列出 layout.set（新增 op 的可见性，不靠猜）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor": "                    format!(\"未知 op: {other}（可选 inspiration.add / inspiration.set / refresh；任务写走 scripts/board.py）\"),",
+ "patch": "                    format!(\"未知 op: {other}（可选 inspiration.add / inspiration.set / layout.set / refresh；任务写走 scripts/board.py）\"),"
+}

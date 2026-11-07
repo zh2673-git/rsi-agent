@@ -1,0 +1,7 @@
+{
+ "id": "C5-LAYOUT-OP",
+ "description": "board.rs POST：新增 op=layout.set（逐项预校验 → 400+field；合法则规整后原子写回）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor": "        // 只补缺失字段，不删条目——手改坏的板子可安全修复。\n        \"refresh\" => {\n",
+ "patch_file": "blocks/c5-layout-op-patch.txt"
+}

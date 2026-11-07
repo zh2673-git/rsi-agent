@@ -28,6 +28,7 @@
 
 mod budget;
 mod queue;   // Q 轮 Phase 3：服务端显式队列（全局有界状态，不动插件结构体）
+mod board_ctx; // C 轮：任务看板上下文装载（@引用 + 在办任务摘要，只读 .rsi/board.json）
 mod chat;
 mod compaction;
 mod config;
@@ -634,6 +635,96 @@ mod tests {
         assert!(!AgentLoopPlugin::user_wants_skill_build("跑一下测试"));
         assert!(!AgentLoopPlugin::user_wants_skill_build("读 specs/call-efficiency/tasks.md 继续"));
         assert!(!AgentLoopPlugin::user_wants_skill_build("有哪些技能可用？"));
+    }
+
+    /// C 轮：@引用抽取器必须只认合法 ID 形状（`T-YYYYMMDD-NN`），且去重保序——
+    /// 松匹配会把「@Tomorrow」误当引用，紧匹配会漏掉真实引用，两个方向都有代价。
+    #[test]
+    fn extract_refs_shape_and_order() {
+        use super::board_ctx::extract_refs;
+        let text = "看 @T-20261107-01 和 @I-20261107-02，再说 @T-20261107-01";
+        assert_eq!(
+            extract_refs(text),
+            vec!["T-20261107-01".to_string(), "I-20261107-02".to_string()]
+        );
+        // 非引用：缺日期段 / 段长不符 / 前缀非 T|I / 无 @
+        for bad in ["@T-2026-01", "@X-20261107-01", "@T-2026110-01", "@T-20261107-1", "T-20261107-01"] {
+            assert!(extract_refs(bad).is_empty(), "不应命中: {bad}");
+        }
+        // 三位序号（>99 后的形状）
+        assert_eq!(extract_refs("@T-20261107-100"), vec!["T-20261107-100".to_string()]);
+        assert!(extract_refs("").is_empty());
+    }
+
+    /// C 轮：引用渲染的三种结局（命中 / 全缺失 / 无引用）。纯函数入参 = 不碰进程环境，
+    /// 与既有 WORKSPACE_ROOT 相关测试零串扰（初版用 set_var 版本实测红过）。
+    #[test]
+    fn render_refs_three_outcomes() {
+        use super::board_ctx::{render_open_tasks, render_refs};
+        let board = json!({
+            "version": 1,
+            "tasks": [
+                {
+                    "id": "T-20261107-01", "title": "评价体系", "status": "doing", "priority": "P1",
+                    "goal": "把自证换成证据",
+                    "plan": [{"step": "契约", "status": "completed"},
+                             {"step": "执行器", "status": "in_progress"}],
+                    "acceptance": ["eval 能跑"],
+                    "checks": [{"id": "c1", "kind": "cmd", "name": "pytest", "status": "pass"}],
+                    "evaluation": {"verdict": "pass", "pass": 1, "fail": 0, "skip": 0},
+                    "resourcing": {"model": "current", "effort": "large", "skills": ["project-dev"]},
+                    "artifacts": ["docs/x.md"],
+                    "progress": {"done": 1, "total": 2, "note": "契约已定"}
+                },
+                {
+                    "id": "T-20261107-02", "title": "收尾项", "status": "done", "priority": "P2",
+                    "progress": {"done": 2, "total": 2, "note": ""}
+                }
+            ],
+            "inspirations": [
+                {"id": "I-20261107-01", "text": "看板要有约束", "tags": ["ui"],
+                 "status": "open", "tasks": []}
+            ]
+        });
+
+        // ① 命中引用：任务与灵感都渲染，含计划/验收/检查结论/人财物/产物
+        let hit = render_refs("看 @T-20261107-01 和 @I-20261107-01", &board);
+        assert!(hit.contains("Board references"), "缺 header: {hit}");
+        assert!(hit.contains("评价体系") && hit.contains("progress=1/2"), "任务正文缺失: {hit}");
+        assert!(hit.contains("[x] 契约"), "计划状态标记缺失: {hit}");
+        assert!(hit.contains("verdict=pass"), "评价结论缺失: {hit}");
+        assert!(hit.contains("project-dev"), "人财物缺失: {hit}");
+        assert!(hit.contains("docs/x.md"), "产物缺失: {hit}");
+        assert!(hit.contains("看板要有约束"), "灵感正文缺失: {hit}");
+        assert!(!hit.contains("missing"), "不该报缺失: {hit}");
+
+        // ② 全缺失：不得注入空壳 header，改为显式提示陈旧引用
+        let miss = render_refs("看 @T-20990101-01", &board);
+        assert!(miss.contains("not on the board"), "陈旧引用应显式提示: {miss}");
+        assert!(!miss.contains("Board references (auto-loaded"), "全缺失别装成已装载: {miss}");
+
+        // ③ 无引用 → 空串（调用方决定是否退化）
+        assert_eq!(render_refs("没有引用的一句话", &board), "");
+
+        // ④ 在办摘要排除 done/cancelled
+        let digest = render_open_tasks(&board);
+        assert!(digest.contains("Open tasks on the board"), "缺摘要 header: {digest}");
+        assert!(digest.contains("T-20261107-01"), "摘要应含在办任务: {digest}");
+        assert!(!digest.contains("T-20261107-02"), "done 任务不该出现在在办摘要: {digest}");
+    }
+
+    /// C 轮：看板通道说明只在有 CLI 时出现，full 才讲评价纪律。
+    #[test]
+    fn board_ops_hint_scales_by_flag_and_cli() {
+        use super::board_ctx::board_ops_hint;
+        assert!(board_ops_hint(true, false).is_empty(), "无 board.py 不得注入");
+        let brief = board_ops_hint(false, true);
+        let full = board_ops_hint(true, true);
+        assert!(brief.contains("auto-loaded"), "brief 必须说明 @引用已自动装载");
+        assert!(!brief.contains("board.py eval"), "brief 不得含评价纪律");
+        assert!(full.contains("board.py eval"), "full 必须给评价执行通道");
+        assert!(full.contains("digest --skill"), "full 必须给同类归纳通道");
+        assert!(full.len() > brief.len(), "full 必须比 brief 长");
     }
 
     /// 任务看板触发词判定：交代成规模的事才注入完整规范，闲聊不触发。

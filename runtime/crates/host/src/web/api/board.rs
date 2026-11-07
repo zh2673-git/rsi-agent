@@ -29,7 +29,80 @@ const MAX_TAGS: usize = 10;
 const MAX_TAG: usize = 32;
 const MAX_TITLE: usize = 120;
 
+/// 布局白名单（与 `scripts/board.py::validate_layout` 逐字同源）：kind 决定渲染器，
+/// 顺序也由 kind 钉死（tasks → metrics → inspirations）——「插件化但有约束」的落点。
+const LAYOUT_KINDS: &[&str] = &["tasks", "inspirations", "metrics"];
+const GROUP_BYS: &[&str] = &["status", "priority", "skill"];
+const FILTERS: &[&str] = &["all", "open", "done"];
+const METRIC_IDS: &[&str] = &["by_status", "by_skill", "verdict", "acceptance"];
+const MAX_SECTIONS: usize = 6;
+
+fn default_layout() -> Value {
+    json!({"sections": [
+        {"id": "tasks", "kind": "tasks", "title": "任务看板", "group_by": "status",
+         "filter": "all", "limit": 30},
+        {"id": "insp", "kind": "inspirations", "title": "灵感"}
+    ]})
+}
+
+/// 规整章节数组：丢非法项而不整体拒绝（坏配置不该让看板白屏），但**顺序按 kind 重排**，
+/// 保证手改 layout 也改变不了「任务在上、灵感在下」这个可预期结构。
+fn normalize_layout(raw: Option<&Value>) -> Value {
+    let sections = raw.and_then(|v| v.get("sections")).and_then(Value::as_array);
+    let mut out: Vec<Value> = Vec::new();
+    if let Some(items) = sections {
+        for it in items.iter().take(MAX_SECTIONS) {
+            let Some(obj) = it.as_object() else { continue };
+            let id = obj.get("id").and_then(Value::as_str).unwrap_or("");
+            let kind = obj.get("kind").and_then(Value::as_str).unwrap_or("");
+            if id.is_empty() || id.chars().count() > 24 || !LAYOUT_KINDS.contains(&kind) {
+                continue;
+            }
+            if out.iter().any(|s| s.get("id").and_then(Value::as_str) == Some(id)) {
+                continue; // id 重复只留第一个（后到的丢弃而非整体拒绝）
+            }
+            let title = obj.get("title").and_then(Value::as_str).unwrap_or(id);
+            let mut sec = json!({"id": id, "kind": kind, "title": title});
+            if kind == "tasks" {
+                let gb = obj.get("group_by").and_then(Value::as_str).unwrap_or("status");
+                let fl = obj.get("filter").and_then(Value::as_str).unwrap_or("all");
+                let lim = obj.get("limit").and_then(Value::as_u64).unwrap_or(30).clamp(1, 200);
+                sec["group_by"] = json!(if GROUP_BYS.contains(&gb) { gb } else { "status" });
+                sec["filter"] = json!(if FILTERS.contains(&fl) { fl } else { "all" });
+                sec["limit"] = json!(lim);
+            } else if kind == "metrics" {
+                let mut keep: Vec<Value> = Vec::new();
+                if let Some(Value::Array(ms)) = obj.get("metrics") {
+                    for m in ms {
+                        if let Some(name) = m.as_str() {
+                            if METRIC_IDS.contains(&name) && !keep.iter().any(|k| k == &json!(name)) {
+                                keep.push(json!(name));
+                            }
+                        }
+                    }
+                }
+                if keep.is_empty() {
+                    keep = METRIC_IDS.iter().map(|m| json!(m)).collect();
+                }
+                sec["metrics"] = Value::Array(keep);
+            }
+            out.push(sec);
+        }
+    }
+    if out.is_empty() {
+        return default_layout();
+    }
+    let rank = |k: &str| match k {
+        "tasks" => 0,
+        "metrics" => 1,
+        _ => 2,
+    };
+    out.sort_by_key(|s| rank(s.get("kind").and_then(Value::as_str).unwrap_or("")));
+    json!({"sections": out})
+}
+
 /// 看板文件路径：环境覆盖 → 工作区相对 → `<WORKSPACE_ROOT>/.rsi/board.json`。
+
 pub(super) fn board_path() -> PathBuf {
     let raw = std::env::var("RSI_BOARD_PATH").unwrap_or_default();
     let raw = raw.trim();
@@ -105,8 +178,12 @@ pub(super) fn load_board() -> Value {
             if let Some(Value::String(u)) = obj.get("updated_at") {
                 board["updated_at"] = json!(u);
             }
-            board
-        }
+            // C 轮：layout 是看板的**表现层配置**，与任务/灵感同文件——读时必须原样带出，
+            // 否则每次 GET 都退回兜底布局，`layout --file` 写的配置永远看不见。
+            if let Some(lay) = obj.get("layout") {
+                board["layout"] = lay.clone();
+            }
+            board        }
         _ => {
             let mut board = empty_board();
             board["corrupt"] = json!(true);
@@ -195,7 +272,23 @@ fn parse_tags(v: &Value) -> Result<Vec<String>, Value> {
 pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
     let board = load_board();
     let tasks = board.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default();
-    let insps = board.get("inspirations").and_then(Value::as_array).cloned().unwrap_or_default();
+    // C 轮：layout 规整一次后同时用于「回显给前端」与「兜底」——前端因此永远拿到
+    // 一份**合法且顺序已定**的章节表，不必自己再判空/排序（判空逻辑只在一处）。
+    let layout = normalize_layout(board.get("layout"));
+    let mut by_verdict: Map<String, Value> = Map::new();
+    for v in ["none", "pending", "pass", "fail"] {
+        let n = tasks
+            .iter()
+            .filter(|t| {
+                t.get("evaluation")
+                    .and_then(|e| e.get("verdict"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("none")
+                    == v
+            })
+            .count();
+        by_verdict.insert(v.to_string(), json!(n));
+    }    let insps = board.get("inspirations").and_then(Value::as_array).cloned().unwrap_or_default();
     let mut by_status: Map<String, Value> = Map::new();
     for s in TASK_STATUSES {
         let n = tasks.iter().filter(|t| t.get("status").and_then(Value::as_str) == Some(s)).count();
@@ -206,18 +299,22 @@ pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
         let n = insps.iter().filter(|i| i.get("status").and_then(Value::as_str) == Some(s)).count();
         insp_by.insert((*s).to_string(), json!(n));
     }
+    let mut board = board;
+    board["layout"] = layout;
     json_resp(
         stream,
         200,
         json!({
             "ok": true,
             "path": board_path().display().to_string(),
+            // 回显的是**规整后**的 layout：前端拿到的永远合法，不必自己再判空/排序。
             "board": board,
             "summary": {
-                "tasks": {"total": tasks.len(), "by_status": Value::Object(by_status)},
+                "tasks": {"total": tasks.len(), "by_status": Value::Object(by_status),
+                          "by_verdict": Value::Object(by_verdict)},
                 "inspirations": {"total": insps.len(), "by_status": Value::Object(insp_by)},
             },
-            "limits": {"tasks": MAX_TASKS, "inspirations": MAX_INSP},
+            "limits": {"tasks": MAX_TASKS, "inspirations": MAX_INSP, "sections": MAX_SECTIONS},
         }),
     )
     .await
@@ -314,6 +411,102 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
                 Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
             }
         }
+        // C 轮：布局写入。UI/agent 都能改章节组合，但**只能从白名单里挑**。
+        // 逐项预校验（kind/id/重复/metrics），**报出具体下标**并整体拒绝——不做「规整后
+        // 条数比对」：normalize_layout 在无合法项时会回退兜底布局，条数失配会变成误导文案。
+        "layout.set" => {
+            let Some(Value::Object(obj)) = req.get("layout") else {
+                return json_resp(stream, 400, err("K400", "缺 layout 对象", Some("layout"))).await;
+            };
+            let Some(Value::Array(raw_secs)) = obj.get("sections") else {
+                return json_resp(stream, 400, err("K400", "layout.sections 必须是数组", Some("sections"))).await;
+            };
+            if raw_secs.is_empty() {
+                return json_resp(stream, 400, err("K400", "layout.sections 不能为空", Some("sections"))).await;
+            }
+            if raw_secs.len() > MAX_SECTIONS {
+                return json_resp(
+                    stream,
+                    400,
+                    err("K400", format!("layout.sections 最多 {MAX_SECTIONS} 个"), Some("sections")),
+                )
+                .await;
+            }
+            let mut seen: Vec<&str> = Vec::new();
+            for (i, sec) in raw_secs.iter().enumerate() {
+                let Some(obj_i) = sec.as_object() else {
+                    return json_resp(stream, 400, err("K400", format!("sections[{i}] 必须是对象"), Some("sections"))).await;
+                };
+                let id = obj_i.get("id").and_then(Value::as_str).unwrap_or("");
+                if id.is_empty() || id.chars().count() > 24 {
+                    return json_resp(
+                        stream,
+                        400,
+                        err("K400", format!("sections[{i}].id 须为 1..=24 字符"), Some("sections")),
+                    )
+                    .await;
+                }
+                if seen.contains(&id) {
+                    return json_resp(
+                        stream,
+                        400,
+                        err("K400", format!("sections[{i}].id 重复：{id}"), Some("sections")),
+                    )
+                    .await;
+                }
+                seen.push(id);
+                let kind = obj_i.get("kind").and_then(Value::as_str).unwrap_or("");
+                if !LAYOUT_KINDS.contains(&kind) {
+                    return json_resp(
+                        stream,
+                        400,
+                        err(
+                            "K400",
+                            format!("sections[{i}].kind 必须是 {LAYOUT_KINDS:?} 之一，收到 {kind:?}"),
+                            Some("sections"),
+                        ),
+                    )
+                    .await;
+                }
+                if kind == "metrics" {
+                    if let Some(Value::Array(ms)) = obj_i.get("metrics") {
+                        for m in ms {
+                            let name = m.as_str().unwrap_or("");
+                            if !METRIC_IDS.contains(&name) {
+                                return json_resp(
+                                    stream,
+                                    400,
+                                    err(
+                                        "K400",
+                                        format!("sections[{i}].metrics 只能取 {METRIC_IDS:?}，收到 {name:?}"),
+                                        Some("metrics"),
+                                    ),
+                                )
+                                .await;
+                            }
+                        }
+                    }
+                }
+                if kind == "tasks" {
+                    if let Some(lim) = obj_i.get("limit").and_then(Value::as_u64) {
+                        if !(1..=200).contains(&lim) {
+                            return json_resp(
+                                stream,
+                                400,
+                                err("K400", format!("sections[{i}].limit 须为 1..=200"), Some("sections")),
+                            )
+                            .await;
+                        }
+                    }
+                }
+            }
+            let normalized = normalize_layout(Some(&Value::Object(obj.clone())));
+            board["layout"] = normalized.clone();
+            match save_board(&mut board) {
+                Ok(_) => json_resp(stream, 200, json!({"ok": true, "layout": normalized})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
         // 只补缺失字段，不删条目——手改坏的板子可安全修复。
         "refresh" => {
             let mut fixed = 0u32;
@@ -380,7 +573,7 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
                 400,
                 err(
                     "K400",
-                    format!("未知 op: {other}（可选 inspiration.add / inspiration.set / refresh；任务写走 scripts/board.py）"),
+                    format!("未知 op: {other}（可选 inspiration.add / inspiration.set / layout.set / refresh；任务写走 scripts/board.py）"),
                     Some("op"),
                 ),
             )
@@ -451,6 +644,54 @@ mod tests {
         assert!(parse_tags(&json!({"tags": [""]})).is_err(), "空标签拒绝");
         let too_many: Vec<String> = (0..11).map(|i| format!("t{i}")).collect();
         assert!(parse_tags(&json!({"tags": too_many})).is_err(), "超量拒绝");
+    }
+
+    /// C 轮：布局规整——非法 kind / 重复 id / 空表各有确定结局，且**顺序被 kind 钉死**
+    /// （手改乱序改变不了「任务→指标→灵感」，这是「有约束」的可执行断言）。
+    #[test]
+    fn normalize_layout_enforces_kinds_and_order() {
+        // 空/缺失 → 兜底两章（任务 + 灵感）
+        let d = default_layout();
+        assert_eq!(normalize_layout(None), d, "缺失 layout 必须回退兜底");
+        assert_eq!(normalize_layout(Some(&json!({"sections": []}))), d, "空 sections 同样兜底");
+
+        // 乱序 + 混入非法项：合法项保留、非法项丢弃、顺序按 kind 重排
+        let raw = json!({"sections": [
+            {"id": "insp", "kind": "inspirations", "title": "灵感"},
+            {"id": "bad", "kind": "unknown", "title": "x"},
+            {"id": "m", "kind": "metrics", "metrics": ["verdict", "nope"]},
+            {"id": "t", "kind": "tasks", "group_by": "nope", "filter": "nope", "limit": 9999},
+            {"id": "t", "kind": "tasks", "title": "重复 id 丢弃"}
+        ]});
+        let out = normalize_layout(Some(&raw));
+        let secs = out["sections"].as_array().unwrap();
+        let kinds: Vec<&str> = secs.iter().map(|s| s["kind"].as_str().unwrap()).collect();
+        assert_eq!(kinds, vec!["tasks", "metrics", "inspirations"], "顺序必须被 kind 钉死");
+        assert_eq!(secs[0]["group_by"], json!("status"));
+        assert_eq!(secs[0]["filter"], json!("all"));
+        assert_eq!(secs[0]["limit"], json!(200), "limit 必须夹到上界");
+        assert_eq!(secs[1]["metrics"], json!(["verdict"]), "metrics 只留白名单内的");
+    }
+
+    /// C 轮：board.rs 的布局白名单必须与 scripts/board.py 同源（改一侧忘另一侧 = 前端白屏）。
+    #[test]
+    fn layout_whitelist_matches_python_cli() {
+        let py = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../scripts/board.py"),
+        )
+        .expect("scripts/board.py 必须可读（跨语言同源校验）");
+        for k in LAYOUT_KINDS {
+            assert!(py.contains(&format!("\"{k}\"")), "board.py 缺 kind {k}");
+        }
+        for g in GROUP_BYS {
+            assert!(py.contains(&format!("\"{g}\"")), "board.py 缺 group_by {g}");
+        }
+        for f in FILTERS {
+            assert!(py.contains(&format!("\"{f}\"")), "board.py 缺 filter {f}");
+        }
+        for m in METRIC_IDS {
+            assert!(py.contains(&format!("\"{m}\"")), "board.py 缺 metric {m}");
+        }
     }
 
     /// board_path 必须落在工作区内（除非显式给了绝对路径）——防 UI 与 agent 看两份文件。

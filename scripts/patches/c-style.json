@@ -1,0 +1,7 @@
+{
+ "id": "C-STYLE",
+ "description": "style.css：验收徽章/检查列表/指标卡/章节容器样式（C 轮）",
+ "file": "runtime/crates/host/web-dist/style.css",
+ "anchor_file": "blocks/c-style-anchor.txt",
+ "patch_file": "blocks/c-style-patch.txt"
+}

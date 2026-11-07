@@ -1,0 +1,7 @@
+{
+ "id": "C-CTX-SKILLS",
+ "description": "skills.rs：skills_appendix 追加 C 轮看板通道说明（新增 op 与 checks/digest 纪律，按 full 分档；CLI 存在才注入）",
+ "file": "runtime/crates/agent-loop/src/skills.rs",
+ "anchor": "        let board = Self::task_board_section(want_task_plan);\n        if !board.is_empty() {\n            lines.push(board);\n        }\n",
+ "patch": "        let board = Self::task_board_section(want_task_plan);\n        if !board.is_empty() {\n            lines.push(board);\n        }\n        // C 轮：看板通道升级（@引用自动装载 / resolve / digest / layout / checks 评价纪律）。\n        // 与 task_board_section 分两段：B 轮那段是长字符串字面量，改它等于重写整块提示词；\n        // 新增能力单独成段，锚点稳且可独立回退。\n        let board_ops = super::board_ctx::board_ops_hint(want_task_plan, super::board_ctx::has_board_cli());\n        if !board_ops.is_empty() {\n            lines.push(board_ops);\n        }\n"
+}

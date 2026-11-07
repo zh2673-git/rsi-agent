@@ -1,0 +1,7 @@
+{
+ "id": "C-CTX-MOD",
+ "description": "lib.rs：声明 board_ctx 子模块（@引用装载 / 在办任务摘要，只读 .rsi/board.json）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "mod budget;\nmod queue;   // Q 轮 Phase 3：服务端显式队列（全局有界状态，不动插件结构体）\nmod chat;\n",
+ "patch": "mod budget;\nmod queue;   // Q 轮 Phase 3：服务端显式队列（全局有界状态，不动插件结构体）\nmod board_ctx; // C 轮：任务看板上下文装载（@引用 + 在办任务摘要，只读 .rsi/board.json）\nmod chat;\n"
+}

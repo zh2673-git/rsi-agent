@@ -1,0 +1,20 @@
+    let mut board = board;
+    board["layout"] = layout;
+    json_resp(
+        stream,
+        200,
+        json!({
+            "ok": true,
+            "path": board_path().display().to_string(),
+            // 回显的是**规整后**的 layout：前端拿到的永远合法，不必自己再判空/排序。
+            "board": board,
+            "summary": {
+                "tasks": {"total": tasks.len(), "by_status": Value::Object(by_status),
+                          "by_verdict": Value::Object(by_verdict)},
+                "inspirations": {"total": insps.len(), "by_status": Value::Object(insp_by)},
+            },
+            "limits": {"tasks": MAX_TASKS, "inspirations": MAX_INSP, "sections": MAX_SECTIONS},
+        }),
+    )
+    .await
+}

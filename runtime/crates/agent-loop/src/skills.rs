@@ -83,6 +83,13 @@ impl AgentLoopPlugin {
         if !board.is_empty() {
             lines.push(board);
         }
+        // C 轮：看板通道升级（@引用自动装载 / resolve / digest / layout / checks 评价纪律）。
+        // 与 task_board_section 分两段：B 轮那段是长字符串字面量，改它等于重写整块提示词；
+        // 新增能力单独成段，锚点稳且可独立回退。
+        let board_ops = super::board_ctx::board_ops_hint(want_task_plan, super::board_ctx::has_board_cli());
+        if !board_ops.is_empty() {
+            lines.push(board_ops);
+        }
         // 产物输出约定（方案 A）：给用户的成品文件统一落产物目录——模型不再把产物
         // 混写进技能目录/仓库根。提示词约束非硬边界，越界拦截仍在文件工具侧。
         lines.push(format!(

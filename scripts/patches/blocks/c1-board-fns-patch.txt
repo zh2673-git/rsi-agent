@@ -1,0 +1,74 @@
+/// 布局白名单（与 `scripts/board.py::validate_layout` 逐字同源）：kind 决定渲染器，
+/// 顺序也由 kind 钉死（tasks → metrics → inspirations）——「插件化但有约束」的落点。
+const LAYOUT_KINDS: &[&str] = &["tasks", "inspirations", "metrics"];
+const GROUP_BYS: &[&str] = &["status", "priority", "skill"];
+const FILTERS: &[&str] = &["all", "open", "done"];
+const METRIC_IDS: &[&str] = &["by_status", "by_skill", "verdict", "acceptance"];
+const MAX_SECTIONS: usize = 6;
+
+fn default_layout() -> Value {
+    json!({"sections": [
+        {"id": "tasks", "kind": "tasks", "title": "任务看板", "group_by": "status",
+         "filter": "all", "limit": 30},
+        {"id": "insp", "kind": "inspirations", "title": "灵感"}
+    ]})
+}
+
+/// 规整章节数组：丢非法项而不整体拒绝（坏配置不该让看板白屏），但**顺序按 kind 重排**，
+/// 保证手改 layout 也改变不了「任务在上、灵感在下」这个可预期结构。
+fn normalize_layout(raw: Option<&Value>) -> Value {
+    let sections = raw.and_then(|v| v.get("sections")).and_then(Value::as_array);
+    let mut out: Vec<Value> = Vec::new();
+    if let Some(items) = sections {
+        for it in items.iter().take(MAX_SECTIONS) {
+            let Some(obj) = it.as_object() else { continue };
+            let id = obj.get("id").and_then(Value::as_str).unwrap_or("");
+            let kind = obj.get("kind").and_then(Value::as_str).unwrap_or("");
+            if id.is_empty() || id.chars().count() > 24 || !LAYOUT_KINDS.contains(&kind) {
+                continue;
+            }
+            if out.iter().any(|s| s.get("id").and_then(Value::as_str) == Some(id)) {
+                continue; // id 重复只留第一个（后到的丢弃而非整体拒绝）
+            }
+            let title = obj.get("title").and_then(Value::as_str).unwrap_or(id);
+            let mut sec = json!({"id": id, "kind": kind, "title": title});
+            if kind == "tasks" {
+                let gb = obj.get("group_by").and_then(Value::as_str).unwrap_or("status");
+                let fl = obj.get("filter").and_then(Value::as_str).unwrap_or("all");
+                let lim = obj.get("limit").and_then(Value::as_u64).unwrap_or(30).clamp(1, 200);
+                sec["group_by"] = json!(if GROUP_BYS.contains(&gb) { gb } else { "status" });
+                sec["filter"] = json!(if FILTERS.contains(&fl) { fl } else { "all" });
+                sec["limit"] = json!(lim);
+            } else if kind == "metrics" {
+                let mut keep: Vec<Value> = Vec::new();
+                if let Some(Value::Array(ms)) = obj.get("metrics") {
+                    for m in ms {
+                        if let Some(name) = m.as_str() {
+                            if METRIC_IDS.contains(&name) && !keep.iter().any(|k| k == &json!(name)) {
+                                keep.push(json!(name));
+                            }
+                        }
+                    }
+                }
+                if keep.is_empty() {
+                    keep = METRIC_IDS.iter().map(|m| json!(m)).collect();
+                }
+                sec["metrics"] = Value::Array(keep);
+            }
+            out.push(sec);
+        }
+    }
+    if out.is_empty() {
+        return default_layout();
+    }
+    let rank = |k: &str| match k {
+        "tasks" => 0,
+        "metrics" => 1,
+        _ => 2,
+    };
+    out.sort_by_key(|s| rank(s.get("kind").and_then(Value::as_str).unwrap_or("")));
+    json!({"sections": out})
+}
+
+/// 看板文件路径：环境覆盖 → 工作区相对 → `<WORKSPACE_ROOT>/.rsi/board.json`。
+

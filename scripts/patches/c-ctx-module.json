@@ -1,0 +1,8 @@
+{
+ "id": "C-CTX-MODULE",
+ "description": "新建 agent-loop/src/board_ctx.rs：@T-/@I- 引用装载 + 在办任务摘要（渲染与 I/O 分离，纯函数可测）",
+ "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+ "create": true,
+ "content_file": "blocks/c-board-ctx.txt",
+ "create_marker": "pub(super) fn render_refs"
+}

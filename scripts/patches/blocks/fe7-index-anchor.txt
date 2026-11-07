@@ -1,0 +1,25 @@
+  <section class="board-sec" id="sec-tasks">
+    <div class="sec-head">
+      <span class="sec-title">任务看板</span>
+      <span class="sec-count" id="task-count"></span>
+      <button class="sec-btn" id="task-refresh" title="重新读取看板（.rsi/board.json）">⟳</button>
+    </div>
+    <div class="sec-filter" id="task-filter" hidden>
+      <button data-f="all" class="on">全部</button>
+      <button data-f="open">未完成</button>
+      <button data-f="done">已完成</button>
+    </div>
+    <div class="sec-body" id="tasks"></div>
+  </section>
+
+  <section class="board-sec grow" id="sec-insp">
+    <div class="sec-head">
+      <span class="sec-title">灵感</span>
+      <span class="sec-count" id="insp-count"></span>
+    </div>
+    <div class="insp-add">
+      <input id="insp-input" placeholder="记一条灵感，回车保存" maxlength="2000">
+      <button id="insp-save" title="保存灵感">＋</button>
+    </div>
+    <div class="sec-body" id="inspects"></div>
+  </section>

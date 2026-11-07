@@ -1,0 +1,7 @@
+{
+ "id": "C1-BOARD-FNS",
+ "description": "board.rs：插入布局白名单常量 + default_layout/normalize_layout 纯函数（GET 与 POST 共用一份校验规则）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor_file": "blocks/c1-board-fns-anchor.txt",
+ "patch_file": "blocks/c1-board-fns-patch.txt"
+}

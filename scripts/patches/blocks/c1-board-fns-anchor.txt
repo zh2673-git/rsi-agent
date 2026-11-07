@@ -1,0 +1,1 @@
+/// 看板文件路径：环境覆盖 → 工作区相对 → `<WORKSPACE_ROOT>/.rsi/board.json`。

@@ -365,6 +365,27 @@ Q 轮 Phase 1-3 已提交（c85e87c，34 条补丁）。收尾阶段补 4 条补
 `skills.rs` 的「按需注入长纪律段」模式已是第二次复用（B2 → 任务看板）——这两处可整体移植回
 react-agent，作为「发行形态可挂 UI 视图 + 可挂按需提示段」的正式接缝。
 
+## 8. C 轮（2026-11-08）：评价体系 / 引用装载 / 同类归纳 / 受约束的插件化看板
 
+> 承接 B 轮：B 把「任务」提升为一等对象，C 让这个对象**可被证明、可被引用、可被归纳、可被装配**。
+> 完整方案与迭代记录：**`docs/self-evolution/02-评价体系与看板插件化.md`**。
 
+| # | 目标与动作 | P（产物） | Q（质量门） | I（影响） | 状态 |
+|---|---|---|---|---|---|
+| C1 | **评价体系**：`acceptance`（人读标准）之外增 `checks`（机跑证明：cmd/file/grep/manual）+ `evaluation`（verdict/pass/fail/skip）；检查失败把 verifying/done 退回 doing；有检查未跑就 done 打 warning | `scripts/board.py`（+eval/check-add，25.6→47.6KB） | `pytest` 8 例（四 kind 证据/降级/--only/NO_CHECKS）；活体 eval pass=2 fail=0 skip=1 | 「我说做完了」变成「跑给你看」；`manual` 永远 skip——agent 不能给自己判过 | ☑ |
+| C2 | **@引用自动装载**：`board_ctx.rs`（渲染与 I/O 分离）在组装 system prompt 时解析 `@T-/@I-` 并拼入上下文；三结局（命中/全缺失→stale/无引用→空） | `board_ctx.rs`（新建）、`chat.rs`、`lib.rs`、`skills.rs` | agent-loop lib 29/29（引用形状 + 渲染三结局 + 通道分档，全纯函数不碰环境） | 引用是**输入的一部分**：不再需要模型先 `show` 一次，多引用不再是 N 次往返 | ☑ |
+| C3 | **同类归纳**：`board.py digest`（--skill/--status/--brief + by_skill 聚合）；prompt 无引用但像交代任务时给在办摘要（≤12 条） | `board.py`、`board_ctx.rs` | `pytest` 1 例（过滤 + brief）；Rust 单测排除 done/cancelled | 「这类事以前怎么做的」可检索；摘要让模型先知道自己手上有哪些活 | ☑ |
+| C4 | **受约束的插件化看板**：`layout.sections` 声明式章节（tasks/metrics/inspirations），白名单封闭 + **顺序按 kind 钉死**；GET 回显规整 layout + `by_verdict`；POST `layout.set` 逐项预校验 | `board.rs`（C1–C6 补丁：白名单/load/get/layout.set/doc/测试）、`app-board.js` 重写为布局驱动、`index.html` → `#board-sections`、`style.css` | host lib 31/31（含**跨语言同源测**：直读 board.py 校验白名单）；活体乱序重排 + 非法 kind/重复 id→400 | 加章节不改前端（插件化），能加什么由枚举决定（有约束）；`metrics` 直答「有多少活没跑过验收」 | ☑ |
+| C5 | **活体验证**：独立实例 8799（独立端口/工作区），11 项端到端 | 见 02 文档 §5.3 | 全项符合；关键证据 = CLI 写布局/评价，host 读，前端渲染，三方结构一致 | 「同一份看板的布局与结论」跨进程一致 | ☑ |
 
+**跨轮纪律**：C 轮 15 条补丁全走 `scripts/patches/*.json`（`--dry-run` 0 FAIL / 0 DRY）；未触碰
+SSE 事件类型、`rollback`、`memory` 视图、`queue`；新增依赖 0。**退役** B5 与 FE1 至 `retired/`
+（区域被 C-CTX-CHAT 与 FE8-SIDEBAR 合法改写，终态由 C 轮承接）。
+
+**过程留档（四个坑，详见 02 文档 §5.5）**：① 补丁锚点互吞把 `layout.set` 改成半截 → 回 git HEAD
+重拆成互不重叠的 C1–C8；② 多测共享进程 env 串扰 → `board_ctx` 拆纯函数渲染 + I/O 入口；
+③ `.patchbak` 是同文件共享的、不是真相，基线只认 git HEAD；④ 删除型补丁的 `patch` 写占位注释，
+不用空串（幂等判据会失效）。
+
+**仍未做（下一轮候选）**：`resourcing.model` 真正影响调度（需处理同会话换模型的上下文/缓存语义）；
+「物力自造」（按 plan 现造技能/工具 + 灰跑验收）；`metrics` 历史趋势（需按天快照，属数据层扩张）。

@@ -1,0 +1,20 @@
+pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let board = load_board();
+    let tasks = board.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default();
+    // C 轮：layout 规整一次后同时用于「回显给前端」与「兜底」——前端因此永远拿到
+    // 一份**合法且顺序已定**的章节表，不必自己再判空/排序（判空逻辑只在一处）。
+    let layout = normalize_layout(board.get("layout"));
+    let mut by_verdict: Map<String, Value> = Map::new();
+    for v in ["none", "pending", "pass", "fail"] {
+        let n = tasks
+            .iter()
+            .filter(|t| {
+                t.get("evaluation")
+                    .and_then(|e| e.get("verdict"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("none")
+                    == v
+            })
+            .count();
+        by_verdict.insert(v.to_string(), json!(n));
+    }

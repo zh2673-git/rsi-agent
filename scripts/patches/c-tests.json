@@ -1,0 +1,7 @@
+{
+ "id": "C-TESTS",
+ "description": "lib.rs：新增 C 轮三测（@引用抽取形状 / 引用与摘要渲染的三结局 / 通道说明分档），全部纯函数不碰进程环境",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "    /// 任务看板触发词判定：交代成规模的事才注入完整规范，闲聊不触发。\n    #[test]\n    fn want_task_plan_detection() {\n",
+ "patch_file": "blocks/c-tests-patch.txt"
+}

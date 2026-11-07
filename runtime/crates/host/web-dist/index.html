@@ -10,34 +10,11 @@
 <aside class="sidebar" id="sidebar">
   <div class="brand"><span class="logo">R</span><span>rsi-agent</span><span class="inst-badge" id="inst-badge" hidden></span></div>
 
-  <!-- 左侧是「人的看板」而不是会话列表：用户面对 agent 永远只有一个会话框，
-       项目分类由 agent 自己在工作区完成（docs/self-evolution/01-单会话与任务看板.md）。
-       分区顺序固定（任务 → 灵感 → 窗口），组内排序由状态机与时间决定——不给自由排布。 -->
-  <section class="board-sec" id="sec-tasks">
-    <div class="sec-head">
-      <span class="sec-title">任务看板</span>
-      <span class="sec-count" id="task-count"></span>
-      <button class="sec-btn" id="task-refresh" title="重新读取看板（.rsi/board.json）">⟳</button>
-    </div>
-    <div class="sec-filter" id="task-filter" hidden>
-      <button data-f="all" class="on">全部</button>
-      <button data-f="open">未完成</button>
-      <button data-f="done">已完成</button>
-    </div>
-    <div class="sec-body" id="tasks"></div>
-  </section>
-
-  <section class="board-sec grow" id="sec-insp">
-    <div class="sec-head">
-      <span class="sec-title">灵感</span>
-      <span class="sec-count" id="insp-count"></span>
-    </div>
-    <div class="insp-add">
-      <input id="insp-input" placeholder="记一条灵感，回车保存" maxlength="2000">
-      <button id="insp-save" title="保存灵感">＋</button>
-    </div>
-    <div class="sec-body" id="inspects"></div>
-  </section>
+  <!-- C 轮：左栏改为布局驱动的章节装配（任务 / 指标 / 灵感，顺序由 kind 钉死）。
+       章节清单来自 .rsi/board.json 的 layout.sections（scripts/board.py layout 可读写），
+       前端只认三类 kind + 封闭枚举参数——插件化指加章节不改前端，有约束指
+       能加的东西是白名单，不是任意 DOM（见 docs/self-evolution/02 文档）。 -->
+  <div id="board-sections"></div>
 
   <div class="sec-foot">
     <button class="newchat win" id="btn-newwin" title="新建独立窗口：绑定另一个工作区，独立会话/回滚/配置（多实例并行）">▣ 新窗口</button>

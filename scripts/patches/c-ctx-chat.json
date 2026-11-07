@@ -1,0 +1,7 @@
+{
+ "id": "C-CTX-CHAT",
+ "description": "chat.rs：把看板引用块拼进 system prompt（@引用优先；无引用且像交代任务时给在办摘要）",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor": "        let want_skill_build = Self::user_wants_skill_build(&req.user_text);\n        let want_task_plan = Self::user_wants_task_plan(&req.user_text);\n        let system = format!(\n            \"{}{}\",\n            self.resolve_system_prompt(env, &cfg).await,\n            self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await\n        );\n",
+ "patch_file": "blocks/c-ctx-chat.txt"
+}

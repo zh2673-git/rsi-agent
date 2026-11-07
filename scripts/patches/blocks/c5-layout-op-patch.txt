@@ -1,0 +1,98 @@
+        // C 轮：布局写入。UI/agent 都能改章节组合，但**只能从白名单里挑**。
+        // 逐项预校验（kind/id/重复/metrics），**报出具体下标**并整体拒绝——不做「规整后
+        // 条数比对」：normalize_layout 在无合法项时会回退兜底布局，条数失配会变成误导文案。
+        "layout.set" => {
+            let Some(Value::Object(obj)) = req.get("layout") else {
+                return json_resp(stream, 400, err("K400", "缺 layout 对象", Some("layout"))).await;
+            };
+            let Some(Value::Array(raw_secs)) = obj.get("sections") else {
+                return json_resp(stream, 400, err("K400", "layout.sections 必须是数组", Some("sections"))).await;
+            };
+            if raw_secs.is_empty() {
+                return json_resp(stream, 400, err("K400", "layout.sections 不能为空", Some("sections"))).await;
+            }
+            if raw_secs.len() > MAX_SECTIONS {
+                return json_resp(
+                    stream,
+                    400,
+                    err("K400", format!("layout.sections 最多 {MAX_SECTIONS} 个"), Some("sections")),
+                )
+                .await;
+            }
+            let mut seen: Vec<&str> = Vec::new();
+            for (i, sec) in raw_secs.iter().enumerate() {
+                let Some(obj_i) = sec.as_object() else {
+                    return json_resp(stream, 400, err("K400", format!("sections[{i}] 必须是对象"), Some("sections"))).await;
+                };
+                let id = obj_i.get("id").and_then(Value::as_str).unwrap_or("");
+                if id.is_empty() || id.chars().count() > 24 {
+                    return json_resp(
+                        stream,
+                        400,
+                        err("K400", format!("sections[{i}].id 须为 1..=24 字符"), Some("sections")),
+                    )
+                    .await;
+                }
+                if seen.contains(&id) {
+                    return json_resp(
+                        stream,
+                        400,
+                        err("K400", format!("sections[{i}].id 重复：{id}"), Some("sections")),
+                    )
+                    .await;
+                }
+                seen.push(id);
+                let kind = obj_i.get("kind").and_then(Value::as_str).unwrap_or("");
+                if !LAYOUT_KINDS.contains(&kind) {
+                    return json_resp(
+                        stream,
+                        400,
+                        err(
+                            "K400",
+                            format!("sections[{i}].kind 必须是 {LAYOUT_KINDS:?} 之一，收到 {kind:?}"),
+                            Some("sections"),
+                        ),
+                    )
+                    .await;
+                }
+                if kind == "metrics" {
+                    if let Some(Value::Array(ms)) = obj_i.get("metrics") {
+                        for m in ms {
+                            let name = m.as_str().unwrap_or("");
+                            if !METRIC_IDS.contains(&name) {
+                                return json_resp(
+                                    stream,
+                                    400,
+                                    err(
+                                        "K400",
+                                        format!("sections[{i}].metrics 只能取 {METRIC_IDS:?}，收到 {name:?}"),
+                                        Some("metrics"),
+                                    ),
+                                )
+                                .await;
+                            }
+                        }
+                    }
+                }
+                if kind == "tasks" {
+                    if let Some(lim) = obj_i.get("limit").and_then(Value::as_u64) {
+                        if !(1..=200).contains(&lim) {
+                            return json_resp(
+                                stream,
+                                400,
+                                err("K400", format!("sections[{i}].limit 须为 1..=200"), Some("sections")),
+                            )
+                            .await;
+                        }
+                    }
+                }
+            }
+            let normalized = normalize_layout(Some(&Value::Object(obj.clone())));
+            board["layout"] = normalized.clone();
+            match save_board(&mut board) {
+                Ok(_) => json_resp(stream, 200, json!({"ok": true, "layout": normalized})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
+        // 只补缺失字段，不删条目——手改坏的板子可安全修复。
+        "refresh" => {

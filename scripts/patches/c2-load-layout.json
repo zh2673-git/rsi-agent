@@ -1,0 +1,7 @@
+{
+ "id": "C2-LOAD-LAYOUT",
+ "description": "board.rs load_board：保留 layout 字段（否则每次 GET 都丢，前端只能吃兜底布局）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor": "            if let Some(Value::String(u)) = obj.get(\"updated_at\") {\n                board[\"updated_at\"] = json!(u);\n            }\n            board\n",
+ "patch_file": "blocks/c2-load-layout.txt"
+}

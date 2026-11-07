@@ -55,6 +55,27 @@ MAX_NOTE = 500
 MAX_INSP_TEXT = 2000
 MAX_TAG = 32
 MAX_ID = 40
+# 评价体系（C1）：acceptance = 人读的标准；checks = 机跑的证明；evaluation = 跑出来的结论。
+MAX_CHECKS = 30
+MAX_CMD = 500
+CHECK_KINDS = ("cmd", "file", "grep", "manual")
+CHECK_STATUSES = ("pending", "pass", "fail", "skip")
+VERDICTS = ("none", "pending", "pass", "fail")
+# 受约束的插件化看板（C4）：声明式布局，白名单校验，顺序由 kind 钉死。
+LAYOUT_KINDS = ("tasks", "inspirations", "metrics")
+GROUP_BYS = ("status", "priority", "skill")
+FILTERS = ("all", "open", "done")
+METRIC_IDS = ("by_status", "by_skill", "verdict", "acceptance")
+MAX_SECTIONS = 6
+MAX_SECTION_TITLE = 40
+SECTION_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
+
+DEFAULT_LAYOUT = {
+    "sections": [
+        {"id": "tasks", "kind": "tasks", "title": "任务看板", "group_by": "status", "filter": "all", "limit": 30},
+        {"id": "insp", "kind": "inspirations", "title": "灵感"},
+    ]
+}
 
 TASK_ID_RE = re.compile(r"^T-\d{8}-\d{2,3}$")
 INSP_ID_RE = re.compile(r"^I-\d{8}-\d{2,3}$")
@@ -98,7 +119,8 @@ def today() -> str:
 
 
 def empty_board() -> dict:
-    return {"version": 1, "updated_at": now_iso(), "tasks": [], "inspirations": []}
+    return {"version": 1, "updated_at": now_iso(), "tasks": [], "inspirations": [],
+            "layout": json.loads(json.dumps(DEFAULT_LAYOUT))}
 
 
 def load() -> dict:
@@ -121,6 +143,9 @@ def load() -> dict:
         v = raw.get(k)
         if isinstance(v, list):
             board[k] = [x for x in v if isinstance(x, dict)]
+    lay = raw.get("layout")
+    if isinstance(lay, dict) and isinstance(lay.get("sections"), list):
+        board["layout"] = lay
     board["updated_at"] = str(raw.get("updated_at") or board["updated_at"])
     return board
 
@@ -175,6 +200,99 @@ def _str_list(v, field: str, limit_item: int, limit_count: int) -> list[str]:
     out = []
     for i, x in enumerate(v):
         out.append(_str(x, f"{field}[{i}]", limit_item))
+    return out
+
+
+def validate_layout(raw: dict) -> dict:
+    """受约束的插件化看板（C4）：章节声明式，但**枚举封闭 + 顺序钉死**。
+
+    为什么不是自由排布：用户明确「应该有约束，而不是随意排布」。故这里只允许
+    三类章节（tasks/inspirations/metrics）、三种分组维度、三种筛选、四个指标，
+    且**章节在文件里的先后不影响渲染顺序**——顺序由 kind 的固定优先级决定
+    （tasks → metrics → inspirations），同类内按数组顺序。这样即使配置文件被
+    手改成乱序，界面仍稳定可预期。
+    """
+    if not isinstance(raw, dict):
+        raise BoardError("layout 必须是对象", field="layout")
+    secs_raw = raw.get("sections")
+    if not isinstance(secs_raw, list):
+        raise BoardError("layout.sections 必须是数组", field="layout.sections")
+    if len(secs_raw) > MAX_SECTIONS:
+        raise BoardError(f"layout.sections 最多 {MAX_SECTIONS} 个", field="layout.sections")
+    seen: set[str] = set()
+    out: list[dict] = []
+    for i, s in enumerate(secs_raw):
+        if not isinstance(s, dict):
+            raise BoardError(f"sections[{i}] 必须是对象", field="sections")
+        sid = _str(s.get("id"), f"sections[{i}].id", 24)
+        if not SECTION_ID_RE.match(sid):
+            raise BoardError(f"sections[{i}].id 形状不合法（小写字母/数字/连字符）", field="sections")
+        if sid in seen:
+            raise BoardError(f"sections[{i}].id 重复：{sid}", field="sections")
+        seen.add(sid)
+        kind = _enum(s.get("kind"), f"sections[{i}].kind", LAYOUT_KINDS)
+        sec: dict = {"id": sid, "kind": kind,
+                     "title": _str(s.get("title"), f"sections[{i}].title", MAX_SECTION_TITLE,
+                                   required=False) or sid}
+        if kind == "tasks":
+            sec["group_by"] = _enum(s.get("group_by"), f"sections[{i}].group_by", GROUP_BYS, default="status")
+            sec["filter"] = _enum(s.get("filter"), f"sections[{i}].filter", FILTERS, default="all")
+            lim = s.get("limit", 30)
+            if isinstance(lim, bool) or not isinstance(lim, int) or not (1 <= lim <= 200):
+                raise BoardError(f"sections[{i}].limit 必须是 1..200 的整数", field="sections")
+            sec["limit"] = lim
+        elif kind == "metrics":
+            sec["metrics"] = _str_list(s.get("metrics") or list(METRIC_IDS),
+                                      f"sections[{i}].metrics", 16, len(METRIC_IDS))
+            bad = [m for m in sec["metrics"] if m not in METRIC_IDS]
+            if bad or not sec["metrics"]:
+                raise BoardError(f"sections[{i}].metrics 只能是 {list(METRIC_IDS)} 的非空子集，"
+                                 f"收到 {bad or '空'}", field="metrics")
+        out.append(sec)
+    if not out:
+        raise BoardError("layout.sections 不能为空（至少一个章节）", field="layout.sections")
+    # 顺序钉死：kind 优先级固定，同类内保持声明顺序——配置乱序也不影响渲染。
+    rank = {k: n for n, k in enumerate(("tasks", "metrics", "inspirations"))}
+    out.sort(key=lambda s: rank[s["kind"]])
+    return {"sections": out}
+
+
+def validate_checks(raw) -> list[dict]:
+    """可执行验收（C1）：`cmd`/`file`/`grep` 由 CLI 跑，`manual` 只登记待人判。
+
+    设计取舍：**不在看板里做沙箱**。cmd 走 subprocess 在工作区执行，等于把
+    「agent 已经有的 bash 权限」搬到验收环节——问题不是权限，而是**把「我说做完了」
+    换成「跑给你看」**。故不做白名单命令，只做：超时、工作区 cwd、输出截断、
+    状态机封闭（pending/pass/fail/skip）、结果必须带证据（exit_code/摘录）。
+    """
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise BoardError("checks 必须是数组", field="checks")
+    if len(raw) > MAX_CHECKS:
+        raise BoardError(f"checks 最多 {MAX_CHECKS} 条", field="checks")
+    out = []
+    for i, c in enumerate(raw):
+        if not isinstance(c, dict):
+            raise BoardError(f"checks[{i}] 必须是对象", field="checks")
+        kind = _enum(c.get("kind") or "cmd", f"checks[{i}].kind", CHECK_KINDS)
+        cid = _str(c.get("id") or f"c{i + 1}", f"checks[{i}].id", 24)
+        if not SECTION_ID_RE.match(cid):
+            raise BoardError(f"checks[{i}].id 形状不合法", field="checks")
+        item: dict = {
+            "id": cid,
+            "kind": kind,
+            "name": _str(c.get("name") or cid, f"checks[{i}].name", MAX_STEP),
+            "status": _enum(c.get("status"), f"checks[{i}].status", CHECK_STATUSES, default="pending"),
+        }
+        if kind in ("cmd", "grep", "file"):
+            item["target"] = _str(c.get("target"), f"checks[{i}].target", MAX_CMD)
+            if kind == "cmd":
+                to = c.get("timeout_secs", 60)
+                if isinstance(to, bool) or not isinstance(to, int) or not (1 <= to <= 600):
+                    raise BoardError(f"checks[{i}].timeout_secs 必须是 1..600 的整数", field="checks")
+                item["timeout_secs"] = to
+        out.append(item)
     return out
 
 
@@ -244,6 +362,20 @@ def validate_task(raw: dict, existing: dict | None) -> dict:
     task["acceptance"] = _str_list(
         raw.get("acceptance", base.get("acceptance")), "acceptance", 300, MAX_ACCEPTANCE
     )
+    # C1 评价体系：人读的标准（acceptance）+ 机跑的证明（checks）+ 跑出来的结论（evaluation）。
+    if "checks" in raw:
+        task["checks"] = validate_checks(raw.get("checks"))
+    else:
+        task["checks"] = validate_checks(base.get("checks"))
+    evaluation = base.get("evaluation") if isinstance(base.get("evaluation"), dict) else {}
+    task["evaluation"] = {
+        "verdict": _enum(evaluation.get("verdict"), "evaluation.verdict", VERDICTS, default="none"),
+        "ran_at": _str(evaluation.get("ran_at"), "evaluation.ran_at", 40, required=False),
+        "pass": int(evaluation.get("pass") or 0) if isinstance(evaluation.get("pass"), (int, float)) else 0,
+        "fail": int(evaluation.get("fail") or 0) if isinstance(evaluation.get("fail"), (int, float)) else 0,
+        "skip": int(evaluation.get("skip") or 0) if isinstance(evaluation.get("skip"), (int, float)) else 0,
+        "note": _str(evaluation.get("note"), "evaluation.note", MAX_NOTE, required=False),
+    }
 
     # 验收闸：进 verifying/done 时 acceptance 不得为空（提示级——回写 warn 不阻断，
     # 因为「改一个错别字」这类任务写不出有意义验收项，硬闸会逼模型编造）。
@@ -279,10 +411,288 @@ def check_acceptance_warning(task: dict) -> str | None:
             "acceptance 为空却已进入 "
             f"{task['status']}：没有验收标准的「完成」不可核对，请补 1-3 条可判定的验收条目。"
         )
+    # C1：登记了可执行检查却没跑（或跑挂了）就宣告完成——这是「自证」而不是「证据」。
+    checks = task.get("checks") or []
+    verdict = (task.get("evaluation") or {}).get("verdict", "none")
+    if checks and task["status"] == "done" and verdict != "pass":
+        return (
+            f"checks 有 {len(checks)} 条但 evaluation.verdict={verdict} 却已 done："
+            "请先跑 `python scripts/board.py eval <ID>`，全 PASS 再收尾。"
+        )
     return None
 
 
 # ── 命令 ─────────────────────────────────────────────────────────────────────
+
+
+def _run_check(check: dict, ws: Path) -> dict:
+    """跑一条可执行验收，返回 {status, evidence}。超过 scope 的条目记 skip 而非 fail：
+
+    - `manual` 永远 skip（待人判，agent 不能自己给自己判过）；
+    - `file` 只判存在性（内容判定交给 grep）；
+    - `grep` 走纯 Python 扫描（不引第三方、不依赖 PATH 里的 findstr）；
+    - `cmd` 走 shell，超时或非零退出即 fail，输出尾部 400 字进 evidence。
+    """
+    kind = check.get("kind")
+    ev: dict = {"at": now_iso()}
+    if kind == "manual":
+        return {"status": "skip", "evidence": {**ev, "reason": "human-judged"}}
+    target = str(check.get("target") or "")
+    if kind == "file":
+        p = Path(target)
+        p = p if p.is_absolute() else ws / p
+        try:
+            exists = p.exists()
+        except OSError:
+            exists = False
+        return {"status": "pass" if exists else "fail",
+                "evidence": {**ev, "path": target, "exists": exists}}
+    if kind == "grep":
+        pattern = str(check.get("pattern") or target)
+        scope = str(check.get("scope") or ".")
+        root = Path(scope)
+        root = root if root.is_absolute() else ws / root
+        hits = 0
+        sample: list[str] = []
+        try:
+            for f in root.rglob("*"):
+                if not f.is_file() or f.stat().st_size > 1_000_000:
+                    continue
+                if any(part in (".git", "node_modules", "target", "target-selfupdate",
+                                "__pycache__", ".venv") for part in f.parts):
+                    continue
+                try:
+                    text = f.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                if pattern and pattern in text:
+                    hits += 1
+                    if len(sample) < 5:
+                        sample.append(str(f.relative_to(ws)) if str(f).startswith(str(ws)) else str(f))
+                if hits >= 200:
+                    break
+        except OSError as e:
+            return {"status": "fail", "evidence": {**ev, "error": str(e)}}
+        return {"status": "pass" if hits else "fail",
+                "evidence": {**ev, "pattern": pattern, "scope": scope, "hits": hits, "sample": sample}}
+    if kind == "cmd":
+        import subprocess
+        to = int(check.get("timeout_secs") or 60)
+        try:
+            r = subprocess.run(target, shell=True, cwd=str(ws), capture_output=True,
+                               text=True, encoding="utf-8", errors="replace", timeout=to)
+        except subprocess.TimeoutExpired:
+            return {"status": "fail", "evidence": {**ev, "timeout_secs": to}}
+        except OSError as e:
+            return {"status": "fail", "evidence": {**ev, "error": str(e)}}
+        tail = ((r.stdout or "") + (r.stderr or "")).strip()[-400:]
+        return {"status": "pass" if r.returncode == 0 else "fail",
+                "evidence": {**ev, "exit_code": r.returncode, "tail": tail}}
+    return {"status": "skip", "evidence": {**ev, "reason": f"未实现的 kind: {kind}"}}
+
+
+def cmd_eval(args: argparse.Namespace) -> dict:
+    """C1 评价执行器：把「我说做完了」换成「跑给你看」。"""
+    board = load()
+    task = next((t for t in board["tasks"] if t.get("id") == args.id), None)
+    if task is None:
+        raise BoardError(f"未找到任务 {args.id}", code="NOT_FOUND", field="id")
+    checks = task.get("checks") if isinstance(task.get("checks"), list) else []
+    if not checks:
+        raise BoardError(
+            "该任务没有可执行检查（checks 为空）：先在 task-upsert 里写 checks，"
+            "或用 `task-status` 的 acceptance 走人判路径",
+            code="NO_CHECKS", field="checks",
+        )
+    only = {c.strip() for c in (args.only or "").split(",") if c.strip()}
+    ws = workspace_root()
+    results, npass, nfail, nskip = [], 0, 0, 0
+    for c in checks:
+        if only and c.get("id") not in only:
+            results.append({"id": c.get("id"), "status": c.get("status", "pending"),
+                            "kept": True})
+            continue
+        r = _run_check(c, ws)
+        c["status"] = r["status"]
+        c["evidence"] = r["evidence"]
+        c["last_run"] = now_iso()
+        npass += r["status"] == "pass"
+        nfail += r["status"] == "fail"
+        nskip += r["status"] == "skip"
+        results.append({"id": c.get("id"), "name": c.get("name"), "kind": c.get("kind"),
+                        "status": r["status"]})
+    verdict = "fail" if nfail else ("pass" if npass else "pending")
+    prev = task.get("evaluation") if isinstance(task.get("evaluation"), dict) else {}
+    task["evaluation"] = {
+        "verdict": verdict, "ran_at": now_iso(),
+        "pass": npass, "fail": nfail, "skip": nskip,
+        "note": _str(args.note, "evaluation.note", MAX_NOTE, required=False) or prev.get("note", ""),
+    }
+    task["checks"] = checks
+    if verdict == "fail" and task.get("status") in ("verifying", "done"):
+        task["status"] = "doing"  # 验收挂了不许停在验收/完成态（把「假完成」退回执行）
+    task["updated_at"] = now_iso()
+    save(board)
+    out = {"ok": True, "id": args.id, "verdict": verdict,
+           "pass": npass, "fail": nfail, "skip": nskip,
+           "status": task.get("status"), "checks": results}
+    if nfail:
+        out["failed"] = [r["id"] for r in results if r["status"] == "fail"]
+    return out
+
+
+def cmd_check_add(args: argparse.Namespace) -> dict:
+    """追加一条可执行检查（不必整表重写任务）。"""
+    board = load()
+    task = next((t for t in board["tasks"] if t.get("id") == args.id), None)
+    if task is None:
+        raise BoardError(f"未找到任务 {args.id}", code="NOT_FOUND", field="id")
+    raw = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    if isinstance(raw, dict) and "checks" not in raw:
+        raw = {"checks": [raw]}
+    checks = validate_checks(task.get("checks"))
+    for c in validate_checks(raw.get("checks") if isinstance(raw, dict) else raw):
+        if any(x["id"] == c["id"] for x in checks):
+            raise BoardError(f"checks id 重复：{c['id']}", field="checks")
+        checks.append(c)
+    task["checks"] = validate_checks(checks)
+    task["updated_at"] = now_iso()
+    save(board)
+    return {"ok": True, "id": args.id, "checks": len(task["checks"])}
+
+
+def cmd_layout(args: argparse.Namespace) -> dict:
+    """C4 受约束的插件化看板：读 / 写 layout（白名单校验，写盘即规整）。"""
+    board = load()
+    if args.file:
+        raw = json.loads(Path(args.file).read_text(encoding="utf-8"))
+        if isinstance(raw, dict) and "sections" not in raw and "layout" in raw:
+            raw = raw["layout"]
+        board["layout"] = validate_layout(raw)
+        save(board)
+        return {"ok": True, "layout": board["layout"], "path": str(board_path())}
+    secs = (board.get("layout") or {}).get("sections")
+    if not isinstance(secs, list):
+        secs = json.loads(json.dumps(DEFAULT_LAYOUT))["sections"]
+    return {"ok": True, "layout": {"sections": secs}, "path": str(board_path())}
+
+
+def _task_digest(t: dict, brief: bool = False) -> dict:
+    """跨任务聚合的最小信息面（C3）：够判「同类」，不带整块正文。"""
+    res = t.get("resourcing") if isinstance(t.get("resourcing"), dict) else {}
+    ev = t.get("evaluation") if isinstance(t.get("evaluation"), dict) else {}
+    out = {
+        "id": t.get("id"), "title": t.get("title"), "status": t.get("status"),
+        "priority": t.get("priority"),
+        "progress": t.get("progress"), "skills": res.get("skills") or [],
+        "model": res.get("model"), "effort": res.get("effort"),
+        "verdict": ev.get("verdict", "none"),
+        "checks": len(t.get("checks") or []),
+        "updated_at": t.get("updated_at"),
+    }
+    if not brief:
+        out["goal"] = t.get("goal", "")
+        out["acceptance"] = t.get("acceptance") or []
+        out["artifacts"] = t.get("artifacts") or []
+        out["note"] = (t.get("progress") or {}).get("note", "") if isinstance(t.get("progress"), dict) else ""
+    return out
+
+
+def cmd_digest(args: argparse.Namespace) -> dict:
+    """C3 跨任务聚合：按 skill / 状态 / 时间聚合同类任务，回答「这类事以前怎么做的」。
+
+    为什么在 CLI 而不在每轮 prompt：整块看板塞进上下文是 O(看板) 的每轮开销。
+    聚合是**按需检索**——要归纳同类任务时才查一次，结果自己控制粒度（--limit / --brief）。
+    """
+    board = load()
+    tasks = board["tasks"]
+    if args.skill:
+        tasks = [t for t in tasks
+                 if args.skill in ((t.get("resourcing") or {}).get("skills") or [])]
+    if args.status:
+        _enum(args.status, "status", TASK_STATUSES)
+        tasks = [t for t in tasks if t.get("status") == args.status]
+    order = {s: i for i, s in enumerate(TASK_STATUSES)}
+    tasks = sorted(tasks, key=lambda t: order.get(str(t.get("status")), 99))
+    tasks = tasks[: max(1, int(args.limit))]
+    by_skill: dict[str, dict] = {}
+    for t in board["tasks"]:
+        for s in ((t.get("resourcing") or {}).get("skills") or []):
+            slot = by_skill.setdefault(s, {"skill": s, "total": 0, "open": 0, "done": 0})
+            slot["total"] += 1
+            if t.get("status") in ("done",):
+                slot["done"] += 1
+            elif t.get("status") not in ("cancelled", "blocked"):
+                slot["open"] += 1
+    out = {"ok": True, "tasks": [_task_digest(t, args.brief) for t in tasks],
+           "total": len(tasks)}
+    if by_skill:
+        out["by_skill"] = sorted(by_skill.values(), key=lambda x: -x["total"])
+    if args.with_inspirations:
+        out["inspirations"] = [
+            {"id": i.get("id"), "text": i.get("text"), "status": i.get("status"),
+             "tags": i.get("tags") or []}
+            for i in board["inspirations"][:20]
+        ]
+    return out
+
+
+RESOLVE_RE = re.compile(r"@([TI]-\d{8}-\d{2,3})")
+
+
+def cmd_resolve(args: argparse.Namespace) -> dict:
+    """C2 @引用装载：把用户文本里的 `@T-…` / `@I-…` 解析成上下文块。
+
+    为什么由 CLI 预解析而不是让模型自己 `show`：引用是**输入的一部分**，不是
+    待办事项。让模型先发一次工具调用再回答，会在多引用时变成 N 次往返；这里一次
+    调用给全（含任务的目标/计划/验收/检查结论、灵感原文与关联任务）。
+    """
+    board = load()
+    text = args.text or ""
+    ids = []
+    for m in RESOLVE_RE.finditer(text):
+        if m.group(1) not in ids:
+            ids.append(m.group(1))
+    tasks = {t.get("id"): t for t in board["tasks"]}
+    insps = {i.get("id"): i for i in board["inspirations"]}
+    blocks, missing = [], []
+    for i in ids:
+        if i in tasks:
+            t = tasks[i]
+            blocks.append({
+                "ref": i, "type": "task",
+                "title": t.get("title"), "status": t.get("status"), "priority": t.get("priority"),
+                "goal": t.get("goal", ""),
+                "plan": t.get("plan") or [], "acceptance": t.get("acceptance") or [],
+                "checks": [{"id": c.get("id"), "name": c.get("name"), "kind": c.get("kind"),
+                            "status": c.get("status")} for c in (t.get("checks") or [])],
+                "evaluation": t.get("evaluation") or {},
+                "resourcing": t.get("resourcing") or {},
+                "progress": t.get("progress") or {},
+                "artifacts": t.get("artifacts") or [],
+                "inspirations": t.get("inspirations") or [],
+            })
+        elif i in insps:
+            it = insps[i]
+            blocks.append({
+                "ref": i, "type": "inspiration",
+                "text": it.get("text"), "tags": it.get("tags") or [],
+                "status": it.get("status"),
+                "tasks": [{k: tasks.get(x, {}).get(k) for k in ("id", "title", "status")}
+                          for x in (it.get("tasks") or [])],
+            })
+        else:
+            missing.append(i)
+    # @引用同现时的排序提示：任务按状态机顺序，灵感在后（任务是账，灵感是料）。
+    order = {s: n for n, s in enumerate(TASK_STATUSES)}
+    blocks.sort(key=lambda b: (0 if b["type"] == "task" else 1,
+                               order.get(b.get("status"), 99)))
+    out = {"ok": True, "refs": blocks, "count": len(blocks)}
+    if missing:
+        out["missing"] = missing
+    if not ids:
+        out["note"] = "未发现 @T-/@I- 引用；本命令只做解析，不改板"
+    return out
 
 
 def cmd_list(args: argparse.Namespace) -> dict:
@@ -501,10 +911,14 @@ def cmd_refresh(args: argparse.Namespace) -> dict:
     fixed = 0
     for t in board["tasks"]:
         for key, default in (("status", "planning"), ("priority", "P2"), ("plan", []),
-                             ("acceptance", []), ("inspirations", []), ("artifacts", [])):
+                             ("acceptance", []), ("inspirations", []), ("artifacts", []),
+                             ("checks", [])):
             if key not in t:
                 t[key] = default
                 fixed += 1
+        if not isinstance(t.get("evaluation"), dict):
+            t["evaluation"] = {"verdict": "none", "ran_at": "", "pass": 0, "fail": 0, "skip": 0, "note": ""}
+            fixed += 1
         if not isinstance(t.get("resourcing"), dict):
             t["resourcing"] = {"model": "current", "effort": "medium", "skills": [], "tools": [], "budget_secs": 0}
             fixed += 1
@@ -575,6 +989,33 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("refresh", help="补齐缺失字段（不删条目）")
     p.set_defaults(fn=cmd_refresh)
+
+    p = sub.add_parser("eval", help="跑可执行验收（checks），写回 evaluation")
+    p.add_argument("id")
+    p.add_argument("--only", default="", help="只跑指定 id，逗号分隔")
+    p.add_argument("--note", default=None)
+    p.set_defaults(fn=cmd_eval)
+
+    p = sub.add_parser("check-add", help="追加一条可执行检查（JSON 文件）")
+    p.add_argument("id")
+    p.add_argument("--file", required=True)
+    p.set_defaults(fn=cmd_check_add)
+
+    p = sub.add_parser("layout", help="读/写看板布局（受约束的插件化章节）")
+    p.add_argument("--file", default=None, help="JSON 文件；省略则只读")
+    p.set_defaults(fn=cmd_layout)
+
+    p = sub.add_parser("digest", help="跨任务聚合（同类任务归纳）")
+    p.add_argument("--skill", default="", help="只聚合用了该技能的任务")
+    p.add_argument("--status", default="")
+    p.add_argument("--limit", default=20)
+    p.add_argument("--brief", action="store_true", help="只给最小信息面")
+    p.add_argument("--with-inspirations", action="store_true")
+    p.set_defaults(fn=cmd_digest)
+
+    p = sub.add_parser("resolve", help="解析文本里的 @T-/@I- 引用为上下文块")
+    p.add_argument("text", nargs="?", default="")
+    p.set_defaults(fn=cmd_resolve)
     return ap
 
 

@@ -1,0 +1,7 @@
+{
+ "id": "FE8-SIDEBAR",
+ "description": "index.html：左栏两个写死分区（任务/灵感）换成布局装配容器 #board-sections（章节由 app-board.js 按 layout 装配）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/fe7-index-anchor.txt",
+ "patch_file": "blocks/fe7-index.txt"
+}
