@@ -1,0 +1,4 @@
+    fn config_media_section_applies_to_env() {
+        // F4：与 agent 段测试共享 CONFIG_FILE 与 MEDIA_* 键，必须串行
+        let _guard = crate::config::env_lock();
+        // PLAN §九：media 段（image/video）→ MEDIA_* env 持久通道映射；空串不覆盖。

@@ -1,0 +1,2 @@
+.ov-note { font-size: 10.5px; color: var(--faint); line-height: 1.55; margin-top: 8px;
+  padding-top: 6px; border-top: 1px dashed var(--border-soft); }

@@ -1,0 +1,5 @@
+    fn config_agent_section_applies_to_env() {
+        // P5/E1：config.json agent 段经持久通道应用为 agent-loop 运行参数 env。
+        // F4：改 env 必须持进程级锁——否则与 config_media / api::config 两条同类测试并发时
+        // 互相踩值（以前靠 --test-threads=1 规避，那只是把缺陷藏在跑法里）。
+        let _guard = crate::config::env_lock();

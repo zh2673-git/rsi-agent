@@ -1,0 +1,22 @@
+.mem-dcnt { margin-left: auto; font-size: 10.5px; color: var(--faint); }
+.mem-dcnt { margin-left: auto; font-size: 10.5px; color: var(--faint); }
+
+/* ── F3：能力总览（设置抽屉的目录页）─────────────────────────────────────────
+   三列并排表达「谁做的决定」，窄屏退化为单列。视觉上刻意做成**目录**而不是仪表盘：
+   行可点、字小、没有图表——用户来这里是为了知道「去哪改」，不是为了看报表。 */
+.ov { border: 1px solid var(--border-soft); border-radius: 10px; padding: 9px 11px;
+  margin-bottom: 12px; background: var(--card); }
+.ov-title { font-size: 11px; font-weight: 700; color: var(--faint); letter-spacing: .6px;
+  text-transform: uppercase; margin-bottom: 7px; }
+.ov-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px 14px; }
+.ov-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ov-h { font-size: 11px; font-weight: 700; color: var(--muted); padding: 2px 0 3px;
+  border-bottom: 1px solid var(--border-soft); margin-bottom: 2px; }
+.ov-row { display: flex; align-items: baseline; gap: 6px; background: none; border: 0;
+  border-radius: 6px; padding: 3px 4px; cursor: pointer; text-align: left; width: 100%; }
+.ov-row:hover { background: var(--card-2); }
+.ov-k { font-size: 11.5px; color: var(--text); flex: 0 0 auto; }
+.ov-v { font-size: 11px; color: var(--faint); margin-left: auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-note { font-size: 10.5px; color: var(--faint); line-height: 1.55; margin-top: 8px;
+  padding-top: 6px; border-top: 1px dashed var(--border-soft); }

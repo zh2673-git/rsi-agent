@@ -1,0 +1,7 @@
+{
+ "id": "FE9",
+ "description": "app-board.js 的 el(tag,cls,html) 与 app-core.js 的 el(html) 同名覆盖，导致对话事件全部渲染失败；合并为带判别的前缀分发函数",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "anchor_file": "blocks/fe9-el-dispatch-anchor.txt",
+ "patch_file": "blocks/fe9-el-dispatch.txt"
+}

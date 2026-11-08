@@ -1,0 +1,15 @@
+.ov-note { font-size: 10.5px; color: var(--faint); line-height: 1.55; margin-top: 8px;
+  padding-top: 6px; border-top: 1px dashed var(--border-soft); }
+.bw-trend { grid-column: 1 / -1; margin-top: 10px; }
+.bw-trend-hint { margin-left: 8px; font-size: 11px; color: var(--faint); }
+.bw-bars { display: flex; align-items: flex-end; gap: 8px; height: 78px; margin-top: 6px;
+  padding: 0 2px; }
+.bw-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; gap: 2px; height: 100%; min-width: 0; }
+.bw-bar-n { font-size: 9.5px; color: var(--faint); line-height: 1; }
+/* 柱高 = 当日更新件数；柱内实心 = 其中验收通过的比例 */
+.bw-bar-t { width: 100%; max-width: 34px; background: var(--card-2); border-radius: 3px 3px 0 0;
+  display: flex; align-items: flex-end; overflow: hidden; min-height: 2px; }
+.bw-bar-t i { display: block; width: 100%; background: var(--ok); }
+.bw-bar-l { font-size: 9.5px; color: var(--faint); line-height: 1; }
+.bw-trend-note { font-size: 10.5px; color: var(--faint); line-height: 1.5; margin-top: 6px; }

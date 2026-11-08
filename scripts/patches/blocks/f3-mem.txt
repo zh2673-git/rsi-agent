@@ -1,0 +1,17 @@
+    <div id="tab-memory" hidden>
+      <!-- F2：记忆页。三块自上而下 = 三层记忆的作用范围由近到远：
+           ① 画像（长期结论，每轮注入）② 域（同一条结论在不同场合的不同版本）
+           ③ 观察（原始记录，进 prompt 时只取最近几条）。
+           底部说明「这里只读只删」——UI 讲清自己的权限边界，用户才不会以为「这里能加一条」。 -->
+      <p class="hint" style="margin-top:0">
+        这里是 agent 记住的关于你的结论（<code>.rsi/profile.json</code>），每轮都会进上下文。
+        写错一条比不写更糟，所以：<b>这里能看、能删，不能手写新增</b>——新增由观察产生
+        （对话里发现的规律由我记下），你删掉错的即可。
+      </p>
+      <div class="mem-bar">
+        <span class="mem-stat" id="mem-stat">读取中…</span>
+        <button class="btn ghost" id="mem-refresh" title="重新读取 .rsi/profile.json">⟳ 刷新</button>
+        <button class="btn ghost" id="mem-reveal" title="在文件管理器中定位 profile.json">📂 源文件</button>
+      </div>
+      <div id="mem-body"></div>
+    </div>

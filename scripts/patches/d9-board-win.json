@@ -1,7 +1,7 @@
 {
  "id": "D9-BOARD-WIN",
- "description": "app-board.js：新增看板弹窗（同源布局分标签 + 任务卡全展开 + 对话关联 + 人财物/计划/分解/检查）",
+ "description": "app-board.js：看板弹窗（同源布局分标签 + 任务卡全展开 + 对话关联 + 人财物/计划/分解/检查）在位。本补丁转幂等校验：F4-TREND-HOOK 改写了 renderWinMetrics（本补丁 patch 块内含它），故原整块子串判据失效；锚点改为弹窗初始化的独占片段",
  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
- "anchor_file": "blocks/d-app-board-tail-anchor.txt",
- "patch_file": "blocks/d-app-board-tail.txt"
+ "anchor_file": "blocks/d9-verify-anchor.txt",
+ "patch_file": "blocks/d9-verify.txt"
 }

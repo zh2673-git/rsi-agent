@@ -1,0 +1,7 @@
+{
+  "id": "F1-INSP-FOLD",
+  "description": "左栏灵感章节：按状态分三层折叠（待议全展，已采纳/已归档默认折成一行汇总）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/f1-insp-fold-anchor.txt",
+  "patch_file": "blocks/f1-insp-fold2.txt"
+}

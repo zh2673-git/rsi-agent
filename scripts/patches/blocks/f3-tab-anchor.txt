@@ -1,0 +1,2 @@
+    <button data-tab="skills">技能</button>
+    <button data-tab="agent">Agent</button>

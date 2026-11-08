@@ -1,0 +1,7 @@
+{
+ "id": "F3-CFG-CACHE",
+ "description": "app-settings.js loadConfig：缓存 config 到 window.__cfgCache 并刷新能力总览（不为目录多发一次请求）",
+ "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+ "anchor_file": "blocks/f3-cfgcache-anchor.txt",
+ "patch_file": "blocks/f3-cfgcache2.txt"
+}

@@ -1,0 +1,8 @@
+// F2：打开设置时按需加载记忆页（连带 loadSkills 一起——两者都是「系统现在怎样」，
+// 用户打开设置往往想知道的是这个，而不是马上改配置）。
+$("gear").onclick = () => { drawer.classList.add("open"); loadConfig(); loadSkills(); loadMemory(); };
+$("dclose").onclick = () => drawer.classList.remove("open");
+document.querySelectorAll("#drawer .tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("#drawer .tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  for (const t of ["llm", "tools", "skills", "memory", "agent"]) $("tab-" + t).hidden = t !== b.dataset.tab;
+});

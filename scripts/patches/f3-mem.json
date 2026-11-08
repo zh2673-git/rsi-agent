@@ -1,0 +1,7 @@
+{
+  "id": "F3-MEM-PANEL",
+  "description": "index.html：新增 #tab-memory 面板骨架（统计条 + 三层内容区 + 权限边界说明）",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/f3-mem-anchor.txt",
+  "patch_file": "blocks/f3-mem.txt"
+}

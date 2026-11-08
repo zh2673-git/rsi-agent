@@ -1,0 +1,8 @@
+{
+  "id": "F2-PROFILE-API",
+  "description": "新建 web/api/profile.rs：GET /api/profile 全量读画像、POST /api/profile 受限删除（note/section/domain），坏 JSON 拒写",
+  "file": "runtime/crates/host/src/web/api/profile.rs",
+  "create": true,
+  "content_file": "blocks/f2-profile-rs.txt",
+  "create_marker": "pub(super) async fn post_profile"
+}

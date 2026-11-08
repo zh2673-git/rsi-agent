@@ -1,0 +1,141 @@
+// ── F2：记忆页（画像可见化）──────────────────────────────────────────────────
+// 设计取舍（对齐 I-20261108-02「设置把『我做的决定』和『系统现在的状态』混成一件」）：
+// 1. **能看**：此前画像只在 prompt 里生效，用户完全看不见——写错了也不知道，
+//    而它每轮都影响回答。可见化本身就是修 bug。
+// 2. **只能删**：新增/编辑走对话（`profile.py`），因为画像是**观察的结论**，
+//    用户手写一条「我喜欢简洁」不是观察而是一条命令；命令说在对话里，由模型落成画像。
+//    但删除必须是用户的权力：写错的结论会让模型每轮带着它犯同一个错。
+// 3. **分层展示**：全局 → 各域 → 观察。域按「作用范围」而非角色分（见 04 文档），
+//    UI 直接把这条判据写进每组标题，用户看到结构就学会判据。
+const MEM_KIND_LABEL = { user: "关于你", model: "模型脾气", workflow: "工作方式", env: "环境" };
+let memData = null;
+
+async function loadMemory() {
+  const box = $("mem-body"), stat = $("mem-stat");
+  if (!box) return;
+  box.innerHTML = '<div class="empty">读取中…</div>';
+  try {
+    const v = await api("GET", "/api/profile");
+    memData = v.profile ?? {};
+    renderMemory();
+  } catch (e) {
+    stat.textContent = "读取失败";
+    box.innerHTML = `<div class="empty">画像读取失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function memCount(p) {
+  const secs = (p.sections ?? []).length, notes = (p.notes ?? []).length;
+  const doms = Object.keys(p.domains ?? {}).length;
+  return `全局 ${secs} 章节 · ${notes} 条观察 · ${doms} 个域`;
+}
+
+function renderMemory() {
+  const box = $("mem-body"), stat = $("mem-stat");
+  if (!box) return;
+  const p = memData ?? {};
+  box.innerHTML = "";
+  const secs = p.sections ?? [], notes = p.notes ?? [], doms = p.domains ?? {};
+
+  if (p.corrupt) {
+    box.appendChild(el(`<div class="mem-warn">profile.json 解析失败——已按空画像展示，<b>原文件未改动</b>。请点「📂 源文件」人工核对。</div>`));
+  }
+  const empty = !secs.length && !notes.length && !Object.keys(doms).length;
+  if (!p.exists || (empty && !p.corrupt)) {
+    stat.textContent = p.exists ? "画像是空的" : "还没有画像";
+    box.appendChild(el(`<div class="empty">还没有记下任何结论。<br>聊天时我若发现稳定的规律（你怎么偏好、这个域怎么做事），会记到这里——不用你手动填。</div>`));
+    return;
+  }
+  stat.textContent = memCount(p) + (p.current_domain ? ` · 当前域 ${p.current_domain}` : " · 未选域（只用全局）");
+
+  // ① 全局：换到哪都对的事实
+  box.appendChild(memGroupHead("全局（换到哪都对）", `每轮注入 · 上限内合并`, false));
+  const gbody = el(`<div class="mem-g"></div>`);
+  if (!secs.length && !notes.length) gbody.appendChild(el(`<div class="empty">全局层为空——所有结论都在域里，或尚未记录</div>`));
+  for (const s of secs) gbody.appendChild(memSection(s, ""));
+  box.appendChild(gbody);
+
+  // ② 域：同一件事在不同场合的不同版本
+  const names = Object.keys(doms);
+  if (names.length) {
+    box.appendChild(memGroupHead("域（换到别处就错）", `${names.length} 个 · 上限 ${p.max_domains ?? 8}`, false));
+    for (const name of names) {
+      const d = doms[name] ?? {};
+      const cur = name === p.current_domain;
+      const head = el(`<div class="mem-domain-head${cur ? " cur" : ""}"></div>`);
+      head.innerHTML = `<span class="mem-dname">${esc(name)}</span>` +
+        (cur ? `<span class="mem-cur">当前</span>` : "") +
+        `<span class="mem-dcnt">${(d.sections ?? []).length} 章节 · ${(d.notes ?? []).length} 观察</span>` +
+        `<button class="mem-del" title="删除整个域（只删这个域，不动全局）">🗑</button>`;
+      head.querySelector(".mem-del").onclick = () => memDelete("domain-rm", name, "", `域「${name}」`);
+      box.appendChild(head);
+      const body = el(`<div class="mem-g domain"></div>`);
+      for (const s of d.sections ?? []) body.appendChild(memSection(s, name));
+      for (const n of d.notes ?? []) body.appendChild(memNote(n, name));
+      if (!(d.sections ?? []).length && !(d.notes ?? []).length) {
+        body.appendChild(el(`<div class="empty">（空域）</div>`));
+      }
+      box.appendChild(body);
+    }
+  }
+
+  // ③ 观察：原始记录（进 prompt 只取最近几条，这里全列——「我记过什么」要能查全）
+  if (notes.length) {
+    box.appendChild(memGroupHead("观察（原始记录，不是结论）", `${notes.length} 条 · 进上下文只取最近 10 条`, false));
+    const nb = el(`<div class="mem-g"></div>`);
+    for (const n of notes) nb.appendChild(memNote(n, ""));
+    box.appendChild(nb);
+  }
+
+  const foot = el(`<p class="hint" style="margin-top:10px"></p>`);
+  foot.textContent = "域按「作用范围」分，不按角色分：换到别处会错 → 域；换到哪都对 → 全局。" +
+    "系统不会自己猜域（猜错比不猜更坏），切域请让我在对话里做。";
+  box.appendChild(foot);
+}
+
+function memGroupHead(title, meta) {
+  const h = el(`<div class="mem-head"></div>`);
+  h.innerHTML = `<span class="mem-t">${esc(title)}</span><span class="mem-m">${esc(meta)}</span>`;
+  return h;
+}
+
+function memSection(s, domain) {
+  const row = el(`<div class="mem-sec"></div>`);
+  const kind = MEM_KIND_LABEL[s.kind] ?? s.kind ?? "";
+  row.innerHTML =
+    `<div class="mem-sh"><span class="mem-kind k-${esc(s.kind ?? "")}">${esc(kind)}</span>` +
+    `<span class="mem-sid">${esc(s.id ?? "")}</span>` +
+    `<span class="mem-stitle">${esc(s.title ?? "")}</span>` +
+    `<button class="mem-del" title="删除这个章节（删了就真不记得了）">🗑</button></div>` +
+    `<div class="mem-sbody">${esc(s.body ?? "")}</div>`;
+  row.querySelector(".mem-del").onclick = () => memDelete("section-rm", s.id, domain, `章节「${s.title || s.id}」`);
+  return row;
+}
+
+function memNote(n, domain) {
+  const row = el(`<div class="mem-note"></div>`);
+  const tags = (n.tags ?? []).map((t) => `<span class="itag">${esc(t)}</span>`).join("");
+  row.innerHTML =
+    `<span class="mem-kind k-${esc(n.kind ?? "")}">${esc(MEM_KIND_LABEL[n.kind] ?? n.kind ?? "")}</span>` +
+    `<span class="mem-ntext">${esc(n.text ?? "")}</span>` +
+    (tags ? `<span class="mem-ntags">${tags}</span>` : "") +
+    `<span class="mem-nid">${esc(n.id ?? "")}</span>` +
+    `<button class="mem-del" title="删掉这条观察">🗑</button>`;
+  row.querySelector(".mem-del").onclick = () => memDelete("note-rm", n.id, domain, "这条观察");
+  return row;
+}
+
+// 删除：两步确认放在**按钮原位**（不用 window.confirm——它会遮住列表，
+// 用户看不见自己在删哪一条；与灵感删除同一裁决线）。
+async function memDelete(op, id, domain, label) {
+  const msg = `删掉${label}？这会真的从 profile.json 里移除。`;
+  if (!window.confirm(msg)) return;
+  try {
+    await api("POST", "/api/profile", { op, id, domain });
+    flash("skill-flash", true, `已删除：${label}`);
+    await loadMemory();
+  } catch (e) {
+    flash("skill-flash", false, "删除失败: " + e.message);
+  }
+}
+

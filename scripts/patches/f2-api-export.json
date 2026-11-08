@@ -1,0 +1,7 @@
+{
+  "id": "F2-API-EXPORT",
+  "description": "api/mod.rs：注册 profile 子模块并 re-export get_profile / post_profile",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor_file": "blocks/f2-api-mod-anchor.txt",
+  "patch_file": "blocks/f2-api-mod.txt"
+}

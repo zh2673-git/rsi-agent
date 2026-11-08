@@ -1,0 +1,7 @@
+{
+ "id": "F3-CAP-CSS",
+ "description": "style.css：能力总览三列目录样式（窄屏退化单列；目录不做仪表盘）",
+ "file": "runtime/crates/host/web-dist/style.css",
+ "anchor_file": "blocks/f3-ovcss-anchor.txt",
+ "patch_file": "blocks/f3-ovcss2.txt"
+}

@@ -102,7 +102,17 @@ function taskVisible(t, filter) {
   return true;
 }
 
+// FE9：与 app-core.js 的 el(html) 消歧。本文件最后加载，原来这 5 行把全局 el 静默
+// 改写成了 tag 版——app-events/stream/files 里 el('<div …>') 全抛 InvalidCharacterError，
+// 用户气泡、工具卡、流式回答一个都不渲染（观感就是「发消息没有回应」，刷新后历史也空）。
+// 两种调用形态可判别：HTML 串必以 '<' 开头，标签名不会。故合并为一个分发函数：
+// 既不改动本文件 45 处 el(tag, cls, html) 调用点，也不再让后加载者改写先加载者的语义。
 function el(tag, cls, html) {
+  if (typeof tag === "string" && tag.trimStart().startsWith("<")) {
+    const box = document.createElement("div");
+    box.innerHTML = tag;
+    return box.firstElementChild;
+  }
   const n = document.createElement(tag);
   if (cls) n.className = cls;
   if (html != null) n.innerHTML = html;
@@ -164,15 +174,19 @@ function renderTasksSection(sec) {
       ? "暂无任务（agent 会把成规模的事登记到这里）" : "该筛选下没有任务"));
     return wrap;
   }
+  // F1：分组折叠——活跃组默认展开，落定组（完成/取消）默认折成一行。
+  // 用户原话「完成或实现了，可以折叠起来自动归档」：要的不是「看不到已完成」，
+  // 而是「已完成的不该和进行中的一样占地方」。折叠点选在**组**而非任务——组是
+  // 状态机的产物，折它就是换视觉权重，一条信息都不丢。
   const grouped = groupTasks(tasksAll, sec.group_by ?? "status");
+  const st = sec.group_by ?? "status";
+  const settled = (g) => st === "status" && (g === "done" || g === "cancelled");
   let shown = 0;
   for (const [g, arr] of grouped) {
-    if (shown >= limit) break;
-    const head = el("div", "tgroup");
-    const label = (sec.group_by ?? "status") === "status" ? (BOARD_LABEL[g] ?? g) : g;
-    head.innerHTML = `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
-      `<span class="tcnt">${arr.length}</span>`;
-    body.appendChild(head);
+    const label = st === "status" ? (BOARD_LABEL[g] ?? g) : g;
+    const shut = folded(sec.id, g, settled(g));
+    body.appendChild(tgroupHead(sec.id, g, label, arr.length, shut));
+    if (shut) continue;
     for (const t of arr) {
       if (shown >= limit) break;
       body.appendChild(taskRow(t));
@@ -183,6 +197,39 @@ function renderTasksSection(sec) {
     body.appendChild(el("div", "empty", `…还有 ${tasksAll.length - shown} 个任务（切「全部/未完成」或调高 limit）`));
   }
   return wrap;
+}
+
+// ── F1：折叠状态（组级）──────────────────────────────────────────────────────
+// 为什么不用「显示全部/隐藏已完成」两个按钮：那是全局开关，切一次就丢了上下文；
+// 组级折叠记在 localStorage，刷新后还是你上次留下的样子（看板是长期视图，
+// 每次打开都要重新摆一遍等于没有记忆）。
+// 缺省值由调用方给：落定组默认收起，活跃组默认展开——**默认值本身就是设计**。
+const FOLD_KEY = "ra.boardfold";
+let boardFold = {};
+try {
+  const raw = JSON.parse(localStorage.getItem(FOLD_KEY) || "{}");
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) boardFold = raw;
+} catch { boardFold = {}; /* 隐私模式/坏值：按全展开处理，不阻断渲染 */ }
+
+function foldKey(secId, g) { return `${secId}#${g}`; }
+function folded(secId, g, dflt) {
+  const k = foldKey(secId, g);
+  return k in boardFold ? !!boardFold[k] : !!dflt;
+}
+function setFold(secId, g, v) {
+  boardFold[foldKey(secId, g)] = !!v;
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify(boardFold)); } catch { /* 隐私模式：忽略 */ }
+}
+
+// 组头：可点折叠。收起时把该组的条目数放在最右——折叠不等于隐藏，先告诉你「里面有几条」。
+function tgroupHead(secId, g, label, n, shut) {
+  const head = el("div", "tgroup" + (shut ? " shut" : ""));
+  head.title = shut ? `展开「${label}」（${n} 条）` : `收起「${label}」`;
+  head.innerHTML = `<span class="tchev">${shut ? "▸" : "▾"}</span>` +
+    `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
+    `<span class="tcnt">${n}</span>`;
+  head.onclick = () => { setFold(secId, g, !shut); refreshSections(); };
+  return head;
 }
 
 function taskRow(t) {
@@ -267,6 +314,73 @@ function toggleTaskDetail(row, t) {
 }
 
 // ── metrics 章节（评价体系可见）───────────────────────────────────────────────
+// ── F4：验收趋势（不新增数据层）──────────────────────────────────────────────
+// 「metrics 历史趋势」此前被列为待办，前提假设是「要按天快照（数据层扩张）」。
+// 重新想一遍：看板里每个任务自带 `updated_at` 与 `evaluation.ran_at`，
+// 已经足够回答「**最近几天的验收通过率在变好还是变坏**」——缺的不是数据，是切片。
+// 所以这里不加文件、不加表、不加定时任务，只按天把已有字段分桶。
+//
+// 诚实的边界：这不是「历史快照」，而是「**按最近更新时间的分布**」——一个任务
+// 只计入它最后一次更新的那天，所以它回答「近期完成的活里验收质量如何」，
+// 不能回答「上周三那天看板上有多少个 pass」（那才需要快照）。UI 上照这个口径写文案。
+function verdictTrend(tasks, days) {
+  const now = Date.now();
+  const buckets = [];
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const start = new Date(now - i * 86400000);
+    buckets.push({
+      label: `${start.getMonth() + 1}/${start.getDate()}`,
+      key: start.toISOString().slice(0, 10),
+      pass: 0, fail: 0, pending: 0, none: 0, total: 0,
+    });
+  }
+  const idx = new Map(buckets.map((b, i) => [b.key, i]));
+  for (const t of tasks) {
+    const stamp = t.evaluation?.ran_at || t.updated_at || "";
+    const key = String(stamp).slice(0, 10);
+    const i = idx.get(key);
+    if (i == null) continue;
+    const b = buckets[i];
+    b.total += 1;
+    const v = t.evaluation?.verdict;
+    if (v === "pass") b.pass += 1;
+    else if (v === "fail") b.fail += 1;
+    else if (v === "pending") b.pending += 1;
+    else b.none += 1;
+  }
+  return buckets;
+}
+
+// 趋势条形：高度=当日任务数，实心比例=其中验收通过的比例。
+// 不用折线——7 个点的折线看不出趋势，反而像噪声；柱子的高度差一眼就能比。
+function trendBlock(tasks) {
+  const days = 7;
+  const buckets = verdictTrend(tasks, days);
+  const peak = Math.max(1, ...buckets.map((b) => b.total));
+  const box = el("div", "bw-sec bw-trend");
+  const judged = buckets.reduce((s, b) => s + b.pass + b.fail, 0);
+  const passed = buckets.reduce((s, b) => s + b.pass, 0);
+  box.innerHTML = `<b>近 7 天验收</b><span class="bw-trend-hint">${
+    judged ? `已判定 ${judged} 件 · 通过 ${passed}（${Math.round((passed / judged) * 100)}%）` : "近 7 天没有跑过验收的任务"
+  }</span>`;
+  const bars = el("div", "bw-bars");
+  for (const b of buckets) {
+    const h = Math.round((b.total / peak) * 100);
+    const okRate = b.total ? Math.round((b.pass / b.total) * 100) : 0;
+    const col = el("div", "bw-bar-col");
+    col.title = `${b.label}：${b.total} 件更新 · 通过 ${b.pass} · 不通过 ${b.fail} · 待人判 ${b.pending} · 未跑 ${b.none}`;
+    col.innerHTML = `<span class="bw-bar-n">${b.total || ""}</span>` +
+      `<span class="bw-bar-t" style="height:${Math.max(h, b.total ? 6 : 0)}%">` +
+      `<i style="height:${okRate}%"></i></span>` +
+      `<span class="bw-bar-l">${boardEsc(b.label)}</span>`;
+    bars.appendChild(col);
+  }
+  box.appendChild(bars);
+  const note = el("p", "bw-trend-note");
+  note.textContent = "口径：按任务最后更新时间分桶，只计入最后一次状态——回答「近期完成的活质量如何」，不是「某天看板上有多少件」。";
+  box.appendChild(note);
+  return box;
+}
 function metricTiles(tasks) {
   const byVerdict = { none: 0, pending: 0, pass: 0, fail: 0 };
   let withChecks = 0, withAcc = 0, checkedPass = 0;
@@ -361,28 +475,45 @@ function renderInspSection(sec) {
     body.appendChild(el("div", "empty", "把零碎想法记在这里，需要时在对话里 @ 引入"));
     return wrap;
   }
-  for (const it of items) {
-    const row = el("div", `irow st-${boardEsc(it.status)}`);
-    const tags = (it.tags ?? []).map((t) => `<span class="itag">${boardEsc(t)}</span>`).join("");
-    row.innerHTML =
-      `<div class="iline"><span class="itext" title="${boardEsc(it.text)}">${boardEsc(it.text)}</span>` +
-      `<button class="iref" title="在输入框引用（@I）">@</button>` +
-      `<button class="iedit" title="改这条灵感（Enter 保存 / Esc 取消）">✎</button>` +
-      `<button class="irm" title="删除这条灵感">🗑</button>` +
-      `<button class="iarc" title="${it.status === "archived" ? "恢复为待议" : "归档"}">${it.status === "archived" ? "↺" : "✓"}</button></div>` +
-      (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}</span></div>` : "");
-    row.querySelector(".iref").onclick = (e) => { e.stopPropagation(); mentionRef(it.id); };
-    row.querySelector(".iedit").onclick = (e) => { e.stopPropagation(); editInspiration(it, row); };
-    row.querySelector(".irm").onclick = (e) => { e.stopPropagation(); removeInspiration(it, row); };
-    row.querySelector(".iarc").onclick = async (e) => {
-      e.stopPropagation();
-      const next = it.status === "archived" ? "open" : "archived";
-      try { await boardReq("POST", "/api/board", { op: "inspiration.set", id: it.id, status: next }); refreshBoard(); }
-      catch (err) { setStatus("归档失败: " + err.message); }
-    };
-    body.appendChild(row);
+  // F1：灵感按状态分三层折叠——待议（open）永远全展，已采纳/已归档各自折成一行。
+  // 用户原话「灵感完成或实现了，可以折叠起来自动归档」。已采纳的灵感已经是任务的
+  // 来源记录，它的价值从「待我想」变成「可查证」，不该继续占据等待被看的位置。
+  const groups = { open: [], adopted: [], archived: [] };
+  for (const it of items) (groups[it.status] ?? groups.open).push(it);
+  for (const st of ["open", "adopted", "archived"]) {
+    const arr = groups[st] ?? [];
+    if (!arr.length) continue;
+    const shut = folded(sec.id, st, st !== "open");
+    const head = tgroupHead(sec.id, st, INSP_LABEL[st] ?? st, arr.length, shut);
+    head.classList.add("insp-g");
+    body.appendChild(head);
+    if (shut) continue;
+    for (const it of arr) body.appendChild(inspRow(it));
   }
   return wrap;
+}
+
+// 单条灵感（折叠分组后需要按行复用——原来内联在渲染循环里）
+function inspRow(it) {
+  const row = el("div", `irow st-${boardEsc(it.status)}`);
+  const tags = (it.tags ?? []).map((t) => `<span class="itag">${boardEsc(t)}</span>`).join("");
+  row.innerHTML =
+    `<div class="iline"><span class="itext" title="${boardEsc(it.text)}">${boardEsc(it.text)}</span>` +
+    `<button class="iref" title="在输入框引用（@I）">@</button>` +
+    `<button class="iedit" title="改这条灵感（Enter 保存 / Esc 取消）">✎</button>` +
+    `<button class="irm" title="删除这条灵感">🗑</button>` +
+    `<button class="iarc" title="${it.status === "archived" ? "恢复为待议" : "归档"}">${it.status === "archived" ? "↺" : "✓"}</button></div>` +
+    (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}</span></div>` : "");
+  row.querySelector(".iref").onclick = (e) => { e.stopPropagation(); mentionRef(it.id); };
+  row.querySelector(".iedit").onclick = (e) => { e.stopPropagation(); editInspiration(it, row); };
+  row.querySelector(".irm").onclick = (e) => { e.stopPropagation(); removeInspiration(it, row); };
+  row.querySelector(".iarc").onclick = async (e) => {
+    e.stopPropagation();
+    const next = it.status === "archived" ? "open" : "archived";
+    try { await boardReq("POST", "/api/board", { op: "inspiration.set", id: it.id, status: next }); refreshBoard(); }
+    catch (err) { setStatus("归档失败: " + err.message); }
+  };
+  return row;
 }
 
 // ── D 轮：灵感可编辑 / 可删除（I-20261107-02）───────────────────────────────
@@ -712,6 +843,8 @@ function renderWinMetrics(sec, root) {
   const line = el("p", "bw-statline");
   line.textContent = BOARD_ORDER.map((s) => `${BOARD_LABEL[s]} ${Number(bs[s] ?? 0)}`).join(" · ");
   body.appendChild(line);
+  // F4：趋势块（纯前端按 updated_at 分桶，不新增数据层）
+  body.appendChild(trendBlock(tasks));
   root.appendChild(body);
 }
 

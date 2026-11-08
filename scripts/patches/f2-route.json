@@ -1,0 +1,7 @@
+{
+  "id": "F2-ROUTE",
+  "description": "web/mod.rs 路由表：新增 GET/POST /api/profile（画像只读 + 受限删除）。锚在 /api/board/link 之后——D13 已占据 POST /api/board 之后的插入位，两条补丁抢同一锚点会互相截断",
+  "file": "runtime/crates/host/src/web/mod.rs",
+  "anchor": "        (\"GET\", \"/api/board/link\") => api::get_board_link(&mut stream, query).await,\n",
+  "patch": "        (\"GET\", \"/api/board/link\") => api::get_board_link(&mut stream, query).await,\n        // F2：画像（`.rsi/profile.json`）——GET 全量读，POST 只支持删除。\n        // 「能看」解决「我记了什么看不见」，「只能删」守住「结论该由观察产生」。\n        (\"GET\", \"/api/profile\") => api::get_profile(&mut stream).await,\n        (\"POST\", \"/api/profile\") => api::post_profile(&mut stream, &body).await,\n"
+}

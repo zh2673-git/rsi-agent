@@ -1,0 +1,6 @@
+$("gear").onclick = () => { drawer.classList.add("open"); loadConfig(); loadSkills(); };
+$("dclose").onclick = () => drawer.classList.remove("open");
+document.querySelectorAll("#drawer .tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("#drawer .tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  for (const t of ["llm", "tools", "skills", "agent"]) $("tab-" + t).hidden = t !== b.dataset.tab;
+});

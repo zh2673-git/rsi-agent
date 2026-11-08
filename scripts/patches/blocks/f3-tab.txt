@@ -1,0 +1,3 @@
+    <button data-tab="skills">技能</button>
+    <button data-tab="memory" title="画像与记忆：agent 对「你是谁」「这个域怎么做事」的结论">记忆</button>
+    <button data-tab="agent">Agent</button>

@@ -1,0 +1,7 @@
+{
+ "id": "F3-CAP-JS",
+ "description": "app-settings.js 末尾追加：能力总览渲染（三列取值全从已有缓存推，不新增请求）+ 点行跳页签",
+ "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+ "anchor_file": "blocks/f3-ovjs-anchor.txt",
+ "patch_file": "blocks/f3-ovjs3.txt"
+}

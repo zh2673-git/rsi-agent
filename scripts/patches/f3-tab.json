@@ -1,0 +1,7 @@
+{
+  "id": "F3-MEM-TAB",
+  "description": "index.html 设置标签栏：技能 与 Agent 之间加「记忆」页",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/f3-tab-anchor.txt",
+  "patch_file": "blocks/f3-tab.txt"
+}

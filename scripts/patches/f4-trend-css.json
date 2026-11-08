@@ -1,0 +1,7 @@
+{
+ "id": "F4-TREND-CSS",
+ "description": "style.css：趋势块样式（柱高=当日更新件数，柱内实心=通过比例）",
+ "file": "runtime/crates/host/web-dist/style.css",
+ "anchor_file": "blocks/f4-trend-css-anchor.txt",
+ "patch_file": "blocks/f4-trend-css2.txt"
+}

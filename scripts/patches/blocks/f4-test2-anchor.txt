@@ -1,0 +1,2 @@
+    fn config_media_section_applies_to_env() {
+        // PLAN §九：media 段（image/video）→ MEDIA_* env 持久通道映射；空串不覆盖。

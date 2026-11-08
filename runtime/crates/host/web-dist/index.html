@@ -60,9 +60,43 @@
     <button data-tab="llm" class="on">LLM</button>
     <button data-tab="tools">工具</button>
     <button data-tab="skills">技能</button>
+    <button data-tab="memory" title="画像与记忆：agent 对「你是谁」「这个域怎么做事」的结论">记忆</button>
     <button data-tab="agent">Agent</button>
   </div>
   <div class="body">
+  <div class="body">
+    <!-- F3：能力总览（设置抽屉的「目录页」）─────────────────────────────────────
+         用户原话：「技能、工具、记忆、agent 与用户这种画像在 UI 上如何设计得更科学合理」。
+         病灶不是「页签太多」，而是**没有一条主线**：五个页签平铺，用户看不出
+         「哪些是我做的决定、哪些是系统现在的状态、哪些是它记住了关于我的事」。
+         主线按「谁做的决定」分三类——这一分类同时是它们在上下文里的注入方式的差异：
+           · 你决定（LLM / 工具白名单 / Agent 参数）——每轮按你的配置执行
+           · 它带的牌（技能 / 技能工具 / MCP）——决定它能做什么，装载 ≠ 启用
+           · 它记得的事（画像 / 域 / 观察）——每轮进上下文，影响它怎么理解你
+         总览是只读的目录，点一行跳到对应页签；不给它加配置项——目录就做目录的事。 -->
+    <div class="ov" id="cap-overview">
+      <div class="ov-title">能力总览</div>
+      <div class="ov-cols">
+        <div class="ov-col">
+          <div class="ov-h">你决定的</div>
+          <button class="ov-row" data-goto="llm"><span class="ov-k">模型</span><span class="ov-v" id="ov-llm">—</span></button>
+          <button class="ov-row" data-goto="tools"><span class="ov-k">工具白名单</span><span class="ov-v" id="ov-tools">—</span></button>
+          <button class="ov-row" data-goto="agent"><span class="ov-k">运行参数</span><span class="ov-v" id="ov-agent">—</span></button>
+        </div>
+        <div class="ov-col">
+          <div class="ov-h">它带的牌</div>
+          <button class="ov-row" data-goto="skills"><span class="ov-k">技能</span><span class="ov-v" id="ov-skills">—</span></button>
+          <button class="ov-row" data-goto="tools"><span class="ov-k">技能工具 / MCP</span><span class="ov-v" id="ov-pool">—</span></button>
+        </div>
+        <div class="ov-col">
+          <div class="ov-h">它记得的事</div>
+          <button class="ov-row" data-goto="memory"><span class="ov-k">画像</span><span class="ov-v" id="ov-mem">—</span></button>
+          <button class="ov-row" data-goto="memory"><span class="ov-k">当前域</span><span class="ov-v" id="ov-dom">—</span></button>
+        </div>
+      </div>
+      <p class="ov-note">左列是你能定死的；中列决定它能干什么；右列决定它怎么理解你——
+        写错右列比不写更糟（每轮都生效），所以那页只给看不给写。</p>
+    </div>
     <div id="tab-llm">
       <!-- 三区独立折叠：文本/生图/生视频各自填写、各自保存（样式与工具池分组同款 poolhead collapsible） -->
       <div class="poolhead collapsible"><span class="chev">▾</span><span class="plabel">文本模型（对话）</span><span class="pcnt" id="llm-cnt"></span></div>
@@ -141,6 +175,22 @@
         </div>
         <p class="hint">frontmatter 需含 name（与目录名一致）与非空 description。保存后下轮对话自动可见；模型也可在对话中用 write_file 自建技能（技能自扩展）。</p>
       </div>
+    <div id="tab-memory" hidden>
+      <!-- F2：记忆页。三块自上而下 = 三层记忆的作用范围由近到远：
+           ① 画像（长期结论，每轮注入）② 域（同一条结论在不同场合的不同版本）
+           ③ 观察（原始记录，进 prompt 时只取最近几条）。
+           底部说明「这里只读只删」——UI 讲清自己的权限边界，用户才不会以为「这里能加一条」。 -->
+      <p class="hint" style="margin-top:0">
+        这里是 agent 记住的关于你的结论（<code>.rsi/profile.json</code>），每轮都会进上下文。
+        写错一条比不写更糟，所以：<b>这里能看、能删，不能手写新增</b>——新增由观察产生
+        （对话里发现的规律由我记下），你删掉错的即可。
+      </p>
+      <div class="mem-bar">
+        <span class="mem-stat" id="mem-stat">读取中…</span>
+        <button class="btn ghost" id="mem-refresh" title="重新读取 .rsi/profile.json">⟳ 刷新</button>
+        <button class="btn ghost" id="mem-reveal" title="在文件管理器中定位 profile.json">📂 源文件</button>
+      </div>
+      <div id="mem-body"></div>
     </div>
     <div id="tab-agent" hidden>
       <p class="hint">agent-loop 运行参数（保存即下轮对话生效 + 落盘 config.json）。0 的语义见各标签。</p>

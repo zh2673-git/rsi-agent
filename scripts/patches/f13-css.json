@@ -1,0 +1,7 @@
+{
+ "id": "F13-CSS",
+ "description": "style.css 末尾一次性追加 F1 折叠/层次 + F2 记忆页样式（两条尾部锚点补丁合并，避免前者被后者截断）",
+ "file": "runtime/crates/host/web-dist/style.css",
+ "anchor_file": "blocks/f1css3-anchor.txt",
+ "patch_file": "blocks/f1css3.txt"
+}

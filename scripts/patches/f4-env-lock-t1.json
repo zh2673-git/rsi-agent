@@ -1,0 +1,7 @@
+{
+ "id": "F4-ENV-LOCK-T1",
+ "description": "config.rs::config_agent_section_applies_to_env 取 env_lock（并行安全）",
+ "file": "runtime/crates/host/src/config.rs",
+ "anchor_file": "blocks/f4-test1-anchor.txt",
+ "patch_file": "blocks/f4-test1.txt"
+}

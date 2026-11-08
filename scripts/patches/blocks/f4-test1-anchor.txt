@@ -1,0 +1,3 @@
+    fn config_agent_section_applies_to_env() {
+        // P5/E1：config.json agent 段经持久通道应用为 agent-loop 运行参数 env。
+        // 本测试操作进程 env 与 CONFIG_FILE——host 单测进程内无其他用例读这些键，存取后即还原。

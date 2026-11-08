@@ -1,0 +1,3 @@
+// D 轮：弹窗初始化放在这里而不是文件顶部——`initBoardWin` 会读 localStorage 并按需
+// 立刻 open（open 会调 refreshBoard），必须等全部函数声明与常量就位后再绑。
+initBoardWin();

@@ -1,0 +1,68 @@
+// ── F4：验收趋势（不新增数据层）──────────────────────────────────────────────
+// 「metrics 历史趋势」此前被列为待办，前提假设是「要按天快照（数据层扩张）」。
+// 重新想一遍：看板里每个任务自带 `updated_at` 与 `evaluation.ran_at`，
+// 已经足够回答「**最近几天的验收通过率在变好还是变坏**」——缺的不是数据，是切片。
+// 所以这里不加文件、不加表、不加定时任务，只按天把已有字段分桶。
+//
+// 诚实的边界：这不是「历史快照」，而是「**按最近更新时间的分布**」——一个任务
+// 只计入它最后一次更新的那天，所以它回答「近期完成的活里验收质量如何」，
+// 不能回答「上周三那天看板上有多少个 pass」（那才需要快照）。UI 上照这个口径写文案。
+function verdictTrend(tasks, days) {
+  const now = Date.now();
+  const buckets = [];
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const start = new Date(now - i * 86400000);
+    buckets.push({
+      label: `${start.getMonth() + 1}/${start.getDate()}`,
+      key: start.toISOString().slice(0, 10),
+      pass: 0, fail: 0, pending: 0, none: 0, total: 0,
+    });
+  }
+  const idx = new Map(buckets.map((b, i) => [b.key, i]));
+  for (const t of tasks) {
+    const stamp = t.evaluation?.ran_at || t.updated_at || "";
+    const key = String(stamp).slice(0, 10);
+    const i = idx.get(key);
+    if (i == null) continue;
+    const b = buckets[i];
+    b.total += 1;
+    const v = t.evaluation?.verdict;
+    if (v === "pass") b.pass += 1;
+    else if (v === "fail") b.fail += 1;
+    else if (v === "pending") b.pending += 1;
+    else b.none += 1;
+  }
+  return buckets;
+}
+
+// 趋势条形：高度=当日任务数，实心比例=其中验收通过的比例。
+// 不用折线——7 个点的折线看不出趋势，反而像噪声；柱子的高度差一眼就能比。
+function trendBlock(tasks) {
+  const days = 7;
+  const buckets = verdictTrend(tasks, days);
+  const peak = Math.max(1, ...buckets.map((b) => b.total));
+  const box = el("div", "bw-sec bw-trend");
+  const judged = buckets.reduce((s, b) => s + b.pass + b.fail, 0);
+  const passed = buckets.reduce((s, b) => s + b.pass, 0);
+  box.innerHTML = `<b>近 7 天验收</b><span class="bw-trend-hint">${
+    judged ? `已判定 ${judged} 件 · 通过 ${passed}（${Math.round((passed / judged) * 100)}%）` : "近 7 天没有跑过验收的任务"
+  }</span>`;
+  const bars = el("div", "bw-bars");
+  for (const b of buckets) {
+    const h = Math.round((b.total / peak) * 100);
+    const okRate = b.total ? Math.round((b.pass / b.total) * 100) : 0;
+    const col = el("div", "bw-bar-col");
+    col.title = `${b.label}：${b.total} 件更新 · 通过 ${b.pass} · 不通过 ${b.fail} · 待人判 ${b.pending} · 未跑 ${b.none}`;
+    col.innerHTML = `<span class="bw-bar-n">${b.total || ""}</span>` +
+      `<span class="bw-bar-t" style="height:${Math.max(h, b.total ? 6 : 0)}%">` +
+      `<i style="height:${okRate}%"></i></span>` +
+      `<span class="bw-bar-l">${boardEsc(b.label)}</span>`;
+    bars.appendChild(col);
+  }
+  box.appendChild(bars);
+  const note = el("p", "bw-trend-note");
+  note.textContent = "口径：按任务最后更新时间分桶，只计入最后一次状态——回答「近期完成的活质量如何」，不是「某天看板上有多少件」。";
+  box.appendChild(note);
+  return box;
+}
+function metricTiles

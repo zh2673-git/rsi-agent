@@ -317,6 +317,10 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         ("POST", "/api/board") => api::post_board(&mut stream, &body).await,
         // D 轮：任务/灵感 ↔ 对话轮次反查（读 trace 的 refs 字段，只读、与 board.py link 同口径）。
         ("GET", "/api/board/link") => api::get_board_link(&mut stream, query).await,
+        // F2：画像（`.rsi/profile.json`）——GET 全量读，POST 只支持删除。
+        // 「能看」解决「我记了什么看不见」，「只能删」守住「结论该由观察产生」。
+        ("GET", "/api/profile") => api::get_profile(&mut stream).await,
+        ("POST", "/api/profile") => api::post_profile(&mut stream, &body).await,
         ("GET", "/api/config") => api::get_config(&mut stream, &kernel).await,
         ("GET", "/api/models") => api::get_models(&mut stream, &kernel, query).await,
         ("GET", "/api/presets") => api::get_presets(&mut stream, &kernel).await,

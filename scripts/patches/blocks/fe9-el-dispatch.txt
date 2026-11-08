@@ -1,0 +1,16 @@
+// FE9：与 app-core.js 的 el(html) 消歧。本文件最后加载，原来这 5 行把全局 el 静默
+// 改写成了 tag 版——app-events/stream/files 里 el('<div …>') 全抛 InvalidCharacterError，
+// 用户气泡、工具卡、流式回答一个都不渲染（观感就是「发消息没有回应」，刷新后历史也空）。
+// 两种调用形态可判别：HTML 串必以 '<' 开头，标签名不会。故合并为一个分发函数：
+// 既不改动本文件 45 处 el(tag, cls, html) 调用点，也不再让后加载者改写先加载者的语义。
+function el(tag, cls, html) {
+  if (typeof tag === "string" && tag.trimStart().startsWith("<")) {
+    const box = document.createElement("div");
+    box.innerHTML = tag;
+    return box.firstElementChild;
+  }
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (html != null) n.innerHTML = html;
+  return n;
+}

@@ -1,6 +1,6 @@
 {
  "id": "D8-INSP-ROW-ED",
- "description": "app-board.js 侧栏灵感行：加 ✎ 改 / 🗑 删（与弹窗同一批函数）",
+ "description": "app-board.js 侧栏灵感行：@ 引用 / ✎ 改 / 🗑 删 / ✓ 归档四个按钮在位（F1 把该行提成 inspRow() 供折叠分组复用，按钮语义未变。本补丁转为幂等校验：锚点=终态片段，命中即说明按钮仍在）",
  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
  "anchor_file": "blocks/d-app-board-insp-row-anchor.txt",
  "patch_file": "blocks/d-app-board-insp-row.txt"

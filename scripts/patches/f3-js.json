@@ -1,0 +1,7 @@
+{
+  "id": "F3-MEM-JS",
+  "description": "app-settings.js：记忆页渲染（全局/域/观察三层 + 受限删除）在位。本补丁转幂等校验：锚点=终态片段（F3-CAP-JS 在其后又追加了能力总览，故原尾部锚点不再成立）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/f3-memjs-anchor.txt",
+  "patch_file": "blocks/f3-memjs.txt"
+}

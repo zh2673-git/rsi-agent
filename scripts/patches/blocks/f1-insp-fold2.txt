@@ -1,0 +1,44 @@
+  if (!items.length) {
+    body.appendChild(el("div", "empty", "把零碎想法记在这里，需要时在对话里 @ 引入"));
+    return wrap;
+  }
+  // F1：灵感按状态分三层折叠——待议（open）永远全展，已采纳/已归档各自折成一行。
+  // 用户原话「灵感完成或实现了，可以折叠起来自动归档」。已采纳的灵感已经是任务的
+  // 来源记录，它的价值从「待我想」变成「可查证」，不该继续占据等待被看的位置。
+  const groups = { open: [], adopted: [], archived: [] };
+  for (const it of items) (groups[it.status] ?? groups.open).push(it);
+  for (const st of ["open", "adopted", "archived"]) {
+    const arr = groups[st] ?? [];
+    if (!arr.length) continue;
+    const shut = folded(sec.id, st, st !== "open");
+    const head = tgroupHead(sec.id, st, INSP_LABEL[st] ?? st, arr.length, shut);
+    head.classList.add("insp-g");
+    body.appendChild(head);
+    if (shut) continue;
+    for (const it of arr) body.appendChild(inspRow(it));
+  }
+  return wrap;
+}
+
+// 单条灵感（折叠分组后需要按行复用——原来内联在渲染循环里）
+function inspRow(it) {
+  const row = el("div", `irow st-${boardEsc(it.status)}`);
+  const tags = (it.tags ?? []).map((t) => `<span class="itag">${boardEsc(t)}</span>`).join("");
+  row.innerHTML =
+    `<div class="iline"><span class="itext" title="${boardEsc(it.text)}">${boardEsc(it.text)}</span>` +
+    `<button class="iref" title="在输入框引用（@I）">@</button>` +
+    `<button class="iedit" title="改这条灵感（Enter 保存 / Esc 取消）">✎</button>` +
+    `<button class="irm" title="删除这条灵感">🗑</button>` +
+    `<button class="iarc" title="${it.status === "archived" ? "恢复为待议" : "归档"}">${it.status === "archived" ? "↺" : "✓"}</button></div>` +
+    (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}</span></div>` : "");
+  row.querySelector(".iref").onclick = (e) => { e.stopPropagation(); mentionRef(it.id); };
+  row.querySelector(".iedit").onclick = (e) => { e.stopPropagation(); editInspiration(it, row); };
+  row.querySelector(".irm").onclick = (e) => { e.stopPropagation(); removeInspiration(it, row); };
+  row.querySelector(".iarc").onclick = async (e) => {
+    e.stopPropagation();
+    const next = it.status === "archived" ? "open" : "archived";
+    try { await boardReq("POST", "/api/board", { op: "inspiration.set", id: it.id, status: next }); refreshBoard(); }
+    catch (err) { setStatus("归档失败: " + err.message); }
+  };
+  return row;
+}

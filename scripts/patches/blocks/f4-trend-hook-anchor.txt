@@ -1,0 +1,5 @@
+  // 指标之外补一屏「按状态的活」——弹窗有地方，侧栏没有。
+  const bs = boardData?.summary?.tasks?.by_status ?? {};
+  const line = el("p", "bw-statline");
+  line.textContent = BOARD_ORDER.map((s) => `${BOARD_LABEL[s]} ${Number(bs[s] ?? 0)}`).join(" · ");
+  body.appendChild(line);

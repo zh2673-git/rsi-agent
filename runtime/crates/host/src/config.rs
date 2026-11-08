@@ -2,6 +2,28 @@
 
 use serde_json::Value;
 use std::path::PathBuf;
+/// F4：进程级 env 互斥锁——凡是读改 `std::env` 的测试都必须先拿这把锁。
+///
+/// 为什么必须有：`cargo test` 默认多线程，而 `std::env` 是**整个进程共享**的。
+/// 三个测试（`config::config_agent_section_applies_to_env`、
+/// `config::config_media_section_applies_to_env`、`api::config::agent_config_applies_to_env_and_validates_numbers`）
+/// 各自「保存 → 改 → 断言 → 还原」同一批键（MAX_ROUNDS / CONFIG_FILE / …），
+/// 只要两条并发，A 的还原就会踩掉 B 刚设的值——测试随即随机失败，且失败信息
+/// 指向断言处，看起来像逻辑错误。以前靠 `--test-threads=1` 规避，那是**用跑法
+/// 掩盖缺陷**：CI 或 IDE 单点运行一次就复现。
+///
+/// 这把锁把「隐式的跑法要求」变成「显式的代码约束」：谁改 env 谁先 `env_lock()`。
+/// 只在本 crate 的测试内使用，不进生产路径。
+#[cfg(test)]
+pub(crate) fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+    use std::sync::{Mutex, OnceLock};
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    let m = LOCK.get_or_init(|| Mutex::new(()));
+    // 某条测试 panic 后锁会被投毒；这里恢复而不是让后续测试全部连锁失败
+    // ——env 类测试的失败信息本来就够定位，不需要再用投毒放大成雪崩。
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 
 /// bash 沙箱策略解析结果（BASH_SANDBOX，05 §2.1 宿主层 fail-closed）。
 #[derive(Debug, Clone, PartialEq)]
@@ -427,7 +449,9 @@ mod tests {
     #[test]
     fn config_agent_section_applies_to_env() {
         // P5/E1：config.json agent 段经持久通道应用为 agent-loop 运行参数 env。
-        // 本测试操作进程 env 与 CONFIG_FILE——host 单测进程内无其他用例读这些键，存取后即还原。
+        // F4：改 env 必须持进程级锁——否则与 config_media / api::config 两条同类测试并发时
+        // 互相踩值（以前靠 --test-threads=1 规避，那只是把缺陷藏在跑法里）。
+        let _guard = crate::config::env_lock();
         let tmp = std::env::temp_dir().join("ra-agent-config-test.json");
         std::fs::write(
             &tmp,
@@ -460,6 +484,8 @@ mod tests {
 
     #[test]
     fn config_media_section_applies_to_env() {
+        // F4：与 agent 段测试共享 CONFIG_FILE 与 MEDIA_* 键，必须串行
+        let _guard = crate::config::env_lock();
         // PLAN §九：media 段（image/video）→ MEDIA_* env 持久通道映射；空串不覆盖。
         let tmp = std::env::temp_dir().join("ra-media-config-test.json");
         std::fs::write(

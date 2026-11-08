@@ -1,0 +1,20 @@
+  const grouped = groupTasks(tasksAll, sec.group_by ?? "status");
+  let shown = 0;
+  for (const [g, arr] of grouped) {
+    if (shown >= limit) break;
+    const head = el("div", "tgroup");
+    const label = (sec.group_by ?? "status") === "status" ? (BOARD_LABEL[g] ?? g) : g;
+    head.innerHTML = `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
+      `<span class="tcnt">${arr.length}</span>`;
+    body.appendChild(head);
+    for (const t of arr) {
+      if (shown >= limit) break;
+      body.appendChild(taskRow(t));
+      shown += 1;
+    }
+  }
+  if (tasksAll.length > shown) {
+    body.appendChild(el("div", "empty", `…还有 ${tasksAll.length - shown} 个任务（切「全部/未完成」或调高 limit）`));
+  }
+  return wrap;
+}

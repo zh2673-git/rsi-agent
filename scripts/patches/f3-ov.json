@@ -1,0 +1,7 @@
+{
+ "id": "F3-CAP-OVERVIEW",
+ "description": "index.html：设置抽屉顶部加「能力总览」目录（按『谁做的决定』三列：你决定的 / 它带的牌 / 它记得的事），点行进对应页签",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/f3-ov-anchor.txt",
+ "patch_file": "blocks/f3-ov2.txt"
+}

@@ -1,0 +1,34 @@
+  <div class="body">
+  <div class="body">
+    <!-- F3：能力总览（设置抽屉的「目录页」）─────────────────────────────────────
+         用户原话：「技能、工具、记忆、agent 与用户这种画像在 UI 上如何设计得更科学合理」。
+         病灶不是「页签太多」，而是**没有一条主线**：五个页签平铺，用户看不出
+         「哪些是我做的决定、哪些是系统现在的状态、哪些是它记住了关于我的事」。
+         主线按「谁做的决定」分三类——这一分类同时是它们在上下文里的注入方式的差异：
+           · 你决定（LLM / 工具白名单 / Agent 参数）——每轮按你的配置执行
+           · 它带的牌（技能 / 技能工具 / MCP）——决定它能做什么，装载 ≠ 启用
+           · 它记得的事（画像 / 域 / 观察）——每轮进上下文，影响它怎么理解你
+         总览是只读的目录，点一行跳到对应页签；不给它加配置项——目录就做目录的事。 -->
+    <div class="ov" id="cap-overview">
+      <div class="ov-title">能力总览</div>
+      <div class="ov-cols">
+        <div class="ov-col">
+          <div class="ov-h">你决定的</div>
+          <button class="ov-row" data-goto="llm"><span class="ov-k">模型</span><span class="ov-v" id="ov-llm">—</span></button>
+          <button class="ov-row" data-goto="tools"><span class="ov-k">工具白名单</span><span class="ov-v" id="ov-tools">—</span></button>
+          <button class="ov-row" data-goto="agent"><span class="ov-k">运行参数</span><span class="ov-v" id="ov-agent">—</span></button>
+        </div>
+        <div class="ov-col">
+          <div class="ov-h">它带的牌</div>
+          <button class="ov-row" data-goto="skills"><span class="ov-k">技能</span><span class="ov-v" id="ov-skills">—</span></button>
+          <button class="ov-row" data-goto="tools"><span class="ov-k">技能工具 / MCP</span><span class="ov-v" id="ov-pool">—</span></button>
+        </div>
+        <div class="ov-col">
+          <div class="ov-h">它记得的事</div>
+          <button class="ov-row" data-goto="memory"><span class="ov-k">画像</span><span class="ov-v" id="ov-mem">—</span></button>
+          <button class="ov-row" data-goto="memory"><span class="ov-k">当前域</span><span class="ov-v" id="ov-dom">—</span></button>
+        </div>
+      </div>
+      <p class="ov-note">左列是你能定死的；中列决定它能干什么；右列决定它怎么理解你——
+        写错右列比不写更糟（每轮都生效），所以那页只给看不给写。</p>
+    </div>

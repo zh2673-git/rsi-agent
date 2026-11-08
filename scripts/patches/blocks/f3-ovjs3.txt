@@ -1,0 +1,61 @@
+$("mem-refresh").onclick = () => loadMemory();
+$("mem-refresh").onclick = () => loadMemory();
+$("mem-reveal").onclick = () => reveal("config", null, "skill-flash");
+
+// ── F3：能力总览（设置抽屉的目录页）──────────────────────────────────────────
+// 三列 = 三类决定来源（见 index.html 注释）。每列的值都从**已有数据**推出来，
+// 不新增任何后端接口：
+//   · 你决定的 → loadConfig 已拉到的 llm / agent / tools
+//   · 它带的牌 → tools 的 pool 分类 + skillsCache
+//   · 它记得的事 → loadMemory 已拉到的 profile
+// 点行跳页签，不展开不弹窗——目录的价值是「一眼看清 + 一步到位」。
+function ovSet(id, text) {
+  const node = $(id);
+  if (node) node.textContent = text;
+}
+
+function renderOverview() {
+  if (!$("cap-overview")) return;
+  const c = window.__cfgCache;
+  if (c) {
+    const m = c.llm ?? {};
+    ovSet("ov-llm", m.model ? `${m.provider ?? "?"} · ${m.model}` : (m.provider ?? "未配置"));
+    const tools = c.tools ?? [];
+    const on = tools.filter((t) => t.enabled).length;
+    ovSet("ov-tools", on ? `${on} / ${tools.length} 启用` : "未启用任何工具");
+    const a = c.agent ?? {};
+    const bits = [];
+    if (a.max_rounds) bits.push(`≤${a.max_rounds} 轮`);
+    if (a.budget_secs > 0) bits.push(`${a.budget_secs}s`);
+    if (a.token_budget > 0) bits.push(`${a.token_budget} tok`);
+    ovSet("ov-agent", bits.length ? bits.join(" · ") : "全部用缺省");
+    const st = tools.filter((t) => t.pool === "skill").length;
+    const mc = tools.filter((t) => t.pool === "mcp").length;
+    const mcOn = tools.filter((t) => t.pool === "mcp" && t.enabled).length;
+    ovSet("ov-pool", `技能 ${st} · MCP ${mcOn}/${mc}`);
+  }
+  if (skillsCache.length || c) {
+    const preset = skillsCache.filter((s) => s.origin === "preset").length;
+    ovSet("ov-skills", skillsCache.length
+      ? `${skillsCache.length} 个（内置 ${preset} · 用户 ${skillsCache.length - preset}）`
+      : "暂无技能");
+  }
+  const p = memData;
+  if (p) {
+    const ns = (p.sections ?? []).length, nn = (p.notes ?? []).length;
+    const nd = Object.keys(p.domains ?? {}).length;
+    ovSet("ov-mem", p.exists ? `${ns} 章节 · ${nn} 观察 · ${nd} 域` : "还没有画像");
+    ovSet("ov-dom", p.current_domain ? p.current_domain : "未选域（只用全局）");
+  }
+}
+
+// 点行跳页签：复用既有 tabs 的点击逻辑（不另写一套切换，避免两处状态不同步）
+function ovGoto(tab) {
+  const btn = [...document.querySelectorAll("#drawer .tabs button")].find((b) => b.dataset.tab === tab);
+  if (btn) btn.click();
+}
+
+document.addEventListener("click", (e) => {
+  const row = e.target.closest(".ov-row");
+  if (row && row.dataset.goto) ovGoto(row.dataset.goto);
+});

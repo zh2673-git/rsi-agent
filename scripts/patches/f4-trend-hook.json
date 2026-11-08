@@ -1,0 +1,7 @@
+{
+ "id": "F4-TREND-HOOK",
+ "description": "app-board.js 弹窗指标页：在状态行后挂趋势块（侧栏窄不放，弹窗宽才有地方）",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "anchor_file": "blocks/f4-trend-hook-anchor.txt",
+ "patch_file": "blocks/f4-trend-hook3.txt"
+}

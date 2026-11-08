@@ -1,0 +1,7 @@
+{
+ "id": "F4-ENV-LOCK",
+ "description": "config.rs：新增 cfg(test) env_lock() 进程级互斥——把「必须 --test-threads=1」的隐式跑法要求变成显式代码约束",
+ "file": "runtime/crates/host/src/config.rs",
+ "anchor_file": "blocks/f4-envlock-anchor.txt",
+ "patch_file": "blocks/f4-envlock2.txt"
+}

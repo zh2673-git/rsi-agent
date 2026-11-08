@@ -1,0 +1,7 @@
+{
+ "id": "F4-ENV-LOCK-T3",
+ "description": "api/config.rs::agent_config_applies_to_env_and_validates_numbers 取 env_lock",
+ "file": "runtime/crates/host/src/web/api/config.rs",
+ "anchor_file": "blocks/f4-test3-anchor.txt",
+ "patch_file": "blocks/f4-test3.txt"
+}

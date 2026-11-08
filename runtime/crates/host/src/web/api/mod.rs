@@ -9,6 +9,7 @@
 mod board;
 mod config;
 mod misc;
+mod profile;
 mod skills;
 
 pub(super) use board::{get_board, get_board_link, post_board};
@@ -18,6 +19,7 @@ pub(super) use misc::{
     reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,
     upstream_checkin, upstream_login, upstream_start, upstream_status,
 };
+pub(super) use profile::{get_profile, post_profile};
 pub(super) use skills::{delete_skill, get_skill, get_skills, put_skill};
 
 use super::bad_request;

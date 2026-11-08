@@ -1,0 +1,7 @@
+{
+ "id": "F4-TREND",
+ "description": "app-board.js：新增 verdictTrend/trendBlock——按 updated_at 分 7 天桶算验收趋势（不新增数据层、不加快照表）",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "anchor_file": "blocks/f4-trend-anchor.txt",
+ "patch_file": "blocks/f4-trend2.txt"
+}
