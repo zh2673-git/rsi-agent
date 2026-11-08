@@ -1,0 +1,8 @@
+{
+  "id": "I08-SAU-LOCAL-DETECT",
+  "description": "publish.rs::sau_on_path：除了 PATH 还探测工作区固定位置 tools/sau/.venv/Scripts/sau.exe —— host 的 PATH 是启动快照，装好 sau 后不重启也该判定就绪",
+  "file": "runtime/crates/host/src/web/api/publish.rs",
+  "anchor_file": "blocks/i08-sau-local-anchor.txt",
+  "patch_file": "blocks/i08-sau-local-patch.txt",
+  "applied_marker": "工作区固定安装位置（tools/sau 由安装步骤落在这里）"
+}

@@ -1,0 +1,28 @@
+    #[test]
+    fn blank_secret_counts_as_unset() {
+        let mut m = Map::new();
+        m.insert("appid".into(), json!("wx123"));
+        m.insert("app_secret".into(), json!("   "));
+        let (ready, _) = readiness("api", &m);
+        assert!(!ready, "空白 secret 不能算已配置");
+    }
+
+    /// sau 的探测必须**不止看 PATH**。
+    ///
+    /// host 是长驻进程，PATH 是启动那一刻的快照：用户在 host 跑起来之后才装好
+    /// sau，这个进程永远看不见，面板会一直显示「未找到 sau」。所以固定位置
+    /// `tools/sau` 必须也在探测范围内——本测钉死这一点，防止有人把它简化回
+    /// 「只查 PATH」：那个改动看起来更干净，实际会让装好的用户白白重启一次。
+    #[test]
+    fn sau_detect_covers_workspace_install_not_only_path() {
+        let src = include_str!("publish.rs");
+        let body_start = src.find("fn sau_on_path").expect("sau_on_path 必须存在");
+        let tail = &src[body_start..];
+        let body_end = tail[1..].find("\nfn ").map(|i| i + 1).unwrap_or(tail.len());
+        let body = &tail[..body_end];
+        assert!(
+            body.contains("\"tools\"") && body.contains("\"sau\""),
+            "sau_on_path 必须探测工作区固定位置 tools/sau：{body}"
+        );
+    }
+}

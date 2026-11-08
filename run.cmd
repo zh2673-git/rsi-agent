@@ -12,6 +12,12 @@ set "PLUGINS_DIR=%REPO%\runtime\plugins"
 set "CONFIG_FILE=%REPO%\config.json"
 if not defined REACT_FRONTEND set "REACT_FRONTEND=web"
 
+rem -- 内容分发（I-20261108-07/08）：把 sau 装成的 venv 加进**本进程** PATH --
+rem 只加 venv 的 Scripts 目录，不改用户全局 PATH：那里还有 pip/python 等同名命令，
+rem 加进全局会干扰其他项目。host 的 /api/publish/config 靠 PATH 上的 sau 判定就绪，
+rem scripts/publish.py 同样靠 shutil.which("sau") —— 一处注入，两处同时生效。
+if exist "%REPO%\tools\sau\.venv\Scripts\sau.exe" set "PATH=%REPO%\tools\sau\.venv\Scripts;%PATH%"
+
 where node >nul 2>nul
 if errorlevel 1 (
   echo [rsi] node not found. Install Node.js 22.6 or newer and retry.

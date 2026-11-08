@@ -36,3 +36,8 @@ config/magpie-accounts.json
 # magpie 分析工作区（上游源码副本，不入库）
 magpie/
 config/*.bak
+
+# 内容分发执行体：上游 social-auto-upload 的本地安装
+# venv 262MB + 各平台登录态 cookie，都不入库；装法见 skills/content-publish/SKILL.md §5
+# run.cmd 与 host 的 sau_on_path() 都按 tools/sau 这个固定路径探测
+tools/

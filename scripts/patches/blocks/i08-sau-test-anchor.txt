@@ -1,0 +1,9 @@
+    #[test]
+    fn blank_secret_counts_as_unset() {
+        let mut m = Map::new();
+        m.insert("appid".into(), json!("wx123"));
+        m.insert("app_secret".into(), json!("   "));
+        let (ready, _) = readiness("api", &m);
+        assert!(!ready, "空白 secret 不能算已配置");
+    }
+}

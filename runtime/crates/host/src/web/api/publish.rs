@@ -56,7 +56,16 @@ fn load() -> Value {
     }
 }
 
-/// 判断 `sau` 是否在 PATH 上——决定「浏览器自动化平台」那组能不能用。
+/// 判断 `sau` 是否可用——决定「浏览器自动化平台」那组能不能用。
+///
+/// 两处探测，缺一不可：
+/// 1. `PATH` 上有没有（用户自己装好了、或 run.cmd 注入过）
+/// 2. 工作区内固定位置 `tools/sau/.venv/Scripts/sau.exe` 有没有
+///
+/// 为什么要第 2 条：host 是长驻进程，`PATH` 是它**启动那一刻**的快照。
+/// 用户在 host 跑起来之后才装好 sau、往 PATH 里加目录，这个进程永远看不见——
+/// 面板会一直显示「未找到 sau」，而实际上已经装好。固定位置探测填掉这个
+/// 「装完必须重启才认」的坑：文件在就认为就绪。
 fn sau_on_path() -> bool {
     let exts: Vec<String> = if cfg!(windows) {
         std::env::var("PATHEXT")
@@ -67,15 +76,23 @@ fn sau_on_path() -> bool {
     } else {
         vec![String::new()]
     };
-    let Some(path) = std::env::var_os("PATH") else { return false };
-    for dir in std::env::split_paths(&path) {
-        for ext in &exts {
-            if dir.join(format!("sau{ext}")).is_file() {
-                return true;
+    if let Some(path) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&path) {
+            for ext in &exts {
+                if dir.join(format!("sau{ext}")).is_file() {
+                    return true;
+                }
             }
         }
     }
-    false
+    // 工作区固定安装位置（tools/sau 由安装步骤落在这里）
+    let base = PathBuf::from(config::workspace_root()).join("tools").join("sau");
+    let candidates = [
+        base.join(".venv").join("Scripts").join("sau.exe"),
+        base.join("Scripts").join("sau.exe"),
+        base.join("sau"),
+    ];
+    candidates.iter().any(|p| p.is_file())
 }
 
 /// 就绪判定：把「缺什么」翻译成用户能照做的下一步。
@@ -267,5 +284,24 @@ mod tests {
         m.insert("app_secret".into(), json!("   "));
         let (ready, _) = readiness("api", &m);
         assert!(!ready, "空白 secret 不能算已配置");
+    }
+
+    /// sau 的探测必须**不止看 PATH**。
+    ///
+    /// host 是长驻进程，PATH 是启动那一刻的快照：用户在 host 跑起来之后才装好
+    /// sau，这个进程永远看不见，面板会一直显示「未找到 sau」。所以固定位置
+    /// `tools/sau` 必须也在探测范围内——本测钉死这一点，防止有人把它简化回
+    /// 「只查 PATH」：那个改动看起来更干净，实际会让装好的用户白白重启一次。
+    #[test]
+    fn sau_detect_covers_workspace_install_not_only_path() {
+        let src = include_str!("publish.rs");
+        let body_start = src.find("fn sau_on_path").expect("sau_on_path 必须存在");
+        let tail = &src[body_start..];
+        let body_end = tail[1..].find("\nfn ").map(|i| i + 1).unwrap_or(tail.len());
+        let body = &tail[..body_end];
+        assert!(
+            body.contains("\"tools\"") && body.contains("\"sau\""),
+            "sau_on_path 必须探测工作区固定位置 tools/sau：{body}"
+        );
     }
 }

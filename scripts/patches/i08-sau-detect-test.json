@@ -1,0 +1,8 @@
+{
+  "id": "I08-SAU-DETECT-TEST",
+  "description": "publish.rs 测试：钉死 sau_on_path 必须探测工作区固定位置 tools/sau，防止被简化回「只查 PATH」（那会让装好 sau 的用户白重启一次）",
+  "file": "runtime/crates/host/src/web/api/publish.rs",
+  "anchor_file": "blocks/i08-sau-test-anchor.txt",
+  "patch_file": "blocks/i08-sau-test-patch.txt",
+  "applied_marker": "sau_detect_covers_workspace_install_not_only_path"
+}

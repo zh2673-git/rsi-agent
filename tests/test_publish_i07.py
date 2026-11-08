@@ -12,6 +12,7 @@ Rust 侧有单测（`web::api::publish::tests`）覆盖就绪判定，但有两�
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -145,6 +146,65 @@ class DraftShapeTest(unittest.TestCase):
 
         src = "<p>已有 HTML</p>"
         self.assertEqual(publish._md_to_html(src), src, "已是 HTML 就原样交出，别再包一层")
+
+
+class SauDiscoveryTest(unittest.TestCase):
+    """sau 定位不能只查 PATH —— PATH 是宿主启动时的快照。
+
+    实际踩过：把 sau 装到 tools/sau 后，运行中的 host 里 `shutil.which("sau")`
+    仍是 None，UI 四个浏览器平台一起误报「未找到 sau 命令」，用户以为没装好。
+    """
+
+    def _load(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import publish
+
+        return publish
+
+    def test_finds_workspace_install_even_when_path_is_stale(self):
+        """PATH 上没有，但 tools/sau 有 → 必须认。"""
+        publish = self._load()
+        with tempfile.TemporaryDirectory() as td:
+            fake_root = Path(td)
+            exe = fake_root / "tools" / "sau" / ".venv" / "Scripts" / "sau.exe"
+            exe.parent.mkdir(parents=True)
+            exe.write_text("x", encoding="utf-8")
+            old_root, old_path = publish.RSI_ROOT, os.environ.get("PATH", "")
+            publish.RSI_ROOT = fake_root
+            os.environ["PATH"] = ""          # 模拟「host 启动后 PATH 里还没有 sau」
+            try:
+                got = publish.sau_exe()
+            finally:
+                publish.RSI_ROOT, os.environ["PATH"] = old_root, old_path
+            self.assertIsNotNone(got, "只查 PATH 就会漏掉 tools/sau 里的安装")
+            self.assertTrue(got.endswith("sau.exe"), got)
+
+    def test_returns_none_when_nothing_installed(self):
+        """两处都没有就老实返回 None，让上层给出可照做的原因。"""
+        publish = self._load()
+        with tempfile.TemporaryDirectory() as td:
+            old_root, old_path = publish.RSI_ROOT, os.environ.get("PATH", "")
+            publish.RSI_ROOT = Path(td)
+            os.environ["PATH"] = ""
+            try:
+                self.assertIsNone(publish.sau_exe())
+            finally:
+                publish.RSI_ROOT, os.environ["PATH"] = old_root, old_path
+
+    def test_available_reason_tells_how_to_install(self):
+        """未装时的原因必须给可执行的一步，而不是让用户去猜。"""
+        publish = self._load()
+        with tempfile.TemporaryDirectory() as td:
+            old_root, old_path = publish.RSI_ROOT, os.environ.get("PATH", "")
+            publish.RSI_ROOT = Path(td)
+            os.environ["PATH"] = ""
+            try:
+                ad = publish.SauAdapter("xiaohongshu", "小红书", ("video",))
+                ok, why = ad.available()
+            finally:
+                publish.RSI_ROOT, os.environ["PATH"] = old_root, old_path
+            self.assertFalse(ok)
+            self.assertIn("install_sau.py", why, "要说清一条能照做的安装命令")
 
 
 if __name__ == "__main__":

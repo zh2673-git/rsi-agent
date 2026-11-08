@@ -75,6 +75,32 @@ def redact(obj: Any) -> Any:
     return obj
 
 
+# ── sau 定位 ─────────────────────────────────────────────────----------------
+
+
+def sau_exe() -> str | None:
+    """找到 sau 可执行文件：先 PATH，再工作区固定位置 `tools/sau`。
+
+    为什么不能只查 PATH：PATH 是宿主进程启动时的快照。装好 sau 后不重启 host，
+    `shutil.which("sau")` 仍是 None（实测踩过），UI 与 CLI 会一起误报「未找到」。
+    固定位置探测与 host 侧 `sau_on_path()` 保持同一份约定，两边判定一致。
+    """
+    found = shutil.which("sau")
+    if found:
+        return found
+    base = RSI_ROOT / "tools" / "sau"
+    for cand in (
+        base / ".venv" / "Scripts" / "sau.exe",   # Windows（当前安装形态）
+        base / "Scripts" / "sau.exe",
+        base / ".venv" / "bin" / "sau",           # POSIX
+        base / "bin" / "sau",
+        base / "sau",
+    ):
+        if cand.is_file():
+            return str(cand)
+    return None
+
+
 # ── 稿件 ─────────────────────────────────────────────────────────────────────
 
 
@@ -164,18 +190,21 @@ class SauAdapter(Adapter):
         self.extra_args = extra_args or {}
 
     def available(self) -> tuple[bool, str]:
-        exe = shutil.which("sau")
+        exe = sau_exe()
         if not exe:
             return False, (
-                "未找到 sau 命令。请先安装 social-auto-upload（MIT）：\n"
-                "  pip install -e . 或 uv sync（见 github.com/dreammis/social-auto-upload）\n"
+                "未找到 sau 命令。装到工作区固定位置 `tools/sau` 后即可用：\n"
+                "  python scripts/install_sau.py\n"
+                "（或自行 `pip install -e .` / `uv sync`，见 github.com/dreammis/social-auto-upload）\n"
                 "装好后 `sau --help` 应能列出平台子命令。"
             )
         return True, ""
 
     def _build(self, draft: Draft, account: str) -> list[str]:
         sub = self._CMD[draft.kind]
-        args = ["sau", self.name, sub, "--account", account]
+        # 用解析出的绝对路径而不是裸 "sau"：PATH 是宿主进程启动时的快照，
+        # 装好 sau 后不重启 host 的话裸名调不起来（已踩过）。
+        args = [sau_exe() or "sau", self.name, sub, "--account", account]
         if draft.kind == "video":
             args += ["--file", draft.video, "--title", draft.title, "--desc", draft.body]
         elif draft.kind == "note":
