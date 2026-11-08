@@ -3,5 +3,6 @@
   "description": "app-board.js：灵感草稿与焦点在轮询重绘中存活（refreshSections 摘快照→重绘→还回）。I-20261108-04 第2条",
   "file": "runtime/crates/host/web-dist/vendor/app-board.js",
   "anchor_file": "blocks/g2-head-anchor.txt",
-  "patch_file": "blocks/g2-head.txt"
+  "patch_file": "blocks/g2-head.txt",
+  "applied_marker": "const inspDrafts = new Map();"
 }

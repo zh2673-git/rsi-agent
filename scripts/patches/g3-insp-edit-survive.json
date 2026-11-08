@@ -1,0 +1,8 @@
+{
+  "id": "G3-INSP-EDIT-SURVIVE",
+  "description": "refreshSections：行内编辑灵感期间跳过本轮重绘（G2 只保护了新增输入框，编辑框仍会被 root.innerHTML=\"\" 销毁）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/g3-edit-anchor.txt",
+  "patch_file": "blocks/g3-edit-patch.txt",
+  "applied_marker": "active.classList.contains(\"insp-edit\")"
+}

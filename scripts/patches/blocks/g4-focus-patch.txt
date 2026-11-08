@@ -1,0 +1,20 @@
+  // 兜底：布局里若漏了任务或灵感章节，补一个可见提示（不静默少一块）
+  const kinds = new Set(secs.map((s) => s.kind));
+  for (const k of ["tasks", "inspirations"]) {
+    if (!kinds.has(k)) {
+      root.appendChild(el("div", "empty", `布局未包含 ${KIND_LABEL[k]} 章节（\`board.py layout --file\` 可调整）`));
+    }
+  }
+  // G4（I-20261108-04 第 2 条的收尾）：把焦点与选区真的还回去。
+  // G2 当初的注释写着「重绘后原样还回去」，但只落地了草稿回填——`inspFocus` 被赋值
+  // 两次、**从未被读取**，是个只写不读的死变量：字还在，光标不在，用户得重新点进
+  // 输入框才能接着打。对「记录碎片想法」这个动作来说，光标位置就是上下文。
+  // 放在章节装配之后：输入框必须先存在，才谈得上聚焦。
+  if (inspFocus) {
+    const box = document.getElementById(inspFocus.id);
+    if (box) {
+      box.focus();
+      try { box.setSelectionRange(inspFocus.start, inspFocus.end); } catch (_) {}
+    }
+    inspFocus = null;   // 一次性的：还原过就清掉，避免影响下次重绘
+  }

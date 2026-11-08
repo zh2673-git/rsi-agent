@@ -3,5 +3,6 @@
  "description": "app-board.js refreshSections 尾：接 renderBoardWin + 弹窗底栏计数（一次 GET 喂侧栏与弹窗）",
  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
  "anchor_file": "blocks/d-app-board-refresh.txt",
- "patch_file": "blocks/d-app-board-refresh-patch.txt"
+ "patch_file": "blocks/d-app-board-refresh-patch.txt",
+ "applied_marker": "弹窗与侧栏共用同一份 boardData"
 }

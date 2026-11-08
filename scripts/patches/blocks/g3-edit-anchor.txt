@@ -1,0 +1,6 @@
+  // ② 再摘焦点：只有焦点在灵感输入框里才记（避免抢别处的焦点）。
+  const active = document.activeElement;
+  inspFocus = active && typeof active.id === "string" && active.id.startsWith("insp-input-")
+    ? { id: active.id, start: active.selectionStart, end: active.selectionEnd }
+    : null;
+  root.innerHTML = "";

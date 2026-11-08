@@ -1,0 +1,22 @@
+  // ② G3（I-20261108-04 第 2 条，第二个出口）：行内编辑框（.insp-edit）也会被下一行
+  // 的 root.innerHTML = "" 连根拔掉。用户点 ✎ 改到一半、20s 轮询一到，不只是字没了
+  // ——input 被销毁，它身上的 blur/keydown 监听随之消失，连「想存」都没有入口了。
+  // 这与「记新灵感被打断」是同一类伤害：丢的是用户正在产生的内容。G2 只堵住了新增
+  // 输入框这个出口，行内编辑这条路一直敞着。
+  //
+  // 修法取最保守的一种：**正在编辑就跳过本轮重绘**。不重建 = 输入框与它的监听都还在，
+  // 用户按 Enter/Esc/blur 仍走原来的保存路径；等编辑结束，finish() 自己会调
+  // refreshBoard()，不会漏掉这一刻的服务端变化。相比之下「重建后再把输入框装回去」
+  // 要重新绑一套监听、还要处理「这期间那条灵感被别处删了」，多出的状态面换不来更多。
+  // 时机代价：编辑期间看板不跟着刷新（一般几秒），但用户此刻看的是那一行，不是全表。
+  const active = document.activeElement;
+  if (active && active.classList && active.classList.contains("insp-edit")) {
+    // 不需要另记「待补刷新」：这条编辑的 finish() 结尾本就 await refreshBoard()，
+    // 那一刻本函数会正常往下走，期间的更新自然补上。
+    return;
+  }
+  // ③ 再摘焦点：只有焦点在灵感输入框里才记（避免抢别处的焦点）。
+  inspFocus = active && typeof active.id === "string" && active.id.startsWith("insp-input-")
+    ? { id: active.id, start: active.selectionStart, end: active.selectionEnd }
+    : null;
+  root.innerHTML = "";

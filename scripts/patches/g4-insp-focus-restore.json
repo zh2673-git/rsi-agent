@@ -1,0 +1,8 @@
+{
+  "id": "G4-INSP-FOCUS-RESTORE",
+  "description": "refreshSections：真正把焦点与选区还回灵感输入框（G2 的 inspFocus 只写不读，注释承诺了但没实现）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/g4-focus-anchor.txt",
+  "patch_file": "blocks/g4-focus-patch.txt",
+  "applied_marker": "一次性的：还原过就清掉"
+}
