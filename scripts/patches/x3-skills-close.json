@@ -1,0 +1,8 @@
+{
+  "id": "X3-SKILLS-CLOSE",
+  "description": "index.html：#tab-skills 缺收尾 </div>，导致 #tab-memory / #tab-agent 被嵌进默认 hidden 的 #tab-skills 内——点这两个页签永远看不到内容（用户报「记忆和 agent 模块都是一样的，没什么其他内容」的真因）",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/x3-skills-close-anchor.txt",
+  "patch_file": "blocks/x3-skills-close.txt",
+  "applied_marker_file": "blocks/x3-skills-close-marker.txt"
+}

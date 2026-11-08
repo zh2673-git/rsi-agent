@@ -1,0 +1,6 @@
+    <span class="spacer"></span>
+    <span class="dot" id="conn"></span>
+    <span class="status" id="status"></span>
+    <span class="spacer"></span>
+    <span class="dot" id="conn"></span>
+    <span class="status" id="status"></span>

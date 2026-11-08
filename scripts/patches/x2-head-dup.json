@@ -1,0 +1,8 @@
+{
+  "id": "X2-HEAD-DUP",
+  "description": "index.html：顶栏 spacer/conn/status 整组重复（d-index-head 与 fe2-header 两个补丁各带一组，叠加成两份）→ 收敛为一组。重复 id 会让 $('#conn') 只取到第一个，断线指示点到错误节点。repair 型：锚点不存在即已修好",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/x2-head-dup-anchor.txt",
+  "patch_file": "blocks/x2-head-dup.txt",
+  "repair": true
+}

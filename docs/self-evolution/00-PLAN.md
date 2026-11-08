@@ -559,9 +559,72 @@ taskkill /IM react-agent-host.exe /F
    已写入 `.rsi/profile.json` 观察项 `N-20261108-01`。
 3. 活体验证一律用独立端口 + 独立工作区（`tempfile.mkdtemp`），不碰用户实例。
 
-### 12.2 验证记录
+### 12.2 事故记录：设置页「记忆 / Agent」空白（H 轮，2026-11-08 13:00 定位）
+
+用户报告「记忆和 agent 模块都是一样的，没什么其他内容，是不是什么东西没有正常显示」。
+**不是数据问题、不是后端问题**——`GET /api/profile` 正常回画像，`app-settings.js` 的切换
+逻辑也正确给 `#tab-memory` 设了 `hidden=false`。真因是 **DOM 结构错**：
+
+`#tab-skills` 少一个收尾 `</div>`，导致 `#tab-memory` 与 `#tab-agent` 被**嵌进了默认
+`hidden` 的 `#tab-skills` 内部**。切换逻辑把子面板的 `hidden` 设成 `false` 了，但祖先的
+`hidden` 依然生效 —— 两个页签点开永远是空白，JS 层查不出任何异常。
+
+**根因链（三个缺陷同源，全部来自 F 轮 f92f5f4）**：
+
+1. `f3-ov.json` 的 anchor 是 `  <div class="body">`，patch 写成了**两层**同名 div
+   → 设置抽屉多一层嵌套（`class="body"` 出现 2 次）。
+2. `f3-mem.json` 的 anchor 取到 `    <div id="tab-agent" hidden>` 这**一行**，patch 却以
+   `</div>` 开头 → 边界错位，把 `#tab-skills` 的收尾 `</div>` 吞掉。
+3. `d-index-head.json` 与 `fe2-header.json` 的 patch **各带一组** `spacer/conn/status`
+   → 顶栏整组重复，`id="conn"`/`id="status"` 各出现 2 次（`$()` 只取第一个）。
+
+**为什么五道验证全绿却没抓到**：pytest 只测脚本契约，cargo 只测 Rust，补丁层只验
+「锚点命中」不验「产物是合法 DOM」，`node --check` 只验 JS 语法。静态页的结构错误
+**没有任何一道检查在看**。F 轮 commit message 里甚至写了「① 锚点吞掉容器开始标签」，
+识别到了却没修就提交了。
+
+**修复**：
+
+- `f3-ov2.txt`：把 `body` 由两层改为一层（拔掉源头）；
+- `d-index-head.txt`：patch 去掉自带的 `spacer/conn/status` 三行（只插按钮）；
+- 新增 `X3-SKILLS-CLOSE`：补上 `#tab-skills` 的收尾 `</div>`；
+- 新增 `X1-BODY-DUP` / `X2-HEAD-DUP`：收敛已产生的重复（repair 型）。
+
+**顺带补上补丁引擎的两个缺口**（`scripts/apply-tool-patches.py`）：
+
+- `repair: true`：删除型修复（删多余的一层/一行）应用后锚点必然消失，原 `anchor/patch`
+  判据既判不出「已应用」也判不出「可应用」，只能永久 FAIL。repair 型改用「锚点不存在
+  = 已修好」。
+- `applied_marker`：插入型修复（如补一个 `</div>`）的原锚点被替换后也消失，用一段
+  **只在修复后出现**的文本表达终态。
+
+**新建防线**：`tests/test_static_structure.py`（5 项）——重复 id / 标签平衡 /
+五页签同级 / body 容器唯一 / 切换逻辑与 DOM 页签集合一致。并做了**反证**：
+把测试指向修复前的备份，四项检查全部触发失败，证明它真能抓住这个 bug。
+
+**纪律**：
+1. 静态页改动的验证不能只有「补丁锚点命中」——必须有一条断言在验**产物结构**。
+2. 补丁的 anchor 不许取「会被 patch 自己改动的那一行」；patch 不许以 `</div>` 这类
+   边界符号开头（正是它吞掉了别人的收尾）。
+3. 修复型补丁必须声明它属于 `repair` 还是 `applied_marker`，否则会永久 FAIL，
+   而永久 FAIL 的补丁通常被当成「噪音」忽略 —— 这是缺陷能长期潜伏的机制。
+
+### 12.3 验证记录
 
 - pytest **197 passed**（基线 174）· cargo agent-loop 38/38 + host 35/35 · 补丁 100 条 0 FAIL · `node --check` ×2；
 - **活体隔离 e2e 10/10**（独立工作区 + `WEB_ADDR=127.0.0.1:8933`）：UI 写灵感 / 改灵感 / 超长拒 400 /
   CLI 无写命令 / CLI 写 outcomes / GET 回两条线 / 并发 5 写不丢 / agent 可读灵感；
 - 全程未触碰用户实例：验证前后 `127.0.0.1:8710` 均为 PID 43484 且 `/api/board` 回 200。
+
+**H 轮（2026-11-08 13:00，静态页结构修复）**：
+
+- pytest **202 passed**（G 轮基线 197，+5 `tests/test_static_structure.py`）；
+- cargo 默认多线程 **38/38 + 35/35**；
+- 补丁层 **0 FAIL / 0 DRY**（含新 X1/X2/X3；且**二次 dry-run 全部 OK**，证明幂等）；
+- **从 HEAD 干净态重放全部补丁可重建正确终态**（不只验证「当前文件对」，还验证「能重现」）；
+- **反证**：把结构测试指向修复前的 `index.html.patchbak`，四项检查全部触发失败
+  （重复 id `conn`/`status` 各 2、`</aside>` 隐式关闭两个 div、五页签出现 2 种父链、
+  body 容器 2 个）——证明测试真能抓此 bug，不是摆设；
+- **活体验证 ALL PASS**：直连用户真实实例 `127.0.0.1:8710` 取页面，重复 id 无、
+  隐式关闭 0、残留未闭合 0、五页签 1 种父链、body 容器 1 个、`mem-body` 与
+  `agent-max-rounds` 均在位。

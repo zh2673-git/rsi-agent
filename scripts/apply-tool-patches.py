@@ -316,6 +316,16 @@ def _load_external() -> list[dict]:
             else:
                 item["anchor"] = _block_or_inline(pdir, d, "anchor")
                 item["patch"] = _block_or_inline(pdir, d, "patch")
+                # repair 型（删除多余片段）：锚点不存在 = 已修好，见 _apply_one 说明
+                if d.get("repair"):
+                    item["repair"] = True
+                # 修复型补丁（删多余的一层/一行）：应用后锚点消失，anchor/patch 判据
+                # 表达不了「已应用」。applied_marker 是终态特征串，命中即视为已应用。
+                marker_file = d.get("applied_marker_file")
+                if marker_file:
+                    item["applied_marker"] = (pdir / str(marker_file)).read_text(encoding="utf-8")
+                elif d.get("applied_marker"):
+                    item["applied_marker"] = str(d["applied_marker"])
             out.append(item)
         except Exception as e:
             print(f"[{jf.name}] SKIP 外挂补丁字段缺失: {e}")
@@ -385,12 +395,49 @@ def _apply_one(item: dict, dry: bool) -> int:
     # 是短句，长句不在。真正失效的是反向：patch 是 anchor 的**前段**（「长句改短」型），
     # 未应用时短句的产物片段已在原文里，`patch in src` 命中 → 永久静默跳过。
     # 最小修正：仅当 patch 是 anchor 的真前缀时，不能据此判「已应用」。
+    #
+    # H 轮补充（**修复型补丁**）：anchor/patch 判据对「删掉多余的一层/一行」这类修复
+    # **天然不适用**——应用后原文片段不存在了，`patch in src` 为假，而锚点也消失了，
+    # 于是既非「已应用」也非「可应用」，只能永久 FAIL。这不是数据问题，是判据缺一种形态。
+    # 故支持可选 `applied_marker`：一串只会在**修复完成后**出现的文本。命中即已应用。
+    # 该字段必须由人确认过终态才可写（marker 写错会让补丁静默失效），见 PATCHING 文档。
+    # H 轮补充（**修复型补丁 repair**）：删除型修复（「删掉多余的一层/一行」）用
+    # anchor/patch 判据**天然不可表达**——修好后原始片段已不存在（`patch in src` 假、
+    # anchor 也不在），于是既非「已应用」也非「可应用」，只能永久 FAIL。
+    # 而删除型修复往往**留不下独立的 marker**（删完前后上下文几乎同义），硬凑 marker
+    # 只会写出修复前也命中的假标记。
+    # 故引入 `repair: true`：锚点不存在 = 已修好（这正是删除型修复的定义）。
+    # 代价与约束：repair 补丁**不能**用来表达「必须存在某内容」的意图，也不能与其他
+    # 补丁共享同一锚点片段——否则别处一改就会被误判成「已修复」。故 repair 必须配
+    # `applied_marker`（修复后独有）或 `absent_ok`，且仅供**收敛型**补丁使用。
+    if item.get("repair"):
+        if anchor not in src:
+            print(f"[{pid}] OK   已修复（repair 型：锚点已不存在，幂等跳过）: {desc}")
+            return 0
+        if dry:
+            print(f"[{pid}] DRY  将修复（repair 型，删除多余片段）: {desc}  ({path.relative_to(ROOT)}）")
+            return 0
+        if not _bak(path).exists():
+            shutil.copy2(path, _bak(path))
+        path.write_text(src.replace(anchor, patch, 1), encoding="utf-8")
+        print(f"[{pid}] REPAIR 已修复: {desc}  ({path.relative_to(ROOT)}，备份 {_bak(path).name})")
+        return 0
+
+    marker = item.get("applied_marker", "")
+    if marker and marker in src:
+        print(f"[{pid}] OK   已应用过（applied_marker 命中，幂等跳过）: {desc}")
+        return 0
     if patch in src and not (len(patch) < len(anchor) and anchor.startswith(patch)):
         print(f"[{pid}] OK   已应用过（幂等跳过）: {desc}")
         return 0
     if anchor not in src:
-        print(f"[{pid}] FAIL 锚点未命中（源码已漂移，需人工核对）: {path}")
-        print(f"       期望锚点: {anchor.splitlines()[0][:80]}")
+        if marker:
+            print(f"[{pid}] FAIL 锚点未命中且 applied_marker 未出现"
+                  f"（源码漂移或 marker 写错，需人工核对）: {path}")
+            print(f"       applied_marker: {marker.splitlines()[0][:80]}")
+        else:
+            print(f"[{pid}] FAIL 锚点未命中（源码已漂移，需人工核对）: {path}")
+            print(f"       期望锚点: {anchor.splitlines()[0][:80]}")
         return 1
     if dry:
         print(f"[{pid}] DRY  将替换 1 处: {desc}  ({path.relative_to(ROOT)}）")

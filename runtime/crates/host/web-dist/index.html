@@ -28,9 +28,6 @@
     <span class="spacer"></span>
     <span class="dot" id="conn"></span>
     <span class="status" id="status"></span>
-    <span class="spacer"></span>
-    <span class="dot" id="conn"></span>
-    <span class="status" id="status"></span>
     <button class="treebtn" id="btn-board" title="任务看板：摊开看人财物 / 计划 / 验收 / 分解（Esc 关闭）">▤ 看板</button>
     <button class="treebtn" id="btn-tree" title="工作区文件树（只读预览/下载）">📁 文件</button>
     <button class="gear" id="gear" title="配置中心：LLM / 工具 / 技能 / Agent">⚙ 设置</button>
@@ -63,7 +60,6 @@
     <button data-tab="memory" title="画像与记忆：agent 对「你是谁」「这个域怎么做事」的结论">记忆</button>
     <button data-tab="agent">Agent</button>
   </div>
-  <div class="body">
   <div class="body">
     <!-- F3：能力总览（设置抽屉的「目录页」）─────────────────────────────────────
          用户原话：「技能、工具、记忆、agent 与用户这种画像在 UI 上如何设计得更科学合理」。
@@ -175,6 +171,7 @@
         </div>
         <p class="hint">frontmatter 需含 name（与目录名一致）与非空 description。保存后下轮对话自动可见；模型也可在对话中用 write_file 自建技能（技能自扩展）。</p>
       </div>
+    </div>
     <div id="tab-memory" hidden>
       <!-- F2：记忆页。三块自上而下 = 三层记忆的作用范围由近到远：
            ① 画像（长期结论，每轮注入）② 域（同一条结论在不同场合的不同版本）

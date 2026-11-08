@@ -1,0 +1,8 @@
+{
+  "id": "X1-BODY-DUP",
+  "description": "index.html：设置抽屉 <div class=\"body\"> 重复嵌套一层（f3-ov 补丁把 body 写成两层）→ 收敛为一层。repair 型：锚点不存在即已修好",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/x1-body-dup-anchor.txt",
+  "patch_file": "blocks/x1-body-dup.txt",
+  "repair": true
+}
