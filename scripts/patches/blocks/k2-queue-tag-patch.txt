@@ -1,0 +1,15 @@
+    if (item.pendingResume && !running) {
+      row.classList.add("resume");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "⟲ 待续跑";
+      tag.title = "被插队打断，插队那条跑完自动回头继续这条";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
+    // K1：断线导致没发出去的那条——显式标注「等重发」，避免用户以为它已经跑过了。
+    if (item.offline && !running) {
+      row.classList.add("offline");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "⇄ 待重发";
+      tag.title = "连接断开，这条没送到服务端；点 ⏭ 立即重发，或直接再点发送";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }

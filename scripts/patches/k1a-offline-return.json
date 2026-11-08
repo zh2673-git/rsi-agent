@@ -1,0 +1,7 @@
+{
+  "id": "K1A-OFFLINE-RETURN",
+  "description": "postChatDirect：catch 分支与重试耗尽返回 offline（连接层失败不再等同执行失败）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/k1a-offline-anchor.txt",
+  "patch_file": "blocks/k1a-offline-patch.txt"
+}

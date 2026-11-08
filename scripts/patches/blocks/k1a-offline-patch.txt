@@ -1,0 +1,15 @@
+      if (e?.name === "AbortError") {
+        // 打断了不要谎报「已停止」：结局由 drain 按 item 上的标记分流
+        if (session === sid) setStatus(item.stopped ? "已停止（后台正在收敛）" : "已打断，稍后回到本条继续");
+        return "aborted";
+      }
+      // K1：连接层失败（host 重启 / 断网 / fetch reject）≠ 执行失败。
+      // 旧实现在这里统一 return "error"，drain 见到非 aborted 就出队，于是断线瞬间
+      // 整个待发队列被逐条清空——「排队指令全消失」。区分出来交给 drain 保留。
+      if (session === sid) setStatus("请求失败: " + e);
+      return "offline";
+    } finally { s.abort = null; }
+  }
+  // K1：重试窗口耗尽仍拿不到服务端结论（多半是连接层问题）按 offline 处理，同样不吞条目。
+  return "offline";
+}

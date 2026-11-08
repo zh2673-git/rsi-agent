@@ -1,0 +1,7 @@
+{
+  "id": "K3-QUEUE-OFFLINE-CSS",
+  "description": "style.css：待发队列「⇄ 待重发」行的警示色样式",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/k3-css-anchor.txt",
+  "patch_file": "blocks/k3-css-patch.txt"
+}

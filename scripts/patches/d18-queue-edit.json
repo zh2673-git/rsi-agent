@@ -3,5 +3,6 @@
  "description": "q-session.js renderQueue：行内加 ✎ 编辑 / ⧉ 复制（执行中那条禁用编辑）+ startQueueEdit / copyQueueItem + 回滚草稿保留",
  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
  "anchor_file": "blocks/d-qsession-queue-anchor.txt",
- "patch_file": "blocks/d-qsession-queue.txt"
+ "patch_file": "blocks/d-qsession-queue.txt",
+ "applied_marker_file": "blocks/d18-marker.txt"
 }

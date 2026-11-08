@@ -1,0 +1,1 @@
+    const shut = folded(sec.id, st, st !== "open");

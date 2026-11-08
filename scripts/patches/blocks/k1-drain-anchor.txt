@@ -1,0 +1,10 @@
+  s.draining = true; s.running = true; syncRunUI();
+  try {
+    while (s.queue.length) {
+      const item = s.queue[0];
+      // Q5：队列本地驻留——第 0 条即「执行中」。postChatDirect 的 Promise 覆盖整段执行，
+      // 跑完才出队；待发面板因此在整轮执行期间都可见，行内 ⏭/↑/× 才有操作窗口。
+      item.pendingResume = false;         // Q6：轮到它了，不再是「待续跑」
+      const outcome = await postChatDirect(sid, item);
+      const at = s.queue.indexOf(item);   // 执行期间可能被删除/上移：按身份删除，不盲目 shift
+      if (at >= 0) s.queue.splice(at, 1);

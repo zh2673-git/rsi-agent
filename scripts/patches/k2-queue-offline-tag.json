@@ -1,0 +1,7 @@
+{
+  "id": "K2-QUEUE-OFFLINE-TAG",
+  "description": "renderQueue：断线未发出的条目行内标「⇄ 待重发」，让用户看得见它没丢",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/k2-queue-tag-anchor.txt",
+  "patch_file": "blocks/k2-queue-tag-patch.txt"
+}

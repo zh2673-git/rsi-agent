@@ -1,0 +1,1 @@
+    (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}</span></div>` : "");

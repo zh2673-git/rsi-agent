@@ -1,0 +1,7 @@
+// ── inspirations 章节 ───────────────────────────────────────────────────────
+function renderInspSection(sec) {
+  const wrap = el("section", "board-sec grow");
+  wrap.dataset.kind = "inspirations";
+  wrap.dataset.sec = sec.id;
+  const items = boardData?.board?.inspirations ?? [];
+  wrap.appendChild(sectionHead(sec, `${items.filter((i) => i.status === "open").length} 待议 / ${items.length}`, false));

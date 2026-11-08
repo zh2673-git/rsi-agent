@@ -105,6 +105,14 @@ function renderQueue() {
       tag.title = "被插队打断，插队那条跑完自动回头继续这条";
       row.insertBefore(tag, row.querySelector(".qexec"));
     }
+    // K1：断线导致没发出去的那条——显式标注「等重发」，避免用户以为它已经跑过了。
+    if (item.offline && !running) {
+      row.classList.add("offline");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "⇄ 待重发";
+      tag.title = "连接断开，这条没送到服务端；点 ⏭ 立即重发，或直接再点发送";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
     row.querySelector(".qtext").textContent = item.text;
     const [exec, up, edit, cp, rm] = row.querySelectorAll("button");
     exec.title = running ? "正在执行" : "立即执行这条（打断当前任务，优先跑它）";
@@ -225,11 +233,20 @@ async function postChatDirect(sid, item) {
         if (session === sid) setStatus(item.stopped ? "已停止（后台正在收敛）" : "已打断，稍后回到本条继续");
         return "aborted";
       }
+      if (e?.name === "AbortError") {
+        // 打断了不要谎报「已停止」：结局由 drain 按 item 上的标记分流
+        if (session === sid) setStatus(item.stopped ? "已停止（后台正在收敛）" : "已打断，稍后回到本条继续");
+        return "aborted";
+      }
+      // K1：连接层失败（host 重启 / 断网 / fetch reject）≠ 执行失败。
+      // 旧实现在这里统一 return "error"，drain 见到非 aborted 就出队，于是断线瞬间
+      // 整个待发队列被逐条清空——「排队指令全消失」。区分出来交给 drain 保留。
       if (session === sid) setStatus("请求失败: " + e);
-      return "error";
+      return "offline";
     } finally { s.abort = null; }
   }
-  return "error";
+  // K1：重试窗口耗尽仍拿不到服务端结论（多半是连接层问题）按 offline 处理，同样不吞条目。
+  return "offline";
 }
 // Q6：续跑上限——防「插队↔被插队」极端来回 ping-pong 无界重放（超限即放弃并提示）。
 const MAX_RESUME = 8;
@@ -254,7 +271,21 @@ async function drain(sid) {
       // Q5：队列本地驻留——第 0 条即「执行中」。postChatDirect 的 Promise 覆盖整段执行，
       // 跑完才出队；待发面板因此在整轮执行期间都可见，行内 ⏭/↑/× 才有操作窗口。
       item.pendingResume = false;         // Q6：轮到它了，不再是「待续跑」
+      item.offline = false;               // K1：开始重试就撤掉「待重发」标注
       const outcome = await postChatDirect(sid, item);
+      // K1（断线不吞队列）：outcome==="error" 分两种，不能一律当「已跑完」出队——
+      //   · 服务端明确回了非 ok（如 K400/K500）：这条确实跑过了，出队合理；
+      //   · 连接层失败（fetch reject：host 重启/断网）：「请求没送到」不等于「执行完」。
+      // 旧实现一律出队，断线时 while 循环会把整个待发队列逐条清空（用户看到「排队的
+      // 指令全没了」），且 drain 的 finally 把 running 置回 false，界面显示空闲。
+      // 这里把「连接层失败」单独返回 offline：条目留在队首（下面 splice 跳过），
+      // 循环立刻停下，等用户手动重发/重连后再 drain。
+      if (outcome === "offline") {
+        item.offline = true;              // 行内标注，让用户看见「这条还在这儿」
+        renderQueue();
+        if (session === sid) setStatus("连接断开：" + (item.text.slice(0, 24)) + " 等 " + s.queue.length + " 条仍留在待发队列");
+        break;
+      }
       const at = s.queue.indexOf(item);   // 执行期间可能被删除/上移：按身份删除，不盲目 shift
       if (at >= 0) s.queue.splice(at, 1);
       // Q6：结局分流——「插队打断」与「用户停止」走同一条 cancel+abort，但语义相反：

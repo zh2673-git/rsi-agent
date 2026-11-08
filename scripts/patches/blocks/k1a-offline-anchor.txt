@@ -1,0 +1,6 @@
+      if (session === sid) setStatus("请求失败: " + e);
+      return "error";
+    } finally { s.abort = null; }
+  }
+  return "error";
+}

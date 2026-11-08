@@ -745,6 +745,9 @@
 /* Q6：被插队打断、排队等「回头续跑」的那条——虚描边区别于执行中，提示原任务没丢 */
 #queue-list .qitem.resume { outline: 1px dashed var(--muted); }
   #queue-list .qitem .qrun { color: var(--muted); font-size: 12px; padding: 0 6px; }
+  /* K1：断线未发出的条目——用警示色边框，和「待续跑」（虚线灰）区分开。 */
+  #queue-list .qitem.offline { outline: 1px solid var(--warn, #c9a227); }
+  #queue-list .qitem.offline .qrun { color: var(--warn, #c9a227); }
   #queue-list button:disabled { opacity: .35; cursor: default; }
 /* ── F1：折叠与视觉层次 ──────────────────────────────────────────────────────
    问题（用户原话）：「现在 UI 给人一种非常单调又很混乱的感觉」。

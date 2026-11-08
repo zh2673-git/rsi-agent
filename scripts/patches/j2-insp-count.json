@@ -1,0 +1,7 @@
+{
+  "id": "J2-INSP-COUNT",
+  "description": "灵感行：推导出的已采纳标出「N 个任务」，让用户能核对来源",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/j2-insp-count-anchor.txt",
+  "patch_file": "blocks/j2-insp-count-patch.txt"
+}

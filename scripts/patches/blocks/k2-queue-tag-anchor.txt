@@ -1,0 +1,7 @@
+    if (item.pendingResume && !running) {
+      row.classList.add("resume");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "⟲ 待续跑";
+      tag.title = "被插队打断，插队那条跑完自动回头继续这条";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }

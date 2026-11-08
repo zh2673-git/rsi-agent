@@ -1,0 +1,1 @@
+    (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}${it.derived ? ` · ${it.taskCount} 个任务` : ""}</span></div>` : "");

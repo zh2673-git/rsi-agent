@@ -444,12 +444,38 @@ function renderMetricsSection(sec) {
   return wrap;
 }
 
+// ── 灵感显示状态推导（J1）────────────────────────────────────────────────────
+// 背景：G1 把灵感的写权限收归用户后，agent 侧不再有 `insp-adopt`，采纳关联改记
+// 在**任务一侧**的 `task.inspirations`（一个事实只存一处）。但此前 UI 分组仍只读
+// `inspiration.status`，而 `adopted` 这个值**再没有任何通道能写进去**（agent 不许写、
+// UI 只有「归档」），于是灵感永远停在「待议」——任务都做完了，左边还挂着 7 条待议。
+//
+// 修法不是把状态写回灵感对象（那会重新引入「两边说法不一致」），而是让 UI **推导**：
+// 有任务引用它 → 已采纳；否则用存下来的 status。这样任务侧仍是唯一真源，
+// 灵感对象的 status 只表达用户的显式动作（归档），不再承担「被采纳」这个派生事实。
+//
+// 为什么推导而不回填：回填需要一次性的迁移脚本，且此后每建一个任务就得同步一次，
+// 漏一次就重新不一致；推导每次渲染都算，天然不会过期。
+function deriveInspState(items) {
+  const claimed = new Map(); // I-ID → 引用它的任务数
+  for (const t of boardData?.board?.tasks ?? []) {
+    for (const iid of t.inspirations ?? []) claimed.set(iid, (claimed.get(iid) ?? 0) + 1);
+  }
+  return items.map((it) => {
+    // 归档是用户的显式动作，优先级高于推导——归档了就是不想再看。
+    if (it.status === "archived") return { ...it, derived: false };
+    const n = claimed.get(it.id) ?? 0;
+    if (!n) return { ...it, derived: false };
+    return { ...it, status: "adopted", derived: true, taskCount: n };
+  });
+}
+
 // ── inspirations 章节 ───────────────────────────────────────────────────────
 function renderInspSection(sec) {
   const wrap = el("section", "board-sec grow");
   wrap.dataset.kind = "inspirations";
   wrap.dataset.sec = sec.id;
-  const items = boardData?.board?.inspirations ?? [];
+  const items = deriveInspState(boardData?.board?.inspirations ?? []);
   wrap.appendChild(sectionHead(sec, `${items.filter((i) => i.status === "open").length} 待议 / ${items.length}`, false));
 
   const add = el("div", "insp-add");
@@ -523,7 +549,7 @@ function inspRow(it) {
     `<button class="iedit" title="改这条灵感（Enter 保存 / Esc 取消）">✎</button>` +
     `<button class="irm" title="删除这条灵感">🗑</button>` +
     `<button class="iarc" title="${it.status === "archived" ? "恢复为待议" : "归档"}">${it.status === "archived" ? "↺" : "✓"}</button></div>` +
-    (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}</span></div>` : "");
+    (tags || it.status !== "open" ? `<div class="imeta">${tags}<span class="ist">${INSP_LABEL[it.status] ?? it.status}${it.derived ? ` · ${it.taskCount} 个任务` : ""}</span></div>` : "");
   row.querySelector(".iref").onclick = (e) => { e.stopPropagation(); mentionRef(it.id); };
   row.querySelector(".iedit").onclick = (e) => { e.stopPropagation(); editInspiration(it, row); };
   row.querySelector(".irm").onclick = (e) => { e.stopPropagation(); removeInspiration(it, row); };

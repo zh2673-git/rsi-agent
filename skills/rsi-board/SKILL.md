@@ -70,18 +70,18 @@ python scripts/board.py task-upsert --file plan.json      # 新建/更新（- �
 python scripts/board.py task-status T-20261107-01 doing --note "开始改 Rust"
 python scripts/board.py task-progress T-20261107-01 3/5 --note "路由已通"
 python scripts/board.py task-append T-20261107-01 --artifact outputs/x.md
-python scripts/board.py insp-add "左栏不该是会话列表" --tags ui,idea
-python scripts/board.py insp-adopt I-20261107-01 T-20261107-01
+python scripts/board.py task-append T-... --inspiration I-...   # 记「被哪条灵感触发」
 python scripts/board.py check-add T-20261107-01 --file c.json   # 追加一条检查
 python scripts/board.py eval T-20261107-01 [--only c1,c2]        # 跑检查写结论
 python scripts/board.py digest --skill project-dev --brief        # 同类任务归纳
 python scripts/board.py resolve "接着 @T-20261107-01"             # 引用解析成上下文块
 python scripts/board.py link T-20261107-01                        # 哪几轮对话提过它
 python scripts/board.py layout [--file layout.json]               # 读/写左栏章节
-python scripts/board.py insp-edit I-... --text "改后的原话" [--tags a,b]   # 改灵感
-python scripts/board.py insp-rm I-... [--force]                   # 删灵感（已采纳需 --force）
 python scripts/board.py task-rm T-... [--force]                   # 删任务（子任务摘 parent）
 ```
+
+**灵感没有任何写命令**（G1 起）：增/改/删/归档都由用户在左栏操作（`POST /api/board`
+的 `inspiration.*`）。agent 只能 `list`/`show`/`stats`/`resolve` 读。
 
 `task-upsert` 的 JSON（省略 `id` 即新建）：
 
@@ -120,8 +120,10 @@ system prompt 的「Board references」段。**不要再去 `board.py show` 一�
 拿到引用后：
 
 1. 是任务 → 延续它的 goal/plan，不要另起炉灶；有新结论就更新它；
-2. 是灵感 → 判断值不值得做：值得就 `task-upsert` 建任务 + `insp-adopt <I> <T>`（双向关联），
-   不值得就在回答里说清为什么不采纳（不要默默略过）；
+2. 是灵感 → 判断值不值得做：值得就 `task-upsert` 建任务，并把该灵感 ID 写进任务的
+   `inspirations` 字段（`--inspiration I-xxx` 也行）。**这就是「采纳」的唯一记法**——
+   agent 侧没有 `insp-adopt`（G1 已删：灵感归用户，agent 只读），UI 会从任务侧
+   反推出「已采纳」并折叠。不值得就在回答里说清为什么不采纳（不要默默略过）；
 3. 引用 ID 不在看板上 → prompt 会明确说 `not on the board`，别猜内容，问用户或忽略。
 
 ## 6. 同类归纳与看板章节（C 轮新增）
@@ -213,7 +215,7 @@ python scripts/profile.py note --file n.json --domain work   # 往指定域写
 - [ ] 状态只在四个时刻迁移，`blocked` 带 note；
 - [ ] `verifying`/`done` 有 acceptance 或有明确理由为空；
 - [ ] 收到 @引用**没有**重复 `show`（已自动装载），间接文本才用 `resolve`；
-- [ ] 灵感被采纳走 `insp-adopt` 双向关联；
+- [ ] 灵感被采纳时，ID 写进了任务的 `inspirations`（不是去找不存在的 `insp-adopt`）；
 - [ ] 写画像前问过「换到别处会错还是会无关」——会错的进域，不会错的进全局；
 - [ ] 没有自行 `use <domain>` 切域（那是用户的动作）；
 - [ ] 没有把看板内容整块复述进回答。

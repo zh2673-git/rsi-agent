@@ -1,0 +1,2 @@
+#queue-list .qitem.resume { outline: 1px dashed var(--muted); }
+  #queue-list .qitem .qrun { color: var(--muted); font-size: 12px; padding: 0 6px; }

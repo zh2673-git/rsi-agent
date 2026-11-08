@@ -1,0 +1,2 @@
+  const items = boardData?.board?.inspirations ?? [];
+  wrap.appendChild(sectionHead(sec, `${items.filter((i) => i.status === "open").length} 待议 / ${items.length}`, false));

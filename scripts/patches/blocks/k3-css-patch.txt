@@ -1,0 +1,5 @@
+#queue-list .qitem.resume { outline: 1px dashed var(--muted); }
+  #queue-list .qitem .qrun { color: var(--muted); font-size: 12px; padding: 0 6px; }
+  /* K1：断线未发出的条目——用警示色边框，和「待续跑」（虚线灰）区分开。 */
+  #queue-list .qitem.offline { outline: 1px solid var(--warn, #c9a227); }
+  #queue-list .qitem.offline .qrun { color: var(--warn, #c9a227); }
