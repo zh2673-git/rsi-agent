@@ -1,0 +1,7 @@
+  const add = el("div", "insp-add");
+  const input = document.createElement("input");
+  input.id = `insp-input-${sec.id}`;
+  input.maxLength = 2000;
+  // G2：重绘后把未提交的草稿还进新输入框（submit 成功后快照为空，故不会复活旧字）。
+  const draft = inspDrafts.get(sec.id);
+  if (draft) input.value = draft;

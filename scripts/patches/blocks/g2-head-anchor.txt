@@ -1,0 +1,4 @@
+function refreshSections() {
+  const root = $("board-sections");
+  if (!root) return;
+  root.innerHTML = "";

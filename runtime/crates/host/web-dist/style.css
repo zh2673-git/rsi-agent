@@ -853,3 +853,13 @@
 .bw-bar-t i { display: block; width: 100%; background: var(--ok); }
 .bw-bar-l { font-size: 9.5px; color: var(--faint); line-height: 1; }
 .bw-trend-note { font-size: 10.5px; color: var(--faint); line-height: 1.5; margin-top: 6px; }
+
+/* G5（I-20261108-04 第 3 条）：任务结论区。左侧一道竖线把「结果」从过程里拎出来——
+   用户要先知道做成了什么，再决定要不要看计划和人财物。专业结论默认折叠：
+   它是给 agent 归纳用的，对人不该是首屏噪音。 */
+.doutcome { border-left: 2px solid var(--accent); padding-left: 8px; }
+.doutcome .obrief { font-size: 12.5px; line-height: 1.6; color: var(--text); margin: 4px 0 0; }
+.doutcome .opro { margin-top: 6px; }
+.doutcome .opro summary { cursor: pointer; font-size: 11px; color: var(--faint); }
+.doutcome .opro summary:hover { color: var(--accent); }
+.doutcome .opro p { font-size: 11.5px; line-height: 1.6; color: var(--muted); margin: 4px 0 0; white-space: pre-wrap; }

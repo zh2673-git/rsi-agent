@@ -212,6 +212,21 @@ fn render_task(t: &Value) -> String {
     if !arts.is_empty() {
         out.push_str(&format!("  artifacts: {}\n", arts.join(" ")));
     }
+    // G5（I-20261108-04 第 3 条）：任务被 @ 引用时也要带上**结果**，不只有过程。
+    // 此前 render_task 给的是 goal/plan/acceptance/checks——全是「打算怎么做」，
+    // 缺「最后做成了什么」。后果是引用一件已完成任务时 agent 仍要翻对话才知道结论，
+    // 跨任务归纳（digest）同理。两条线都进上下文：
+    //   brief = 用户视角的一句话结论（复述它即可，不必自己组织话术）
+    //   pro   = 专业结论（判断「能不能复用、还差什么」的依据）
+    let outs = t.get("outcomes").cloned().unwrap_or(Value::Null);
+    let brief = s(&outs, "brief");
+    if !brief.is_empty() {
+        out.push_str(&format!("  outcome: {}\n", truncate(brief, 200)));
+    }
+    let pro = s(&outs, "pro");
+    if !pro.is_empty() {
+        out.push_str(&format!("  outcome_detail: {}\n", truncate(pro, 300)));
+    }
     out
 }
 

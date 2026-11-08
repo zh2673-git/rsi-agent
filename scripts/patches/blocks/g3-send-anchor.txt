@@ -1,0 +1,6 @@
+function syncRunUI() {
+  const s = qState(session);
+  sendBtn.disabled = s.running;
+  stopBtn.hidden = !s.running;
+  renderQueue();
+}

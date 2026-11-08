@@ -1,0 +1,7 @@
+{
+  "id": "G5-PROMPT-OUTCOME",
+  "description": "skills.rs：提示词要求 done 任务写两条线结论（brief 给人 / pro 给 agent）+ 实质任务补一份领域调研。I-20261108-04 第3条",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/g5-prompt-anchor.txt",
+  "patch_file": "blocks/g5-prompt.txt"
+}

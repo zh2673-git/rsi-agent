@@ -1,0 +1,1 @@
+.bw-trend-note { font-size: 10.5px; color: var(--faint); line-height: 1.5; margin-top: 6px; }

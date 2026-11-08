@@ -1,0 +1,7 @@
+{
+  "id": "G2-INSP-DRAFT-INPUT",
+  "description": "app-board.js：灵感输入框创建时回填未提交草稿",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/g2-input-anchor.txt",
+  "patch_file": "blocks/g2-input.txt"
+}

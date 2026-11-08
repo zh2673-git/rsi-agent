@@ -1,0 +1,7 @@
+{
+  "id": "G1-SKILLS-INSP-READONLY",
+  "description": "skills.rs：@引用段改为「灵感归用户、agent 只读」，采纳关联记在 task.inspirations（I-20261108-04）",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/g1-skills-anchor.txt",
+  "patch_file": "blocks/g1-skills.txt"
+}

@@ -65,7 +65,18 @@ function restoreSessionFeed(sid) {
 
 function syncRunUI() {
   const s = qState(session);
-  sendBtn.disabled = s.running;
+  // G3（I-20261108-05）：运行中**不再禁用**发送键。
+  // 原话「有执行任务的时候，发送键点不了」，而 Enter 在同样时刻是照常入队的——
+  // 两条路径语义分叉才是 bug：Enter 走 send() → queue.push + drain 单消费者，
+  // 按钮被 disabled 只是把人挡在一个本来就安全的操作外面。
+  // 运行中入队不会抢同会话闸（drain 在 finally 之后才发下一条），所以禁用没有
+  // 保护任何东西，只制造「键盘能发、鼠标不能发」的不一致。
+  // 改为视觉提示 + title 说明「会排队」：用户看得见行为的代价，而不是按钮变灰。
+  sendBtn.disabled = false;
+  sendBtn.classList.toggle("queued", s.running);
+  sendBtn.title = s.running
+    ? "当前任务执行中：点发送与 Enter 等效，会排进待发队列，本轮跑完自动开始"
+    : "发送（Enter）";
   stopBtn.hidden = !s.running;
   renderQueue();
 }

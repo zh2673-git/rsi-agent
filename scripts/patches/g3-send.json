@@ -1,0 +1,7 @@
+{
+  "id": "G3-SEND-QUEUE",
+  "description": "q-session.js：运行中发送键不再禁用（与 Enter 同效入队），改为 queued 视觉态 + title 说明会排队。I-20261108-05",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/g3-send-anchor.txt",
+  "patch_file": "blocks/g3-send.txt"
+}

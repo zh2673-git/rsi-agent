@@ -66,54 +66,75 @@ class WorkspaceCase(unittest.TestCase):
     def board_file(self) -> dict:
         return json.loads((self.ws / ".rsi" / "board.json").read_text(encoding="utf-8"))
 
+    def seed_inspiration(self, text: str, *, status: str = "open",
+                         tasks: list[str] | None = None, tags: list[str] | None = None) -> str:
+        """像 UI 那样直接写 board.json 造灵感（G 轮起 agent 没有这条写通道）。"""
+        p = self.ws / ".rsi" / "board.json"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        board = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {
+            "version": 1, "tasks": [], "inspirations": [],
+        }
+        items = board.setdefault("inspirations", [])
+        iid = f"I-20261108-{len(items) + 1:02d}"
+        items.insert(0, {
+            "id": iid, "text": text, "tags": tags or [], "status": status,
+            "tasks": tasks or [], "created_at": "2026-11-08T00:00:00Z",
+            "updated_at": "2026-11-08T00:00:00Z",
+        })
+        p.write_text(json.dumps(board, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        return iid
+
+    # 旧名兼容：本类内测试曾用 seed(...)
+    seed = seed_inspiration
+
 
 class InspEditDeleteTest(WorkspaceCase):
-    """I-20261107-02：灵感要能改、能删（记错了不该只能归档再重打）。"""
+    """灵感可改可删（I-20261107-02）——G 轮起这条能力**只属于用户界面**。
 
-    def test_insp_edit_updates_text_and_tags(self):
-        code, out = self.board("insp-add", "原话", "--tags", "ui")
-        self.assertEqual(code, 0, out)
-        iid = out["id"]
-        code, out = self.board("insp-edit", iid, "--text", "改后的原话", "--tags", "ui,v2")
-        self.assertEqual(code, 0, out)
-        self.assertEqual(out["inspiration"]["text"], "改后的原话")
-        self.assertEqual(out["inspiration"]["tags"], ["ui", "v2"])
-        # 只给 text：tags 保持不变（部分更新语义，不给的字段不动）
-        code, out = self.board("insp-edit", iid, "--text", "再改一次")
-        self.assertEqual(code, 0, out)
-        self.assertEqual(out["inspiration"]["tags"], ["ui", "v2"], "未提供 tags 时不得清空")
+    原实现把「改/删灵感」挂在 agent 的 CLI 上，与 I-20261108-04「灵感是用户记录碎片
+    想法的地方……agent 不能编辑，用户可以编辑」直接冲突。故本轮把写通道整体移到 UI：
+    host `/api/board` 的 `inspiration.edit` / `.rm` 保留（唯一调用方是界面），
+    `board.py` 的 `insp-edit` / `insp-rm` / `insp-add` / `insp-set` / `insp-adopt` 全部移除。
 
-    def test_insp_edit_rejects_empty_and_overlong(self):
-        _, out = self.board("insp-add", "x")
-        iid = out["id"]
-        code, out = self.board("insp-edit", iid, "--text", "   ")
-        self.assertEqual(code, 1, "空白正文应被拒")
-        code, out = self.board("insp-edit", iid, "--text", "y" * 2001)
-        self.assertEqual(code, 1, "超 2000 字应被拒")
+    测试因此改测**新契约本身**，而不是已经不该存在的那条通道：
+      1. agent 侧无灵感写命令（CLI 直接拒绝该子命令）；
+      2. UI 侧契约仍在（host 源码里两个 op 的校验原样保留，含 adopted 需 force）；
+      3. 灵感数据仍可被 agent **读**（引用装载 / show），这是它的合法权限。
+    """
 
-    def test_insp_rm_blocks_adopted_unless_forced(self):
-        _, t = self.add_task(), None
-        _, out = self.board("insp-add", "已被采纳的灵感")
-        iid = out["id"]
-        tid = self.add_task(title="把那条灵感做掉")
-        code, out = self.board("insp-adopt", iid, tid)
-        self.assertEqual(code, 0, out)
-        code, out = self.board("insp-rm", iid)
-        self.assertEqual(code, 1, "已采纳的灵感默认不许删")
-        self.assertEqual(out["error"]["code"], "ADOPTED")
-        code, out = self.board("insp-rm", iid, "--force")
-        self.assertEqual(code, 0, out)
-        self.assertEqual(out["text"], "已被采纳的灵感", "删除应回显被删内容")
+    def test_agent_has_no_inspiration_write_commands(self):
+        """agent 侧五个写命令必须全部不存在：灵感是用户的主权。"""
+        for cmd in ("insp-add", "insp-set", "insp-adopt", "insp-edit", "insp-rm"):
+            code, _ = self.board(cmd, "x", "y")
+            self.assertEqual(code, 2, f"{cmd} 应被 argparse 拒绝（exit 2），实际 {code}")
 
-    def test_insp_rm_plain(self):
-        _, out = self.board("insp-add", "记错了")
-        iid = out["id"]
-        code, out = self.board("insp-rm", iid)
+    def test_ui_keeps_edit_and_rm_ops_with_adopted_guard(self):
+        """UI 渠道的写能力原样保留——移走的是 agent 的手，不是用户的手。"""
+        src = read("runtime/crates/host/src/web/api/board.rs")
+        self.assertIn('"inspiration.edit"', src)
+        self.assertIn('"inspiration.rm"', src)
+        # adopted 默认拒绝 + 显式 force 才删：与旧 CLI 同语义
+        self.assertIn("force", src)
+        # 已采纳保护：Rust 侧用 K409 + 文案「已被任务采纳」，没有 ADOPTED 这个码
+        self.assertIn('Some("adopted")', src)
+
+    def test_agent_can_still_read_inspirations(self):
+        """读是 agent 的合法权限：show 能取到，引用能落到上下文块。"""
+        iid = self.seed("左栏不该是会话列表")
+        code, out = self.board("show", iid)
         self.assertEqual(code, 0, out)
-        self.assertEqual(self.board_file()["inspirations"], [])
-        code, out = self.board("insp-rm", iid)
-        self.assertEqual(code, 1)
-        self.assertEqual(out["error"]["code"], "NOT_FOUND")
+        self.assertEqual(out["inspiration"]["text"], "左栏不该是会话列表")
+        code, out = self.board("resolve", f"@{iid} 做掉它")
+        self.assertEqual(code, 0, out)
+        self.assertIn("左栏不该是会话列表", json.dumps(out, ensure_ascii=False))
+
+    def test_board_file_inspiration_survives_agent_task_writes(self):
+        """agent 写任务不得吞掉用户的灵感（并行写的前置条件）。"""
+        iid = self.seed("先记一条灵感")
+        tid = self.add_task(title="后建的任务")
+        data = self.board_file()
+        self.assertEqual([i["id"] for i in data["inspirations"]], [iid])
+        self.assertIn(tid, [t["id"] for t in data["tasks"]])
 
 
 class TaskDeleteTest(WorkspaceCase):
@@ -122,9 +143,7 @@ class TaskDeleteTest(WorkspaceCase):
     def test_task_rm_detaches_children_and_unlinks_inspirations(self):
         parent = self.add_task(title="父任务")
         child = self.add_task(title="子任务", parent=parent)
-        _, out = self.board("insp-add", "来源灵感")
-        iid = out["id"]
-        self.board("insp-adopt", iid, parent)
+        iid = self.seed_inspiration("来源灵感", tasks=[parent])
 
         code, out = self.board("task-rm", parent)
         self.assertEqual(code, 0, out)

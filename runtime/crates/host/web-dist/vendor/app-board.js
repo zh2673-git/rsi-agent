@@ -284,7 +284,24 @@ function fillTaskDetail(box, t) {
   const checks = (t.checks ?? []).map(checkLine).join("");
   const ev = t.evaluation ?? {};
   const res = t.resourcing ?? {};
+  // G5（I-20261108-04 第 3 条）：**结论放最前**，且分两条线。
+  // 用户原话：「任务完成后其实应该是两条线。一条是确认任务是否专业的、按照计划、需求
+  // 完成了。另一条是需要把任务的结果通俗化的呈现出来，这才是看板的终极意义」。
+  // 所以顺序是：先说给人听的（一句话，白话），再说给 agent 看的（专业结论）。
+  // 之前的详情页一上来是「目标 / 计划 / 验收标准」——全是过程，看完仍不知道做成了没有。
+  const outs = t.outcomes ?? {};
+  const briefTxt = String(outs.brief ?? "").trim();
+  const proTxt = String(outs.pro ?? "").trim();
+  const outcomeBlock = (briefTxt || proTxt)
+    ? `<div class="dsec doutcome">` +
+      (briefTxt ? `<b>结果</b><p class="obrief">${boardEsc(briefTxt)}</p>` : "") +
+      (proTxt ? `<details class="opro"><summary>专业结论（给 agent 归纳用）</summary><p>${boardEsc(proTxt)}</p></details>` : "") +
+      `</div>`
+    : t.status === "done"
+      ? `<div class="dsec doutcome"><b>结果</b><p class="obrief empty-inline">这件已完成，但没有留下结论——「完成了」不等于「结果是什么」</p></div>`
+      : "";
   box.innerHTML =
+    outcomeBlock +
     (t.goal ? `<div class="dsec"><b>目标</b><p>${boardEsc(t.goal)}</p></div>` : "") +
     (plan ? `<div class="dsec"><b>计划</b><ul class="dplan">${plan}</ul></div>` : "") +
     (acc ? `<div class="dsec"><b>验收标准</b><ul class="dacc">${acc}</ul></div>` : "") +
@@ -439,6 +456,9 @@ function renderInspSection(sec) {
   const input = document.createElement("input");
   input.id = `insp-input-${sec.id}`;
   input.maxLength = 2000;
+  // G2：重绘后把未提交的草稿还进新输入框（submit 成功后快照为空，故不会复活旧字）。
+  const draft = inspDrafts.get(sec.id);
+  if (draft) input.value = draft;
   input.placeholder = "记一条灵感，回车保存";
   const save = document.createElement("button");
   save.id = `insp-save-${sec.id}`;
@@ -594,9 +614,35 @@ function mentionRef(id) {
   box.setSelectionRange(at, at);
 }
 
+// G2（I-20261108-04 第 2 条）：记灵感的草稿与焦点不能被轮询重绘带走。
+// 原话「灵感在 agent 工作的时候，用户记录的时候会被刷新，这样是不对的，这样会影响
+// 用户记录灵感」。病灶就在下面那句 root.innerHTML = ""：整个章节连同输入框一起被销毁
+// 重建，20s 一次的 boardTick 于是变成「打到一半的字突然没了」——而且丢的是**用户正在
+// 产生的内容**，比看到旧看板严重得多。
+// 修法只做一件事：重绘前把草稿与焦点位置摘出来，重绘后原样还回去。不猜内容、不做
+// 乐观更新、不改任何提交语义——只是不让 DOM 重建顺手带走用户的输入。
+// 草稿存内存不存 localStorage：灵感一旦存盘就该从草稿里消失，跨刷新残留会让用户
+// 以为「我记过了」。真正的持久化仍只有「回车提交」这一条路径。
+// 快照取自**活的 DOM**而不是事件监听：提交成功后代码把 input.value 清空，快照随之
+// 变空，草稿自然消失——不需要在提交路径上再补一行清理（少一处会忘的同步点）。
+const inspDrafts = new Map();   // sec.id → 未提交的输入
+let inspFocus = null;           // 重绘前焦点所在的灵感输入框（含选区），重绘后还原
+
 function refreshSections() {
   const root = $("board-sections");
   if (!root) return;
+  // ① 先摘草稿：现存输入框的值就是用户还没提交的内容。
+  for (const box of root.querySelectorAll(".insp-add input")) {
+    if (!box.id) continue;
+    const secId = box.id.replace(/^insp-input-/, "");
+    if (box.value) inspDrafts.set(secId, box.value);
+    else inspDrafts.delete(secId);
+  }
+  // ② 再摘焦点：只有焦点在灵感输入框里才记（避免抢别处的焦点）。
+  const active = document.activeElement;
+  inspFocus = active && typeof active.id === "string" && active.id.startsWith("insp-input-")
+    ? { id: active.id, start: active.selectionStart, end: active.selectionEnd }
+    : null;
   root.innerHTML = "";
   const secs = boardSections();
   if (!secs.length) {

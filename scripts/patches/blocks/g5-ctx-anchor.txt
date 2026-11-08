@@ -1,0 +1,6 @@
+    let arts = strs(t, "artifacts");
+    if !arts.is_empty() {
+        out.push_str(&format!("  artifacts: {}\n", arts.join(" ")));
+    }
+    out
+}

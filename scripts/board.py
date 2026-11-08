@@ -1,17 +1,27 @@
 #!/usr/bin/env python
-"""任务看板 / 灵感看板 CLI —— agent 侧对 `.rsi/board.json` 的唯一写口。
+"""任务看板 / 灵感看板 CLI —— agent 侧对 `.rsi/board.json` 的**唯一写口（仅任务）**。
+
+**灵感归用户，agent 只读**（I-20261108-04 第 1 条）。原话：「灵感是用户记录碎片想法的地方。
+不需要呈现 agent 对灵感的总结。agent 运行的时候在需要的情况下只是读取灵感，agent 不能编辑，
+用户可以编辑。」故本 CLI 侧移除了全部灵感写命令（`insp-add`/`insp-set`/`insp-adopt`/
+`insp-edit`/`insp-rm`）：agent 对灵感的权限收缩为**读**（`list`/`show`/`stats`/`resolve`）。
+灵感的增删改只走 UI（host `/api/board` 的 inspiration.* op，唯一调用方是用户界面）。
+
+那「这条灵感被哪件任务采纳」怎么记？**记在任务一侧**（`task-upsert` 的 `inspirations`
+字段），不反向改灵感对象。理由：一个事实只存一处，就不存在「两边说法不一致」；
+而任务本来就是 agent 的领域，把关联写在任务上是权限的自然延伸，不是越界。
 
 为什么是 CLI 而不是技能工具：技能工具（skills/*/tools.json）装载后默认**未启用**，需用户在
 设置面板批准；bash 是缺省启用集。若 agent 的写作通道依赖「要人点一下才生效」的入口，任务
 看板的闭环就断在配置上。故 CLI 是保证通道，`skills/rsi-board/` 只承载「怎么想、怎么写」。
 
 数据契约见 `docs/self-evolution/01-单会话与任务看板.md` §2；Rust 侧 `host/src/web/api/board.rs`
-是同一份契约的只读+灵感写实现（UI 用）。两侧共享三条纪律：
+是同一份契约的**灵感写**实现（UI 用）。两侧共享三条纪律：
   1. 读 → 改 → 写，按 id 合并，不做整表覆盖（两边并发写不互相吞条目）；
   2. 写盘 tmp + 原子替换（半截 JSON 永不落地）；
   3. 状态枚举封闭、字段长度与条数上限固定（越界即拒，不静默截断）。
 
-用法：
+用法（agent 侧全部命令；**灵感无写命令**）：
     python scripts/board.py list [--status doing] [--compact]
     python scripts/board.py show T-20261107-01
     python scripts/board.py stats
@@ -19,15 +29,14 @@
     python scripts/board.py task-status T-20261107-01 doing --note "开始改 Rust"
     python scripts/board.py task-progress T-20261107-01 3/5 --note "路由已通"
     python scripts/board.py task-append T-... --artifact outputs/x.md
-    python scripts/board.py insp-add "左栏应该只有任务与灵感" --tags ui,idea
-    python scripts/board.py insp-set I-20261107-01 adopted
-    python scripts/board.py insp-adopt I-20261107-01 T-20261107-01
     python scripts/board.py refresh            # 只会重建缺失字段（不删条目）
 
 退出码：0 成功；1 业务失败（打印 {"ok":false,"error":{...}}）；2 参数错。
 """
 
 from __future__ import annotations
+
+from contextlib import nullcontext
 
 import argparse
 import json
@@ -153,7 +162,77 @@ def load() -> dict:
     return board
 
 
+def _lock_path() -> Path:
+    return board_path().parent / "board.lock"
+
+
+class BoardLock:
+    """跨进程独占锁（G4a）：读→改→写整段互斥。
+
+    为什么必须有：`board.py`（agent）与 host `/api/board`（UI）都是「load → 改 → save」。
+    两路并行时 A 读到旧快照、B 写入新条目、A 再整体覆盖 → B 的条目凭空消失。
+    这不是理论风险：I-20261108-06 要求「不同任务可以并行」，并行一旦开闸，两件任务
+    各自登记进度就是常态，丢更新会直接表现为「我明明加了一步，看板上没有」。
+
+    实现选型（三条取舍）：
+    1. **文件锁而非内存锁**：写者是两个不同进程（Python CLI / Rust host），进程内锁拦不住。
+    2. **`O_CREAT|O_EXCL` 而非 flock**：Windows 上 Python 的 `fcntl` 不存在，
+       `msvcrt.locking` 语义又按字节区间、行为不一致。独占创建空文件跨平台一致，
+       代价是崩溃可能留残锁——故带**过期时间**（stale 判定见 `_acquire`）。
+    3. **拿不到就失败，不阻塞等待**：看板写是用户可感知的短操作，阻塞会让 UI 卡住；
+       宁可明确报「正在被写入，请重试」，也不让调用方在锁上空转。
+    """
+
+    def __init__(self, timeout: float = 3.0, stale: float = 15.0):
+        self.timeout = timeout      # 最多等多久（秒）：短重试窗口，不是无界等待
+        self.stale = stale          # 锁超过这个年龄视为残锁（持锁者已死）
+        self.fh = None
+
+    def __enter__(self):
+        import time
+        p = _lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        deadline = time.time() + self.timeout
+        while True:
+            try:
+                self.fh = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(self.fh, f"{os.getpid()} {time.time():.3f}".encode())
+                return self
+            except FileExistsError:
+                # 残锁回收：进程崩在锁内时文件会留下。按 mtime 年龄判定，超龄即删。
+                try:
+                    age = time.time() - p.stat().st_mtime
+                except OSError:
+                    age = 0.0
+                if age > self.stale:
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass  # 别人刚好也删了：让下一轮重试处理
+                    continue
+                if time.time() >= deadline:
+                    raise BoardError(
+                        "看板正在被另一个写入方修改（.rsi/board.lock 被占用），请稍后重试",
+                        code="LOCKED", field="board",
+                    ) from None
+                time.sleep(0.05)
+
+    def __exit__(self, *exc):
+        p = _lock_path()
+        if self.fh is not None:
+            try:
+                os.close(self.fh)
+            finally:
+                self.fh = None
+        try:
+            p.unlink()
+        except OSError:
+            pass
+        return False
+
+
 def save(board: dict) -> Path:
+    """原子写盘。**调用方必须已持有 board.lock**（见 `BoardLock` / `locked()`）。"""
     p = board_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     board["version"] = 1
@@ -163,6 +242,11 @@ def save(board: dict) -> Path:
     tmp.write_text(json.dumps(board, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     os.replace(tmp, p)  # 原子替换：崩溃不留半截 JSON
     return p
+
+
+def locked() -> BoardLock:
+    """写入口的统一用法：`with locked(): board = load(); …; save(board)`。"""
+    return BoardLock()
 
 
 # ── 校验 ─────────────────────────────────────────────────────────────────────
@@ -418,6 +502,23 @@ def validate_task(raw: dict, existing: dict | None) -> dict:
             raise BoardError("parent 不能指向自己", field="parent")
     task["parent"] = parent
     task["artifacts"] = _str_list(raw.get("artifacts", base.get("artifacts")), "artifacts", 300, 50)
+    # G5（I-20261108-04 第 3 条）：任务完成后**两条线**。
+    # 用户原话：「一条是确认任务是否专业的、按照计划、需求完成了。另一条是需要把任务的
+    # 结果通俗化的呈现出来，这才是看板的终极意义」。
+    #   brief = 给人看的一句话结论（非专业读者能据此决定「接下来要不要管它」）
+    #   pro   = 给 agent 自己看的专业结论（做了什么、怎么验证、遗留什么），供后续同类
+    #           任务 digest 复用；此前这类内容散在对话里，换个任务就找不回来了。
+    # 两个字段都**可选**：没到 done 的任务不该被逼着写结论（逼出来的是套话）。
+    # 但 done 且两者皆空 → 给 warning（见 check_acceptance_warning），因为「做完了但
+    # 说不清结果」正是用户抱怨的那件事。
+    outs = raw.get("outcomes") if isinstance(raw.get("outcomes"), dict) else {
+        k: raw.get(k) for k in ("brief", "pro") if k in raw
+    }
+    prev_outs = base.get("outcomes") if isinstance(base.get("outcomes"), dict) else {}
+    task["outcomes"] = {
+        "brief": _str(outs.get("brief", prev_outs.get("brief")), "outcomes.brief", MAX_GOAL, required=False),
+        "pro": _str(outs.get("pro", prev_outs.get("pro")), "outcomes.pro", MAX_NOTE * 2, required=False),
+    }
     task["session"] = _str(raw.get("session", base.get("session", "main")), "session", 64, required=False) or "main"
     task["created_at"] = str(base.get("created_at") or now_iso())
     task["updated_at"] = now_iso()
@@ -426,8 +527,14 @@ def validate_task(raw: dict, existing: dict | None) -> dict:
 
 
 def check_acceptance_warning(task: dict) -> str | None:
+    """收尾提醒：验收标准 / 机跑证据 / 结论。
+
+    G5：三条都要报，不再「遇到第一条就返回」——以前 acceptance 空就只提 acceptance，
+    用户补了验收再跑才看见「还缺结论」，一来一回多两轮。一次说全更省事。
+    """
+    warns: list[str] = []
     if task["status"] in ("verifying", "done") and not task["acceptance"]:
-        return (
+        warns.append(
             "acceptance 为空却已进入 "
             f"{task['status']}：没有验收标准的「完成」不可核对，请补 1-3 条可判定的验收条目。"
         )
@@ -435,11 +542,20 @@ def check_acceptance_warning(task: dict) -> str | None:
     checks = task.get("checks") or []
     verdict = (task.get("evaluation") or {}).get("verdict", "none")
     if checks and task["status"] == "done" and verdict != "pass":
-        return (
+        warns.append(
             f"checks 有 {len(checks)} 条但 evaluation.verdict={verdict} 却已 done："
             "请先跑 `python scripts/board.py eval <ID>`，全 PASS 再收尾。"
         )
-    return None
+    # G5：done 却说不出结果——「做完了但不知道做了啥」正是用户抱怨的那件事。
+    # 提示级（不阻断）：检查全过但还没写结论，是常见的中途状态，不该卡住收尾。
+    outs = task.get("outcomes") if isinstance(task.get("outcomes"), dict) else {}
+    if task["status"] == "done" and not (outs.get("brief") or outs.get("pro")):
+        warns.append(
+            "任务已 done 但 outcomes 为空：给一句话结论（outcomes.brief，给人看："
+            "「这件事现在是什么状态、你还要不要管它」）和专业结论（outcomes.pro，给 agent 看："
+            "做了什么 / 怎么验证的 / 遗留什么）。看板的意义不只是「完成了」，而是「结果是什么」。"
+        )
+    return " ".join(warns) if warns else None
 
 
 # ── 命令 ─────────────────────────────────────────────────────────────────────
@@ -615,6 +731,11 @@ def _task_digest(t: dict, brief: bool = False) -> dict:
         out["acceptance"] = t.get("acceptance") or []
         out["artifacts"] = t.get("artifacts") or []
         out["note"] = (t.get("progress") or {}).get("note", "") if isinstance(t.get("progress"), dict) else ""
+        # G5：同类归纳要带上「上次到底做成了什么」，否则 digest 只回答「做过」而不回答
+        # 「结果如何」——那正是用户说「看板的终极意义是呈现结果」时缺的那半块。
+        outs = t.get("outcomes") if isinstance(t.get("outcomes"), dict) else {}
+        out["outcome_brief"] = outs.get("brief", "")
+        out["outcome_pro"] = outs.get("pro", "")
     return out
 
 
@@ -867,64 +988,6 @@ def cmd_task_append(args: argparse.Namespace) -> dict:
     raise BoardError(f"未找到任务 {args.id}", code="NOT_FOUND", field="id")
 
 
-def cmd_insp_add(args: argparse.Namespace) -> dict:
-    text = _str(args.text, "text", MAX_INSP_TEXT)
-    tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
-    tags = [_str(t, f"tags[{i}]", MAX_TAG) for i, t in enumerate(tags)]
-    if len(tags) > MAX_TAGS:
-        raise BoardError(f"tags 最多 {MAX_TAGS} 个", field="tags")
-    board = load()
-    if len(board["inspirations"]) >= MAX_INSP:
-        raise BoardError(f"灵感数已达上限 {MAX_INSP}，请先归档", code="LIMIT", field="inspirations")
-    item = {
-        "id": _next_id(board["inspirations"], "I", INSP_ID_RE),
-        "text": text,
-        "tags": tags,
-        "status": "open",
-        "tasks": [],
-        "created_at": now_iso(),
-        "updated_at": now_iso(),
-    }
-    board["inspirations"] = [item] + board["inspirations"]
-    save(board)
-    return {"ok": True, "id": item["id"], "path": str(board_path())}
-
-
-def cmd_insp_set(args: argparse.Namespace) -> dict:
-    status = _enum(args.status, "status", INSP_STATUSES)
-    board = load()
-    for item in board["inspirations"]:
-        if item.get("id") == args.id:
-            item["status"] = status
-            item["updated_at"] = now_iso()
-            save(board)
-            return {"ok": True, "id": args.id, "status": status}
-    raise BoardError(f"未找到灵感 {args.id}", code="NOT_FOUND", field="id")
-
-
-def cmd_insp_adopt(args: argparse.Namespace) -> dict:
-    board = load()
-    task = next((t for t in board["tasks"] if t.get("id") == args.task), None)
-    if task is None:
-        raise BoardError(f"未找到任务 {args.task}", code="NOT_FOUND", field="task")
-    item = next((i for i in board["inspirations"] if i.get("id") == args.id), None)
-    if item is None:
-        raise BoardError(f"未找到灵感 {args.id}", code="NOT_FOUND", field="id")
-    insps = task.get("inspirations") if isinstance(task.get("inspirations"), list) else []
-    if args.id not in insps:
-        insps.append(args.id)
-    task["inspirations"] = insps
-    task["updated_at"] = now_iso()
-    tasks = item.get("tasks") if isinstance(item.get("tasks"), list) else []
-    if args.task not in tasks:
-        tasks.append(args.task)
-    item["tasks"] = tasks
-    item["status"] = "adopted"
-    item["updated_at"] = now_iso()
-    save(board)
-    return {"ok": True, "inspiration": args.id, "task": args.task}
-
-
 def cmd_refresh(args: argparse.Namespace) -> dict:
     """只补缺失字段，不删条目：修手改坏的板子时安全。"""
     board = load()
@@ -950,6 +1013,9 @@ def cmd_refresh(args: argparse.Namespace) -> dict:
             fixed += 1
         if not isinstance(t.get("progress"), dict):
             t["progress"] = {"done": 0, "total": 0, "note": ""}
+            fixed += 1
+        if not isinstance(t.get("outcomes"), dict):
+            t["outcomes"] = {"brief": "", "pro": ""}
             fixed += 1
     for i in board["inspirations"]:
         for key, default in (("tags", []), ("tasks", []), ("status", "open")):
@@ -992,44 +1058,6 @@ def cmd_task_rm(args: argparse.Namespace) -> dict:
     if not args.force and removed.get("status") not in ("done", "cancelled"):
         out["warning"] = f"删除的是未完结任务（status={removed.get('status')}）：若只是暂时不做，考虑 task-status {args.id} blocked"
     return out
-
-
-def cmd_insp_edit(args: argparse.Namespace) -> dict:
-    """改灵感正文/标签（D1：灵感看板要可编辑，否则记错只能归档再重打一遍）。"""
-    board = load()
-    item = next((i for i in board["inspirations"] if i.get("id") == args.id), None)
-    if item is None:
-        raise BoardError(f"未找到灵感 {args.id}", code="NOT_FOUND", field="id")
-    if args.text is not None:
-        item["text"] = _str(args.text, "text", MAX_INSP_TEXT)
-    if args.tags is not None:
-        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
-        tags = [_str(t, f"tags[{n}]", MAX_TAG) for n, t in enumerate(tags)]
-        if len(tags) > MAX_TAGS:
-            raise BoardError(f"tags 最多 {MAX_TAGS} 个", field="tags")
-        item["tags"] = tags
-    item["updated_at"] = now_iso()
-    save(board)
-    return {"ok": True, "inspiration": item}
-
-
-def cmd_insp_rm(args: argparse.Namespace) -> dict:
-    """删除灵感。已采纳（adopted）的默认拒绝：它已经变成任务的来源记录，
-    删掉会让任务凭空出现——要删先显式 --force。"""
-    board = load()
-    idx = next((n for n, i in enumerate(board["inspirations"]) if i.get("id") == args.id), None)
-    if idx is None:
-        raise BoardError(f"未找到灵感 {args.id}", code="NOT_FOUND", field="id")
-    item = board["inspirations"][idx]
-    if item.get("status") == "adopted" and not args.force:
-        raise BoardError(
-            f"灵感 {args.id} 已被任务采纳（{', '.join(item.get('tasks') or []) or '无记录'}）："
-            "删除会断掉任务来源链，确认请加 --force",
-            code="ADOPTED", field="id",
-        )
-    board["inspirations"].pop(idx)
-    save(board)
-    return {"ok": True, "id": args.id, "text": item.get("text"), "path": str(board_path())}
 
 
 def trace_dir() -> Path:
@@ -1155,32 +1183,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="未完结任务也删，不再提示")
     p.set_defaults(fn=cmd_task_rm)
 
-    p = sub.add_parser("insp-add", help="记一条灵感")
-    p.add_argument("text")
-    p.add_argument("--tags", default="")
-    p.set_defaults(fn=cmd_insp_add)
-
-    p = sub.add_parser("insp-set", help="改灵感状态")
-    p.add_argument("id")
-    p.add_argument("status")
-    p.set_defaults(fn=cmd_insp_set)
-
-    p = sub.add_parser("insp-adopt", help="灵感被任务采纳")
-    p.add_argument("id")
-    p.add_argument("task")
-    p.set_defaults(fn=cmd_insp_adopt)
-
-    p = sub.add_parser("insp-edit", help="改灵感正文/标签（可编辑）")
-    p.add_argument("id")
-    p.add_argument("--text", default=None)
-    p.add_argument("--tags", default=None, help="逗号分隔；给空串=清空标签")
-    p.set_defaults(fn=cmd_insp_edit)
-
-    p = sub.add_parser("insp-rm", help="删除灵感（已采纳需 --force）")
-    p.add_argument("id")
-    p.add_argument("--force", action="store_true")
-    p.set_defaults(fn=cmd_insp_rm)
-
     p = sub.add_parser("refresh", help="补齐缺失字段（不删条目）")
     p.set_defaults(fn=cmd_refresh)
 
@@ -1219,10 +1221,22 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
+# 只读命令：不取锁（读不互斥，取锁只会让看板刷新互相排队）。
+READ_ONLY_CMDS = frozenset({
+    "list", "show", "stats", "digest", "resolve", "link",
+})
+
+
 def main(argv: list[str] | None = None) -> int:
     ns = build_parser().parse_args(argv)
+    # G4a：写命令整段持 board.lock（读→改→写互斥），只读命令不加锁。
+    # 加在 main 而不是每个 cmd_* 里：写命令有九个，逐个包 `with` 只要漏一个就是
+    # 「并行时偶发丢更新」——那种 bug 极难复现、极难归因。集中在一处判定，
+    # 新增写命令忘记加锁的唯一后果是「没锁」，而不是「锁了但写错位置」。
+    ctx = nullcontext() if ns.cmd in READ_ONLY_CMDS else locked()
     try:
-        out = ns.fn(ns)
+        with ctx:
+            out = ns.fn(ns)
     except BoardError as e:
         err = {"code": e.code, "message": str(e)}
         if e.field:

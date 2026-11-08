@@ -1,0 +1,2 @@
+  // D 轮：弹窗与侧栏共用同一份 boardData / layout——一次 GET 喂两处，不额外请求。
+  renderBoardWin();

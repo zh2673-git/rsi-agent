@@ -1,0 +1,13 @@
+  // G2：把焦点与光标位置还回去。放在 renderBoardWin 之前——焦点是被弹窗抢走还是
+  // 别的元素，取决于重绘顺序；先还焦点，后面的渲染若真要抢焦点仍是它的自由。
+  if (inspFocus) {
+    const back = root.querySelector("#" + inspFocus.id.replace(/([^\w-])/g, "\\$1"));
+    if (back) {
+      back.focus();
+      try { back.setSelectionRange(inspFocus.start ?? back.value.length, inspFocus.end ?? back.value.length); }
+      catch { /* 某些输入类型不支持选区：焦点已还回，光标位置由浏览器决定 */ }
+    }
+    inspFocus = null;
+  }
+  // D 轮：弹窗与侧栏共用同一份 boardData / layout——一次 GET 喂两处，不额外请求。
+  renderBoardWin();

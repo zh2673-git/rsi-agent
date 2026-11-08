@@ -1,0 +1,7 @@
+{
+  "id": "G1-HOST-INSP-RM-DOC",
+  "description": "board.rs：灵感删除 op 的注释改为与 agent CLI 不同（insp-rm 已移除）",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/g1-rm-doc-anchor.txt",
+  "patch_file": "blocks/g1-rm-doc.txt"
+}

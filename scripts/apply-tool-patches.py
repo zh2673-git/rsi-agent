@@ -379,7 +379,13 @@ def _apply_one(item: dict, dry: bool) -> int:
         return 1
     src = _read(path)
     anchor, patch = item["anchor"], item["patch"]
-    if patch in src:
+    # 幂等判据（G 轮实测，改前必读）：
+    # 原判据只有 `patch in src` → 已应用。它在一种情况下失效：当 patch 恰好以 anchor
+    # 开头（「把短句改成长句」型），未应用时 `patch in src` 也可能成立吗？不会——原文
+    # 是短句，长句不在。真正失效的是反向：patch 是 anchor 的**前段**（「长句改短」型），
+    # 未应用时短句的产物片段已在原文里，`patch in src` 命中 → 永久静默跳过。
+    # 最小修正：仅当 patch 是 anchor 的真前缀时，不能据此判「已应用」。
+    if patch in src and not (len(patch) < len(anchor) and anchor.startswith(patch)):
         print(f"[{pid}] OK   已应用过（幂等跳过）: {desc}")
         return 0
     if anchor not in src:

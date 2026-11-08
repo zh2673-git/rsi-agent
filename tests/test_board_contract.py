@@ -40,6 +40,32 @@ def board_json(*args: str, ws: Path) -> tuple[int, dict]:
     return r.returncode, out
 
 
+def seed_inspiration(ws: Path, text: str, *, tags: list[str] | None = None,
+                     status: str = "open", tasks: list[str] | None = None) -> str:
+    """直接写 board.json 造一条灵感，返回其 id。
+
+    为什么不走 CLI：G 轮起 **agent 侧没有灵感写命令**（I-20261108-04「agent 不能编辑，
+    用户可以编辑」）。灵感的增删改只走 UI。测试要造灵感数据，就必须像 UI 那样直接
+    写文件——这既是新的正确契约，也让测试不再依赖一条被刻意移除的通道。
+    """
+    day = "20261108"
+    p = ws / ".rsi" / "board.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    board = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {
+        "version": 1, "tasks": [], "inspirations": [],
+    }
+    items = board.setdefault("inspirations", [])
+    n = len(items) + 1
+    iid = f"I-{day}-{n:02d}"
+    items.insert(0, {
+        "id": iid, "text": text, "tags": tags or [], "status": status,
+        "tasks": tasks or [], "created_at": "2026-11-08T00:00:00Z",
+        "updated_at": "2026-11-08T00:00:00Z",
+    })
+    p.write_text(json.dumps(board, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return iid
+
+
 class PatchSetTest(unittest.TestCase):
     def test_b_round_patches_well_formed(self):
         ids = []
@@ -244,27 +270,25 @@ class BoardContractTest(unittest.TestCase):
             code, out = board_json("task-upsert", "--file", str(pfile), ws=ws)
             self.assertEqual(code, 1)
             self.assertEqual(out["error"]["field"], "title")
-            code, out = board_json("insp-add", "x" * 2001, ws=ws)
-            self.assertEqual(code, 1)
-            self.assertEqual(out["error"]["field"], "text")
+            # G 轮：灵感写命令已移除——「记一条超长灵感被拒」不再是本层契约，
+            # 改为断言 agent 侧根本没有这条通道（见 InspirationSovereigntyTest）。
 
     def test_inspiration_adopt_links_both_ways(self):
+        """灵感被任务采纳：关联记在**任务一侧**（G 轮后 agent 不改灵感对象）。"""
         with tempfile.TemporaryDirectory() as td:
             ws = Path(td)
-            _, out = board_json("insp-add", "左栏不该是会话列表", "--tags", "ui,idea", ws=ws)
-            iid = out["id"]
+            iid = seed_inspiration(ws, "左栏不该是会话列表", tags=["ui", "idea"])
             self.assertRegex(iid, r"^I-\d{8}-\d{2}$")
             pfile = ws / "p.json"
-            pfile.write_text(json.dumps({"title": "看板改造"}), encoding="utf-8")
+            pfile.write_text(json.dumps({"title": "看板改造", "inspirations": [iid]}), encoding="utf-8")
             _, out = board_json("task-upsert", "--file", str(pfile), ws=ws)
             tid = out["id"]
-            code, out = board_json("insp-adopt", iid, tid, ws=ws)
-            self.assertEqual(code, 0, out)
-            _, insp = board_json("show", iid, ws=ws)
-            self.assertEqual(insp["inspiration"]["status"], "adopted")
-            self.assertEqual(insp["inspiration"]["tasks"], [tid])
             _, task = board_json("show", tid, ws=ws)
             self.assertEqual(task["task"]["inspirations"], [iid])
+            # 灵感本身一字未动：status 仍是 open，tasks 仍为空——agent 没碰它。
+            _, insp = board_json("show", iid, ws=ws)
+            self.assertEqual(insp["inspiration"]["status"], "open")
+            self.assertEqual(insp["inspiration"]["tasks"], [])
 
     def test_corrupt_board_is_not_silently_zeroed(self):
         """坏 JSON → 按空板返回 + corrupt 标记，原文件一字不动。"""
@@ -282,8 +306,7 @@ class BoardContractTest(unittest.TestCase):
         """两侧都「读-改-写 + 按 id 合并」：先后写不同对象，两者都要在。"""
         with tempfile.TemporaryDirectory() as td:
             ws = Path(td)
-            _, out = board_json("insp-add", "先记一条灵感", ws=ws)
-            iid = out["id"]
+            iid = seed_inspiration(ws, "先记一条灵感")
             pfile = ws / "p.json"
             pfile.write_text(json.dumps({"title": "后建的任务"}), encoding="utf-8")
             _, out = board_json("task-upsert", "--file", str(pfile), ws=ws)

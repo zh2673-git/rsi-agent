@@ -1,0 +1,1 @@
+becomes work via `task-upsert`. The task records the link to the inspiration; insp-adopt is gone. Inspirations are the user own words: read them freely and @I-... loads one, but you cannot create, retitle, re-tag, archive or delete them, and you must never write summaries of them back onto the board`.\n"

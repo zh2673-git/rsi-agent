@@ -1,0 +1,7 @@
+{
+  "id": "G5-OUTCOME-LINES",
+  "description": "app-board.js fillTaskDetail：结论置顶且分两条线（给人看的 brief + 给 agent 的专业 pro）。I-20261108-04 第3条",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/g5-outcome-anchor.txt",
+  "patch_file": "blocks/g5-outcome.txt"
+}

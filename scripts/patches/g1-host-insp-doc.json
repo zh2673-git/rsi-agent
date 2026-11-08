@@ -1,0 +1,7 @@
+{
+  "id": "G1-HOST-INSP-DOC",
+  "description": "board.rs：灵感写 op 的注释改为「用户主权通道，agent 侧无对应 CLI」（I-20261108-04）",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/g1-edit-doc-anchor.txt",
+  "patch_file": "blocks/g1-edit-doc.txt"
+}

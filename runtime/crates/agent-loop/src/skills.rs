@@ -180,10 +180,30 @@ impl AgentLoopPlugin {
              Lifecycle: `planning → doing → verifying → done` (`blocked`/`cancelled` on the side). \
              Update at four moments only: task created, status changed, blocked, done. Do not narrate \
              the board in replies — the UI already shows it.\n\
+             \n### Finishing a task = two lines of outcome (not one)\n\
+             When you move a task to `done`, it owes the user TWO conclusions - write both into \
+             `outcomes` (the CLI warns you when a `done` task has neither):\n\
+             \x20 - `outcomes.brief` - **one sentence for the human**, in plain words: what is true \
+             now that was not true before, and does the user need to do anything? No jargon, no file \
+             paths, no test counts.\n\
+             \x20 - `outcomes.pro` - **the professional conclusion for other agents**: what changed, \
+             how it was verified, what is left. A later task of the same kind reads this via \
+             `board.py digest`, so write the reusable part, not a narrative.\n\
+             Why two: the point of the board is not that it is finished but what came out of it. \
+             A `done` with no outcome sends the user back into the conversation to find out what \
+             happened - the very thing the board exists to avoid.\n\
+             Write them via `task-upsert` under the `outcomes` key: brief (for the human) and \
+             pro (for agents). Both are optional individually, but a `done` task with neither \
+             gets a warning, because that is exactly the case where the user cannot tell what happened.\n\
+             \n### A substantial task also owes a survey of what the field knows\n\
+             When the task solved a real problem, the user wants a second artifact besides the work \
+             itself: what the state of the art and industry already do about it, what is genuinely \
+             hard, and what this task contributed. Put that in the conversation or an `outputs/*.md` - \
+             it is the raw material for turning the project record into a paper.\n\
              \n### @-references from the user\n\
              The user may write `@T-...` (a task) or `@I-...` (an inspiration) in a message. Resolve it \
              before answering: `python scripts/board.py show <ID>`. An inspiration the user wants acted on \
-             becomes work via `task-upsert` + `insp-adopt <I-ID> <T-ID>`.\n"
+             becomes work via `task-upsert`. The task records the link to the inspiration; insp-adopt is gone. Inspirations are the user own words: read them freely and @I-... loads one, but you cannot create, retitle, re-tag, archive or delete them, and you must never write summaries of them back onto the board`.\n"
     }
 
     /// 判定本轮用户文本是否在「交代一件成规模的事」——任务看板完整规范按需注入的触发条件。

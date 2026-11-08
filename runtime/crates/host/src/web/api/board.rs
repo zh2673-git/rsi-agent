@@ -508,6 +508,86 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
             }
         }
         // D 轮：改灵感正文/标签。B 轮只给了 add/set——用户实测「记错了只能归档再重打一遍」。
+        // G1（I-20261108-04 第 1 条）：本 op 是**用户主权**的实现——host `/api/board` 的
+        // 唯一调用方是 UI，agent 侧无对应 CLI（`insp-edit`/`insp-rm`/`insp-add` 已移除）。
+        // 契约：text ≤2000、tags ≤10×32，原子写回。
+        "inspiration.edit" => {
+            let id = match take_str(&req, "id", 40) {
+                Ok(v) => v,
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let mut items = board["inspirations"].as_array().cloned().unwrap_or_default();
+            let Some(slot) = items.iter_mut().find(|i| i.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
+                return json_resp(stream, 404, err("K404", format!("未找到灵感 {id}"), Some("id"))).await;
+            };
+            // 两字段都可选，但**至少要改一个**：全空的 edit 是误调用，静默成功会掩盖前端 bug。
+            let has_text = req.get("text").is_some();
+            let has_tags = req.get("tags").is_some();
+            if !has_text && !has_tags {
+                return json_resp(stream, 400, err("K400", "text 与 tags 至少给一个", Some("text"))).await;
+            }
+            if has_text {
+                match take_str(&req, "text", MAX_INSP_TEXT) {
+                    Ok(t) => slot["text"] = json!(t),
+                    Err(e) => return json_resp(stream, 400, e).await,
+                }
+            }
+            if has_tags {
+                match parse_tags(&req) {
+                    Ok(t) => slot["tags"] = json!(t),
+                    Err(e) => return json_resp(stream, 400, e).await,
+                }
+            }
+            slot["updated_at"] = json!(now_iso());
+            let out = slot.clone();
+            board["inspirations"] = Value::Array(items);
+            match save_board(&mut board) {
+                Ok(_) => json_resp(stream, 200, json!({"ok": true, "inspiration": out})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
+        // D 轮：删除灵感。已采纳（adopted）默认拒绝——它已经是任务的来源记录，删掉会让
+        // 任务凭空出现；要删必须显式 force。G1：与 agent 侧 CLI **不同**——`insp-rm` 已
+        // 从 board.py 移除，删除是用户自己的权利（UI 唯一入口），agent 只读灵感。
+        "inspiration.rm" => {
+            let id = match take_str(&req, "id", 40) {
+                Ok(v) => v,
+                Err(e) => return json_resp(stream, 400, e).await,
+            };
+            let force = req.get("force").and_then(Value::as_bool).unwrap_or(false);
+            let items = board["inspirations"].as_array().cloned().unwrap_or_default();
+            let Some(slot) = items.iter().find(|i| i.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
+                return json_resp(stream, 404, err("K404", format!("未找到灵感 {id}"), Some("id"))).await;
+            };
+            if slot.get("status").and_then(Value::as_str) == Some("adopted") && !force {
+                let tasks: Vec<&str> = slot
+                    .get("tasks")
+                    .and_then(Value::as_array)
+                    .map(|a| a.iter().filter_map(Value::as_str).collect())
+                    .unwrap_or_default();
+                return json_resp(
+                    stream,
+                    409,
+                    err(
+                        "K409",
+                        format!("灵感 {id} 已被任务采纳（{}）：删除会断掉任务来源链，确认请带 force:true", tasks.join(", ")),
+                        Some("id"),
+                    ),
+                )
+                .await;
+            }
+            let kept: Vec<Value> = items
+                .into_iter()
+                .filter(|i| i.get("id").and_then(Value::as_str) != Some(id.as_str()))
+                .collect();
+            board["inspirations"] = Value::Array(kept);
+            match save_board(&mut board) {
+                Ok(_) => json_resp(stream, 200, json!({"ok": true, "id": id})).await,
+                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
+            }
+        }
+        // D 轮：改灵感正文/标签。B 轮只给了 add/set——用户实测「记错了只能归档再重打一遍」。
+        // D 轮：改灵感正文/标签。B 轮只给了 add/set——用户实测「记错了只能归档再重打一遍」。
         // 与 agent 侧 `board.py insp-edit` 同一契约：text ≤2000、tags ≤10×32，原子写回。
         "inspiration.edit" => {
             let id = match take_str(&req, "id", 40) {

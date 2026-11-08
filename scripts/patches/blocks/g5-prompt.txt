@@ -1,0 +1,21 @@
+             the board in replies — the UI already shows it.\n\
+             \n### Finishing a task = two lines of outcome (not one)\n\
+             When you move a task to `done`, it owes the user TWO conclusions - write both into \
+             `outcomes` (the CLI warns you when a `done` task has neither):\n\
+             \x20 - `outcomes.brief` - **one sentence for the human**, in plain words: what is true \
+             now that was not true before, and does the user need to do anything? No jargon, no file \
+             paths, no test counts.\n\
+             \x20 - `outcomes.pro` - **the professional conclusion for other agents**: what changed, \
+             how it was verified, what is left. A later task of the same kind reads this via \
+             `board.py digest`, so write the reusable part, not a narrative.\n\
+             Why two: the point of the board is not that it is finished but what came out of it. \
+             A `done` with no outcome sends the user back into the conversation to find out what \
+             happened - the very thing the board exists to avoid.\n\
+             Write them via `task-upsert` under the `outcomes` key: brief (for the human) and \
+             pro (for agents). Both are optional individually, but a `done` task with neither \
+             gets a warning, because that is exactly the case where the user cannot tell what happened.\n\
+             \n### A substantial task also owes a survey of what the field knows\n\
+             When the task solved a real problem, the user wants a second artifact besides the work \
+             itself: what the state of the art and industry already do about it, what is genuinely \
+             hard, and what this task contributed. Put that in the conversation or an `outputs/*.md` - \
+             it is the raw material for turning the project record into a paper.\n\

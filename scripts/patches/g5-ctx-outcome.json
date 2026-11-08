@@ -1,0 +1,7 @@
+{
+  "id": "G5-CTX-OUTCOME",
+  "description": "board_ctx.rs render_task：@引用任务时带上结果两条线（brief/pro）。I-20261108-04 第3条",
+  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+  "anchor_file": "blocks/g5-ctx-anchor.txt",
+  "patch_file": "blocks/g5-ctx.txt"
+}

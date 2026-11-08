@@ -49,6 +49,23 @@ def make_task(ws: Path, **kw) -> str:
     return out["id"]
 
 
+def seed_inspiration(ws: Path, text: str, *, tags: list[str] | None = None) -> str:
+    """直接写 board.json 造灵感（G 轮起 agent 侧无灵感写命令）。"""
+    p = ws / ".rsi" / "board.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    board = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {
+        "version": 1, "tasks": [], "inspirations": [],
+    }
+    items = board.setdefault("inspirations", [])
+    iid = f"I-20261108-{len(items) + 1:02d}"
+    items.insert(0, {
+        "id": iid, "text": text, "tags": tags or [], "status": "open", "tasks": [],
+        "created_at": "2026-11-08T00:00:00Z", "updated_at": "2026-11-08T00:00:00Z",
+    })
+    p.write_text(json.dumps(board, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return iid
+
+
 class EvaluationTest(unittest.TestCase):
     """C1：checks = 机跑的证明（acceptance 是人读的标准）。"""
 
@@ -168,8 +185,7 @@ class ReferenceResolveTest(unittest.TestCase):
             ws = Path(td)
             tid = make_task(ws, goal="目标句", plan=[{"step": "一步"}], acceptance=["能跑"],
                             resourcing={"skills": ["project-dev"]})
-            _, insp = board_json("insp-add", "看板要有约束", "--tags", "ui", ws=ws)
-            iid = insp["id"]
+            iid = seed_inspiration(ws, "看板要有约束", tags=["ui"])
             before = (ws / ".rsi" / "board.json").read_text(encoding="utf-8")
             code, out = board_json("resolve", f"接着做 @{tid} 和 @{iid}，另外 @T-20990101-01", ws=ws)
             self.assertEqual(code, 0, out)

@@ -1,0 +1,7 @@
+{
+  "id": "G5-OUTCOME-CSS",
+  "description": "style.css：任务结论区样式（结果置顶 + 专业结论折叠）。I-20261108-04 第3条",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/g5-css-anchor.txt",
+  "patch_file": "blocks/g5-css.txt"
+}

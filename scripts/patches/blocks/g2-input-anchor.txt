@@ -1,0 +1,4 @@
+  const add = el("div", "insp-add");
+  const input = document.createElement("input");
+  input.id = `insp-input-${sec.id}`;
+  input.maxLength = 2000;

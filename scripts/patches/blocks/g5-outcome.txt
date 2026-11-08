@@ -1,0 +1,20 @@
+  const res = t.resourcing ?? {};
+  // G5（I-20261108-04 第 3 条）：**结论放最前**，且分两条线。
+  // 用户原话：「任务完成后其实应该是两条线。一条是确认任务是否专业的、按照计划、需求
+  // 完成了。另一条是需要把任务的结果通俗化的呈现出来，这才是看板的终极意义」。
+  // 所以顺序是：先说给人听的（一句话，白话），再说给 agent 看的（专业结论）。
+  // 之前的详情页一上来是「目标 / 计划 / 验收标准」——全是过程，看完仍不知道做成了没有。
+  const outs = t.outcomes ?? {};
+  const briefTxt = String(outs.brief ?? "").trim();
+  const proTxt = String(outs.pro ?? "").trim();
+  const outcomeBlock = (briefTxt || proTxt)
+    ? `<div class="dsec doutcome">` +
+      (briefTxt ? `<b>结果</b><p class="obrief">${boardEsc(briefTxt)}</p>` : "") +
+      (proTxt ? `<details class="opro"><summary>专业结论（给 agent 归纳用）</summary><p>${boardEsc(proTxt)}</p></details>` : "") +
+      `</div>`
+    : t.status === "done"
+      ? `<div class="dsec doutcome"><b>结果</b><p class="obrief empty-inline">这件已完成，但没有留下结论——「完成了」不等于「结果是什么」</p></div>`
+      : "";
+  box.innerHTML =
+    outcomeBlock +
+    (t.goal ? `<div class="dsec"><b>目标</b><p>${boardEsc(t.goal)}</p></div>` : "") +

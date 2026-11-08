@@ -516,3 +516,52 @@ F2 最终锚在 `/api/board/link` 之后。
 3. 弹窗内任务编辑——B 轮「任务归 agent 写」的边界若要放开，需重新裁决而非顺手加 op。
 4. `style.css` 的历史重复块清理——删它会打断 C-STYLE / D17-STYLE-WIN 的幂等链，
    需先「把 C/D 补丁并入基线」再一次性删净（专门收口轮）。
+
+## 12. G 轮（2026-11-08）：灵感主权 / 草稿存活 / 发送键 / 并行判定 / 双线结论
+
+> 来源：用户三条灵感 `I-20261108-04`~`06`，采纳进 `T-20261108-05`。
+
+| # | 用户诉求 | 落地 | 关键判据 |
+|---|---|---|---|
+| G1 | 灵感归用户，agent 只读，不要替用户总结 | `board.py` 删掉全部 5 个灵感写命令；写入只留在 host `/api/board`（= UI 唯一入口）；采纳关联记在 `task.inspirations`；`skills.rs` 提示词明确「灵感归用户」 | CLI 无 `insp-add`/`insp-edit`/… 子命令；`inspiration.add` 超 2000 字回 400 |
+| G2 | 记灵感时界面不能因刷新打断输入 | `refreshSections` 先快照 `inspDrafts`/`inspFocus`，重绘后还原 | 轮询重绘后输入内容与光标位置不变 |
+| G3 | 运行中发送键点不了 | `sendBtn.disabled` 不再随运行置真，改显示 `queued` 态 + `title` 提示 | 运行中点发送与按 Enter 等效（入队） |
+| G4 | 不同任务能否并行，由 agent 自行判断 | 前置正确性：`BoardLock`（`O_CREAT|O_EXCL`，stale 15s），`main()` 按 `READ_ONLY_CMDS` 集中加锁；判定见 `outputs/g4-parallel-decision.md`：走 B 路线（agent 自行并行，工具波次本已 `join_all`），不做前端多会话、不拆 K409 闸 | 5 个并发 `task-upsert` 一条不丢 |
+| G5 | 完成后要「专业确认 + 通俗结果」两条线 | `task.outcomes{brief,pro}` 落数据层；`check_acceptance_warning` 累积三条；`digest`/`refresh` 带结论；前端结论置顶、`pro` 默认折叠；`board_ctx` 引用时带结论；提示词加两段 | `GET /api/board` 回 `outcomes.brief`/`outcomes.pro` |
+
+### 12.1 事故记录：误杀用户正在运行的实例（2026-11-08 11:46）
+
+**现象**：用户报「你重新构建后运行了就把之前的 agent 进程杀掉了，但是没有重启」。
+
+**根因（trace 可查证，`traces/main.jsonl` ts=1794109601202）**：活体验证脚本为清理自己起的
+隔离实例，执行了
+
+```
+taskkill /IM react-agent-host.exe /F
+```
+
+`/IM` 是**按镜像名全量匹配**——把用户正在用的 PID 24876（`127.0.0.1:8710`）一起杀了。脚本里
+没有、也不该有「重启用户实例」的代码路径，所以杀完就是彻底中断。
+
+**为什么杀完没自己起来**：那条命令本意是杀「我等端口等不到的那个测试实例」，正确形态是
+`/PID <我 Popen 的 pid>` 或直接 `proc.terminate()`。按名杀是错的工具，且**没有任何兜底**
+会重新拉起用户实例——`run.cmd`/`cargo run` 是用户手动起的生命周期，agent 侧无从恢复。
+
+**二次踩坑**：隔离脚本用 `RSI_PORT` 指定端口，但 host 只认 `WEB_ADDR`（`WebFrontend::from_env`），
+于是新进程仍去 bind 默认 8710 → 撞上刚被杀掉的残留监听 → `os error 10048`，脚本等 90×0.5s
+后放弃。两个错误叠加才表现为「杀掉 + 起不来」。
+
+**修复与防复发**：
+
+1. 活体脚本只用 `subprocess.Popen` + `proc.terminate()/kill()`，**只回收自己创建的那一个进程**；
+   端口一律用 `WEB_ADDR`。
+2. 纪律固化：**杀进程只按 PID，禁止按镜像名**——本机同名 exe 可能同时有用户实例与测试实例。
+   已写入 `.rsi/profile.json` 观察项 `N-20261108-01`。
+3. 活体验证一律用独立端口 + 独立工作区（`tempfile.mkdtemp`），不碰用户实例。
+
+### 12.2 验证记录
+
+- pytest **197 passed**（基线 174）· cargo agent-loop 38/38 + host 35/35 · 补丁 100 条 0 FAIL · `node --check` ×2；
+- **活体隔离 e2e 10/10**（独立工作区 + `WEB_ADDR=127.0.0.1:8933`）：UI 写灵感 / 改灵感 / 超长拒 400 /
+  CLI 无写命令 / CLI 写 outcomes / GET 回两条线 / 并发 5 写不丢 / agent 可读灵感；
+- 全程未触碰用户实例：验证前后 `127.0.0.1:8710` 均为 PID 43484 且 `/api/board` 回 200。
