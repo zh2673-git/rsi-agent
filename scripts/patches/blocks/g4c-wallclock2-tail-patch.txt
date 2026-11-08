@@ -1,0 +1,11 @@
+    assert_eq!(calls.load(Ordering::SeqCst), 2, "不得反复续命: {r}");
+
+    match saved {
+        Some(v) => std::env::set_var("CHAT_BUDGET_SECS", v),
+        None => std::env::remove_var("CHAT_BUDGET_SECS"),
+    }
+    match saved_tokens {
+        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+    }
+}

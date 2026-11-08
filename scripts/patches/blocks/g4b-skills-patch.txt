@@ -1,0 +1,10 @@
+        let decompose = super::board_ctx::decompose_hint();
+        if !decompose.is_empty() {
+            lines.push(decompose);
+        }
+        // G4b（I-20261108-06）：并行判据。波次并发与子代理并发都是既有能力，缺的只是
+        // 「哪几步可以同时干」这条判断——不写进提示词，模型就随机并行（撞同一文件/目录）。
+        let parallel = super::board_ctx::parallel_hint();
+        if !parallel.is_empty() {
+            lines.push(parallel);
+        }

@@ -1,0 +1,7 @@
+{
+  "id": "G4B-PARALLEL-HINT-MOUNT",
+  "description": "skills.rs：把 parallel_hint 挂进 system prompt（紧随 decompose 之后）。I-20261108-06 G4b",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/g4b-skills-anchor.txt",
+  "patch_file": "blocks/g4b-skills-patch.txt"
+}

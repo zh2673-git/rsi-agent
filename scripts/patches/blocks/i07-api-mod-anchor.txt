@@ -1,0 +1,5 @@
+mod board;
+mod config;
+mod misc;
+mod profile;
+mod skills;

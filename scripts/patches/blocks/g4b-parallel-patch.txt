@@ -1,0 +1,36 @@
+         Sub-tasks: `task-upsert` with `\"parent\": \"T-...\"`; deleting a parent never deletes \
+         children — `board.py task-rm` detaches them (`parent` cleared).\n",
+    )
+}
+
+/// 并行判据段（G4b，I-20261108-06 的正身）。
+///
+/// 为什么单列一段而不是塞进 `decompose_hint`：`decompose_hint` 讲的是「一步步交给谁」，
+/// 这段讲的是「几步能不能同时干」——两件事，锚点分开才能各自回退。
+///
+/// 为什么必须写进提示词：工具波次本来就是并发的（`chat.rs` 的 `join_all`），子代理也在
+/// 同一波次里跑——**技术底座早就有了，缺的一直是「什么时候该并行」这条判断**。
+/// 不写判据的后果不是「不能并行」，而是模型随机并行：撞同一个文件、同一个
+/// `target/` 目录，把工作区搅成互相覆盖的烂摊子，再花一轮去修。
+pub(super) fn parallel_hint() -> String {
+    String::from(
+        "\n### Parallel vs serial: you decide, the user only wants the result\n\
+         Tool calls in one wave already run concurrently, and `task` sub-agents run in that same \
+         wave. So \"can this be parallel\" is a judgement you make — not a switch the user turns on. \
+         The user should never have to know how many agents ran; they get one merged answer.\n\
+         Run steps **in parallel** when they are mutually independent:\n\
+         \x20 - different files: nothing one writes is read by another;\n\
+         \x20 - different verification: no shared build dir, no shared port, no shared lock file;\n\
+         \x20 - no ordering: B does not need A's output before it can start.\n\
+         Keep them **serial** when they collide:\n\
+         \x20 - the same file, or the same `target/` / `node_modules/` / build cache;\n\
+         \x20 - one step's input is another step's output — then the order *is* the work;\n\
+         \x20 - both steps write the board: writes are now mutually exclusive (a second writer gets \
+         a lock error, not a lost entry), but serial is still cheaper than retrying;\n\
+         \x20 - it is one edit in one file: splitting it just makes two agents fight over it.\n\
+         **When unsure, go serial.** A wrong parallel attempt costs a corrupted tree and a \
+         confusing answer; a serial run costs only wall time — and wall time is the cheaper of the two.\n\
+         Parallel work still owes **one** combined result: merge the sub-results into a single \
+         answer, do not paste N sub-agent reports and call it done.\n",
+    )
+}

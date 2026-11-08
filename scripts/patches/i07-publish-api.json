@@ -1,0 +1,8 @@
+{
+ "id": "I07-PUBLISH-API",
+ "description": "新建 web/api/publish.rs：GET/POST /api/publish/config——内容分发平台配置读写 + 就绪判定（缺 sau / 缺 AppSecret 要说出怎么修），secret 只回 secret_set 不回明文",
+ "file": "runtime/crates/host/src/web/api/publish.rs",
+ "create": true,
+ "content_file": "blocks/i07-publish-rs.txt",
+ "create_marker": "pub(crate) async fn get_publish_config"
+}

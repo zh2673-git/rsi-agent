@@ -1,0 +1,2 @@
+    let saved = std::env::var("CHAT_BUDGET_SECS").ok();
+    std::env::set_var("CHAT_BUDGET_SECS", "0.2"); // 200ms

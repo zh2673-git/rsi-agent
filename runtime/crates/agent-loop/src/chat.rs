@@ -318,10 +318,26 @@ impl AgentLoopPlugin {
         // 花一次工具往返去 `profile.py brief` 取自己的长期记忆；读一份本机 JSON 是纯 I/O。
         // 失败静默（无文件/坏 JSON/空画像 → 空串），画像坏了不能拖垮 chat。
         let profile_ctx = super::profile_ctx::profile_context();
+        // `AGENT_SYSTEM_PROMPT`（`system_prompt_override`）文档承诺「整体覆盖」，但下面这条
+        // format! 会把三样东西**并列拼进去**：技能附录、看板引用上下文、习惯画像。于是
+        // 「覆盖」并没有真正覆盖——运维钉死提示词后，仍会被追加「你以为的 + 你没要的」。
+        //
+        // 这不只是语义不符，还有个更硬的问题：这三段的内容取决于**本机状态**
+        // （`.rsi/profile.json` 里有多少条观察、手上在办几个任务），而按预算精确断言的
+        // 用例（token 闸那一组，预算 301）必须可预期。实测过：画像里多一条观察，
+        // 系统提示词就多一百多 token，把压缩后的工作集顶过预算 → 又触发收紧 → 窗口减半
+        // → 压缩标记被裁掉，用例报「压缩标记没进上下文」，而红的原因和画像毫无可见关联。
+        // 覆盖态下只留 override 本身，既兑现文档，也让钉死提示词的用例真正确定。
+        let override_on = cfg.system_prompt_override.is_some();
+        let (skills_apx, board_ctx, profile_ctx) = if override_on {
+            (String::new(), String::new(), String::new())
+        } else {
+            (self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await, board_ctx, profile_ctx)
+        };
         let system = format!(
             "{}{}{}{}",
             self.resolve_system_prompt(env, &cfg).await,
-            self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await,
+            skills_apx,
             board_ctx,
             profile_ctx
         );

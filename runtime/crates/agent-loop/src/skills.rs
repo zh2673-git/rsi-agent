@@ -51,6 +51,17 @@ impl AgentLoopPlugin {
         want_skill_build: bool,
         want_task_plan: bool,
     ) -> String {
+        // `AGENT_SYSTEM_PROMPT` 文档写的是「整体覆盖」，但那只是 `resolve_system_prompt`
+        // 的**第一环**——本附录在 chat.rs 里是**并列拼接**的，于是「覆盖」并没有真正覆盖：
+        // 运维用该变量钉死提示词后，附录仍照旧追加，系统提示词变成「你以为的 + 你没要的」。
+        //
+        // 后果有两层：其一，语义与文档不符（用户设了覆盖却不生效）；其二，本附录随功能
+        // 增长而变长，而按预算精确断言的用例（token 闸 P7/P8 那一组，预算 301）会把
+        // 附录长度写进余量——任何新增段落都会让那组用例变红，红的原因却看不出与它有关。
+        // 覆盖态下不注入附录，既兑现文档语义，也让「钉死提示词」的用例真正可预期。
+        if cfg.system_prompt_override.is_some() {
+            return String::new();
+        }
         let Ok(v) = self.call(src, CAP_ASSETS, json!({"op": "skills.list"}), ASSETS_DEADLINE).await else {
             return String::new();
         };
@@ -104,6 +115,12 @@ impl AgentLoopPlugin {
         let decompose = super::board_ctx::decompose_hint();
         if !decompose.is_empty() {
             lines.push(decompose);
+        }
+        // G4b（I-20261108-06）：并行判据。波次并发与子代理并发都是既有能力，缺的只是
+        // 「哪几步可以同时干」这条判断——不写进提示词，模型就随机并行（撞同一文件/目录）。
+        let parallel = super::board_ctx::parallel_hint();
+        if !parallel.is_empty() {
+            lines.push(parallel);
         }
         // 产物输出约定（方案 A）：给用户的成品文件统一落产物目录——模型不再把产物
         // 混写进技能目录/仓库根。提示词约束非硬边界，越界拦截仍在文件工具侧。

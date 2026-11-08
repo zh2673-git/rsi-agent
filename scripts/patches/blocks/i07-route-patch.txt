@@ -1,0 +1,5 @@
+        ("GET", "/api/profile") => api::get_profile(&mut stream).await,
+        ("POST", "/api/profile") => api::post_profile(&mut stream, &body).await,
+        // I-20261108-07：内容分发平台配置（凭证单独落 config/publish.json）
+        ("GET", "/api/publish/config") => api::get_publish_config(&mut stream).await,
+        ("POST", "/api/publish/config") => api::post_publish_config(&mut stream, &body).await,

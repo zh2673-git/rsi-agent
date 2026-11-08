@@ -1,0 +1,1 @@
+  for (const t of ["llm", "tools", "skills", "memory", "agent"]) $("tab-" + t).hidden = t !== b.dataset.tab;

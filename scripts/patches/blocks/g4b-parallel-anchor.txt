@@ -1,0 +1,4 @@
+         Sub-tasks: `task-upsert` with `\"parent\": \"T-...\"`; deleting a parent never deletes \
+         children — `board.py task-rm` detaches them (`parent` cleared).\n",
+    )
+}

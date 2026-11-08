@@ -1,0 +1,7 @@
+{
+  "id": "G4C-OVERRIDE-IS-TOTAL",
+  "description": "chat.rs：AGENT_SYSTEM_PROMPT（system_prompt_override）生效时，技能附录/看板上下文/习惯画像均不拼接——兑现「整体覆盖」文档语义；同时让按预算精确断言的 token 闸用例不受本机 .rsi/profile.json 内容影响。既有缺陷",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/g4c-override-anchor.txt",
+  "patch_file": "blocks/g4c-override-patch.txt"
+}

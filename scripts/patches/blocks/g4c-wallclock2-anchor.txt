@@ -1,0 +1,4 @@
+    let saved = std::env::var("CHAT_BUDGET_SECS").ok();
+    std::env::set_var("CHAT_BUDGET_SECS", "0.2");
+
+    let calls = Arc::new(AtomicUsize::new(0));

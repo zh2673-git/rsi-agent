@@ -1,0 +1,22 @@
+    let Some(op) = req.get("op").and_then(Value::as_str) else {
+        return json_resp(stream, 400, bad_request("缺 op", Some("op"))).await;
+    };
+    // G4a：读→改→写整段持锁。锁必须**在 load 之前**拿——先 load 后取锁等于
+    // 拿旧快照去覆盖别人的新写入，锁就白加了。
+    let _lock = match BoardLock::acquire().await {
+        Ok(g) => g,
+        Err(why) => {
+            // 拿不到锁明确失败，不静默降级为无锁写（那正是丢更新的来源）。
+            return json_resp(
+                stream,
+                409,
+                err(
+                    "K409",
+                    format!("看板正在被另一个写入方修改（{why}），请稍后重试"),
+                    Some("board"),
+                ),
+            )
+            .await;
+        }
+    };
+    let mut board = load_board();

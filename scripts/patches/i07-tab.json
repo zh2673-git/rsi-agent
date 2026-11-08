@@ -1,0 +1,7 @@
+{
+ "id": "I07-UI-TAB",
+ "description": "index.html：新增 tab-publish 面板（平台开关 + 公众号凭证 + 就绪状态容器）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/i07-tab-anchor.txt",
+ "patch_file": "blocks/i07-tab-patch.txt"
+}

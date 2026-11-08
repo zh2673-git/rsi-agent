@@ -7,7 +7,9 @@ $("gear").onclick = () => { drawer.classList.add("open"); loadConfig(); loadSkil
 $("dclose").onclick = () => drawer.classList.remove("open");
 document.querySelectorAll("#drawer .tabs button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("#drawer .tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  for (const t of ["llm", "tools", "skills", "memory", "agent"]) $("tab-" + t).hidden = t !== b.dataset.tab;
+  for (const t of ["llm", "tools", "skills", "memory", "agent", "publish"]) $("tab-" + t).hidden = t !== b.dataset.tab;
+  // 分发面板按需拉取就绪状态：每次都重新探（用户可能刚在终端装好 sau / 登录完）
+  if (b.dataset.tab === "publish") loadPublish();
 });
 
 function flash(id, ok, msg) {
@@ -886,6 +888,140 @@ async function memDelete(op, id, domain, label) {
 $("mem-refresh").onclick = () => loadMemory();
 $("mem-refresh").onclick = () => loadMemory();
 $("mem-reveal").onclick = () => reveal("config", null, "skill-flash");
+
+// ── F3：能力总览（设置抽屉的目录页）──────────────────────────────────────────
+// 三列 = 三类决定来源（见 index.html 注释）。每列的值都从**已有数据**推出来，
+// 不新增任何后端接口：
+//   · 你决定的 → loadConfig 已拉到的 llm / agent / tools
+//   · 它带的牌 → tools 的 pool 分类 + skillsCache
+//   · 它记得的事 → loadMemory 已拉到的 profile
+// 点行跳页签，不展开不弹窗——目录的价值是「一眼看清 + 一步到位」。
+function ovSet(id, text) {
+  const node = $(id);
+  if (node) node.textContent = text;
+}
+
+function renderOverview() {
+  if (!$("cap-overview")) return;
+  const c = window.__cfgCache;
+  if (c) {
+    const m = c.llm ?? {};
+    ovSet("ov-llm", m.model ? `${m.provider ?? "?"} · ${m.model}` : (m.provider ?? "未配置"));
+    const tools = c.tools ?? [];
+    const on = tools.filter((t) => t.enabled).length;
+    ovSet("ov-tools", on ? `${on} / ${tools.length} 启用` : "未启用任何工具");
+    const a = c.agent ?? {};
+    const bits = [];
+    if (a.max_rounds) bits.push(`≤${a.max_rounds} 轮`);
+    if (a.budget_secs > 0) bits.push(`${a.budget_secs}s`);
+    if (a.token_budget > 0) bits.push(`${a.token_budget} tok`);
+    ovSet("ov-agent", bits.length ? bits.join(" · ") : "全部用缺省");
+    const st = tools.filter((t) => t.pool === "skill").length;
+    const mc = tools.filter((t) => t.pool === "mcp").length;
+    const mcOn = tools.filter((t) => t.pool === "mcp" && t.enabled).length;
+    ovSet("ov-pool", `技能 ${st} · MCP ${mcOn}/${mc}`);
+  }
+  if (skillsCache.length || c) {
+    const preset = skillsCache.filter((s) => s.origin === "preset").length;
+    ovSet("ov-skills", skillsCache.length
+      ? `${skillsCache.length} 个（内置 ${preset} · 用户 ${skillsCache.length - preset}）`
+      : "暂无技能");
+  }
+  const p = memData;
+  if (p) {
+    const ns = (p.sections ?? []).length, nn = (p.notes ?? []).length;
+    const nd = Object.keys(p.domains ?? {}).length;
+    ovSet("ov-mem", p.exists ? `${ns} 章节 · ${nn} 观察 · ${nd} 域` : "还没有画像");
+    ovSet("ov-dom", p.current_domain ? p.current_domain : "未选域（只用全局）");
+  }
+}
+
+// 点行跳页签：复用既有 tabs 的点击逻辑（不另写一套切换，避免两处状态不同步）
+function ovGoto(tab) {
+  const btn = [...document.querySelectorAll("#drawer .tabs button")].find((b) => b.dataset.tab === tab);
+  if (btn) btn.click();
+}
+
+document.addEventListener("click", (e) => {
+  const row = e.target.closest(".ov-row");
+  if (row && row.dataset.goto) ovGoto(row.dataset.goto);
+});
+$("mem-refresh").onclick = () => loadMemory();
+$("mem-reveal").onclick = () => reveal("config", null, "skill-flash");
+
+// ── 内容分发面板（I-20261108-07）────────────────────────────────────────────
+// 设计取舍：面板只做两件事——「显示每个平台能不能用、缺什么」和「开关 + 填凭证」。
+// 不在面板里造「选稿件/点发布」的流程：稿件是文件，发布是 `scripts/publish.py send`，
+// agent 一条命令就能干，把发布流程搬进 UI 只会多一套要维护的状态机。
+// 面板的价值在第 1 件——`sau` 没装、某个平台没登录、AppSecret 没填，这些只能在这里看见。
+let pubState = { platforms: [] };
+
+async function loadPublish() {
+  const list = $("pub-list");
+  if (!list) return;
+  try {
+    const r = await api("GET", "/api/publish/config");
+    pubState = r;
+    $("pub-account").value = (r.defaults && r.defaults.account) || "creator";
+    renderPublish(r.platforms || []);
+  } catch (e) {
+    list.innerHTML = `<p class="flash err">读取分发配置失败：${esc(e.message)}</p>`;
+  }
+}
+
+function renderPublish(rows) {
+  const box = $("pub-list");
+  if (!rows.length) { box.innerHTML = `<p class="hint">没有可选平台。</p>`; return; }
+  box.innerHTML = rows.map((p) => {
+    const pcfg = (pubState.platforms || []).find((x) => x.platform === p.platform) || {};
+    const ready = p.ready
+      ? `<span class="flash ok">就绪</span>`
+      : `<span class="flash err">不可用</span>`;
+    // 不可用原因要完整露出：用户照着这句话就能去修（装 sau / 登录 / 填 secret）
+    const why = p.ready ? "" : `<div class="hint" style="white-space:pre-wrap;color:#c66">${esc(p.reason)}</div>`;
+    const kinds = (p.kinds || []).join(" / ");
+    const wx = p.platform === "wechat" ? `
+      <div class="field"><label>AppID</label><input data-pub="wechat.appid" value="${escAttr(p.appid || "")}" placeholder="wx..."></div>
+      <div class="field"><label>AppSecret（保存后只显示掩码）</label><input data-pub="wechat.app_secret" type="password" value="" placeholder="${p.secret_set ? "已设置，留空不修改" : "未设置"}"></div>
+      <div class="field"><label>作者名（≤16 字，可空）</label><input data-pub="wechat.author" value="${escAttr(p.author || "")}"></div>
+      <label style="display:flex;gap:6px;align-items:center;margin:6px 0">
+        <input type="checkbox" data-pub="wechat.auto_publish" ${p.auto_publish ? "checked" : ""}>
+        <span>直接发布（不勾=只进草稿箱，更安全）</span>
+      </label>` : "";
+    return `<div class="ov" style="margin-bottom:10px">
+      <label style="display:flex;gap:8px;align-items:center;font-weight:600">
+        <input type="checkbox" data-pub="${p.platform}.enabled" ${p.enabled ? "checked" : ""}>
+        <span>${esc(p.label)}</span>
+        <span class="hint" style="font-weight:400">（可发：${esc(kinds)}）</span>
+        ${ready}
+      </label>
+      ${why}
+      ${wx}
+    </div>`;
+  }).join("");
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function escAttr(s) { return esc(s); }
+
+document.addEventListener("click", async (e) => {
+  if (!e.target.closest || !e.target.closest("#pub-save")) return;
+  const platforms = {};
+  document.querySelectorAll("[data-pub]").forEach((el) => {
+    const [plat, key] = el.dataset.pub.split(".");
+    platforms[plat] = platforms[plat] || {};
+    if (el.type === "checkbox") platforms[plat][key] = el.checked;
+    else if (el.type === "password") { if (el.value) platforms[plat][key] = el.value; }  // 空 = 不修改
+    else platforms[plat][key] = el.value;
+  });
+  try {
+    await api("POST", "/api/publish/config", { platforms, defaults: { account: $("pub-account").value || "creator" } });
+    flash("pub-flash", true, "已保存，下一轮生效");
+    await loadPublish();
+  } catch (err) {
+    flash("pub-flash", false, "保存失败：" + err.message);
+  }
+});
 
 // ── F3：能力总览（设置抽屉的目录页）──────────────────────────────────────────
 // 三列 = 三类决定来源（见 index.html 注释）。每列的值都从**已有数据**推出来，

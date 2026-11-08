@@ -1,0 +1,4 @@
+    let Some(op) = req.get("op").and_then(Value::as_str) else {
+        return json_resp(stream, 400, bad_request("缺 op", Some("op"))).await;
+    };
+    let mut board = load_board();

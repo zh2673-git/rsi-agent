@@ -1,0 +1,7 @@
+{
+  "id": "G4A-RUST-LOCK-DOC",
+  "description": "board.rs 模块文档：删掉「tmp/rename 原子替换 → 并发写不吞条目」的错误结论，改为正确论证（原子替换≠互斥）。I-20261108-06 G4a",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/g4a-doc-anchor.txt",
+  "patch_file": "blocks/g4a-doc-patch.txt"
+}

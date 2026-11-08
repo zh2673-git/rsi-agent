@@ -1,0 +1,11 @@
+    assert!(text.contains("budget_wrap_up"), "必须注入 wrap-up 指令: {text}");
+
+    match saved {
+        Some(v) => std::env::set_var("CHAT_BUDGET_SECS", v),
+        None => std::env::remove_var("CHAT_BUDGET_SECS"),
+    }
+    match saved_tokens {
+        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+    }
+}

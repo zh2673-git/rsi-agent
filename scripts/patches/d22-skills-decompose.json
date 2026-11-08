@@ -1,7 +1,8 @@
 {
- "id": "D22-SKILLS-DECOMPOSE",
- "description": "skills.rs：skills 附录里接 decompose_hint（画像段之后、产物段之前）",
- "file": "runtime/crates/agent-loop/src/skills.rs",
- "anchor_file": "blocks/d-skills-decompose-anchor.txt",
- "patch_file": "blocks/d-skills-decompose.txt"
+  "id": "D22-SKILLS-DECOMPOSE",
+  "description": "skills.rs：skills 附录里接 decompose_hint（画像段之后、产物段之前）",
+  "applied_marker": "let decompose = super::board_ctx::decompose_hint();",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/d-skills-decompose-anchor.txt",
+  "patch_file": "blocks/d-skills-decompose.txt"
 }

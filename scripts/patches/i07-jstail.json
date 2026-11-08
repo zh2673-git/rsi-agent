@@ -1,0 +1,7 @@
+{
+ "id": "I07-UI-JS-TAIL",
+ "description": "app-settings.js：loadPublish/renderPublish/保存逻辑（空 secret 不修改语义）",
+ "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+ "anchor_file": "blocks/i07-js-tail-anchor.txt",
+ "patch_file": "blocks/i07-js-tail-patch.txt"
+}

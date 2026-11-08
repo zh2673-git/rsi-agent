@@ -189,7 +189,7 @@ fn tool_call_resp(calls: Value) -> Value {
 
 #[tokio::test]
 async fn react_answers_without_tool_calls() {
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let kernel = boot(vec![
         mock_memory(Arc::new(Mutex::new(vec![]))),
         mock_llm(vec![json!({"ok": true, "content": "hello!", "tool_calls": [], "model": "mock", "finish_reason": "stop"})]),
@@ -205,7 +205,7 @@ async fn react_answers_without_tool_calls() {
 
 #[tokio::test]
 async fn react_executes_tool_call_and_feeds_observation() {
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let llm_script = vec![
         tool_call_resp(json!([{"id": "c1", "name": "calculator", "arguments": {"expr": "2+2"}}])),
         json!({"ok": true, "content": "answer is 4", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
@@ -226,7 +226,7 @@ async fn react_executes_tool_call_and_feeds_observation() {
 #[tokio::test]
 async fn react_reaches_max_rounds_and_returns_error_payload() {
     // LLM 每轮都要求调工具 → 轮次耗尽 → 最后一轮无工具仍要工具 → 错误 payload
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let kernel = boot(vec![
         mock_memory(Arc::new(Mutex::new(vec![]))),
         mock_llm(vec![tool_call_resp(json!([{"id": "c", "name": "calculator", "arguments": {}}]))]),
@@ -241,7 +241,7 @@ async fn react_reaches_max_rounds_and_returns_error_payload() {
 
 #[tokio::test]
 async fn react_appends_history_and_final_to_memory() {
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let mem_state = Arc::new(Mutex::new(Vec::<MemoryMsg>::new()));
     let kernel = boot(vec![
         mock_memory(mem_state.clone()),
@@ -261,7 +261,7 @@ async fn react_appends_history_and_final_to_memory() {
 
 #[tokio::test]
 async fn react_tool_error_is_observed_not_fatal() {
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let llm_script = vec![
         tool_call_resp(json!([{"id": "c1", "name": "calculator", "arguments": {"expr": "bad"}}])),
         json!({"ok": true, "content": "the tool failed with boom, but I recover", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
@@ -281,7 +281,7 @@ async fn react_tool_error_is_observed_not_fatal() {
 #[tokio::test]
 async fn task_delegates_and_denies_nesting() {
     // 捕获每次 plan 的 messages：子代理第 2 轮应收到「嵌套拒绝」的观察
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let captured = Arc::new(Mutex::new(Vec::<Vec<Value>>::new()));
     let llm_script = vec![
         // ① 父 r1：委派 task
@@ -327,7 +327,7 @@ async fn concurrent_top_level_chats_both_can_delegate() {
     // P1 回归（PLAN R1）：修复前委派深度是插件级 AtomicU32 计数器，
     // 两个并发顶层 chat 使 depth=2 → task 被误判「嵌套委派」拒绝。
     // 修复后深度随链传播（ChatReq.depth），并发顶层会话互不挤占委派额度。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     // LLM mock 按消息形态确定性应答（与并发交织顺序无关）：
     // 末条为 tool 观察 → 收敛；含任务标记 → 子代理收敛；否则 → 委派 task。
     let llm = MockPlugin::simple("llm-adapter", &["llm.chat"], move |env| {
@@ -370,7 +370,7 @@ async fn concurrent_top_level_chats_both_can_delegate() {
 #[tokio::test]
 async fn task_denied_for_chain_depth_one() {
     // 深度随链传播的直接验证：depth=1 的 chat（即子代理链）内调 task → 字段级拒绝。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let llm_script = vec![
         tool_call_resp(json!([{"id": "c1", "name": "task", "arguments": {"task": "嵌套尝试"}}])),
         json!({"ok": true, "content": "recovered after denial", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
@@ -416,7 +416,7 @@ async fn chat_req_parses_with_default_session() {
 
 #[tokio::test]
 async fn load_skill_routes_to_assets_and_records_steps() {
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let mem_state = Arc::new(Mutex::new(Vec::<MemoryMsg>::new()));
     let llm_script = vec![
         tool_call_resp(json!([{"id": "c1", "name": "load_skill", "arguments": {"name": "demo"}}])),
@@ -449,7 +449,7 @@ async fn load_skill_routes_to_assets_and_records_steps() {
 #[tokio::test]
 async fn load_skill_failure_is_observed_not_fatal() {
     // 无 assets 注册（软依赖缺失）→ load_skill 合成 ok:false 回喂，循环不中断
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let llm_script = vec![
         tool_call_resp(json!([{"id": "c1", "name": "load_skill", "arguments": {"name": "demo"}}])),
         json!({"ok": true, "content": "assets missing but I recover", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
@@ -468,7 +468,7 @@ async fn load_skill_failure_is_observed_not_fatal() {
 
 #[tokio::test]
 async fn skills_catalog_is_injected_into_system_prompt() {
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（AGENT_SYSTEM_PROMPT 缺省）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（AGENT_SYSTEM_PROMPT 缺省）
     let captured = Arc::new(Mutex::new(Vec::<Vec<Value>>::new()));
     let llm_script = vec![json!({"ok": true, "content": "done", "tool_calls": [], "model": "mock", "finish_reason": "stop"})];
     let kernel = boot(vec![
@@ -490,7 +490,7 @@ async fn skills_catalog_is_injected_into_system_prompt() {
 #[tokio::test]
 async fn system_prompt_env_overrides_builtin_and_history_limit_truncates() {
     // 本测试操作进程级 env，断言对并行用例无影响的键（AGENT_SYSTEM_PROMPT/HISTORY_LIMIT 不被其他用例检查）
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("AGENT_SYSTEM_PROMPT", "CUSTOM PROMPT");
     std::env::set_var("HISTORY_LIMIT", "2");
 
@@ -531,7 +531,7 @@ async fn system_prompt_env_overrides_builtin_and_history_limit_truncates() {
 async fn oversized_tool_result_is_truncated_in_context() {
     // P3 回归（PLAN R2）：工具结果全文回喂会撑爆上下文。默认 TOOL_RESULT_LIMIT=8000，
     // 20K 字符的结果应被截断且模型能感知截断（带标记），截断发生在入 memory 之前。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（TOOL_RESULT_LIMIT=8000）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（TOOL_RESULT_LIMIT=8000）
     let big = "x".repeat(20_000);
     let mem_state = Arc::new(Mutex::new(Vec::<MemoryMsg>::new()));
     let captured = Arc::new(Mutex::new(Vec::<Vec<Value>>::new()));
@@ -571,7 +571,7 @@ async fn history_limit_does_not_block_compaction() {
     // P3 回归（PLAN R3）：修复前 HISTORY_LIMIT 截断发生在压缩判断之前，
     // LIMIT(3) < TRIGGER(4) 时压缩永不触发。修复后先按全量历史判断压缩，再裁窗口。
     // 本测试操作进程级 env——必须与其它 env 用例互斥（ENV_LOCK）。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = [
         ("COMPACT_TRIGGER", std::env::var("COMPACT_TRIGGER").ok()),
         ("COMPACT_KEEP", std::env::var("COMPACT_KEEP").ok()),
@@ -650,7 +650,7 @@ async fn history_limit_does_not_block_compaction() {
 async fn batched_tool_calls_run_concurrently() {
     // P4 回归（PLAN T2）：同一轮的多个 tool_calls 应并发执行（串行实现下在途峰值恒为 1）。
     // tools mock 用 Concurrent 语义 + 异步睡眠：两个 150ms 睡眠若并行必然重叠 → 峰值 ≥ 2。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let active = Arc::new(AtomicUsize::new(0));
     let max_seen = Arc::new(AtomicUsize::new(0));
     let (a, m) = (active.clone(), max_seen.clone());
@@ -714,7 +714,7 @@ async fn batched_tool_calls_run_concurrently() {
 async fn empty_answer_is_treated_as_failure() {
     // P6 回归（PLAN R4）：content None 且无 tool_calls 时 ok:true + answer:"" 是假收敛，
     // 应按错误 payload 收敛（修复前返回成功 + 空答案）。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let mem_state = Arc::new(Mutex::new(Vec::<MemoryMsg>::new()));
     let kernel = boot(vec![
         mock_memory(mem_state),
@@ -731,7 +731,7 @@ async fn empty_answer_is_treated_as_failure() {
 #[tokio::test]
 async fn subagent_failure_error_message_is_slim() {
     // P6 回归（PLAN E2）：子代理失败消息只取 error.message，不再内嵌整个响应 JSON。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let captured = Arc::new(Mutex::new(Vec::<Vec<Value>>::new()));
     let llm_script = vec![
         // ① 父 r1：委派 task
@@ -764,7 +764,7 @@ async fn cancel_op_interrupts_loop_at_round_boundary() {
     // P2 回归（PLAN T1）：cancel op 置位标志 → 循环在轮次边界命中 → K499 收敛。
     // 确定性编排：首轮 plan 挂起等 release；驱动协程等「已进入 plan」→ dispatch cancel
     // （Concurrent 语义保证不被在途 chat 阻塞）→ 放行首轮 → 轮 2 开头检查命中。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     use std::sync::atomic::AtomicBool;
     let entered = Arc::new(AtomicBool::new(false));
     let release = Arc::new(AtomicBool::new(false));
@@ -819,7 +819,7 @@ async fn cancel_op_interrupts_loop_at_round_boundary() {
 #[tokio::test]
 async fn stale_cancel_flag_does_not_kill_next_chat() {
     // P2 边界：cancel 到达于 chat 收敛之后 → 残留标志必须被开局清理，不误杀下一轮对话。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let kernel = boot(vec![
         mock_memory(Arc::new(Mutex::new(vec![]))),
         mock_llm(vec![json!({"ok": true, "content": "ok", "tool_calls": [], "model": "mock", "finish_reason": "stop"})]),
@@ -848,7 +848,7 @@ async fn stale_cancel_flag_does_not_kill_next_chat() {
 async fn transient_llm_failure_is_retried_then_succeeds() {
     // T3 回归：限流类瞬态失败 → 指数退避重试后成功（修复前直接杀死整轮）。
     // base=0 免去真实退避等待；attempts=1 够用（一次瞬态）。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = [
         ("LLM_RETRY_BASE_MS", std::env::var("LLM_RETRY_BASE_MS").ok()),
         ("LLM_RETRY_ATTEMPTS", std::env::var("LLM_RETRY_ATTEMPTS").ok()),
@@ -886,7 +886,7 @@ async fn transient_llm_failure_is_retried_then_succeeds() {
 #[tokio::test]
 async fn non_transient_llm_failure_not_retried() {
     // T3 反面：确定性失败（K400 参数/鉴权类）重试无益 → 立即失败，llm 只被调 1 次。
-    let _env_guard = ENV_LOCK.lock().unwrap(); // 隐式依赖 env 缺省（token 闸禁用）
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let captured = Arc::new(Mutex::new(Vec::<Vec<Value>>::new()));
     let llm_script = vec![json!({"ok": false, "error": {"code": "K400", "message": "unknown provider: nope"}})];
     let kernel = boot(vec![
@@ -905,7 +905,7 @@ async fn non_transient_llm_failure_not_retried() {
 #[tokio::test]
 async fn token_budget_exhaustion_stops_loop() {
     // T4 回归：单次 chat 累计 token（input+output）超预算 → 轮次边界 K508 收敛。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = std::env::var("CHAT_TOKEN_BUDGET").ok();
     std::env::set_var("CHAT_TOKEN_BUDGET", "10");
 
@@ -939,7 +939,7 @@ async fn token_budget_exhaustion_stops_loop() {
 async fn budget_stop_emits_chat_summary_for_observability() {
     // E7-C1 回归：预算硬停（K508）也必须补发 chat_summary——「被掐断」的回合
     // 不能在效率画像里缺段，脚本要能区分「没跑」与「跑了但被预算截停」。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = std::env::var("CHAT_TOKEN_BUDGET").ok();
     std::env::set_var("CHAT_TOKEN_BUDGET", "10");
 
@@ -1023,6 +1023,13 @@ async fn wall_clock_budget_soft_converges_instead_of_aborting() {
     let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = std::env::var("CHAT_BUDGET_SECS").ok();
     std::env::set_var("CHAT_BUDGET_SECS", "0.2"); // 200ms
+    // 本用例测**墙钟**闸，与 token 闸无关：必须显式关掉 `LLM_CONTEXT_TOKENS`。
+    // 同文件 token 闸那组会把它设成 430，而那些用例 panic 时跳过恢复（恢复代码在
+    // assert 之后），残值就泄漏给后续用例——表现为本用例莫名 `CONTEXT_OVERFLOW`
+    // （budget 301 / estimated 310 / limit 430，三个数全是别人的）。
+    // 依赖运行顺序才通过的测试不是测试，是运气。
+    let saved_tokens = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    std::env::remove_var("LLM_CONTEXT_TOKENS");
 
     let calls = Arc::new(AtomicUsize::new(0));
     let captured = Arc::new(Mutex::new(Vec::<Value>::new()));
@@ -1086,6 +1093,10 @@ async fn wall_clock_budget_soft_converges_instead_of_aborting() {
         Some(v) => std::env::set_var("CHAT_BUDGET_SECS", v),
         None => std::env::remove_var("CHAT_BUDGET_SECS"),
     }
+    match saved_tokens {
+        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+    }
 }
 
 #[tokio::test]
@@ -1095,6 +1106,10 @@ async fn wall_clock_budget_without_answer_still_reports_progress() {
     let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = std::env::var("CHAT_BUDGET_SECS").ok();
     std::env::set_var("CHAT_BUDGET_SECS", "0.2");
+    // 同 `wall_clock_budget_soft_converges_instead_of_aborting`：本用例只测墙钟，
+    // 显式关掉 token 闸以摆脱同文件残值（见该用例注释）。
+    let saved_tokens = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    std::env::remove_var("LLM_CONTEXT_TOKENS");
 
     let calls = Arc::new(AtomicUsize::new(0));
     let c1 = calls.clone();
@@ -1129,13 +1144,17 @@ async fn wall_clock_budget_without_answer_still_reports_progress() {
         Some(v) => std::env::set_var("CHAT_BUDGET_SECS", v),
         None => std::env::remove_var("CHAT_BUDGET_SECS"),
     }
+    match saved_tokens {
+        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+    }
 }
 
 #[tokio::test]
 async fn subagent_inherits_remaining_token_budget() {
     // T4 继承：子代理继承父链**衰减后**的剩余预算（修复前继承同预算无衰减）。
     // 父预算 100，r1 用掉 95 → 子代理只拿 5；子 r1 用 10 → 子链 K508 → 父观察失败原因。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = std::env::var("CHAT_TOKEN_BUDGET").ok();
     std::env::set_var("CHAT_TOKEN_BUDGET", "100");
 
@@ -1192,7 +1211,7 @@ async fn token_gate_triggers_compaction() {
     // P7 回归（PLAN R6）：压缩双闸——token 闸（估算超 LLM_CONTEXT_TOKENS×0.7）独立于
     // 条数闸生效（修复前只有条数闸，单条大结果在 40 条之前就能撑爆窗口）。
     // 预算 301：压缩前历史估算 422 > 301 触发；压缩后工作集估算 ≈274 ≤ 301 不再收紧。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = [
         // L7：窗口值仅本地窗口型 provider 生效——闸类测试一律预置 LLM_PROVIDER=ollama
         ("LLM_PROVIDER", std::env::var("LLM_PROVIDER").ok()),
@@ -1253,7 +1272,7 @@ async fn token_gate_triggers_compaction() {
 async fn context_overflow_fails_before_request() {
     // P7 回归（PLAN R5）：发送前逐级收紧（窗口减半 → tool_result 限额减半）后仍超限
     // → CONTEXT_OVERFLOW，正文请求不发出（修复前原样发出 → provider 400 杀死整轮）。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = [
         // L7：窗口值仅本地窗口型 provider 生效——闸类测试一律预置 LLM_PROVIDER=ollama
         ("LLM_PROVIDER", std::env::var("LLM_PROVIDER").ok()),
@@ -1302,7 +1321,7 @@ async fn context_overflow_fails_before_request() {
 async fn provider_overflow_degrades_window_and_recovers() {
     // P8 回归（PLAN R7/R8）：provider 侧 CONTEXT_OVERFLOW（估算闸漏网时的 provider 终审）
     // → 窗口/限额减半降级重试一次后成功（修复前直接杀死整轮）。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = [
         ("LLM_CONTEXT_TOKENS", std::env::var("LLM_CONTEXT_TOKENS").ok()),
         ("HISTORY_LIMIT", std::env::var("HISTORY_LIMIT").ok()),
@@ -1351,7 +1370,7 @@ async fn provider_overflow_degrades_window_and_recovers() {
 #[tokio::test]
 async fn provider_overflow_converges_after_one_degrade_retry() {
     // P8 收敛边界：降级重试一次后仍超限 → 原错误收敛，不进入重试风暴。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = [
         ("LLM_CONTEXT_TOKENS", std::env::var("LLM_CONTEXT_TOKENS").ok()),
         ("AGENT_SYSTEM_PROMPT", std::env::var("AGENT_SYSTEM_PROMPT").ok()),
@@ -1389,7 +1408,7 @@ async fn num_ctx_passthrough_follows_context_window() {
     // L2+L3 回归：`LLM_CONTEXT_TOKENS` 语义升级为「上下文窗口」——>0 时 llm.chat payload
     // 携带平级字段 num_ctx（ollama native 映射 options.num_ctx，本地估算闸与服务端窗口对齐）；
     // 0/缺省不携带（向后兼容）。L7：num_ctx 仅本地窗口型 provider 下发，故预置 ollama。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved_provider = std::env::var("LLM_PROVIDER").ok();
     let saved = std::env::var("LLM_CONTEXT_TOKENS").ok();
     std::env::set_var("LLM_PROVIDER", "ollama");
@@ -1506,7 +1525,7 @@ fn mock_tools_r9(install_log: Arc<Mutex<Vec<Value>>>, skill_tool: Value) -> Plug
 async fn skill_install_full_chain_traces_and_reports() {
     // Q：skill_install 全链路——assets.load 取声明 → tools.install（装载≠启用）→
     // skill_installed 事件 → 观察回写含 loaded/pending。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let events = Arc::new(Mutex::new(Vec::<Value>::new()));
     let mem_state = Arc::new(Mutex::new(Vec::<MemoryMsg>::new()));
     let install_log = Arc::new(Mutex::new(Vec::<Value>::new()));
@@ -1566,7 +1585,7 @@ async fn skill_install_full_chain_traces_and_reports() {
 #[tokio::test]
 async fn skill_install_without_tools_declaration_still_registers() {
     // 无 tools 声明的技能包：仅注册（tools.install 不调用），事件仍发（tools_* 为空）。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let events = Arc::new(Mutex::new(Vec::<Value>::new()));
     let install_log = Arc::new(Mutex::new(Vec::<Value>::new()));
     let assets = MockPlugin::simple("assets", &["assets.registry"], move |env| {
@@ -1602,7 +1621,7 @@ async fn skill_install_without_tools_declaration_still_registers() {
 #[tokio::test]
 async fn skill_install_unknown_skill_is_observed_not_fatal() {
     // I：unknown skill 错误 payload 原样回喂观察（部分失败不算整体失败），循环不中断。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let events = Arc::new(Mutex::new(Vec::<Value>::new()));
     let mem_state = Arc::new(Mutex::new(Vec::<MemoryMsg>::new()));
     let install_log = Arc::new(Mutex::new(Vec::<Value>::new()));
@@ -1644,7 +1663,7 @@ async fn skill_install_unknown_skill_is_observed_not_fatal() {
 async fn load_skill_merges_enabled_skill_tools_into_next_rounds() {
     // 清单组装规则：r1 load_skill 成功 → skill_loaded 事件 + 该技能已启用工具并入 r2 清单
     //（r1 清单不含技能工具——会话可见性由 load_skill 驱动）。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let events = Arc::new(Mutex::new(Vec::<Value>::new()));
     let payload_caps = Arc::new(Mutex::new(Vec::<Value>::new()));
     let llm_script = vec![
@@ -1705,7 +1724,7 @@ async fn load_skill_installs_companion_tools_for_preset() {
     // 模型只调 load_skill 时工具永不进池（媒体生成不可见的根因）。修复后：
     // install 被触发且 origin 透传（preset → 装载即启用）、skill_loaded + skill_installed
     // 双事件落 trace、r2 清单并入已启用技能工具。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let events = Arc::new(Mutex::new(Vec::<Value>::new()));
     let payload_caps = Arc::new(Mutex::new(Vec::<Value>::new()));
     let install_log = Arc::new(Mutex::new(Vec::<Value>::new()));
@@ -1806,7 +1825,7 @@ async fn session_skill_tools_replayed_from_trace_at_chat_start() {
     //（同会话技能作用域经重放恢复；子代理新会话不继承）。
     // R18 重启恢复：技能工具池是 tools 进程内存态（重启即空）——开局必须先静默重装
     //（assets.load → tools.install）再装配清单，且不重发 skill_* 事件。
-    let _env_guard = ENV_LOCK.lock().unwrap();
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let events = Arc::new(Mutex::new(vec![json!({"type": "skill_loaded", "skill": "demo", "ts": 1})]));
     let payload_caps = Arc::new(Mutex::new(Vec::<Value>::new()));
     let install_log: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(vec![]));

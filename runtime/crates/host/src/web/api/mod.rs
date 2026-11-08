@@ -10,6 +10,7 @@ mod board;
 mod config;
 mod misc;
 mod profile;
+mod publish;
 mod skills;
 
 pub(super) use board::{get_board, get_board_link, post_board};
@@ -20,6 +21,7 @@ pub(super) use misc::{
     upstream_checkin, upstream_login, upstream_start, upstream_status,
 };
 pub(super) use profile::{get_profile, post_profile};
+pub(super) use publish::{get_publish_config, post_publish_config};
 pub(super) use skills::{delete_skill, get_skill, get_skills, put_skill};
 
 use super::bad_request;

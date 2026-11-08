@@ -1,0 +1,7 @@
+{
+  "id": "G4B-PARALLEL-HINT-FN",
+  "description": "board_ctx.rs：新增 parallel_hint（并行/串行判据：不同文件、不同验证手段、无先后依赖→并行；同文件/同 build 目录/有依赖/看板写→串行；拿不准就串行）。I-20261108-06 G4b",
+  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+  "anchor_file": "blocks/g4b-parallel-anchor.txt",
+  "patch_file": "blocks/g4b-parallel-patch.txt"
+}

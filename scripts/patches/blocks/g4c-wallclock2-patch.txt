@@ -1,0 +1,8 @@
+    let saved = std::env::var("CHAT_BUDGET_SECS").ok();
+    std::env::set_var("CHAT_BUDGET_SECS", "0.2");
+    // 同 `wall_clock_budget_soft_converges_instead_of_aborting`：本用例只测墙钟，
+    // 显式关掉 token 闸以摆脱同文件残值（见该用例注释）。
+    let saved_tokens = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    std::env::remove_var("LLM_CONTEXT_TOKENS");
+
+    let calls = Arc::new(AtomicUsize::new(0));

@@ -79,8 +79,14 @@ class MemoryPageContractTest(unittest.TestCase):
         self.assertIn('id="mem-body"', self.html)
 
     def test_memory_tab_participates_in_switch(self):
-        # 页签切换序列必须含 memory，否则点了不动
-        self.assertRegex(self.js, r'\["llm",\s*"tools",\s*"skills",\s*"memory",\s*"agent"\]')
+        # 页签切换序列必须含 memory，否则点了不动。
+        # I-07 加「分发」页后序列变长，故只断言「都在同一条切换数组里」，
+        # 不写死整串——写死会让每次加页都假红一次。
+        m = re.search(r'for \(const t of \[([^\]]+)\]\)', self.js)
+        self.assertIsNotNone(m, "找不到页签切换序列")
+        seq = m.group(1)
+        for tab in ("llm", "tools", "skills", "memory", "agent", "publish"):
+            self.assertIn(f'"{tab}"', seq, f"切换序列缺 {tab}（点了不动）")
 
     def test_no_add_input_in_memory_page(self):
         """「不能手写新增」的可见证据：记忆页内没有 textarea / 新增输入框。
@@ -94,13 +100,18 @@ class MemoryPageContractTest(unittest.TestCase):
         self.assertNotIn("<textarea", panel, "记忆页不该有可写输入区（新增走观察）")
         self.assertNotIn("＋", panel, "记忆页不该有『＋新增』按钮")
 
-    def test_all_five_tab_containers_intact(self):
+    def test_all_tab_containers_intact(self):
         # F 轮真实缺陷：加记忆页时补丁锚点把 <div id="tab-agent"> 的开标签一起替换掉，
         # 导致 Agent 页容器消失（点页签不会报错，只是内容永远不出现——最难察觉的一类）。
-        for tab in ("llm", "tools", "skills", "memory", "agent"):
+        # I-07 又加了「分发」页，故这里不再写死数量：容器数必须与页签按钮数一致，
+        # 「多一个=重复注入，少一个=锚点吞标签」这个判据不变，但不因加页而假红。
+        for tab in ("llm", "tools", "skills", "memory", "agent", "publish"):
             self.assertIn(f'id="tab-{tab}"', self.html, f"缺少页签容器 #tab-{tab}")
-        self.assertEqual(self.html.count('<div id="tab-'), 5,
-                         "页签容器数量应为 5（多一个=重复注入，少一个=锚点吞标签）")
+        buttons = self.html.count('data-tab="')
+        containers = self.html.count('<div id="tab-')
+        self.assertEqual(containers, buttons,
+                         f"页签容器数({containers})应等于页签按钮数({buttons})"
+                         "（不相等=重复注入或锚点吞标签）")
 
     def test_delete_ops_are_whitelisted(self):
         # 后端只放行三种删除，其余一律 400 并给出指引

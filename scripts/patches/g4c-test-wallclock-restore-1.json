@@ -1,0 +1,7 @@
+{
+  "id": "G4C-TEST-WALLCLOCK-RESTORE-1",
+  "description": "react_mocks.rs：wall_clock_budget_soft_converges 结尾恢复 LLM_CONTEXT_TOKENS（与 isolate-1 成对：清了就要还）",
+  "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+  "anchor_file": "blocks/g4c-wallclock-tail-anchor.txt",
+  "patch_file": "blocks/g4c-wallclock-tail-patch.txt"
+}

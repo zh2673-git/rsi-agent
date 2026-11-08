@@ -1,0 +1,7 @@
+{
+ "id": "I07-UI-TABBTN",
+ "description": "index.html：设置面板新增「分发」页签按钮",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/i07-tabbtn-anchor.txt",
+ "patch_file": "blocks/i07-tabbtn-patch.txt"
+}

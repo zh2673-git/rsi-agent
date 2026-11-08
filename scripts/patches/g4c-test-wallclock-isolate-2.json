@@ -1,0 +1,7 @@
+{
+  "id": "G4C-TEST-WALLCLOCK-ISOLATE-2",
+  "description": "react_mocks.rs：wall_clock_budget_without_answer 同样显式关掉 LLM_CONTEXT_TOKENS。既有测试卫生缺陷",
+  "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+  "anchor_file": "blocks/g4c-wallclock2-anchor.txt",
+  "patch_file": "blocks/g4c-wallclock2-patch.txt"
+}

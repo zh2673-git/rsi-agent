@@ -1,0 +1,7 @@
+{
+  "id": "I07-API-MOD",
+  "description": "web/api/mod.rs：导出 publish 子模块（/api/publish/config）",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor_file": "blocks/i07-api-mod-anchor.txt",
+  "patch_file": "blocks/i07-api-mod-patch.txt"
+}

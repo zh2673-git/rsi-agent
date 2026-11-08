@@ -1,0 +1,8 @@
+{
+  "id": "G4A-DEDUP-INSP-OPS",
+  "description": "board.rs：删除 inspiration.edit / inspiration.rm 的整段重复块（后一份是死代码，编译器报 unreachable_patterns；两份逐字相同，保留前一份）。既有缺陷，非本轮引入",
+  "repair": true,
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/g4a-dup-anchor.txt",
+  "patch_file": "blocks/g4a-dup-patch.txt"
+}

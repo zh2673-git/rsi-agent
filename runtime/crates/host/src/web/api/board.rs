@@ -8,7 +8,10 @@
 //! 契约与 `scripts/board.py` 逐字同源（`docs/self-evolution/01-单会话与任务看板.md` §2）：
 //! host 侧**只写灵感**（用户视角的入口），任务的增删改一律由 agent 经 `board.py` 完成
 //! ——用户构想是「用户不需要管背后的项目分类」。两侧都用「读-改-写 + 按 id 合并 +
-//! tmp/rename 原子替换」，因此并发写不会互相吞条目。
+//! tmp/rename 原子替换」。**注意原子替换只保证不掉半截文件，不保证两次写不互相覆盖**：
+//! 两者都无锁时，A/B 各自 load 到同一份旧快照再整体写回，后写者会覆盖前者的新条目
+//! （文件完整、少一条，最难查的那种）。故两侧写盘前都取同一把跨进程文件锁
+//! `board.lock`（Python `BoardLock` / Rust `BoardLock`，见下方实现）。
 //!
 //! 数据落点：`WORKSPACE_ROOT/.rsi/board.json`（`RSI_BOARD_PATH` 可覆盖，工作区相对或绝对）。
 //! 坏 JSON **不覆盖**：按空板返回并带 `corrupt:true`，让用户看见而不是被悄悄清零。
@@ -156,7 +159,86 @@ fn civil_from_unix(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
     ((y), m, d, (rem / 3600) as u32, ((rem % 3600) / 60) as u32, (rem % 60) as u32)
 }
 
+// ── G4a：跨进程写锁（与 `scripts/board.py` 的 `BoardLock` 是同一把文件锁）──────
+//
+// 为什么必须有：`board.py`（agent 侧）与 `POST /api/board`（UI 侧）都是
+// 「load → 改 → save」。两路并行时 A 读到旧快照、B 写入新条目、A 再整体覆盖 →
+// B 的条目凭空消失。
+//
+// 这里曾写着一句错的技术理由：「tmp/rename 原子替换，因此并发写不会互相吞条目」。
+// 原子替换保证的是**不会写出半截文件**，不是**两次写不会互相覆盖**：
+//   A: load(v1) → 加条目x → save(v1+x)
+//   B: load(v1) → 加条目y → save(v1+y)   ← x 被整体覆盖，文件是完整的 v1+y
+// 完整但少一条，正是最难查的那种「我明明加了，看板上没有」。
+//
+// 选型与 Python 侧一致（两条约束是硬的）：
+// 1. **文件锁而非内存锁**：写者是两个不同进程（Python CLI / Rust host），
+//    进程内 `Mutex` 拦不住对方。
+// 2. **`create_new`（O_CREAT|O_EXCL）而非 flock**：Windows 上无 `flock`，
+//    `LockFileEx` 语义按字节区间、跨语言实现易漂移。独占创建空文件跨平台一致，
+//    代价是崩溃可能留残锁——故按 mtime 年龄回收（`LOCK_STALE`）。
+// 3. 拿不到锁**明确失败**，不静默降级：宁可让用户看到「正在被写入，请重试」，
+//    也不让两路写入互相覆盖。
+const LOCK_STALE: std::time::Duration = std::time::Duration::from_secs(15);
+const LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
+fn lock_path() -> PathBuf {
+    board_path().with_file_name("board.lock")
+}
+
+/// 跨进程独占锁守卫：`Drop` 时删锁文件（含早退与 panic 展开路径）。
+pub(super) struct BoardLock {
+    path: PathBuf,
+}
+
+impl BoardLock {
+    /// 取锁。成功返回守卫；超时返回 `Err(锁文件路径)`（调用方据此回 409）。
+    pub(super) async fn acquire() -> Result<Self, String> {
+        let path = lock_path();
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let deadline = std::time::Instant::now() + LOCK_TIMEOUT;
+        loop {
+            match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+                Ok(mut f) => {
+                    use std::io::Write;
+                    let _ = write!(f, "{}", std::process::id());
+                    return Ok(Self { path });
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                    // 残锁回收：持锁进程崩了，锁文件会留下。按 mtime 年龄判定；
+                    // 读不到 mtime 视为超龄（否则一个坏文件会永久堵死看板）。
+                    let stale = std::fs::metadata(&path)
+                        .and_then(|m| m.modified())
+                        .ok()
+                        .and_then(|t| t.elapsed().ok())
+                        .map(|age| age > LOCK_STALE)
+                        .unwrap_or(true);
+                    if stale {
+                        let _ = std::fs::remove_file(&path);
+                        continue;
+                    }
+                    if std::time::Instant::now() >= deadline {
+                        return Err(path.display().to_string());
+                    }
+                    // 异步睡眠而非 thread::sleep：不阻塞 runtime 线程。
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                Err(e) => return Err(format!("{}: {e}", path.display())),
+            }
+        }
+    }
+}
+
+impl Drop for BoardLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
 fn empty_board() -> Value {
+
     json!({"version": 1, "updated_at": now_iso(), "tasks": [], "inspirations": []})
 }
 
@@ -334,6 +416,24 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
     };
     let Some(op) = req.get("op").and_then(Value::as_str) else {
         return json_resp(stream, 400, bad_request("缺 op", Some("op"))).await;
+    };
+    // G4a：读→改→写整段持锁。锁必须**在 load 之前**拿——先 load 后取锁等于
+    // 拿旧快照去覆盖别人的新写入，锁就白加了。
+    let _lock = match BoardLock::acquire().await {
+        Ok(g) => g,
+        Err(why) => {
+            // 拿不到锁明确失败，不静默降级为无锁写（那正是丢更新的来源）。
+            return json_resp(
+                stream,
+                409,
+                err(
+                    "K409",
+                    format!("看板正在被另一个写入方修改（{why}），请稍后重试"),
+                    Some("board"),
+                ),
+            )
+            .await;
+        }
     };
     let mut board = load_board();
     if board.get("corrupt").and_then(Value::as_bool) == Some(true) {
@@ -587,83 +687,7 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
             }
         }
         // D 轮：改灵感正文/标签。B 轮只给了 add/set——用户实测「记错了只能归档再重打一遍」。
-        // D 轮：改灵感正文/标签。B 轮只给了 add/set——用户实测「记错了只能归档再重打一遍」。
-        // 与 agent 侧 `board.py insp-edit` 同一契约：text ≤2000、tags ≤10×32，原子写回。
-        "inspiration.edit" => {
-            let id = match take_str(&req, "id", 40) {
-                Ok(v) => v,
-                Err(e) => return json_resp(stream, 400, e).await,
-            };
-            let mut items = board["inspirations"].as_array().cloned().unwrap_or_default();
-            let Some(slot) = items.iter_mut().find(|i| i.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
-                return json_resp(stream, 404, err("K404", format!("未找到灵感 {id}"), Some("id"))).await;
-            };
-            // 两字段都可选，但**至少要改一个**：全空的 edit 是误调用，静默成功会掩盖前端 bug。
-            let has_text = req.get("text").is_some();
-            let has_tags = req.get("tags").is_some();
-            if !has_text && !has_tags {
-                return json_resp(stream, 400, err("K400", "text 与 tags 至少给一个", Some("text"))).await;
-            }
-            if has_text {
-                match take_str(&req, "text", MAX_INSP_TEXT) {
-                    Ok(t) => slot["text"] = json!(t),
-                    Err(e) => return json_resp(stream, 400, e).await,
-                }
-            }
-            if has_tags {
-                match parse_tags(&req) {
-                    Ok(t) => slot["tags"] = json!(t),
-                    Err(e) => return json_resp(stream, 400, e).await,
-                }
-            }
-            slot["updated_at"] = json!(now_iso());
-            let out = slot.clone();
-            board["inspirations"] = Value::Array(items);
-            match save_board(&mut board) {
-                Ok(_) => json_resp(stream, 200, json!({"ok": true, "inspiration": out})).await,
-                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
-            }
-        }
-        // D 轮：删除灵感。已采纳（adopted）默认拒绝——它已经是任务的来源记录，删掉会让
-        // 任务凭空出现；要删必须显式 force。与 `board.py insp-rm` 同语义。
-        "inspiration.rm" => {
-            let id = match take_str(&req, "id", 40) {
-                Ok(v) => v,
-                Err(e) => return json_resp(stream, 400, e).await,
-            };
-            let force = req.get("force").and_then(Value::as_bool).unwrap_or(false);
-            let items = board["inspirations"].as_array().cloned().unwrap_or_default();
-            let Some(slot) = items.iter().find(|i| i.get("id").and_then(Value::as_str) == Some(id.as_str())) else {
-                return json_resp(stream, 404, err("K404", format!("未找到灵感 {id}"), Some("id"))).await;
-            };
-            if slot.get("status").and_then(Value::as_str) == Some("adopted") && !force {
-                let tasks: Vec<&str> = slot
-                    .get("tasks")
-                    .and_then(Value::as_array)
-                    .map(|a| a.iter().filter_map(Value::as_str).collect())
-                    .unwrap_or_default();
-                return json_resp(
-                    stream,
-                    409,
-                    err(
-                        "K409",
-                        format!("灵感 {id} 已被任务采纳（{}）：删除会断掉任务来源链，确认请带 force:true", tasks.join(", ")),
-                        Some("id"),
-                    ),
-                )
-                .await;
-            }
-            let kept: Vec<Value> = items
-                .into_iter()
-                .filter(|i| i.get("id").and_then(Value::as_str) != Some(id.as_str()))
-                .collect();
-            board["inspirations"] = Value::Array(kept);
-            match save_board(&mut board) {
-                Ok(_) => json_resp(stream, 200, json!({"ok": true, "id": id})).await,
-                Err(e) => json_resp(stream, 500, err("K500", format!("写盘失败: {e}"), None)).await,
-            }
-        }
-        // 只补缺失字段，不删条目——手改坏的板子可安全修复。
+
         "refresh" => {
             let mut fixed = 0u32;
             let mut tasks = board["tasks"].as_array().cloned().unwrap_or_default();

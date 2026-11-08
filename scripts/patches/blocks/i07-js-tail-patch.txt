@@ -1,0 +1,75 @@
+$("mem-reveal").onclick = () => reveal("config", null, "skill-flash");
+
+// ── 内容分发面板（I-20261108-07）────────────────────────────────────────────
+// 设计取舍：面板只做两件事——「显示每个平台能不能用、缺什么」和「开关 + 填凭证」。
+// 不在面板里造「选稿件/点发布」的流程：稿件是文件，发布是 `scripts/publish.py send`，
+// agent 一条命令就能干，把发布流程搬进 UI 只会多一套要维护的状态机。
+// 面板的价值在第 1 件——`sau` 没装、某个平台没登录、AppSecret 没填，这些只能在这里看见。
+let pubState = { platforms: [] };
+
+async function loadPublish() {
+  const list = $("pub-list");
+  if (!list) return;
+  try {
+    const r = await api("GET", "/api/publish/config");
+    pubState = r;
+    $("pub-account").value = (r.defaults && r.defaults.account) || "creator";
+    renderPublish(r.platforms || []);
+  } catch (e) {
+    list.innerHTML = `<p class="flash err">读取分发配置失败：${esc(e.message)}</p>`;
+  }
+}
+
+function renderPublish(rows) {
+  const box = $("pub-list");
+  if (!rows.length) { box.innerHTML = `<p class="hint">没有可选平台。</p>`; return; }
+  box.innerHTML = rows.map((p) => {
+    const pcfg = (pubState.platforms || []).find((x) => x.platform === p.platform) || {};
+    const ready = p.ready
+      ? `<span class="flash ok">就绪</span>`
+      : `<span class="flash err">不可用</span>`;
+    // 不可用原因要完整露出：用户照着这句话就能去修（装 sau / 登录 / 填 secret）
+    const why = p.ready ? "" : `<div class="hint" style="white-space:pre-wrap;color:#c66">${esc(p.reason)}</div>`;
+    const kinds = (p.kinds || []).join(" / ");
+    const wx = p.platform === "wechat" ? `
+      <div class="field"><label>AppID</label><input data-pub="wechat.appid" value="${escAttr(p.appid || "")}" placeholder="wx..."></div>
+      <div class="field"><label>AppSecret（保存后只显示掩码）</label><input data-pub="wechat.app_secret" type="password" value="" placeholder="${p.secret_set ? "已设置，留空不修改" : "未设置"}"></div>
+      <div class="field"><label>作者名（≤16 字，可空）</label><input data-pub="wechat.author" value="${escAttr(p.author || "")}"></div>
+      <label style="display:flex;gap:6px;align-items:center;margin:6px 0">
+        <input type="checkbox" data-pub="wechat.auto_publish" ${p.auto_publish ? "checked" : ""}>
+        <span>直接发布（不勾=只进草稿箱，更安全）</span>
+      </label>` : "";
+    return `<div class="ov" style="margin-bottom:10px">
+      <label style="display:flex;gap:8px;align-items:center;font-weight:600">
+        <input type="checkbox" data-pub="${p.platform}.enabled" ${p.enabled ? "checked" : ""}>
+        <span>${esc(p.label)}</span>
+        <span class="hint" style="font-weight:400">（可发：${esc(kinds)}）</span>
+        ${ready}
+      </label>
+      ${why}
+      ${wx}
+    </div>`;
+  }).join("");
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function escAttr(s) { return esc(s); }
+
+document.addEventListener("click", async (e) => {
+  if (!e.target.closest || !e.target.closest("#pub-save")) return;
+  const platforms = {};
+  document.querySelectorAll("[data-pub]").forEach((el) => {
+    const [plat, key] = el.dataset.pub.split(".");
+    platforms[plat] = platforms[plat] || {};
+    if (el.type === "checkbox") platforms[plat][key] = el.checked;
+    else if (el.type === "password") { if (el.value) platforms[plat][key] = el.value; }  // 空 = 不修改
+    else platforms[plat][key] = el.value;
+  });
+  try {
+    await api("POST", "/api/publish/config", { platforms, defaults: { account: $("pub-account").value || "creator" } });
+    flash("pub-flash", true, "已保存，下一轮生效");
+    await loadPublish();
+  } catch (err) {
+    flash("pub-flash", false, "保存失败：" + err.message);
+  }
+});

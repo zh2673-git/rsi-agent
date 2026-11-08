@@ -1,0 +1,7 @@
+{
+  "id": "G4A-RUST-LOCK-IMPL",
+  "description": "board.rs：新增跨进程 BoardLock（create_new 独占 + mtime 残锁回收 + Drop 释放），并改正「原子替换=并发安全」的错误论证。I-20261108-06 G4a",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/g4a-rust-block-anchor.txt",
+  "patch_file": "blocks/g4a-rust-block-patch.txt"
+}

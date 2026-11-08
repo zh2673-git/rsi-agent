@@ -59,6 +59,7 @@
     <button data-tab="skills">技能</button>
     <button data-tab="memory" title="画像与记忆：agent 对「你是谁」「这个域怎么做事」的结论">记忆</button>
     <button data-tab="agent">Agent</button>
+    <button data-tab="publish" title="内容分发：一份稿件发到小红书 / B站 / 视频号 / 公众号">分发</button>
   </div>
   <div class="body">
     <!-- F3：能力总览（设置抽屉的「目录页」）─────────────────────────────────────
@@ -188,6 +189,21 @@
         <button class="btn ghost" id="mem-reveal" title="在文件管理器中定位 profile.json">📂 源文件</button>
       </div>
       <div id="mem-body"></div>
+    </div>
+    <div id="tab-publish" hidden>
+      <p class="hint">内容分发：一份稿件发到多个平台。这里的开关是「允许发到哪里」；真正发出前还会干跑一次让你看清单。</p>
+      <div id="pub-status" class="ov"></div>
+      <div id="pub-list"></div>
+      <p class="hint" style="margin-top:10px">浏览器自动化平台（小红书 / B站 / 视频号 / 抖音）依赖开源项目 social-auto-upload（MIT）的 <code>sau</code> 命令；先在终端装好并 <code>sau xiaohongshu login --account 你的别名</code> 登录一次。公众号走官方 API，填 AppID/AppSecret 即可。</p>
+      <div class="field">
+        <label>默认账号别名（对应 sau --account）</label>
+        <input id="pub-account" placeholder="creator">
+      </div>
+      <p class="hint">公众号发布不可撤回：默认只建<b>草稿</b>，你在后台预览排版后再点发布。勾「直接发布」才会一步发出。</p>
+      <div class="row" style="gap:8px;display:flex;align-items:center;margin-top:10px">
+        <button id="pub-save" class="primary">保存分发配置</button>
+        <span id="pub-flash" class="flash"></span>
+      </div>
     </div>
     <div id="tab-agent" hidden>
       <p class="hint">agent-loop 运行参数（保存即下轮对话生效 + 落盘 config.json）。0 的语义见各标签。</p>

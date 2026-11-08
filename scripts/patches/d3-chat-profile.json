@@ -1,7 +1,8 @@
 {
- "id": "D3-CHAT-PROFILE",
- "description": "chat.rs 系统提示词拼接：board_ctx 之后追加 profile_ctx（画像属于输入，不让模型每轮自己去取）",
- "file": "runtime/crates/agent-loop/src/chat.rs",
- "anchor_file": "blocks/d-chat-profile-anchor.txt",
- "patch_file": "blocks/d-chat-profile.txt"
+  "id": "D3-CHAT-PROFILE",
+  "description": "chat.rs 系统提示词拼接：board_ctx 之后追加 profile_ctx（画像属于输入，不让模型每轮自己去取）。G4C 轮把拼接改为「override 生效时三段全空」，profile_ctx 仍在非覆盖态拼接——本补丁意图已由 G4C-OVERRIDE-IS-TOTAL 实现，故以终态串判定幂等",
+  "applied_marker": "let profile_ctx = super::profile_ctx::profile_context();",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/d-chat-profile-anchor.txt",
+  "patch_file": "blocks/d-chat-profile.txt"
 }

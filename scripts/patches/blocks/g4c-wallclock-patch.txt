@@ -1,0 +1,9 @@
+    let saved = std::env::var("CHAT_BUDGET_SECS").ok();
+    std::env::set_var("CHAT_BUDGET_SECS", "0.2"); // 200ms
+    // 本用例测**墙钟**闸，与 token 闸无关：必须显式关掉 `LLM_CONTEXT_TOKENS`。
+    // 同文件 token 闸那组会把它设成 430，而那些用例 panic 时跳过恢复（恢复代码在
+    // assert 之后），残值就泄漏给后续用例——表现为本用例莫名 `CONTEXT_OVERFLOW`
+    // （budget 301 / estimated 310 / limit 430，三个数全是别人的）。
+    // 依赖运行顺序才通过的测试不是测试，是运气。
+    let saved_tokens = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    std::env::remove_var("LLM_CONTEXT_TOKENS");

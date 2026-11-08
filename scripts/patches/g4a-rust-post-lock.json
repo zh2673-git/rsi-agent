@@ -1,0 +1,7 @@
+{
+  "id": "G4A-RUST-POST-LOCK",
+  "description": "post_board：load 之前取锁，拿不到回 409 K409（不静默无锁写）。I-20261108-06 G4a",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/g4a-post-anchor.txt",
+  "patch_file": "blocks/g4a-post-patch.txt"
+}

@@ -321,6 +321,9 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         // 「能看」解决「我记了什么看不见」，「只能删」守住「结论该由观察产生」。
         ("GET", "/api/profile") => api::get_profile(&mut stream).await,
         ("POST", "/api/profile") => api::post_profile(&mut stream, &body).await,
+        // I-20261108-07：内容分发平台配置（凭证单独落 config/publish.json）
+        ("GET", "/api/publish/config") => api::get_publish_config(&mut stream).await,
+        ("POST", "/api/publish/config") => api::post_publish_config(&mut stream, &body).await,
         ("GET", "/api/config") => api::get_config(&mut stream, &kernel).await,
         ("GET", "/api/models") => api::get_models(&mut stream, &kernel, query).await,
         ("GET", "/api/presets") => api::get_presets(&mut stream, &kernel).await,

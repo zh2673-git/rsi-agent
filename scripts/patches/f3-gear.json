@@ -1,7 +1,8 @@
 {
-  "id": "F3-MEM-LOAD",
-  "description": "app-settings.js：打开设置时加载记忆页，标签切换序列补 memory",
-  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
-  "anchor_file": "blocks/f3-gear-anchor.txt",
-  "patch_file": "blocks/f3-gear.txt"
+ "id": "F3-MEM-LOAD",
+ "description": "app-settings.js：打开设置时加载记忆页，标签切换序列补 memory",
+ "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+ "anchor_file": "blocks/f3-gear-anchor.txt",
+ "patch_file": "blocks/f3-gear.txt",
+ "applied_marker": "loadMemory()"
 }

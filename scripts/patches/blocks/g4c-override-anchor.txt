@@ -1,0 +1,9 @@
+        // C 轮：看板上下文装载。@T-/@I- 引用是**输入的一部分**（先解析再回答，不让模型
+        // 花一次工具往返去 show 自己刚引用的条目）；无引用但本轮像「交代一件成规模的事」时，
+        // 退化为在办任务摘要（跨任务归纳的最小落点：先知道自己手上有哪些活）。
+        // 失败静默（文件缺失/坏 JSON → 空串），绝不让看板坏掉拖垮 chat。
+        let board_ctx = super::board_ctx::refs_context(&req.user_text, want_task_plan);
+        // D 轮：习惯画像。与看板引用同一取舍——画像属于**输入**，不该让模型每轮
+        // 花一次工具往返去 `profile.py brief` 取自己的长期记忆；读一份本机 JSON 是纯 I/O。
+        // 失败静默（无文件/坏 JSON/空画像 → 空串），画像坏了不能拖垮 chat。
+        let profile_ctx = super::profile_ctx::profile_context();

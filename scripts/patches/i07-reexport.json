@@ -1,0 +1,7 @@
+{
+  "id": "I07-REEXPORT",
+  "description": "web/api/mod.rs：re-export publish 的两个端点（mod 声明不等于可见）",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor_file": "blocks/i07-reexport-anchor.txt",
+  "patch_file": "blocks/i07-reexport-patch.txt"
+}
