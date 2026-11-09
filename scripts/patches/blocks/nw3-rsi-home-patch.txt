@@ -1,0 +1,56 @@
+use std::time::Duration;
+
+/// 工具能力锚点（**代码根**）：看板 / 画像 CLI 住在代码根的 `scripts/` 下，
+/// 不在用户项目目录里。`WORKSPACE_ROOT` 是用户项目——「新窗口」的全部意义就是把它
+/// 换成别的目录，所以不能拿它定位工具。
+///
+/// 这是一处**能力挂错宿主**的 bug，不是「项目里正好没这个脚本」：
+/// 主窗口里 WORKSPACE_ROOT 恰好等于代码根，三处门控（board_ctx / profile_ctx /
+/// skills）探测成功；用户一开「新窗口」绑到自己的项目，WORKSPACE_ROOT 变成项目目录，
+/// 探测全失败 → 提示词里看板段整段消失、CLI 也调不到 → **子窗口的看板永远收不到任务**。
+/// 与 `host::config::rsi_home` 同源（agent-loop 不依赖 host crate），改一侧必须改另一侧。
+///
+/// 判定顺序：
+///   1. `RSI_HOME`（子实例由 instances.rs 显式传入；测试靠它隔离）
+///   2. `WORKSPACE_ROOT`——仅当其中真有 `scripts/` 下的 CLI（检出即工作区的形态）
+///   3. 从 exe 与 cwd 向上找含 CLI 的祖先目录
+///
+/// 不写死编译期路径：编进宿主二进制后 `CARGO_MANIFEST_DIR` 指向构建机源码目录，
+/// 发布形态下并不存在；运行时 exe / cwd 附近才是可靠锚点。
+pub(crate) fn rsi_home() -> Option<std::path::PathBuf> {
+    fn has_cli(p: &std::path::Path) -> bool {
+        p.join("scripts").join("board.py").is_file()
+            || p.join("scripts").join("profile.py").is_file()
+    }
+    if let Some(v) = std::env::var_os("RSI_HOME") {
+        let p = std::path::PathBuf::from(v);
+        if !p.as_os_str().is_empty() {
+            return Some(p);
+        }
+    }
+    if let Some(ws) = std::env::var_os("WORKSPACE_ROOT") {
+        let ws = std::path::PathBuf::from(ws);
+        // WORKSPACE_ROOT 是用户项目时，代码根可能在它的祖先上（如项目放在仓库内）。
+        for anc in ws.ancestors() {
+            if has_cli(anc) {
+                return Some(anc.to_path_buf());
+            }
+        }
+    }
+    let mut seeds: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(d) = exe.parent() {
+            seeds.push(d.to_path_buf());
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        seeds.push(cwd);
+    }
+    seeds
+        .iter()
+        .flat_map(|s| s.ancestors())
+        .find(|p| has_cli(p))
+        .map(|p| p.to_path_buf())
+}
+
+/// 会消费 `num_ctx` 的本地窗口型 provider（显存受限，常需调小窗口换速度）。

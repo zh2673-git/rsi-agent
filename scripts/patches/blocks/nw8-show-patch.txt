@@ -1,0 +1,2 @@
+             before answering: `{cmd} show <ID>`. An inspiration the user wants acted on \
+             becomes work via `task-upsert`.

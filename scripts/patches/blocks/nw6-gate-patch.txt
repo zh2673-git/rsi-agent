@@ -1,0 +1,13 @@
+    pub(super) fn task_board_section(full: bool) -> String {
+        // 包装层：正文一字不动，出口把相对命令重写成绝对命令（见 abs_cli_cmds）。
+        super::board_ctx::abs_cli_cmds(&Self::task_board_section_body(full))
+    }
+
+    /// 门控锚定**代码根**（`config::rsi_home`），不是 WORKSPACE_ROOT：
+    /// 后者是用户项目，「新窗口」把它换成别的目录后这里会探测失败 →
+    /// 看板段整段消失 → 子窗口永远不登记任务。
+    fn task_board_section_body(full: bool) -> String {
+        if !super::board_ctx::has_board_cli() {
+            return String::new();
+        }
+        let brief = "\n## Task board (single-conversation UI)\n\

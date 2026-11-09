@@ -1,0 +1,24 @@
+    /// 任务看板提示段：工作区有 scripts/board.py 才注入；full 才给规范；brief 必须点明通道。
+    #[test]
+    fn task_board_section_requires_cli_and_scales_by_flag() {
+        let old = std::env::var("WORKSPACE_ROOT").ok();
+        let dir = std::env::temp_dir().join(format!("ra-board-test-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("scripts")).expect("mkdir");
+        std::env::set_var("WORKSPACE_ROOT", &dir);
+        // 无 CLI → 不注入（别的项目工作区不该多这一段）
+        assert!(AgentLoopPlugin::task_board_section(true).is_empty(), "无 board.py 时不得注入");
+        std::fs::write(dir.join("scripts").join("board.py"), "print('x')\n").expect("write");
+        let brief = AgentLoopPlugin::task_board_section(false);
+        let full = AgentLoopPlugin::task_board_section(true);
+        assert!(brief.contains("scripts/board.py"), "brief 必须点明 CLI 通道");
+        assert!(!brief.contains("resourcing.model"), "brief 不得含完整规范");
+        assert!(full.contains("resourcing.model"), "full 必须讲人财物");
+        assert!(full.contains("acceptance"), "full 必须讲验收标准");
+        assert!(full.len() > brief.len(), "full 应比 brief 长");
+        match old {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+

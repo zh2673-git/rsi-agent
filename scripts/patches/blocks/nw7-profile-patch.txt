@@ -1,0 +1,10 @@
+pub(super) fn profile_ops_hint(full: bool) -> String {
+    // 门控锚定**代码根**（`config::rsi_home`），不是 WORKSPACE_ROOT：
+    // 后者是用户项目，「新窗口」换成别的目录后这里会探测失败 → 画像通道整段消失。
+    // 与看板同源，见 board_ctx::has_board_cli。
+    let Some(ws) = super::config::rsi_home() else {
+        return String::new();
+    };
+    if !ws.join("scripts").join("profile.py").is_file() {
+        return String::new();
+    }

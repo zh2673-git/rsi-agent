@@ -1,0 +1,2 @@
+        .env("REACT_INSTANCE_NAME", name)
+        .spawn()

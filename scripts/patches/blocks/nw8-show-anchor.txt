@@ -1,0 +1,2 @@
+             before answering: `python scripts/board.py show <ID>`. An inspiration the user wants acted on \
+             becomes work via `task-upsert`.

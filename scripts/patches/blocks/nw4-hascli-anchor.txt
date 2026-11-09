@@ -1,0 +1,7 @@
+/// 工作区里是否有看板 CLI（`scripts/board.py`）——决定是否注入看板通道段。
+/// 别的项目工作区没有这个脚本，就不该多出这段提示词。
+pub(super) fn has_board_cli() -> bool {
+    workspace_root()
+        .map(|ws| ws.join("scripts").join("board.py").is_file())
+        .unwrap_or(false)
+}

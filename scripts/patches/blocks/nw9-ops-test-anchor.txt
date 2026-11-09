@@ -1,0 +1,14 @@
+    /// C 轮：看板通道说明只在有 CLI 时出现，full 才讲评价纪律。
+    #[test]
+    fn board_ops_hint_scales_by_flag_and_cli() {
+        use super::board_ctx::board_ops_hint;
+        assert!(board_ops_hint(true, false).is_empty(), "无 board.py 不得注入");
+        let brief = board_ops_hint(false, true);
+        let full = board_ops_hint(true, true);
+        assert!(brief.contains("auto-loaded"), "brief 必须说明 @引用已自动装载");
+        assert!(!brief.contains("board.py eval"), "brief 不得含评价纪律");
+        assert!(full.contains("board.py eval"), "full 必须给评价执行通道");
+        assert!(full.contains("digest --skill"), "full 必须给同类归纳通道");
+        assert!(full.len() > brief.len(), "full 必须比 brief 长");
+    }
+

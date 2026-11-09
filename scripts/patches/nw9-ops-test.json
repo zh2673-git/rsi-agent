@@ -1,0 +1,9 @@
+{
+  "id": "NW9-OPS-TEST-ABS",
+  "description": "lib.rs：board_ops_hint 测试断言跟随绝对路径改写（盯不变量『full 给评价通道』而非拼写）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/nw9-ops-test-anchor.txt",
+  "patch_file": "blocks/nw9-ops-test-patch.txt",
+  "applied_marker": "assert!(full.contains(\"eval <ID>\"), \"full 必须给评价执行通道\");",
+  "order": 10
+}

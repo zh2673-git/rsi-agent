@@ -1,0 +1,9 @@
+{
+  "id": "NW4-BOARD-CLI-PATH",
+  "description": "board_ctx.rs：has_board_cli 改锚定代码根，新增 board_cli_path / abs_cli_cmds（相对命令→绝对命令）",
+  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+  "anchor_file": "blocks/nw4-cli-anchor.txt",
+  "patch_file": "blocks/nw4-cli-patch.txt",
+  "applied_marker": "pub(super) fn board_cli_path() -> Option<PathBuf> {",
+  "order": -1
+}

@@ -1,0 +1,9 @@
+{
+  "id": "NW8-FIX-CONST-TRUNCATION",
+  "description": "config.rs：修复 NW3 锚点截断事故——补回被吃掉的 `const LOCAL_WINDOW_PROVIDERS` 符号",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/nw8-fix-const-anchor.txt",
+  "patch_file": "blocks/nw8-fix-const-patch.txt",
+  "applied_marker": "const LOCAL_WINDOW_PROVIDERS: [&str; 1] = [\"ollama\"];",
+  "order": 9
+}

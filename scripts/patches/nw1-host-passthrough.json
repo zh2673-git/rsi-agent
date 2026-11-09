@@ -1,0 +1,9 @@
+{
+  "id": "NW1-HOST-PASSTHROUGH",
+  "description": "host config.rs：passthrough_env 增加 RSI_HOME（工具能力锚点透传给 tools/assets）",
+  "file": "runtime/crates/host/src/config.rs",
+  "anchor_file": "blocks/nw1-pass-anchor.txt",
+  "patch_file": "blocks/nw1-pass-patch.txt",
+  "applied_marker": "\"RSI_HOME\",\n            \"TOOLS_ENABLED\",",
+  "order": 1
+}

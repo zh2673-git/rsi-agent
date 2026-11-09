@@ -1,0 +1,7 @@
+pub(super) fn profile_ops_hint(full: bool) -> String {
+    let Some(ws) = workspace_root() else {
+        return String::new();
+    };
+    if !ws.join("scripts").join("profile.py").is_file() {
+        return String::new();
+    }

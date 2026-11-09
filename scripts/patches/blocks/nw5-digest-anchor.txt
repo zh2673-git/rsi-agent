@@ -1,0 +1,2 @@
+        "\n## Open tasks on the board (digest; `python scripts/board.py digest --skill <name>` \
+         for same-kind history)\n",

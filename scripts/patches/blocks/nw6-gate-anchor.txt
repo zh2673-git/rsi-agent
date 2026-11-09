@@ -1,0 +1,10 @@
+    pub(super) fn task_board_section(full: bool) -> String {
+        // 看板存在性探测：只有工作区里真有 scripts/board.py 才注入（别的项目工作区不该多这段）。
+        let Ok(ws) = std::env::var("WORKSPACE_ROOT") else {
+            return String::new();
+        };
+        let cli = std::path::Path::new(&ws).join("scripts").join("board.py");
+        if !cli.is_file() {
+            return String::new();
+        }
+        let brief = "\n## Task board (single-conversation UI)\n\

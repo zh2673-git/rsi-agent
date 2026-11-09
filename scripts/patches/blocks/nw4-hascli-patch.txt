@@ -1,0 +1,34 @@
+/// 看板 CLI 的绝对路径（锚定**代码根**，见 `crate::config::rsi_home`）。
+///
+/// 为什么返回路径而不是 bool：提示词里必须给出**可直接执行**的命令。
+/// 子窗口的 WORKSPACE_ROOT 是用户项目，`python scripts/board.py` 在那儿并不存在，
+/// 只给短命令等于让模型撞一次「文件不存在」后放弃登记任务。
+pub(super) fn board_cli_path() -> Option<PathBuf> {
+    let p = super::config::rsi_home()?.join("scripts").join("board.py");
+    p.is_file().then_some(p)
+}
+
+/// 是否有看板 CLI——决定是否注入看板通道段（工作区没有这个能力时不该多出这段）。
+pub(super) fn has_board_cli() -> bool {
+    board_cli_path().is_some()
+}
+
+/// 写进提示词的执行前缀 `python "<abs>/scripts/board.py"`。
+///
+/// 反斜杠统一成 `/`（cmd 与 bash 都认），路径含空格时加引号——本机工作区路径实测
+/// 带空格（`D:/ZH/vibe code/...`），不加引号会被 shell 拆成两段直接报错。
+/// 找不到 CLI 时回落到相对短命令：只可能出现在「工作区外无 CLI」的退化场景，
+/// 而那时调用方本就不会注入这段提示词。
+pub(super) fn board_cli_cmd() -> String {
+    match board_cli_path() {
+        Some(p) => {
+            let s = p.to_string_lossy().replace('\\', "/");
+            if s.contains(' ') {
+                format!("python \"{s}\"")
+            } else {
+                format!("python {s}")
+            }
+        }
+        None => "python scripts/board.py".to_string(),
+    }
+}

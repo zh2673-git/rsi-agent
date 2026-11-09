@@ -1,0 +1,18 @@
+    /// C 轮：看板通道说明只在有 CLI 时出现，full 才讲评价纪律。
+    ///
+    /// v10：命令已改成**绝对路径**（`board_cli_path` 的落点），故断言从
+    /// `board.py eval` 放宽为 `eval <ID>`——绝对路径在这两个字串中间插了引号，
+    /// 死盯 `board.py eval` 会把「路径正确」误判成「能力缺失」。
+    /// 真正要守的不变量是「full 给了评价执行通道」，不是某个具体拼写。
+    #[test]
+    fn board_ops_hint_scales_by_flag_and_cli() {
+        use super::board_ctx::board_ops_hint;
+        assert!(board_ops_hint(true, false).is_empty(), "无 CLI 不得注入");
+        let brief = board_ops_hint(false, true);
+        let full = board_ops_hint(true, true);
+        assert!(brief.contains("auto-loaded"), "brief 必须说明 @引用已自动装载");
+        assert!(!brief.contains("eval <ID>"), "brief 不得含评价纪律");
+        assert!(full.contains("eval <ID>"), "full 必须给评价执行通道");
+        assert!(full.contains("digest --skill"), "full 必须给同类归纳通道");
+        assert!(full.len() > brief.len(), "full 必须比 brief 长");
+    }

@@ -1,0 +1,9 @@
+{
+  "id": "NW7-PROFILE-GATE",
+  "description": "profile_ctx.rs：画像段门控同源改 rsi_home（新窗口里画像也不再消失）",
+  "file": "runtime/crates/agent-loop/src/profile_ctx.rs",
+  "anchor_file": "blocks/nw7-profile-anchor.txt",
+  "patch_file": "blocks/nw7-profile-patch.txt",
+  "applied_marker": "let Some(ws) = super::config::rsi_home() else {",
+  "order": 5
+}

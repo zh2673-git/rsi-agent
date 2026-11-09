@@ -1,0 +1,20 @@
+    pub(super) fn task_board_section(full: bool) -> String {
+        // 门控锚定**代码根**（`config::rsi_home`），不是 WORKSPACE_ROOT：
+        // 后者是用户项目，「新窗口」把它换成别的目录后这里就会探测失败 →
+        // 看板段整段消失 → 子窗口永远不登记任务。见 config.rs::rsi_home 的论证。
+        let Some(cli) = super::board_ctx::board_cli_path() else {
+            return String::new();
+        };
+        let cmd = super::board_ctx::board_cli_cmd();
+        // 提示词里给**绝对路径**：子窗口的 cwd 是用户项目，`python scripts/board.py`
+        // 在那里不存在。路径每次现算（不缓存）——RSI_HOME 变更下轮即生效。
+        let _ = cli;
+        let brief = format!("\n## Task board (single-conversation UI)\n\
+             The left panel is a TASK BOARD, not a session list: the user talks to you in one \
+             continuous conversation and never manages project categories — you do that. When a \
+             request becomes real work (not a one-liner), register it with \
+             `{cmd}` (bash is enabled by default; skill tools are not). This CLI lives in the \
+             rsi-agent code root, NOT in the current workspace — always call it by this path. \
+             Board ops: `task-upsert --file <json|->`, `task-status <ID> <status> [--note ..]`, \
+             `task-progress <ID> <done>/<total>`, `list`, `show <ID>`, `stats`. \
+             The board lives in `.rsi/board.json`; do not put its content into every reply.\n");

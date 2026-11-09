@@ -1,0 +1,9 @@
+{
+  "id": "NW2-INSTANCES-RSI-HOME",
+  "description": "instances.rs：spawn 子实例显式传 RSI_HOME=代码根，修「新窗口绑别的项目后看板永不登记任务」",
+  "file": "runtime/crates/host/src/instances.rs",
+  "anchor_file": "blocks/nw2-spawn-anchor.txt",
+  "patch_file": "blocks/nw2-spawn-patch.txt",
+  "applied_marker": ".env(\"RSI_HOME\", crate::config::workspace_dir())",
+  "order": 2
+}

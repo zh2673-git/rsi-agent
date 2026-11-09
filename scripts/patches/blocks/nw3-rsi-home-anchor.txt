@@ -1,0 +1,3 @@
+use std::time::Duration;
+
+/// 会消费 `num_ctx` 的本地窗口型 provider（显存受限，常需调小窗口换速度）。

@@ -1,0 +1,2 @@
+             Run `python scripts/board.py eval <ID>`; it writes `evaluation.verdict` and **downgrades \
+             verifying/done back to doing when a check fails**. `done` without a passing evaluation \

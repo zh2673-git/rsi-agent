@@ -1,0 +1,9 @@
+{
+  "id": "NW10-BOARDSEC-TEST-NEWWIN",
+  "description": "lib.rs：task_board_section 测试重写——旧断言（无 board.py 不注入）正是 bug 本身；新版守『换工作区不影响能力』并断言给绝对路径",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/nw10-boardsec-test-anchor.txt",
+  "patch_file": "blocks/nw10-boardsec-test-patch.txt",
+  "applied_marker": "let (old_ws, old_home) = (",
+  "order": 11
+}

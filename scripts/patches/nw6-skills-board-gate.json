@@ -1,0 +1,9 @@
+{
+  "id": "NW6-SKILLS-BOARD-GATE",
+  "description": "skills.rs：task_board_section 门控改 has_board_cli（代码根），并包一层 abs_cli_cmds 输出绝对命令",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/nw6-gate-anchor.txt",
+  "patch_file": "blocks/nw6-gate-patch.txt",
+  "applied_marker": "fn task_board_section_body(full: bool) -> String {",
+  "order": 4
+}

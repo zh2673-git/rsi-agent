@@ -1,0 +1,5 @@
+    }
+    out
+}
+
+/// 看板 CLI 的绝对路径（锚定**代码根**，见 `crate::config::rsi_home`）。

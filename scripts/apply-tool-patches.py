@@ -316,9 +316,19 @@ def _load_external() -> list[dict]:
             else:
                 item["anchor"] = _block_or_inline(pdir, d, "anchor")
                 item["patch"] = _block_or_inline(pdir, d, "patch")
+                # ⚠️ 顺序是语义（K 轮血泪，改前必读）：补丁按文件名 ASCII 排序执行，
+                # 于是 `c-style.json`（追加）会排在 `z4-*.json`（修复）**前面**——修复型
+                # 补丁刚把重复块删掉，追加型补丁又把它写回来，整条链永远收敛不了。
+                # 实测：Z4 因此报「锚点未命中」，且 --revert 重放也修不回来。
+                # 解法：`order` 显式定序（缺省 0）。修复型（z*/repair）必须给负值，
+                # 或者把追加型源头修好、让修复型无事可做。两条路都要，见 docs。
+                item["order"] = int(d.get("order", 0) or 0)
                 # repair 型（删除多余片段）：锚点不存在 = 已修好，见 _apply_one 说明
                 if d.get("repair"):
                     item["repair"] = True
+                # 收敛型：目的是「让重复块消失」，锚点不存在 = 已收敛（不是漂移）
+                if d.get("converge"):
+                    item["converge"] = True
                 # 修复型补丁（删多余的一层/一行）：应用后锚点消失，anchor/patch 判据
                 # 表达不了「已应用」。applied_marker 是终态特征串，命中即视为已应用。
                 marker_file = d.get("applied_marker_file")
@@ -329,6 +339,9 @@ def _load_external() -> list[dict]:
             out.append(item)
         except Exception as e:
             print(f"[{jf.name}] SKIP 外挂补丁字段缺失: {e}")
+    # 稳定排序：order 小的先跑（缺省 0）。同 order 保持文件名序 —— 修复型补丁要给
+    # 负 order 才能「先删后加」；但正解是修掉追加型源头，否则每次重放都在打架。
+    out.sort(key=lambda it: (it.get("order", 0), it["id"]))
     return out
 
 
@@ -341,7 +354,22 @@ def _block_or_inline(pdir: Path, d: dict, key: str) -> str:
 
 
 def _read(p: Path) -> str:
-    return p.read_text(encoding="utf-8")
+    """读文件并**归一化换行到 LF**。
+
+    为什么必须归一化（K 轮实测，改前必读）：目标文件在 Windows 上是 CRLF
+    （`write_text` 默认做换行翻译），而 `blocks/*.txt` 由 write_file 写出是 LF。
+    不归一化时 `anchor in src` 恒为假 → 补丁被判「锚点未命中」而 FAIL，或更坏：
+    长句改短型被判「已应用」而静默跳过（Z4 实测踩到）。
+
+    归一化的另一半在 `_write`：写回时同样用 LF，再由 Python 统一翻译成 CRLF，
+    于是「补丁文本用什么换行」不再影响能否命中——这正是跨平台补丁该有的语义。
+    """
+    return p.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _write(p: Path, text: str) -> None:
+    """写回（与 `_read` 对称）：统一以 LF 落盘，换行翻译交给文件系统层。"""
+    p.write_text(text, encoding="utf-8")
 
 
 def _bak(p: Path) -> Path:
@@ -380,7 +408,7 @@ def _apply_one(item: dict, dry: bool) -> int:
             print(f"[{pid}] DRY  将新建文件: {desc}  ({path.relative_to(ROOT)})")
             return 0
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        _write(path, content)
         print(f"[{pid}] CREATE 已新建: {desc}  ({path.relative_to(ROOT)})")
         return 0
 
@@ -419,7 +447,7 @@ def _apply_one(item: dict, dry: bool) -> int:
             return 0
         if not _bak(path).exists():
             shutil.copy2(path, _bak(path))
-        path.write_text(src.replace(anchor, patch, 1), encoding="utf-8")
+        _write(path, src.replace(anchor, patch, 1))
         print(f"[{pid}] REPAIR 已修复: {desc}  ({path.relative_to(ROOT)}，备份 {_bak(path).name})")
         return 0
 
@@ -431,6 +459,13 @@ def _apply_one(item: dict, dry: bool) -> int:
         print(f"[{pid}] OK   已应用过（幂等跳过）: {desc}")
         return 0
     if anchor not in src:
+        # `converge`（收敛型）：这条补丁的目的是「让重复块消失」。锚点不存在
+        # 正是收敛完成的状态——不是漂移，也不该 FAIL。
+        # 与 `repair` 的区别：converge 仍带 patch 文本（保留了「它原本想写成什么」），
+        # 因此可以同时充当文档；repair 的 patch 恒为空。
+        if item.get("converge"):
+            print(f"[{pid}] OK   已收敛（converge 型：坏块已不存在，幂等跳过）: {desc}")
+            return 0
         if marker:
             print(f"[{pid}] FAIL 锚点未命中且 applied_marker 未出现"
                   f"（源码漂移或 marker 写错，需人工核对）: {path}")
@@ -444,7 +479,7 @@ def _apply_one(item: dict, dry: bool) -> int:
         return 0
     if not _bak(path).exists():
         shutil.copy2(path, _bak(path))
-    path.write_text(src.replace(anchor, patch, 1), encoding="utf-8")
+    _write(path, src.replace(anchor, patch, 1))
     print(f"[{pid}] APPLY 已写入: {desc}  ({path.relative_to(ROOT)}，备份 {_bak(path).name})")
     return 0
 

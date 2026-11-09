@@ -1,0 +1,9 @@
+{
+  "id": "NW5-BOARD-OPS-ABS",
+  "description": "board_ctx.rs：board_ops_hint 出口统一把相对 CLI 命令重写成绝对命令",
+  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+  "anchor_file": "blocks/nw5-ops-anchor.txt",
+  "patch_file": "blocks/nw5-ops-patch.txt",
+  "applied_marker": "    abs_cli_cmds(&out)\n}",
+  "order": 3
+}

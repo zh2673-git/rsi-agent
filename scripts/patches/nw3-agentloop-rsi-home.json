@@ -1,0 +1,9 @@
+{
+  "id": "NW3-AGENTLOOP-RSI-HOME",
+  "description": "agent-loop config.rs：新增 rsi_home()——工具能力锚点与工作区解耦（RSI_HOME > 含CLI的工作区祖先 > exe/cwd 祖先）",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/nw3-home-anchor.txt",
+  "patch_file": "blocks/nw3-home-patch.txt",
+  "applied_marker": "pub(crate) fn rsi_home() -> Option<std::path::PathBuf> {",
+  "order": -2
+}
