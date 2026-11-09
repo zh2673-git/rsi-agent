@@ -346,7 +346,10 @@ pub(super) fn profile_context() -> String {
 /// 画像通道说明（提示词纪律段；只在工作区真有 `scripts/profile.py` 时注入，
 /// 别的项目工作区不该凭空多出一段「你有个画像文件」的误导）。
 pub(super) fn profile_ops_hint(full: bool) -> String {
-    let Some(ws) = workspace_root() else {
+    // 门控锚定**代码根**（`config::rsi_home`），不是 WORKSPACE_ROOT：
+    // 后者是用户项目，「新窗口」换成别的目录后这里会探测失败 → 画像通道整段消失。
+    // 与看板同源，见 board_ctx::has_board_cli。
+    let Some(ws) = super::config::rsi_home() else {
         return String::new();
     };
     if !ws.join("scripts").join("profile.py").is_file() {

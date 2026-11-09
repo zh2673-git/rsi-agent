@@ -718,12 +718,12 @@ mod tests {
     #[test]
     fn board_ops_hint_scales_by_flag_and_cli() {
         use super::board_ctx::board_ops_hint;
-        assert!(board_ops_hint(true, false).is_empty(), "无 board.py 不得注入");
+        assert!(board_ops_hint(true, false).is_empty(), "无 CLI 不得注入");
         let brief = board_ops_hint(false, true);
         let full = board_ops_hint(true, true);
         assert!(brief.contains("auto-loaded"), "brief 必须说明 @引用已自动装载");
-        assert!(!brief.contains("board.py eval"), "brief 不得含评价纪律");
-        assert!(full.contains("board.py eval"), "full 必须给评价执行通道");
+        assert!(!brief.contains("eval <ID>"), "brief 不得含评价纪律");
+        assert!(full.contains("eval <ID>"), "full 必须给评价执行通道");
         assert!(full.contains("digest --skill"), "full 必须给同类归纳通道");
         assert!(full.len() > brief.len(), "full 必须比 brief 长");
     }
@@ -742,30 +742,54 @@ mod tests {
         }
     }
 
-    /// 任务看板提示段：工作区有 scripts/board.py 才注入；full 才给规范；brief 必须点明通道。
+    /// 任务看板提示段：CLI 能力锚定**代码根**，与工作区无关；full 才给规范。
+    ///
+    /// v10 语义变更（本测试重写）：旧版断言「工作区没有 board.py → 不注入」，
+    /// 那条规则正是 bug 本身——用户开「新窗口」把 WORKSPACE_ROOT 换成自己的项目后，
+    /// 看板段就整段消失，于是子窗口的看板永远收不到任务。
+    /// 现在的不变量是：**换工作区不影响能力**，只要代码根有 CLI 就注入。
     #[test]
     fn task_board_section_requires_cli_and_scales_by_flag() {
-        let old = std::env::var("WORKSPACE_ROOT").ok();
+        let (old_ws, old_home) = (
+            std::env::var_os("WORKSPACE_ROOT"),
+            std::env::var_os("RSI_HOME"),
+        );
         let dir = std::env::temp_dir().join(format!("ra-board-test-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("scripts")).expect("mkdir");
-        std::env::set_var("WORKSPACE_ROOT", &dir);
-        // 无 CLI → 不注入（别的项目工作区不该多这一段）
-        assert!(AgentLoopPlugin::task_board_section(true).is_empty(), "无 board.py 时不得注入");
         std::fs::write(dir.join("scripts").join("board.py"), "print('x')\n").expect("write");
+        // 代码根（带 CLI）与工作区（用户项目，无 CLI）分开摆——这就是「新窗口」形态。
+        std::env::set_var("RSI_HOME", &dir);
+        let proj = dir.join("user-project");
+        std::fs::create_dir_all(&proj).expect("mkdir project");
+        std::env::set_var("WORKSPACE_ROOT", &proj);
+
         let brief = AgentLoopPlugin::task_board_section(false);
         let full = AgentLoopPlugin::task_board_section(true);
-        assert!(brief.contains("scripts/board.py"), "brief 必须点明 CLI 通道");
+        assert!(!brief.is_empty(), "代码根有 CLI 时，换工作区也必须注入（这是 bug 的回归点）");
+        assert!(brief.contains("board.py"), "brief 必须点明 CLI 通道");
+        assert!(brief.contains(&dir.to_string_lossy().replace('\\', "/")),
+                "提示词必须给绝对路径（子窗口 cwd 里没有 scripts/board.py）: {brief}");
         assert!(!brief.contains("resourcing.model"), "brief 不得含完整规范");
         assert!(full.contains("resourcing.model"), "full 必须讲人财物");
         assert!(full.contains("acceptance"), "full 必须讲验收标准");
         assert!(full.len() > brief.len(), "full 应比 brief 长");
-        match old {
+
+        // 代码根没有 CLI → 不注入（别的项目工作区不该凭空多出这段提示）
+        let empty = dir.join("no-cli-root");
+        std::fs::create_dir_all(&empty).expect("mkdir");
+        std::env::set_var("RSI_HOME", &empty);
+        assert!(AgentLoopPlugin::task_board_section(true).is_empty(), "无 CLI 时不得注入");
+
+        match old_ws {
             Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
             None => std::env::remove_var("WORKSPACE_ROOT"),
         }
+        match old_home {
+            Some(v) => std::env::set_var("RSI_HOME", v),
+            None => std::env::remove_var("RSI_HOME"),
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
-
     /// B1 效率约束：内置提示词必须含批量/专用工具/收敛三条，且不删原有纪律。
     #[test]
     fn default_prompt_has_efficiency_discipline() {

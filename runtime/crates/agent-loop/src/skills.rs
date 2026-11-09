@@ -150,12 +150,15 @@ impl AgentLoopPlugin {
     /// 未启用，闭环会断在用户点配置上）。**不要求每轮更新**：只在建任务/阶段迁移/阻塞/完成
     /// 四个时刻写，其余时间靠 plan 步态自然累积——每轮刷看板是形式主义，纯烧 token。
     pub(super) fn task_board_section(full: bool) -> String {
-        // 看板存在性探测：只有工作区里真有 scripts/board.py 才注入（别的项目工作区不该多这段）。
-        let Ok(ws) = std::env::var("WORKSPACE_ROOT") else {
-            return String::new();
-        };
-        let cli = std::path::Path::new(&ws).join("scripts").join("board.py");
-        if !cli.is_file() {
+        // 包装层：正文一字不动，出口把相对命令重写成绝对命令（见 abs_cli_cmds）。
+        super::board_ctx::abs_cli_cmds(&Self::task_board_section_body(full))
+    }
+
+    /// 门控锚定**代码根**（`config::rsi_home`），不是 WORKSPACE_ROOT：
+    /// 后者是用户项目，「新窗口」把它换成别的目录后这里会探测失败 →
+    /// 看板段整段消失 → 子窗口永远不登记任务。
+    fn task_board_section_body(full: bool) -> String {
+        if !super::board_ctx::has_board_cli() {
             return String::new();
         }
         let brief = "\n## Task board (single-conversation UI)\n\

@@ -385,15 +385,48 @@ pub(super) fn board_ops_hint(full: bool, has_cli: bool) -> String {
              Keep digests out of the conversation: query when needed, do not paste them.\n",
         );
     }
-    out
+    abs_cli_cmds(&out)
 }
 
-/// 工作区里是否有看板 CLI（`scripts/board.py`）——决定是否注入看板通道段。
-/// 别的项目工作区没有这个脚本，就不该多出这段提示词。
+/// 看板 CLI 的绝对路径（锚定**代码根**，见 `crate::config::rsi_home`）。
+///
+/// 为什么返回路径而不是 bool：提示词里必须给出**可直接执行**的命令。
+/// 子窗口的 cwd 是用户项目，`python scripts/board.py` 在那儿并不存在，
+/// 只给相对命令等于让模型撞一次「文件不存在」后放弃登记任务。
+pub(super) fn board_cli_path() -> Option<PathBuf> {
+    let p = super::config::rsi_home()?.join("scripts").join("board.py");
+    p.is_file().then_some(p)
+}
+
+/// 是否有看板 CLI——决定是否注入看板通道段。
+///
+/// 探测点是**代码根**而非工作区，理由见 `config::rsi_home` 的文档：能力属于这套工具，
+/// 不该因为用户换了个项目目录就消失。
 pub(super) fn has_board_cli() -> bool {
-    workspace_root()
-        .map(|ws| ws.join("scripts").join("board.py").is_file())
-        .unwrap_or(false)
+    board_cli_path().is_some()
+}
+
+/// 把提示词里的相对命令 `python scripts/board.py` 重写成**绝对命令**。
+///
+/// 为什么在末端统一替换，而不是逐处改文案：
+/// ① 该相对命令在提示词里出现 8 次，跨 3 个函数与数段长字符串字面量，逐处改要
+///    同时碰 `\` 续行转义与 JSON 示例里的 `{}`（`format!` 会直接 panic），
+///    每一处都可能差一个字符；
+/// ② 「CLI 在哪」应当只有**一个来源**（`board_cli_path`），而不是散落在文案里的事实。
+/// 反斜杠统一成 `/`（cmd 与 bash 都认）；含空格时加引号——本机工作区路径实测带空格
+/// （`D:/ZH/vibe code/...`），不加引号会被 shell 拆成两段直接报错。
+/// 找不到 CLI 时原样返回（退化场景，此时调用方本就不注入这一段）。
+pub(super) fn abs_cli_cmds(text: &str) -> String {
+    let Some(p) = board_cli_path() else {
+        return text.to_string();
+    };
+    let abs = p.to_string_lossy().replace('\\', "/");
+    let cmd = if abs.contains(' ') {
+        format!("python \"{abs}\"")
+    } else {
+        format!("python {abs}")
+    };
+    text.replace("python scripts/board.py", &cmd)
 }
 
 /// D 轮：任务分解与委派纪律（I-20261107-01 的落点）。

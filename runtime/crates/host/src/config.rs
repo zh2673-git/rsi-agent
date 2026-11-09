@@ -138,6 +138,10 @@ impl HostConfig {
         const KEYS: &[&str] = &[
             // tools：工作区边界 / scope / 搜索链 / MCP server 声明
             "WORKSPACE_ROOT",
+            // v10：工具能力锚点 = 看板/画像 CLI 所在的**代码根**（不是工作区）。
+            // 子实例由 instances.rs 显式传入；这里透传给 tools/assets，
+            // 保证三个进程看到同一个锚点。
+            "RSI_HOME",
             "TOOLS_ENABLED",
             "ALLOW_CORE_WRITE",
             "MCP_SERVERS",
