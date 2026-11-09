@@ -1,0 +1,41 @@
+         Parallel work still owes **one** combined result: merge the sub-results into a single \
+         answer, do not paste N sub-agent reports and call it done.\n",
+    )
+}
+
+/// S 轮：入口分流（三档）。**只判档位，不改门控**——`user_wants_task_plan` 那个布尔门
+/// 决定「要不要注入看板规范全文」，本条决定「注入了之后按多重的流程走」。
+///
+/// 为什么必须有（trace s-mw5uq7sz 实测）：15 轮 chat 共 1922 次工具调用、单轮最多
+/// 245 rounds，`Get-Content README.md` 这种活也走完「探索 → 计划 → 看板 → 验证」。
+/// 既有提示词只有「像任务 / 不像任务」两态，缺的正是「像任务，但小到不值得开全套流程」。
+///
+/// 判据为什么不写行数/token：模型无法可靠自估这两个量，写了等于没写。
+/// 改用**可观测的对象数**（几个文件、几个模块、要不要先出方案）——动手前看目录就能数出来。
+pub(super) fn routing_hint() -> String {
+    if !has_board_cli() {
+        return String::new();
+    }
+    String::from(
+        "\n### Pick the cost tier BEFORE you act (S / M / L)\n\
+         Most turns are small. Running the full explore-plan-verify pipeline on a one-line question \
+         is the single biggest source of wasted tool calls in this workspace, so pick a tier first \
+         and let the tier decide how much process you owe.\n\
+         \x20 - **S — answer directly.** One question, one command, a one-line fix in one file, or a \
+         pure lookup. Do it and reply. No todo list, no board entry, no plan, no repo exploration. \
+         If you can name the single file you will touch, it is S.\n\
+         \x20 - **M — small change.** One module or a couple of files, and the acceptance is one \
+         sentence you could hand to a colleague. Read the target, change it, verify it (compile it, \
+         run the one relevant test, or smoke it). Update the plan steps of an EXISTING task if one \
+         covers this; do not open a new task for it.\n\
+         \x20 - **L — project-level.** Several modules, a contract change that crosses files, a new \
+         project, a reverse-engineering request, or the user asked for a plan. Load `project-dev` \
+         FIRST and follow its mode decision; do not start editing before the plan exists.\n\
+         Deciding in one breath: **how many objects will change?** one → S, a few in one module → M, \
+         many or across modules → L. Unsure between two tiers: take the CHEAPER one and escalate \
+         only when a fact forces it (a shared build dir appears, a contract breaks, the user asks \
+         for a plan). Cheap-and-wrong costs one extra round; expensive-and-unneeded costs twenty.\n\
+         Two invariants regardless of tier: verification is never skipped for M/L, and a registered \
+         task is never opened just to look busy.\n",
+    )
+}

@@ -1,0 +1,3 @@
+    /// 任务看板触发词判定：交代成规模的事才注入完整规范，闲聊不触发。
+    #[test]
+    fn want_task_plan_detection() {

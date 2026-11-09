@@ -122,6 +122,12 @@ impl AgentLoopPlugin {
         if !parallel.is_empty() {
             lines.push(parallel);
         }
+        // S 轮：入口三档分流（S/M/L）。与 decompose/parallel 同一纪律——新增能力单独成段，
+        // 锚点稳且可独立回退。门控与上面两段一致（无 board CLI 则整段不注入）。
+        let routing = super::board_ctx::routing_hint();
+        if !routing.is_empty() {
+            lines.push(routing);
+        }
         // 产物输出约定（方案 A）：给用户的成品文件统一落产物目录——模型不再把产物
         // 混写进技能目录/仓库根。提示词约束非硬边界，越界拦截仍在文件工具侧。
         lines.push(format!(

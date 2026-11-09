@@ -1,0 +1,9 @@
+{
+ "id": "S7-REPAIR-LOCK-PLACEMENT",
+ "description": "lib.rs：S4 把 ENV_LOCK 插在了 #[test] 与 fn 之间，破坏了属性归属（编译错误 the #[test] attribute may only be used on a free function）。本补丁删掉那段错位插入——ENV_LOCK 由 S4b 放到测试块开头",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor_file": "blocks/s7-repair-anchor.txt",
+ "patch_file": "blocks/s7-repair-patch.txt",
+ "repair": true,
+ "applied_marker": "fn want_task_plan_detection() {\n        // 命中：任务性动作词"
+}

@@ -1,0 +1,59 @@
+{
+  "name": "secretary",
+  "version": "0.1.0",
+  "status": "candidate",
+  "description": "秘书/协调者角色：用户 @它 或问「现在什么情况」时给出全局快照——所有任务做了没有、哪些灵感没人认领、每件活能交给哪门技能、哪些「说做完了但拿不出证据」。只读盘点，不动手干活。",
+  "triggers": [
+    "现在什么情况 / 还有哪些没做 / 哪些做完了 / 帮我盘一下",
+    "这些事能交给谁 / 谁有这方面的技能",
+    "@秘书 / @secretary 引用",
+    "贴一批任务编号问这些怎么样了"
+  ],
+  "inputs": [
+    "用户的一句话问题",
+    "可选：限定的任务范围或时间范围"
+  ],
+  "outputs": [
+    "全局快照文本（在办/无证据/无人认领灵感/派活映射/技能使用）",
+    "结构化 JSON（--json）"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "第一句是数字结论（N 件在做 / M 件无证据 / K 条灵感没人认领），不是开场白",
+      "check": "rubric"
+    },
+    {
+      "id": "a2",
+      "criterion": "每件在办的事都带「下一步」或明确说明「卡住了」",
+      "check": "rubric"
+    },
+    {
+      "id": "a3",
+      "criterion": "派活只引用技能库里真实存在的技能；库外能力如实说需先造技能",
+      "check": "assert"
+    },
+    {
+      "id": "a4",
+      "criterion": "盘点后不动手，等用户下指令（只读边界）",
+      "check": "assert"
+    }
+  ],
+  "requires": [
+    "rsi-board"
+  ],
+  "handoff": [
+    "text:snapshot",
+    "file:json"
+  ],
+  "tools": [],
+  "verification": "partial",
+  "source_level": "practice",
+  "created_at": "2026-11-09",
+  "parent": null,
+  "legacy": false,
+  "source": {
+    "path": "docs/self-evolution/04-秘书与分流.md",
+    "note": "用户的角色分工构想（我做老板看板、秘书答全局、worker 干活）；判据来自 board.py 的数据契约与 rsi-board 的证据纪律"
+  }
+}

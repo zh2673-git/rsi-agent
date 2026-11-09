@@ -1,0 +1,3 @@
+    fn routing_hint_declares_three_tiers_and_tie_break() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (old_home,) = (std::env::var_os("RSI_HOME"),);

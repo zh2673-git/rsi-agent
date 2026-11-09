@@ -1,0 +1,3 @@
+    fn task_board_section_requires_cli_and_scales_by_flag() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (old_ws, old_home) = (

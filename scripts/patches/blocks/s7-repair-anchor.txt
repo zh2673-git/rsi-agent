@@ -1,0 +1,14 @@
+    /// 任务看板触发词判定：交代成规模的事才注入完整规范，闲聊不触发。
+    #[test]
+    /// 进程级 env 是共享可变状态（`cargo test` 多测同进程并行跑）。
+    ///
+    /// 实测过的伤害：S 轮新增的 `routing_hint_declares_three_tiers_and_tie_break` 与既有的
+    /// `task_board_section_requires_cli_and_scales_by_flag` 都要 `set_var("RSI_HOME")`，
+    /// 两个线程交错时前者读到后者布置的空目录 → 提示段为空 → 既有用例红。
+    /// 这类红有个恶劣特征：**换个跑法就绿**（单线程跑不复现），于是最容易被当成 flaky 忽略，
+    /// 而它每次在 CI 上的结论都是随机的。
+    ///
+    /// 故所有改 env 的用例取同一把锁串行化（与 host `board.rs` 的 `ENV_LOCK` 同一处置）。
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn want_task_plan_detection() {

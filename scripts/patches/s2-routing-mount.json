@@ -1,0 +1,8 @@
+{
+ "id": "S2-ROUTING-MOUNT",
+ "description": "skills.rs：挂载 routing_hint（新增能力单独成段，与 decompose/parallel 同一纪律；门控一致）",
+ "file": "runtime/crates/agent-loop/src/skills.rs",
+ "anchor_file": "blocks/s2-routing-anchor.txt",
+ "patch_file": "blocks/s2-routing-patch.txt",
+ "applied_marker": "board_ctx::routing_hint()"
+}

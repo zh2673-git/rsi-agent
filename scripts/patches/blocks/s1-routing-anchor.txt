@@ -1,0 +1,4 @@
+         Parallel work still owes **one** combined result: merge the sub-results into a single \
+         answer, do not paste N sub-agent reports and call it done.\n",
+    )
+}

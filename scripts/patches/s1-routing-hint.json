@@ -1,0 +1,8 @@
+{
+ "id": "S1-ROUTING-HINT",
+ "description": "board_ctx.rs：新增 routing_hint（入口三档分流 S/M/L）：判据用可观测对象数（几个文件/几个模块/要不要先出方案）而非行数或 token；不确定时取更便宜的一档",
+ "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+ "anchor_file": "blocks/s1-routing-anchor.txt",
+ "patch_file": "blocks/s1-routing-patch.txt",
+ "applied_marker": "fn routing_hint()"
+}

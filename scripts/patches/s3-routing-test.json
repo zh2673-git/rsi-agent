@@ -1,0 +1,8 @@
+{
+ "id": "S3-ROUTING-TEST",
+ "description": "lib.rs：新增 routing_hint 回归测试（三档齐全/判据是可观测对象数/不确定取更便宜一档/无 CLI 不注入）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor_file": "blocks/s3-routing-test-anchor.txt",
+ "patch_file": "blocks/s3-routing-test-patch.txt",
+ "applied_marker": "fn routing_hint_declares_three_tiers_and_tie_break()"
+}

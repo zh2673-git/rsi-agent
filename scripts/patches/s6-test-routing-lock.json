@@ -1,0 +1,8 @@
+{
+ "id": "S6-TEST-ROUTING-LOCK",
+ "description": "lib.rs：新增的 routing_hint 用例取 ENV_LOCK（与既有看板用例互斥，否则随机红）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor_file": "blocks/s6-test2-anchor.txt",
+ "patch_file": "blocks/s6-test2-patch.txt",
+ "applied_marker": "let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());\n        let (old_home,) = (std::env::var_os(\"RSI_HOME\"),);"
+}

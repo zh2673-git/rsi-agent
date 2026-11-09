@@ -1,0 +1,2 @@
+    fn task_board_section_requires_cli_and_scales_by_flag() {
+        let (old_ws, old_home) = (

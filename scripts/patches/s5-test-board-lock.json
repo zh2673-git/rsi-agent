@@ -1,0 +1,8 @@
+{
+ "id": "S5-TEST-BOARD-LOCK",
+ "description": "lib.rs：既有 task_board_section_requires_cli_and_scales_by_flag 取 ENV_LOCK（与本轮新增的 routing 用例互斥）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor_file": "blocks/s5-test1-anchor.txt",
+ "patch_file": "blocks/s5-test1-patch.txt",
+ "applied_marker": "let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());\n        let (old_ws, old_home) = ("
+}

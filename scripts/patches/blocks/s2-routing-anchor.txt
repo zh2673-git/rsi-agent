@@ -1,0 +1,4 @@
+        let parallel = super::board_ctx::parallel_hint();
+        if !parallel.is_empty() {
+            lines.push(parallel);
+        }

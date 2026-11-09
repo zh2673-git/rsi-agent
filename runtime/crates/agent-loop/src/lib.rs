@@ -421,6 +421,19 @@ mod tests {
     use super::tools_exec::ObsPlan;
     use super::*;
 
+    /// 进程级 env 是共享可变状态（`cargo test` 多测同进程并行跑）。
+    ///
+    /// 实测过的伤害：S 轮新增的 `routing_hint_declares_three_tiers_and_tie_break` 与既有的
+    /// `task_board_section_requires_cli_and_scales_by_flag` 都要 `set_var("RSI_HOME")`，
+    /// 两个线程交错时后者读到前者布置的空目录 → 提示段为空 → 既有用例红。
+    /// 这类红有个恶劣特征：**换个跑法就绿**（单线程跑不复现），于是最容易被当成 flaky 忽略，
+    /// 而它每次在 CI 上的结论都是随机的。
+    ///
+    /// 故所有改 env 的用例取同一把锁串行化（与 host `board.rs` 的 `ENV_LOCK` 同一处置）。
+    /// 注意必须放在**模块开头**：插在 `#[test]` 与 `fn` 之间会让属性挂到不该挂的项上
+    /// （S4 初版就踩了这个，编译器报 `#[test] may only be used on a free function`）。
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     // O3：env 互相污染防不住并发——三测合并串行跑（语义：缺省→覆盖→误配回退）
     #[test]
     fn tools_deadline_env_semantics() {
@@ -772,6 +785,7 @@ mod tests {
     /// 现在的不变量是：**换工作区不影响能力**，只要代码根有 CLI 就注入。
     #[test]
     fn task_board_section_requires_cli_and_scales_by_flag() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let (old_ws, old_home) = (
             std::env::var_os("WORKSPACE_ROOT"),
             std::env::var_os("RSI_HOME"),
@@ -806,6 +820,53 @@ mod tests {
             Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
             None => std::env::remove_var("WORKSPACE_ROOT"),
         }
+        match old_home {
+            Some(v) => std::env::set_var("RSI_HOME", v),
+            None => std::env::remove_var("RSI_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// S 轮分流提示段：三档判据必须可判定（对象数），且**不确定时取便宜的一档**。
+    ///
+    /// 为什么这条值得被测试钉住（而不是只写在提示词里）：
+    /// 分流段最容易退化成的两种样子都是静默的——① 三档删到只剩两档（退化成原来的
+    /// 「像任务 / 不像任务」，也就是这条补丁想修的病本身）；② 判据被改成「行数/token」
+    /// 这类模型无法自估的量，写了等于没写。两者在提示词里都「看起来还行」，只有
+    /// 断言关键判据与决胜规则才能拦住。
+    #[test]
+    fn routing_hint_declares_three_tiers_and_tie_break() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (old_home,) = (std::env::var_os("RSI_HOME"),);
+        let dir = std::env::temp_dir().join(format!("ra-routing-test-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("scripts")).expect("mkdir");
+        std::fs::write(dir.join("scripts").join("board.py"), "print('x')\n").expect("write");
+        std::env::set_var("RSI_HOME", &dir);
+
+        let h = super::board_ctx::routing_hint();
+        assert!(!h.is_empty(), "代码根有 CLI 时必须有分流段");
+        // 三档都在，且各自绑了「不做什么」——只有档名没有禁令的提示词不会改变行为
+        for tier in ["**S — answer directly.**", "**M — small change.**", "**L — project-level.**"] {
+            assert!(h.contains(tier), "缺档位: {tier}\n{h}");
+        }
+        // 判据必须是可观测对象数，不是行数/token
+        assert!(h.contains("how many objects will change"), "判据必须落在可观测对象数上");
+        assert!(!h.to_lowercase().contains("token count"), "不得用 token 数当判据");
+        // 决胜规则：不确定时取更便宜的一档（这条决定分流是否真能省钱）
+        assert!(h.contains("CHEAPER"), "必须明确『不确定时取更便宜的一档』");
+        assert!(h.contains("escalate"), "必须给升级条件，否则会一路做薄");
+        // L 档必须指向 project-dev，否则「项目级」没有去处
+        assert!(h.contains("project-dev"), "L 档必须指定 project-dev");
+        // 两条不变量：M/L 不跳验证、不为显忙建任务
+        assert!(h.contains("never skipped"), "验证不得因降档而跳过");
+        assert!(h.contains("look busy"), "不得为显忙而建任务");
+
+        // 代码根没有 CLI → 不注入（与 decompose/parallel 同一门控）
+        let empty = dir.join("no-cli-root");
+        std::fs::create_dir_all(&empty).expect("mkdir");
+        std::env::set_var("RSI_HOME", &empty);
+        assert!(super::board_ctx::routing_hint().is_empty(), "无 CLI 时不得注入");
+
         match old_home {
             Some(v) => std::env::set_var("RSI_HOME", v),
             None => std::env::remove_var("RSI_HOME"),
