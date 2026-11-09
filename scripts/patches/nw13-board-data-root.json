@@ -1,0 +1,9 @@
+{
+  "id": "NW13-BOARD-DATA-ROOT",
+  "description": "board.rs：看板路径改锚 data_root()（RSI_HOME 优先）——修「新窗口看板没变化」的数据侧：此前每个窗口各有一块板，主窗口 22 条、子窗口 0 条",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/nw13-board-data-root-anchor.txt",
+  "patch_file": "blocks/nw13-board-data-root-patch.txt",
+  "applied_marker": "pub(super) fn data_root() -> PathBuf {",
+  "order": 32
+}

@@ -1,0 +1,9 @@
+{
+  "id": "NW12-INSTANCES-REAL-RSI-HOME",
+  "description": "instances.rs：RSI_HOME 改传 config::rsi_home()（真代码根）。NW2 的本意就是这个，但取错了函数（workspace_dir 返回 runtime/），于是「显式给代码根」这句话在代码里从未成立",
+  "file": "runtime/crates/host/src/instances.rs",
+  "anchor_file": "blocks/nw12-instances-anchor.txt",
+  "patch_file": "blocks/nw12-instances-patch.txt",
+  "applied_marker": ".env(\"RSI_HOME\", crate::config::rsi_home())",
+  "order": 31
+}

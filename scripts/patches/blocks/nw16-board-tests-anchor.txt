@@ -1,0 +1,8 @@
+    /// board_path 必须落在工作区内（除非显式给了绝对路径）——防 UI 与 agent 看两份文件。
+    #[test]
+    fn board_path_is_workspace_relative_by_default() {
+        std::env::remove_var("RSI_BOARD_PATH");
+        let p = board_path();
+        assert!(p.ends_with(Path::new(".rsi").join("board.json")), "got {p:?}");
+    }
+}

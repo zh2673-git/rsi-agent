@@ -1,0 +1,6 @@
+//! 数据落点：`<data_root>/.rsi/profile.json`（`RSI_PROFILE_PATH` 可覆盖，与 profile.py 同源）。
+//! `data_root` = `RSI_HOME`（代码根）优先、退化到工作区——与 board 同一判据，
+//! 所以画像与看板永远落在同一个根上。
+
+use super::super::{bad_request, json_resp};
+use serde_json::{json, Value};

@@ -1,0 +1,43 @@
+    /// board_path 必须落在**数据根**内的 .rsi/board.json（除非显式给了绝对路径）
+    /// ——防 UI 与 agent 看两份文件。
+    ///
+    /// v11 语义变更：这个「根」从 `WORKSPACE_ROOT` 改成了 `data_root()`（RSI_HOME 优先）。
+    /// 旧断言的注释写的是「落在工作区内」，但它在多窗口形态下是**错的**：子窗口的
+    /// WORKSPACE_ROOT 是用户项目目录，照那个断言写就会让每个窗口各自长出一块板。
+    /// 真正的不变量是「两者解析到同一个文件」，而不是「落在工作区里」。
+    #[test]
+    fn board_path_is_workspace_relative_by_default() {
+        std::env::remove_var("RSI_BOARD_PATH");
+        let p = board_path();
+        assert!(p.ends_with(Path::new(".rsi").join("board.json")), "got {p:?}");
+        // 无 RSI_HOME 时退化为 WORKSPACE_ROOT → 两个窗口（不同工作区）解析到不同文件，
+        // 这正是单窗口/独立检出的既有形态。
+        let root = data_root();
+        assert!(p.starts_with(&root), "board_path 必须落在 data_root 内: {p:?} vs {root:?}");
+    }
+
+    /// v11 核心不变量：RSI_HOME 在场时，看板跟着**代码根**走，与 WORKSPACE_ROOT 无关。
+    ///
+    /// 这是「新窗口看板没变化」的另一半修法（数据侧）。子窗口把 WORKSPACE_ROOT
+    /// 换成用户项目，若看板仍绑工作区，主窗口 22 条任务、子窗口 0 条，两本账永不相见。
+    #[test]
+    fn board_follows_rsi_home_not_workspace() {
+        let code = std::env::temp_dir().join("rsi-board-test-code-root");
+        let proj = std::env::temp_dir().join("rsi-board-test-project");
+        // 用 set_var 而非 remove：本测要钉「两个 env 同时在场时谁赢」。
+        // cargo 多测共享进程环境，故前后都完整保存/还原，避免串扰别的用例。
+        let saved_home = std::env::var("RSI_HOME").ok();
+        let saved_ws = std::env::var("WORKSPACE_ROOT").ok();
+        let saved_bp = std::env::var("RSI_BOARD_PATH").ok();
+        std::env::remove_var("RSI_BOARD_PATH");
+        std::env::set_var("RSI_HOME", &code);
+        std::env::set_var("WORKSPACE_ROOT", &proj);
+        let p = board_path();
+        match saved_home { Some(v) => std::env::set_var("RSI_HOME", v), None => std::env::remove_var("RSI_HOME") }
+        match saved_ws { Some(v) => std::env::set_var("WORKSPACE_ROOT", v), None => std::env::remove_var("WORKSPACE_ROOT") }
+        if let Some(v) = saved_bp { std::env::set_var("RSI_BOARD_PATH", v) }
+        assert_eq!(p, code.join(".rsi").join("board.json"),
+                   "RSI_HOME 在场时必须锚代码根，实际 {p:?}");
+        assert!(!p.starts_with(&proj), "看板不得落在工作区（会让每个窗口各有一块板）");
+    }
+}

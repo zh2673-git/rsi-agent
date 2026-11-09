@@ -1,0 +1,9 @@
+{
+  "id": "NW11-HOST-RSI-HOME",
+  "description": "host config.rs：新增 rsi_home()——把「代码根」这件事收成一个函数。修 NW2 的真缺陷：instances.rs 传的是 workspace_dir()=runtime/，那里没有 scripts/board.py，子窗口因此永远调不到看板 CLI",
+  "file": "runtime/crates/host/src/config.rs",
+  "anchor_file": "blocks/nw11-host-rsi-home-anchor.txt",
+  "patch_file": "blocks/nw11-host-rsi-home-patch.txt",
+  "applied_marker": "pub fn rsi_home() -> PathBuf {",
+  "order": 30
+}

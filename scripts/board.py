@@ -110,12 +110,34 @@ def workspace_root() -> Path:
     return Path(env) if env else Path.cwd()
 
 
+def data_root() -> Path:
+    """看板/画像的数据根：`RSI_HOME`（代码根）优先，退化到工作区。
+
+    为什么数据跟着代码根走、而不是跟着工作区走（v11，I-20261108-14）：
+    v10 只修了「能力在哪」（RSI_HOME 让子窗口找得到 board.py），但「数据在哪」
+    仍绑 WORKSPACE_ROOT。结果每个窗口各有一块板：主窗口 22 条、子窗口 0 条，
+    两边的板永不相见——用户实测「新窗口里任务在跑、左侧看板没变化」。
+
+    判据：看板是 agent 与用户之间的**账**，账只有一本；工作区只是「这本账
+    当前记到哪个项目」。把账拆成 N 份，等于让用户在每个窗口重新建立上下文，
+    而看板存在的全部理由就是避免这件事。
+
+    与 Rust 侧 `host/src/web/api/board.rs::data_root` 判定顺序必须逐字一致，
+    否则 CLI 与 UI 会写两份文件——那是最难查的一种不一致。
+    """
+    for key in ("RSI_HOME", "WORKSPACE_ROOT"):
+        env = os.environ.get(key, "").strip()
+        if env:
+            return Path(env)
+    return Path.cwd()
+
+
 def board_path() -> Path:
-    """`RSI_BOARD_PATH`（工作区相对或绝对）覆盖，缺省 `<WORKSPACE_ROOT>/.rsi/board.json`。"""
+    """`RSI_BOARD_PATH`（相对或绝对）覆盖，缺省 `<data_root>/.rsi/board.json`。"""
     env = os.environ.get("RSI_BOARD_PATH", "").strip()
     p = Path(env) if env else Path(".rsi") / "board.json"
     if not p.is_absolute():
-        p = workspace_root() / p
+        p = data_root() / p
     return p
 
 

@@ -1,0 +1,9 @@
+{
+  "id": "NW17-BOARD-TEST-ENV-LOCK",
+  "description": "board.rs 测试：给两个改 env 的用例加互斥锁串行化。实测 board_follows_rsi_home_not_workspace 会被 board_path_is_workspace_relative_by_default 留下的 WORKSPACE_ROOT 串扰而红——进程级 env 是共享可变状态",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/nw17-board-test-lock-anchor.txt",
+  "patch_file": "blocks/nw17-board-test-lock-patch.txt",
+  "applied_marker": "static ENV_LOCK: std::sync::Mutex<()>",
+  "order": 36
+}

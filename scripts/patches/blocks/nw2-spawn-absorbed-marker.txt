@@ -1,0 +1,1 @@
+        .env("RSI_HOME", crate::config::rsi_home())

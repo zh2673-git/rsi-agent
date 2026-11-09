@@ -1,0 +1,16 @@
+/// 看板文件路径：环境覆盖 → 工作区相对 → `<WORKSPACE_ROOT>/.rsi/board.json`。
+
+pub(super) fn board_path() -> PathBuf {
+    let raw = std::env::var("RSI_BOARD_PATH").unwrap_or_default();
+    let raw = raw.trim();
+    let p = if raw.is_empty() {
+        PathBuf::from(".rsi").join("board.json")
+    } else {
+        PathBuf::from(raw)
+    };
+    if p.is_absolute() {
+        p
+    } else {
+        PathBuf::from(config::workspace_root()).join(p)
+    }
+}

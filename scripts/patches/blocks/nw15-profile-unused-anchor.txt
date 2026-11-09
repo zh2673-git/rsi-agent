@@ -1,0 +1,5 @@
+//! 数据落点：`WORKSPACE_ROOT/.rsi/profile.json`（`RSI_PROFILE_PATH` 可覆盖，与 profile.py 同源）。
+
+use super::super::{bad_request, json_resp};
+use crate::config;
+use serde_json::{json, Value};

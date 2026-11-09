@@ -1,0 +1,9 @@
+{
+  "id": "NW15-PROFILE-UNUSED-IMPORT",
+  "description": "profile.rs：清掉改锚后不再使用的 `use crate::config`（否则编译出 warning），并同步模块文档的数据落点说法",
+  "file": "runtime/crates/host/src/web/api/profile.rs",
+  "anchor_file": "blocks/nw15-profile-unused-anchor.txt",
+  "patch_file": "blocks/nw15-profile-unused-patch.txt",
+  "applied_marker": "所以画像与看板永远落在同一个根上。",
+  "order": 34
+}

@@ -178,7 +178,7 @@ fn spawn_self(dir: &Path, name: &str, workspace: &str, port: u16) -> Result<u64,
         // 「新窗口」的全部意义），而看板/画像 CLI 住在代码根——不显式传，三处门控
         // 会在项目目录里找不到 scripts/board.py，于是提示词里看板段整段消失、
         // CLI 也调不到：子窗口的看板永远收不到任务。显式给代码根，与主窗口同源。
-        .env("RSI_HOME", crate::config::workspace_dir())
+        .env("RSI_HOME", crate::config::rsi_home())
         .spawn()
         .map_err(|e| format!("spawn 实例进程失败: {e}"))?;
     Ok(u64::from(child.id()))

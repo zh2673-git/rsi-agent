@@ -14,10 +14,11 @@
 //! agent 每轮带着它犯同一个错，而它只写在文件里、用户看不见也改不掉。
 //! 见 `docs/self-evolution/04-知识落层与多域上下文.md` §5。
 //!
-//! 数据落点：`WORKSPACE_ROOT/.rsi/profile.json`（`RSI_PROFILE_PATH` 可覆盖，与 profile.py 同源）。
+//! 数据落点：`<data_root>/.rsi/profile.json`（`RSI_PROFILE_PATH` 可覆盖，与 profile.py 同源）。
+//! `data_root` = `RSI_HOME`（代码根）优先、退化到工作区——与 board 同一判据，
+//! 所以画像与看板永远落在同一个根上。
 
 use super::super::{bad_request, json_resp};
-use crate::config;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use tokio::net::TcpStream;
@@ -26,7 +27,7 @@ use tokio::net::TcpStream;
 const MAX_DOMAINS: usize = 8;
 const SECTION_KINDS: &[&str] = &["user", "model", "workflow", "env"];
 
-/// 画像文件路径：`RSI_PROFILE_PATH` 覆盖 → `<WORKSPACE_ROOT>/.rsi/profile.json`。
+/// 画像文件路径：`RSI_PROFILE_PATH` 覆盖 → `<data_root>/.rsi/profile.json`。
 pub(super) fn profile_path() -> PathBuf {
     let raw = std::env::var("RSI_PROFILE_PATH").unwrap_or_default();
     let raw = raw.trim();
@@ -38,7 +39,7 @@ pub(super) fn profile_path() -> PathBuf {
     if p.is_absolute() {
         p
     } else {
-        PathBuf::from(config::workspace_root()).join(p)
+        super::board::data_root().join(p)
     }
 }
 

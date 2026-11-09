@@ -1,0 +1,9 @@
+{
+  "id": "NW16-BOARD-DATA-ROOT-TESTS",
+  "description": "board.rs：把 board_path 测试从「落在工作区」升级为「落在 data_root」，并新增 board_follows_rsi_home_not_workspace——旧注释在多窗口形态下是错的（子窗口 WORKSPACE_ROOT 是用户项目，照写会给每个窗口长一块板）",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/nw16-board-tests-anchor.txt",
+  "patch_file": "blocks/nw16-board-tests-patch.txt",
+  "applied_marker": "fn board_follows_rsi_home_not_workspace()",
+  "order": 35
+}

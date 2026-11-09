@@ -104,7 +104,26 @@ fn normalize_layout(raw: Option<&Value>) -> Value {
     json!({"sections": out})
 }
 
-/// 看板文件路径：环境覆盖 → 工作区相对 → `<WORKSPACE_ROOT>/.rsi/board.json`。
+/// 看板数据根：`RSI_HOME`（代码根）优先，退化到工作区。
+///
+/// 为什么改（v11，I-20261108-14「新窗口看板没变化」）：v10 只修了「能力在哪」，
+/// 数据仍绑 `WORKSPACE_ROOT`，于是每个窗口各有一块板——主窗口 22 条、子窗口 0 条，
+/// 两边的板永不相见。看板是 agent 与用户之间的**账**，账只有一本；工作区只是
+/// 「这本账当前记到哪个项目」。
+///
+/// 与 `scripts/board.py::data_root` 判定顺序必须逐字一致，否则 CLI 与 UI
+/// 会写两份文件——那是最难查的一种不一致。
+pub(super) fn data_root() -> PathBuf {
+    for key in ["RSI_HOME", "WORKSPACE_ROOT"] {
+        if let Ok(v) = std::env::var(key) {
+            let v = v.trim();
+            if !v.is_empty() {
+                return PathBuf::from(v);
+            }
+        }
+    }
+    std::env::current_dir().unwrap_or_default()
+}
 
 pub(super) fn board_path() -> PathBuf {
     let raw = std::env::var("RSI_BOARD_PATH").unwrap_or_default();
@@ -117,7 +136,7 @@ pub(super) fn board_path() -> PathBuf {
     if p.is_absolute() {
         p
     } else {
-        PathBuf::from(config::workspace_root()).join(p)
+        data_root().join(p)
     }
 }
 
@@ -1004,11 +1023,50 @@ mod tests {
         }
     }
 
-    /// board_path 必须落在工作区内（除非显式给了绝对路径）——防 UI 与 agent 看两份文件。
+    /// v11 数据根路径：两个 env 参与判定，而 cargo 多测共享**同一进程环境**。
+    /// 并行的 board 相关用例互相 set_var/remove_var 会读到对方的中间态（实测：
+    /// `board_follows_rsi_home_not_workspace` 读到另一个用例留下的 WORKSPACE_ROOT 而红）。
+    /// 故这一组用互斥锁串行——不是掩盖问题，是承认「进程级环境」本身就是共享可变状态。
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// board_path 必须落在**数据根**内的 .rsi/board.json（除非显式给了绝对路径）
+    /// ——防 UI 与 agent 看两份文件。
+    ///
+    /// v11 语义变更：这个「根」从 `WORKSPACE_ROOT` 改成了 `data_root()`（RSI_HOME 优先）。
+    /// 旧注释写的是「落在工作区内」，但它在多窗口形态下是**错的**：子窗口的
+    /// WORKSPACE_ROOT 是用户项目目录，照那个断言写就会让每个窗口各自长出一块板。
+    /// 真正的不变量是「两者解析到同一个文件」，而不是「落在工作区里」。
     #[test]
     fn board_path_is_workspace_relative_by_default() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::remove_var("RSI_BOARD_PATH");
         let p = board_path();
         assert!(p.ends_with(Path::new(".rsi").join("board.json")), "got {p:?}");
+        let root = data_root();
+        assert!(p.starts_with(&root), "board_path 必须落在 data_root 内: {p:?} vs {root:?}");
+    }
+
+    /// v11 核心不变量：RSI_HOME 在场时，看板跟着**代码根**走，与 WORKSPACE_ROOT 无关。
+    ///
+    /// 这是「新窗口看板没变化」的另一半修法（数据侧）。子窗口把 WORKSPACE_ROOT
+    /// 换成用户项目，若看板仍绑工作区，主窗口 22 条任务、子窗口 0 条，两本账永不相见。
+    #[test]
+    fn board_follows_rsi_home_not_workspace() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let code = std::env::temp_dir().join("rsi-board-test-code-root");
+        let proj = std::env::temp_dir().join("rsi-board-test-project");
+        let saved_home = std::env::var("RSI_HOME").ok();
+        let saved_ws = std::env::var("WORKSPACE_ROOT").ok();
+        let saved_bp = std::env::var("RSI_BOARD_PATH").ok();
+        std::env::remove_var("RSI_BOARD_PATH");
+        std::env::set_var("RSI_HOME", &code);
+        std::env::set_var("WORKSPACE_ROOT", &proj);
+        let p = board_path();
+        match saved_home { Some(v) => std::env::set_var("RSI_HOME", v), None => std::env::remove_var("RSI_HOME") }
+        match saved_ws { Some(v) => std::env::set_var("WORKSPACE_ROOT", v), None => std::env::remove_var("WORKSPACE_ROOT") }
+        if let Some(v) = saved_bp { std::env::set_var("RSI_BOARD_PATH", v) }
+        assert_eq!(p, code.join(".rsi").join("board.json"),
+                   "RSI_HOME 在场时必须锚代码根，实际 {p:?}");
+        assert!(!p.starts_with(&proj), "看板不得落在工作区（会让每个窗口各有一块板）");
     }
 }

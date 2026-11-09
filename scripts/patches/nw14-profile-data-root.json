@@ -1,0 +1,9 @@
+{
+  "id": "NW14-PROFILE-DATA-ROOT",
+  "description": "profile.rs：画像路径改锚 board::data_root()，与看板同根——否则会出现「看板在代码根、画像在项目目录」的分裂",
+  "file": "runtime/crates/host/src/web/api/profile.rs",
+  "anchor_file": "blocks/nw14-profile-data-root-anchor.txt",
+  "patch_file": "blocks/nw14-profile-data-root-patch.txt",
+  "applied_marker": "super::board::data_root().join(p)",
+  "order": 33
+}

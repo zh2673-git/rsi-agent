@@ -193,12 +193,69 @@ class BoardContractTest(unittest.TestCase):
             self.assertIn(limit, rs)
 
     def test_workspace_relative_board_path(self):
+        """无 RSI_HOME 时看板落在工作区（单窗口/独立检出的默认形态）。"""
         with tempfile.TemporaryDirectory() as td:
             ws = Path(td)
             code, out = board_json("stats", ws=ws)
             self.assertEqual(code, 0, out)
             self.assertEqual(Path(out["path"]), ws / ".rsi" / "board.json",
-                             "看板必须落在工作区内的 .rsi/board.json")
+                             "无 RSI_HOME 时看板必须落在工作区内的 .rsi/board.json")
+
+    def test_board_follows_code_root_not_workspace(self):
+        """I-20261108-14：多窗口必须共用一块板。
+
+        v10 只修了「能力在哪」（子窗口找得到 board.py），数据仍绑 WORKSPACE_ROOT，
+        于是每个窗口各有一块板：主窗口 22 条、子窗口 0 条，两边的板永不相见。
+        用户实测「新窗口里任务在跑、左侧看板没变化」。
+
+        本测试钉死判据：`RSI_HOME` 在场时，**无论 WORKSPACE_ROOT 指向哪个项目**，
+        看板都落在代码根——否则主窗口与子窗口就是两本账。
+        """
+        with tempfile.TemporaryDirectory() as code_root, \
+             tempfile.TemporaryDirectory() as proj_a, \
+             tempfile.TemporaryDirectory() as proj_b:
+            env = dict(os.environ)
+            env["RSI_HOME"] = code_root
+            env.pop("RSI_BOARD_PATH", None)
+            paths = []
+            for proj in (proj_a, proj_b):
+                env["WORKSPACE_ROOT"] = proj
+                r = subprocess.run(
+                    [sys.executable, str(BOARD_PY), "stats"],
+                    capture_output=True, text=True, encoding="utf-8", env=env,
+                )
+                self.assertEqual(r.returncode, 0, r.stderr[:300])
+                paths.append(Path(json.loads(r.stdout)["path"]))
+            self.assertEqual(paths[0], paths[1],
+                             f"两个工作区解析出两块板: {paths}")
+            self.assertEqual(paths[0], Path(code_root) / ".rsi" / "board.json",
+                             "看板必须锚在 RSI_HOME（代码根）")
+            self.assertFalse((Path(proj_a) / ".rsi" / "board.json").exists(),
+                             "工作区里不该再长出私有的板")
+
+    def test_profile_shares_board_data_root(self):
+        """画像与看板必须同一根：否则出现「看板在代码根、画像在项目目录」的分裂。"""
+        with tempfile.TemporaryDirectory() as code_root, \
+             tempfile.TemporaryDirectory() as proj:
+            env = {**os.environ, "RSI_HOME": code_root, "WORKSPACE_ROOT": proj}
+            env.pop("RSI_BOARD_PATH", None)
+            env.pop("RSI_PROFILE_PATH", None)
+            b = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "board.py"), "stats"],
+                capture_output=True, text=True, encoding="utf-8", env=env,
+            )
+            p = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "profile.py"), "brief"],
+                capture_output=True, text=True, encoding="utf-8", env=env,
+            )
+            board_p = Path(json.loads(b.stdout)["path"])
+            # profile brief 不开 --json，改从源码层验证同一 data_root 判据
+            prof_src = read("scripts/profile.py")
+            self.assertIn("def data_root()", prof_src)
+            self.assertIn("for key in (\"RSI_HOME\", \"WORKSPACE_ROOT\")", prof_src)
+            self.assertEqual(board_p.parent.parent, Path(code_root),
+                             "看板根应等于代码根")
+            self.assertEqual(p.returncode, 0, p.stderr[:300])
 
     def test_task_lifecycle_and_progress(self):
         with tempfile.TemporaryDirectory() as td:
@@ -406,6 +463,59 @@ class FrozenSurfaceTest(unittest.TestCase):
         manifest = read("runtime/crates/host/Cargo.toml")
         for banned in ("chrono", "time ="):
             self.assertNotIn(banned, manifest, "host 侧不得新增时间库依赖")
+
+
+class ChildWindowBoardTest(unittest.TestCase):
+    """子窗口（新窗口绑别的项目）必须与主窗口共用同一块看板。
+
+    这一组是 I-20261108-14 的回归壁：上一轮（v10）只修了「能力在哪」，
+    `instances.rs` 里那句「显式给代码根」实际传的是 `workspace_dir()`——而它返回
+    **`runtime/`**（`crates/host` 上溯两级），那里没有 `scripts/`。子实例于是
+    探测不到 CLI，提示词里看板段整段消失；同时数据仍绑 WORKSPACE_ROOT，主窗口
+    22 条、子窗口 0 条。两个缺陷叠加，用户看到的就是「新窗口里任务在跑、
+    左侧看板没有任何变化」。
+
+    源码断言只钉「谁负责取值」，行为断言（test_board_follows_code_root_not_workspace）
+    钉真实结果——两者缺一个，就还能用另一种写法把 bug 放回来。
+    """
+
+    def test_instances_uses_real_code_root(self):
+        rs = read("runtime/crates/host/src/instances.rs")
+        self.assertIn('.env("RSI_HOME", crate::config::rsi_home())', rs,
+                      "子实例的 RSI_HOME 必须是真代码根，不能是 workspace_dir()（=runtime/）")
+        self.assertNotIn('.env("RSI_HOME", crate::config::workspace_dir())', rs,
+                         "workspace_dir() 返回 runtime/，其间没有 scripts/board.py")
+
+    def test_host_has_rsi_home_helper(self):
+        cfg = read("runtime/crates/host/src/config.rs")
+        self.assertIn("pub fn rsi_home()", cfg)
+        # 三项探测：显式 env → 含 CLI 的工作区祖先 → exe/cwd 祖先
+        seg = cfg.split("pub fn rsi_home()")[1][:2000]
+        self.assertIn('var_os("RSI_HOME")', seg)
+        self.assertIn('var_os("WORKSPACE_ROOT")', seg)
+        self.assertIn('join("board.py")', seg)
+
+    def test_rust_board_and_profile_share_data_root(self):
+        """Rust 侧两条写通道必须同一根，且都以 RSI_HOME 优先。"""
+        rs = read("runtime/crates/host/src/web/api/board.rs")
+        self.assertIn("pub(super) fn data_root()", rs)
+        seg = rs.split("pub(super) fn data_root()")[1][:900]
+        self.assertIn('"RSI_HOME"', seg)
+        self.assertIn('"WORKSPACE_ROOT"', seg)
+        prof = read("runtime/crates/host/src/web/api/profile.rs")
+        self.assertIn("super::board::data_root()", prof,
+                      "画像必须复用 board 的根，不能自己再判一次")
+
+    def test_python_data_root_matches_rust_order(self):
+        """跨语言同源：判据顺序写反了就会写两份文件（最难查的一种不一致）。"""
+        for rel, name in (("scripts/board.py", ".rsi/board.json"),
+                          ("scripts/profile.py", ".rsi/profile.json")):
+            src = read(rel)
+            self.assertIn("def data_root()", src, f"{rel} 缺 data_root")
+            seg = src.split("def data_root()")[1][:800]
+            order = [seg.find('"RSI_HOME"'), seg.find('"WORKSPACE_ROOT"')]
+            self.assertTrue(order[0] != -1 and order[1] != -1, f"{rel} 两个 env 都要有")
+            self.assertLess(order[0], order[1], f"{rel}: RSI_HOME 必须优先于 WORKSPACE_ROOT")
 
 
 if __name__ == "__main__":

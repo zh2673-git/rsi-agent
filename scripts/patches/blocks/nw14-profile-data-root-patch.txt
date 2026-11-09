@@ -1,0 +1,15 @@
+/// 画像文件路径：`RSI_PROFILE_PATH` 覆盖 → `<data_root>/.rsi/profile.json`。
+pub(super) fn profile_path() -> PathBuf {
+    let raw = std::env::var("RSI_PROFILE_PATH").unwrap_or_default();
+    let raw = raw.trim();
+    let p = if raw.is_empty() {
+        PathBuf::from(".rsi").join("profile.json")
+    } else {
+        PathBuf::from(raw)
+    };
+    if p.is_absolute() {
+        p
+    } else {
+        super::board::data_root().join(p)
+    }
+}

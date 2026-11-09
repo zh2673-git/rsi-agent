@@ -1,0 +1,35 @@
+/// 看板数据根：`RSI_HOME`（代码根）优先，退化到工作区。
+///
+/// 为什么改（v11，I-20261108-14「新窗口看板没变化」）：v10 只修了「能力在哪」，
+/// 数据仍绑 `WORKSPACE_ROOT`，于是每个窗口各有一块板——主窗口 22 条、子窗口 0 条，
+/// 两边的板永不相见。看板是 agent 与用户之间的**账**，账只有一本；工作区只是
+/// 「这本账当前记到哪个项目」。
+///
+/// 与 `scripts/board.py::data_root` 判定顺序必须逐字一致，否则 CLI 与 UI
+/// 会写两份文件——那是最难查的一种不一致。
+pub(super) fn data_root() -> PathBuf {
+    for key in ["RSI_HOME", "WORKSPACE_ROOT"] {
+        if let Ok(v) = std::env::var(key) {
+            let v = v.trim();
+            if !v.is_empty() {
+                return PathBuf::from(v);
+            }
+        }
+    }
+    std::env::current_dir().unwrap_or_default()
+}
+
+pub(super) fn board_path() -> PathBuf {
+    let raw = std::env::var("RSI_BOARD_PATH").unwrap_or_default();
+    let raw = raw.trim();
+    let p = if raw.is_empty() {
+        PathBuf::from(".rsi").join("board.json")
+    } else {
+        PathBuf::from(raw)
+    };
+    if p.is_absolute() {
+        p
+    } else {
+        data_root().join(p)
+    }
+}

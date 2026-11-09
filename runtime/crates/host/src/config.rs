@@ -181,6 +181,58 @@ pub fn workspace_dir() -> PathBuf {
         .to_path_buf()
 }
 
+/// 代码根（能力锚点）：`scripts/board.py` / `scripts/profile.py` 所在目录。
+///
+/// 为什么必须有这个函数（NW2 的真缺陷）：
+/// `instances.rs` 注释写的是「显式给代码根，与主窗口同源」，实际传的却是
+/// `workspace_dir()`——而它的 `nth(2)` 落在 **`runtime/`**（`runtime/crates/host`
+/// 上溯两级），那里没有 `scripts/`。子实例于是拿着错锚点，
+/// `board_ctx::board_cli_path()` 的 `is_file()` 探测失败 → 提示词里看板段整段消失、
+/// CLI 也调不到 → **子窗口永远收不到任务**。
+///
+/// 主窗口之所以正常，是巧合：`run.cmd` 把 `WORKSPACE_ROOT` 设成仓库根，
+/// `rsi_home()` 的祖先探测恰好命中。子窗口把 `WORKSPACE_ROOT` 换成用户项目，
+/// 这条巧合就断了。
+///
+/// 判定顺序（与 `agent-loop/src/config.rs::rsi_home` 同源，改一侧必须改另一侧）：
+///   1. `RSI_HOME`（子实例由 instances.rs 显式传入；测试靠它隔离）
+///   2. `WORKSPACE_ROOT` 及其祖先——仅当其中真有 `scripts/` 下的 CLI
+///   3. 从 exe 与 cwd 向上找含 CLI 的祖先目录
+/// 全部落空则退化到 `workspace_dir()`（不 panic：能力可以缺，进程不能起不来）。
+pub fn rsi_home() -> PathBuf {
+    fn has_cli(p: &std::path::Path) -> bool {
+        p.join("scripts").join("board.py").is_file()
+            || p.join("scripts").join("profile.py").is_file()
+    }
+    if let Some(v) = std::env::var_os("RSI_HOME") {
+        let p = PathBuf::from(v);
+        if !p.as_os_str().is_empty() && has_cli(&p) {
+            return p;
+        }
+    }
+    if let Some(ws) = std::env::var_os("WORKSPACE_ROOT") {
+        let ws = PathBuf::from(ws);
+        if let Some(hit) = ws.ancestors().find(|p| has_cli(p)) {
+            return hit.to_path_buf();
+        }
+    }
+    let mut seeds: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(d) = exe.parent() {
+            seeds.push(d.to_path_buf());
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        seeds.push(cwd);
+    }
+    seeds
+        .iter()
+        .flat_map(|s| s.ancestors())
+        .find(|p| has_cli(p))
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(workspace_dir)
+}
+
 /// rsi-agent 发行形态布局自动锚定：裸 `cargo run -p react-agent-host` 也能正确启动。
 ///
 /// react-agent 的 kernel 检出与运行时同级（`../agent-kernel`），config 缺省值恰好命中；

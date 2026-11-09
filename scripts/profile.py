@@ -118,12 +118,26 @@ def workspace_root() -> Path:
     return Path(env) if env else Path.cwd()
 
 
+def data_root() -> Path:
+    """画像的数据根：`RSI_HOME`（代码根）优先，退化到工作区。
+
+    与 `scripts/board.py::data_root` 同一判据、同一顺序——画像与看板是同族的
+    「长期账」，两者必须落在同一个根上，否则会出现「看板在代码根、画像在项目目录」
+    这种没人能想明白的分裂。
+    """
+    for key in ("RSI_HOME", "WORKSPACE_ROOT"):
+        env = os.environ.get(key, "").strip()
+        if env:
+            return Path(env)
+    return Path.cwd()
+
+
 def profile_path() -> Path:
-    """`RSI_PROFILE_PATH`（工作区相对或绝对）覆盖，缺省 `<WORKSPACE_ROOT>/.rsi/profile.json`。"""
+    """`RSI_PROFILE_PATH`（相对或绝对）覆盖，缺省 `<data_root>/.rsi/profile.json`。"""
     env = os.environ.get("RSI_PROFILE_PATH", "").strip()
     p = Path(env) if env else Path(".rsi") / "profile.json"
     if not p.is_absolute():
-        p = workspace_root() / p
+        p = data_root() / p
     return p
 
 

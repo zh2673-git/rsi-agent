@@ -4,5 +4,5 @@
   "file": "runtime/crates/host/src/web/api/profile.rs",
   "create": true,
   "content_file": "blocks/f2-profile-rs.txt",
-  "create_marker": "pub(super) async fn post_profile"
+  "create_marker": "async fn post_profile"
 }
