@@ -116,6 +116,7 @@ pub(super) fn effective_result_limit(tool: &str, cfg: &AgentLoopConfig) -> usize
     }
     let mult = match tool {
         "read_file" => 4,                       // 2000 行级文件尽量一次读全
+        "web_read" => 4,                        // 网页正文一次读全；实测 50% 的网页结果被 1× 腰斩
         "grep" | "symbols_search" => 3,         // 命中块 / 引用清单不被腰斩
         _ => 1,
     };

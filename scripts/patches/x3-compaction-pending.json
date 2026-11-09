@@ -1,0 +1,8 @@
+{
+ "id": "X-compaction-pending",
+ "description": "压缩摘要提示词改为『待办优先』口径：把未完成事项/被否决方案及原因/下一步首个动作列为必填且置顶，去掉 <=300 words 硬性上限（改为按必要长度、禁止客套与复述），解决『每次恢复都要重新问做过什么、没做什么』",
+ "file": "runtime/crates/agent-loop/src/compaction.rs",
+ "anchor": "                \"Summarize the conversation history for an AI agent. Capture: the user's goal, decisions made, \\\nfacts learned, files/actions taken, and pending work. Be concise (<= 300 words). Output only the summary.\"\n",
+ "patch": "                \"Summarize the conversation history for an AI agent. Put a section titled '## PENDING (must do next)' \\\nFIRST, listing: unfinished work, options already rejected (and why), and the single next action. Only then cover \\\nthe user's goal, verified facts (with file:line when known), files/actions taken, and decisions still in force. \\\nNever drop a pending item even if it appeared early in the history, and never drop the reason a path was abandoned \\\n(a re-derived wrong turn is worse than a longer summary). Omit pleasantries and restatement; length follows \\\nnecessity, not a fixed word cap. Output only the summary.\"\n",
+ "applied_marker": "PENDING (must do next)"
+}

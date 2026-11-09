@@ -1,0 +1,8 @@
+{
+ "id": "X-webread-budget-test-fix",
+ "description": "修正 X-webread-budget-test 的作用域编译错误：测试模块内未导入 AgentLoopConfig / effective_result_limit，改为显式 use 引入并避开对临时值的引用",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "        // X2 回归锚：web_read 实测 50% 的网页结果曾落在 1× 被腰斩 → 现与 read_file 同档 4×\n        let saved = std::env::var(\"TOOL_RESULT_LIMIT\").ok();\n",
+ "patch": "        // X2 回归锚：web_read 实测 50% 的网页结果曾落在 1× 被腰斩 → 现与 read_file 同档 4×\n        use crate::config::AgentLoopConfig;\n        use crate::tools_exec::effective_result_limit;\n        let saved = std::env::var(\"TOOL_RESULT_LIMIT\").ok();\n",
+ "applied_marker": "use crate::tools_exec::effective_result_limit as _x2;"
+}

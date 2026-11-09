@@ -1,0 +1,8 @@
+{
+ "id": "X-webread-budget-test",
+ "description": "为 effective_result_limit 补回归测试：锁定 web_read 的 4× 回喂预算（与 read_file 对齐）与未知工具回落 1×、0=禁用语义，防止把 X2 的修复改回去",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "    #[test]\n    fn self_extension_section_gated_by_workspace_reachability() {\n",
+ "patch": "    #[test]\n    fn effective_result_limit_scales_by_tool() {\n        // X2 回归锚：web_read 实测 50% 的网页结果曾落在 1× 被腰斩 → 现与 read_file 同档 4×\n        use crate::config::AgentLoopConfig;\n        use crate::tools_exec::effective_result_limit;\n        let saved = std::env::var(\"TOOL_RESULT_LIMIT\").ok();\n        std::env::set_var(\"TOOL_RESULT_LIMIT\", \"8000\");\n        let cfg = AgentLoopConfig::from_env(10);\n        assert_eq!(effective_result_limit(\"read_file\", &cfg), 32_000);\n        assert_eq!(effective_result_limit(\"web_read\", &cfg), 32_000);\n        assert_eq!(effective_result_limit(\"grep\", &cfg), 24_000);\n        assert_eq!(effective_result_limit(\"symbols_search\", &cfg), 24_000);\n        assert_eq!(effective_result_limit(\"bash\", &cfg), 8_000);\n        // 0 = 禁用语义不变\n        std::env::set_var(\"TOOL_RESULT_LIMIT\", \"0\");\n        let off = AgentLoopConfig::from_env(10);\n        assert_eq!(effective_result_limit(\"web_read\", &off), 0);\n        match saved {\n            Some(v) => std::env::set_var(\"TOOL_RESULT_LIMIT\", v),\n            None => std::env::remove_var(\"TOOL_RESULT_LIMIT\"),\n        }\n    }\n\n    #[test]\n    fn self_extension_section_gated_by_workspace_reachability() {\n",
+ "applied_marker": "fn effective_result_limit_scales_by_tool()"
+}

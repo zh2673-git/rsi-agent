@@ -1,0 +1,8 @@
+{
+ "id": "X-bash-discipline-nosandbox",
+ "description": "bash 工具描述纪律同步到无沙箱分支（BASH_SANDBOX=off）：同样禁止 cd /d 冗余前缀与用 powershell 做工作区内文件读写/列目录/搜索",
+ "file": "runtime/plugins/tools/tools/bash.py",
+ "anchor": "            \"This tool is for running/building/testing, git, process and port queries - do NOT use it for \"\n            \"file operations (reading, writing, editing, searching, listing files); use the dedicated tools \"\n            \"(read_file/write_file/edit_file/grep/list_dir/symbols_search) instead.\"\n        )\n",
+ "patch": "            \"This tool is for running/building/testing, git, process and port queries - do NOT use it for \"\n            \"file operations (reading, writing, editing, searching, listing files); use the dedicated tools \"\n            \"(read_file/write_file/edit_file/grep/list_dir/symbols_search) instead. \"\n            \"The cwd is ALREADY the workspace root: never prefix commands with 'cd /d \\\"...\\\" &&' (redundant). \"\n            \"Paths inside the workspace are off-limits for file work: read/write/edit/search/list there MUST go \"\n            \"through the dedicated tools, never through powershell Get-Content/Set-Content/Get-ChildItem/Select-String. \"\n            \"Use bash for file access only when a path legitimately falls outside the workspace \"\n            \"(after the dedicated tool returns PATH_OUTSIDE_WORKSPACE), or for binary/archive operations.\"\n        )\n",
+ "applied_marker": "instead. \"\n            \"The cwd is ALREADY the workspace root"
+}

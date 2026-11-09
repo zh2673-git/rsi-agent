@@ -597,6 +597,28 @@ mod tests {
     }
 
     #[test]
+    fn effective_result_limit_scales_by_tool() {
+        // X2 回归锚：web_read 实测 50% 的网页结果曾落在 1× 被腰斩 → 现与 read_file 同档 4×
+        use crate::config::AgentLoopConfig;
+        use crate::tools_exec::effective_result_limit;
+        let saved = std::env::var("TOOL_RESULT_LIMIT").ok();
+        std::env::set_var("TOOL_RESULT_LIMIT", "8000");
+        let cfg = AgentLoopConfig::from_env(10);
+        assert_eq!(effective_result_limit("read_file", &cfg), 32_000);
+        assert_eq!(effective_result_limit("web_read", &cfg), 32_000);
+        assert_eq!(effective_result_limit("grep", &cfg), 24_000);
+        assert_eq!(effective_result_limit("symbols_search", &cfg), 24_000);
+        assert_eq!(effective_result_limit("bash", &cfg), 8_000);
+        // 0 = 禁用语义不变
+        std::env::set_var("TOOL_RESULT_LIMIT", "0");
+        assert_eq!(effective_result_limit("web_read", &AgentLoopConfig::from_env(10)), 0);
+        match saved {
+            Some(v) => std::env::set_var("TOOL_RESULT_LIMIT", v),
+            None => std::env::remove_var("TOOL_RESULT_LIMIT"),
+        }
+    }
+
+    #[test]
     fn self_extension_section_gated_by_workspace_reachability() {
         let saved = std::env::var("WORKSPACE_ROOT").ok();
         std::env::set_var("WORKSPACE_ROOT", r"C:\ws");
