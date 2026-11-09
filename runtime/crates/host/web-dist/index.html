@@ -32,7 +32,10 @@
     <button class="treebtn" id="btn-tree" title="工作区文件树（只读预览/下载）">📁 文件</button>
     <button class="gear" id="gear" title="配置中心：LLM / 工具 / 技能 / Agent">⚙ 设置</button>
   </header>
-  <div id="stream"><div class="wrap" id="feed"></div></div>
+  <div id="stream">
+    <div id="lanes" hidden aria-label="车道切换"></div>
+    <div class="wrap" id="feed"></div>
+  </div>
   <footer>
     <div id="queue-box" hidden>
       <div class="qhead"><span>待发指令（Enter 排队；行内 ⏭ 立即执行 / ↑ 上移 / ✎ 编辑 / ⧉ 复制 / × 删除）</span><span id="queue-count"></span><button class="btn ghost" id="queue-toggle" type="button">隐藏</button></div>

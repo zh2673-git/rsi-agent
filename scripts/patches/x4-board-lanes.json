@@ -1,0 +1,8 @@
+{
+ "id": "L4",
+ "description": "app-board.js：refreshBoard 后重绘车道条（任务增删改由 agent 经 board.py 完成，车道清单跟着看板走）",
+ "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+ "anchor_file": "blocks/x4-board-anchor.txt",
+ "patch_file": "blocks/x4-board-lanes.txt",
+ "applied_marker": "if (typeof renderLanes === \"function\") renderLanes();"
+}

@@ -1,0 +1,13 @@
+.doutcome .opro p { font-size: 11.5px; line-height: 1.6; color: var(--muted); margin: 4px 0 0; white-space: pre-wrap; }
+
+/* 车道条（I-20261108-14）：一个任务一条车道，车道 = session（内核按 session_id 上闸，
+   并行只可能跨 session）。单车道时整条隐藏——多任务才有意义，单任务多一栏只是噪音。
+   横向滚动而非换行：任务多时宁可挤着滑，也不让 header 长高把对话区压窄。 */
+#lanes { display: flex; gap: 6px; align-items: center; padding: 6px 14px; overflow-x: auto; flex: 0 0 auto; border-bottom: 1px solid var(--line, #2a2f3a); }
+#lanes[hidden] { display: none; }
+.lane { flex: 0 0 auto; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; line-height: 1.5; padding: 3px 10px; border: 1px solid var(--line, #2a2f3a); border-radius: 999px; background: var(--card-2, transparent); color: var(--muted); cursor: pointer; }
+.lane:hover { color: var(--text); border-color: var(--accent); }
+.lane.on { color: var(--text); border-color: var(--accent); font-weight: 600; }
+/* 运行中（后台车道）：左侧脉动圆点。用户要先知道「那边还在干活」才敢切走。 */
+.lane.busy::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 5px; vertical-align: 1px; animation: lanePulse 1.2s ease-in-out infinite; }
+@keyframes lanePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }

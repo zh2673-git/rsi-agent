@@ -1,0 +1,8 @@
+{
+ "id": "L1",
+ "description": "app-core.js：单会话块升级为「车道」——车道=session（内核同会话闸按 session_id 上锁，并行只能跨 session），车道 id 由任务 id 确定性推导（零写面、零新端点），补上 switchSession 让 snapshotSessionFeed 不再是死代码",
+ "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+ "anchor_file": "blocks/x1-core-anchor.txt",
+ "patch_file": "blocks/x1-core-lanes.txt",
+ "applied_marker": "function laneOfTask(id) {"
+}

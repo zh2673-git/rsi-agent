@@ -1,0 +1,5 @@
+async function refreshBoard() {
+  try {
+    boardData = await boardReq("GET", "/api/board");
+    refreshSections();
+  } catch (e) {

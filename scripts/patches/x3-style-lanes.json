@@ -1,0 +1,8 @@
+{
+ "id": "L3",
+ "description": "style.css：车道条样式（单车道隐藏，横向滚动，胶囊按钮，运行中脉动点）",
+ "file": "runtime/crates/host/web-dist/style.css",
+ "anchor_file": "blocks/x3-css-anchor.txt",
+ "patch_file": "blocks/x3-style-lanes.txt",
+ "applied_marker": "#lanes { display: flex;"
+}

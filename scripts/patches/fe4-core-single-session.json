@@ -1,7 +1,8 @@
 {
  "id": "FE4",
- "description": "app-core.js：会话管理块换成单会话（无列表/新建/重命名，旧调用点降为空操作保留接口）",
+ "description": "app-core.js：会话管理块换成单会话（无列表/新建/重命名，旧调用点降为空操作保留接口）。后续 L1 在同一位置把单会话块升级为「车道」（车道=session）——FE4 的锚点因此被 L1 吃掉，故加 applied_marker：它取 FE4 终态仍在源码里的特征串，使重放时正确判「已应用」而非「锚点漂移」",
  "file": "runtime/crates/host/web-dist/vendor/app-core.js",
  "anchor_file": "blocks/fe4-core-anchor.txt",
- "patch_file": "blocks/fe4-core-session.txt"
+ "patch_file": "blocks/fe4-core-session.txt",
+ "applied_marker": "语义上「单会话 = 无标题需维护、无列表需重绘」。"
 }

@@ -1,0 +1,8 @@
+{
+ "id": "L2",
+ "description": "index.html：#stream 内、#feed 前插入车道条容器（单车道时整条隐藏）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/x2-index-anchor.txt",
+ "patch_file": "blocks/x2-index-lanes.txt",
+ "applied_marker": "id=\"lanes\" hidden"
+}

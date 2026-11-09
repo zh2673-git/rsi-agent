@@ -1,0 +1,8 @@
+async function refreshBoard() {
+  try {
+    boardData = await boardReq("GET", "/api/board");
+    refreshSections();
+    // 车道条随看板刷新重绘：任务的新建/推进/收口（一律由 agent 经 board.py 完成）
+    // 会改变车道清单，前端只是跟着重排。必须在 boardData 赋值之后——laneList() 读它。
+    if (typeof renderLanes === "function") renderLanes();
+  } catch (e) {

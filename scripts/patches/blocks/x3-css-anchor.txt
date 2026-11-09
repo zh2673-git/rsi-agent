@@ -1,0 +1,1 @@
+.doutcome .opro p { font-size: 11.5px; line-height: 1.6; color: var(--muted); margin: 4px 0 0; white-space: pre-wrap; }
