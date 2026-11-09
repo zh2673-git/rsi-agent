@@ -375,7 +375,20 @@ pub(super) fn board_ops_hint(full: bool, has_cli: bool) -> String {
          - `board.py digest [--skill <name>] [--brief]` — same-kind history across tasks: use it \
          when the user asks \"how did we do this before\" or before re-inventing a workflow.\n\
          - `board.py layout` / `layout --file <json>` — the left panel is assembled from \
-         `layout.sections` (kinds: tasks | metrics | inspirations, order fixed by kind).\n",
+         `layout.sections` (kinds: tasks | metrics | inspirations, order fixed by kind).\n\
+         \n### Registering is part of doing the work, not paperwork after it\n\
+         The board is the user's only view of what you are doing. If you never register a task, \
+         the work is invisible to them even after it is finished — they will ask \"I gave you a job \
+         and the board shows nothing\". That is a delivery failure, not a UI problem.\n\
+         - **Register BEFORE the first substantive edit**, not after. One `task-upsert` call at \
+         the moment the request turns into real work; then update it at the four moments the \
+         board cares about (created / status changed / blocked / done).\n\
+         - **Do not wait to be asked.** \"The user did not ask for a plan\" is not a reason to skip \
+         the entry — they asked for the work, and the entry is how they watch it happen.\n\
+         - The workspace tag is filled in automatically from `WORKSPACE_ROOT`; do NOT pass \
+         `workspace` unless you are deliberately recording work for a different project.\n\
+         - One-line answers, pure lookups and single trivial edits do NOT get a task. The line is \
+         \"would the user want to see progress on this?\", not \"did I touch a file?\".\n",
     );
     if full {
         out.push_str(

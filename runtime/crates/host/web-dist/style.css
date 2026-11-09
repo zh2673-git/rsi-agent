@@ -133,6 +133,27 @@
 .ttitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text); font-size: 12.5px; }
 .tratio { flex: 0 0 auto; font-size: 10.5px; color: var(--faint); }
+/* v13：任务行上的工作区徽章。
+   与 .tprio 同尺寸（都是 15px 行高的小徽章），但更淡——它回答「这条属于哪个项目」，
+   是归属信息不是紧急度，不该和优先级抢注意力。本工作区的带 .mine 描边强调。 */
+.tws { flex: 0 0 auto; font-size: 9.5px; padding: 0 4px; border-radius: 5px; line-height: 15px;
+  color: var(--faint); border: 1px solid var(--border-soft); white-space: nowrap; max-width: 72px;
+  overflow: hidden; text-overflow: ellipsis; }
+.tws.mine { color: var(--accent); border-color: var(--accent); opacity: .9; }
+/* v13：折叠组头上的工作区分布。收起时这一行就是全部线索，所以不能太淡；
+   但它是汇总不是条目，仍比正文弱。 */
+.tdist { display: inline-flex; gap: 3px; margin-left: 4px; min-width: 0; overflow: hidden; }
+.tdws { font-size: 9.5px; padding: 0 4px; border-radius: 5px; line-height: 14px;
+  color: var(--faint); border: 1px solid var(--border-soft); white-space: nowrap; }
+.tdws i { font-style: normal; opacity: .65; margin-left: 3px; }
+.tdws.mine { color: var(--accent); border-color: var(--accent); opacity: .95; }
+.tdws.more { opacity: .6; }
+/* v13：折叠组里露出的那条「最新」预览。
+   它是代表整组的一条，不是普通行：左侧一道竖线 + 略降透明度，读起来像「摘要」
+   而不像「组里只完成了这一条」。点击仍可展开详情（它就是个正常 taskRow）。 */
+.trow.tpreview { opacity: .8; margin-left: 8px; border-left: 2px solid var(--border-soft);
+  border-radius: 0 9px 9px 0; padding-left: 6px; }
+.trow.tpreview:hover { opacity: 1; }
 .tref, .iref, .iarc { flex: 0 0 auto; background: none; border: none; color: var(--faint);
   cursor: pointer; font-size: 12px; line-height: 1; padding: 0 1px; opacity: 0; }
 .trow:hover .tref, .irow:hover .iref, .irow:hover .iarc { opacity: 1; }

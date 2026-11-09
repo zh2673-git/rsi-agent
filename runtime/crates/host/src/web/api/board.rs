@@ -35,7 +35,10 @@ const MAX_TITLE: usize = 120;
 /// 布局白名单（与 `scripts/board.py::validate_layout` 逐字同源）：kind 决定渲染器，
 /// 顺序也由 kind 钉死（tasks → metrics → inspirations）——「插件化但有约束」的落点。
 const LAYOUT_KINDS: &[&str] = &["tasks", "inspirations", "metrics"];
-const GROUP_BYS: &[&str] = &["status", "priority", "skill"];
+// v13：`workspace` 也是分组维度（与 scripts/board.py::GROUP_BYS 逐字同源）。
+// 用户诉求是「全部里一眼看出哪条属于哪个工作区」；分组比逐行挂徽章更省眼，
+// 且折叠组头时仍能给出「这个状态组里有哪几个工作区的活」。
+const GROUP_BYS: &[&str] = &["status", "priority", "skill", "workspace"];
 const FILTERS: &[&str] = &["all", "open", "done"];
 const METRIC_IDS: &[&str] = &["by_status", "by_skill", "verdict", "acceptance"];
 const MAX_SECTIONS: usize = 6;

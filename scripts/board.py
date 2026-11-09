@@ -75,7 +75,10 @@ CHECK_STATUSES = ("pending", "pass", "fail", "skip")
 VERDICTS = ("none", "pending", "pass", "fail")
 # 受约束的插件化看板（C4）：声明式布局，白名单校验，顺序由 kind 钉死。
 LAYOUT_KINDS = ("tasks", "inspirations", "metrics")
-GROUP_BYS = ("status", "priority", "skill")
+# v13：`workspace` 也是分组维度。用户诉求原话是「全部中分类编号，一眼可以看到
+# 哪个工作区的任务」——分组是这件事最直接的表达，比在每行末尾挂个小徽章更省眼。
+# 与 `host/src/web/api/board.rs::GROUP_BYS` 必须逐字同源（Rust 侧有跨语言用例守着）。
+GROUP_BYS = ("status", "priority", "skill", "workspace")
 FILTERS = ("all", "open", "done")
 METRIC_IDS = ("by_status", "by_skill", "verdict", "acceptance")
 MAX_SECTIONS = 6
@@ -678,8 +681,16 @@ def _run_check(check: dict, ws: Path) -> dict:
     if kind == "cmd":
         import subprocess
         to = int(check.get("timeout_secs") or 60)
+        # v13：**必须剥掉 Windows 的 `\\?\` 长路径前缀**。`WORKSPACE_ROOT` 常常带着它
+        # （本机就是 `\\?\D:\ZH\vibe code\WF\1109`），而 `cmd.exe` 不认 UNC 形式的工作目录，
+        # 会静默退到 `C:\Windows` 再执行命令——表现是 `python: can't open file
+        # 'C:\Windows\.scratch\verify.py'`，或者干脆在错的目录里跑完给个假的 exit=0。
+        # 这类假失败最难查：检查内容是对的，结论却是错的。
+        cwd = str(ws)
+        if cwd.startswith("\\\\?\\"):
+            cwd = cwd[4:]
         try:
-            r = subprocess.run(target, shell=True, cwd=str(ws), capture_output=True,
+            r = subprocess.run(target, shell=True, cwd=cwd, capture_output=True,
                                text=True, encoding="utf-8", errors="replace", timeout=to)
         except subprocess.TimeoutExpired:
             return {"status": "fail", "evidence": {**ev, "timeout_secs": to}}

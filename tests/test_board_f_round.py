@@ -39,11 +39,19 @@ class FoldContractTest(unittest.TestCase):
         self.js = read(BOARD_JS)
 
     def test_settled_groups_fold_by_default(self):
-        # 任务：done / cancelled 传入 dflt=true；活跃组传 false
+        # 任务：done / cancelled 传入 dflt=true；活跃组传 false。
+        # v13：落定组的默认值不再是裸 settled(g)，而是 settled(g) && !fresh——
+        # 「刚做完的那条别折进去」。故断言改成行为级：默认值必须是 settled(g) 参与
+        # 计算、且活跃组恒为 false、落定组恒为 true（除非命中 fresh 例外）。
         self.assertIn('const settled = (g) => st === "status" && (g === "done" || g === "cancelled");',
                       self.js, "任务组的『落定态』判据被改动")
-        self.assertIn("folded(sec.id, g, settled(g))", self.js,
+        self.assertIn("const shut = folded(sec.id, g, settled(g));", self.js,
                       "任务组未按 settled 决定默认折叠态")
+        # v13：收起态必须露出「最新一条」预览——折成一行只剩数字，用户就看不出
+        # 自己刚交付的活（这是「任务做完了看板不体现」的直接来源）。
+        self.assertIn('row.classList.add("tpreview")', self.js,
+                      "折叠组未露出最新一条预览")
+        self.assertIn("if (shut) {", self.js, "折叠分支被改动")
 
     def test_inspiration_layers_fold_by_default(self):
         # 灵感：open 全展，adopted/archived 默认收起

@@ -65,6 +65,12 @@ function boardSections() {
     .map((x) => x.s);
 }
 
+// v13：一条任务/灵感属于哪个工作区（显示用标签）。空标签 = 归属未知（老条目），
+// **不编一个「未知」写出来**——那会被读成「丢失」。返回空串，调用方据此不渲染。
+function wsTagOf(it) {
+  return String(it?.workspace ?? "").trim();
+}
+
 // 任务分组：状态优先，其次优先级，再次更新时间倒序（新改动的在同组更靠上）。
 function groupTasks(tasks, groupBy) {
   const key = groupBy === "priority" ? (t) => (PRIO_RANK[t.priority] ?? 9) : null;
@@ -94,6 +100,52 @@ function groupTasks(tasks, groupBy) {
     for (const s of out.keys()) out.set(s, sortRows(out.get(s)));
     return out;
   }
+  // v13：按工作区分组。**本工作区排最前**——用户开这个窗口就是来看自己项目的活，
+  // 让他先滚过 28 条别的项目的任务才能看到自己那条，等于没做这个功能。
+  // 其余按条数降序（活多的项目更可能是他正在想的那个），同条数按标签字典序（稳定，
+  // 不会因为轮询重排而跳动）。空标签排最后：归属未知不该抢在已知之上。
+  if (groupBy === "workspace") {
+    const out = new Map();
+    for (const t of tasks) {
+      const k = wsTagOf(t);
+      if (!out.has(k)) out.set(k, []);
+      out.get(k).push(t);
+    }
+    for (const k of out.keys()) out.set(k, sortRows(out.get(k)));
+    const mine = boardMine();
+    const keys = [...out.keys()].sort((a, b) => {
+      const am = a === mine && a ? 0 : 1, bm = b === mine && b ? 0 : 1;
+      if (am !== bm) return am - bm;
+      const ae = a ? 0 : 1, be = b ? 0 : 1;
+      if (ae !== be) return ae - be;
+      const d = out.get(b).length - out.get(a).length;
+      return d !== 0 ? d : a.localeCompare(b);
+    });
+    return new Map(keys.map((k) => [k, out.get(k)]));
+  }
+  // v13：按工作区分组。**本工作区排最前**——用户开这个窗口就是来看自己项目的活，
+  // 让他先滚过 28 条别的项目的任务才能看到自己那条，等于没做这个功能。
+  // 其余按条数降序（活多的项目更可能是他正在想的那个），同条数按标签字典序（稳定，
+  // 不会因为轮询重排而跳动）。空标签排最后：归属未知不该抢在已知之上。
+  if (groupBy === "workspace") {
+    const out = new Map();
+    for (const t of tasks) {
+      const k = wsTagOf(t);
+      if (!out.has(k)) out.set(k, []);
+      out.get(k).push(t);
+    }
+    for (const k of out.keys()) out.set(k, sortRows(out.get(k)));
+    const mine = boardMine();
+    const keys = [...out.keys()].sort((a, b) => {
+      const am = a === mine && a ? 0 : 1, bm = b === mine && b ? 0 : 1;
+      if (am !== bm) return am - bm;
+      const ae = a ? 0 : 1, be = b ? 0 : 1;
+      if (ae !== be) return ae - be;
+      const d = out.get(b).length - out.get(a).length;
+      return d !== 0 ? d : a.localeCompare(b);
+    });
+    return new Map(keys.map((k) => [k, out.get(k)]));
+  }
   const by = new Map(BOARD_ORDER.map((s) => [s, []]));
   for (const t of tasks) {
     const st = by.has(t.status) ? t.status : "planning";
@@ -104,7 +156,14 @@ function groupTasks(tasks, groupBy) {
 }
 
 function sortRows(arr) {
+  // v13：**同组内本工作区的行排最前**。理由：用户开这个窗口就是来看自己项目的活，
+  // 而「完成」组里有 28 条别的项目的任务、他刚做完的那条排在中间，等于还是没看见。
+  // 优先级/时间仍是主序，归属只是最外层的一刀——换项目看时同一套规则照样成立。
+  const mine = boardMine();
+  const mineRank = (t) => (mine && wsTagOf(t) === mine ? 0 : 1);
   arr.sort((a, b) => {
+    const ma = mineRank(a), mb = mineRank(b);
+    if (ma !== mb) return ma - mb;
     const pa = PRIO_RANK[a.priority] ?? 9, pb = PRIO_RANK[b.priority] ?? 9;
     if (pa !== pb) return pa - pb;
     return String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? ""));
@@ -255,8 +314,23 @@ function renderTasksSection(sec) {
   for (const [g, arr] of grouped) {
     const label = st === "status" ? (BOARD_LABEL[g] ?? g) : g;
     const shut = folded(sec.id, g, settled(g));
-    body.appendChild(tgroupHead(sec.id, g, label, arr.length, shut));
-    if (shut) continue;
+    body.appendChild(tgroupHead(sec.id, g, label, arr.length, shut, wsDist(arr)));
+    // v13：**收起态也要露出最新那一条**。落定组默认折叠是对的（已完成不该和进行中
+    // 的一样占地方），但「折成一行只剩数字」正是用户那句「任务做完了，看板为什么不
+    // 体现」的直接来源——他刚交付的那条被折进「完成 30」里，等于没有反馈。
+    // 为什么不用时间窗（「N 分钟内算刚做完」）：窗口是任意数，10 分钟前和 21 分钟前
+    // 没有本质区别，用户隔天回来照样看不到自己昨天做完的活。**预览一条最新**没有
+    // 这个缺陷：任何时刻都能看到「这一组最近发生了什么」，代价只有一行高度。
+    if (shut) {
+      if (arr.length) {
+        const preview = [...arr].sort((a, b) =>
+          String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")))[0];
+        const row = taskRow(preview);
+        row.classList.add("tpreview");
+        body.appendChild(row);
+      }
+      continue;
+    }
     for (const t of arr) {
       if (shown >= limit) break;
       body.appendChild(taskRow(t));
@@ -291,12 +365,38 @@ function setFold(secId, g, v) {
   try { localStorage.setItem(FOLD_KEY, JSON.stringify(boardFold)); } catch { /* 隐私模式：忽略 */ }
 }
 
+// v13：把一组条目按工作区聚成「标签×条数」，条数降序，最多显示 max 个，其余折成 +N。
+// 为什么要它：折叠组头只有「完成 29」一个数字时，用户仍然不知道里面有没有自己项目的活——
+// 而这正是他抱怨的那件事（「任务做完了，看板为什么不体现」）。分布摘要让**收起态也带归属信息**。
+function wsDist(items, max = 3) {
+  const cnt = new Map();
+  for (const it of items) {
+    const k = wsTagOf(it);
+    if (!k) continue;                 // 归属未知不参与统计，也不编标签
+    cnt.set(k, (cnt.get(k) ?? 0) + 1);
+  }
+  if (!cnt.size) return "";
+  const mine = boardMine();
+  const keys = [...cnt.keys()].sort((a, b) => {
+    const am = a === mine ? 0 : 1, bm = b === mine ? 0 : 1;
+    if (am !== bm) return am - bm;
+    return cnt.get(b) - cnt.get(a) || a.localeCompare(b);
+  });
+  const shown = keys.slice(0, max);
+  const rest = keys.length - shown.length;
+  const html = shown.map((k) => `<span class="tdws${k === mine ? " mine" : ""}">` +
+    `${boardEsc(k)}<i>${cnt.get(k)}</i></span>`).join("");
+  return html + (rest > 0 ? `<span class="tdws more" title="${boardEsc(keys.slice(max).join(" / "))}">+${rest}</span>` : "");
+}
+
 // 组头：可点折叠。收起时把该组的条目数放在最右——折叠不等于隐藏，先告诉你「里面有几条」。
-function tgroupHead(secId, g, label, n, shut) {
+// v13：`dist` 非空时在条数左侧补一段工作区分布（收起态也显示，这是本轮的核心）。
+function tgroupHead(secId, g, label, n, shut, dist) {
   const head = el("div", "tgroup" + (shut ? " shut" : ""));
   head.title = shut ? `展开「${label}」（${n} 条）` : `收起「${label}」`;
   head.innerHTML = `<span class="tchev">${shut ? "▸" : "▾"}</span>` +
     `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
+    (dist ? `<span class="tdist">${dist}</span>` : "") +
     `<span class="tcnt">${n}</span>`;
   head.onclick = () => { setFold(secId, g, !shut); refreshSections(); };
   return head;
@@ -317,8 +417,15 @@ function taskRow(t) {
   if ((res.skills ?? []).length) bits.push(`部门 ${res.skills.length}`);
   if ((res.tools ?? []).length) bits.push(`工具 ${res.tools.length}`);
   if ((t.checks ?? []).length) bits.push(`验收 ${t.checks.length}`);
+  // v13：工作区徽章。**「本项目」档下不渲染**——那一档里每条都是本工作区，
+  // 印出来只是噪声，还会把本来就不宽的标题栏挤得更窄。归属未知的老条目也不印。
+  const ws = wsTagOf(t);
+  const wsChip = (ws && boardScope !== "mine")
+    ? `<span class="tws${ws === boardMine() ? " mine" : ""}" title="这条任务在哪个工作区产生">${boardEsc(ws)}</span>`
+    : "";
   row.innerHTML =
     `<div class="tline"><span class="tprio p-${boardEsc(prio)}">${boardEsc(prio)}</span>` +
+    wsChip +
     `<span class="ttitle" title="${boardEsc(t.title)}">${boardEsc(t.title)}</span>` +
     (verdict !== "none" ? `<span class="tverdict v-${boardEsc(verdict)}">${boardEsc(VERDICT_LABEL[verdict] ?? verdict)}</span>` : "") +
     (ratio ? `<span class="tratio">${ratio}</span>` : "") +
