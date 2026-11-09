@@ -73,12 +73,19 @@ if defined NEED_MAGPIE (
 )
 
 echo [rsi] Starting host (frontend=%REACT_FRONTEND%; workspace=%WORKSPACE_ROOT%)
-rem -- web frontend: open browser after 4s; skip in one-shot mode --
+rem -- web frontend: open the browser only ONCE the host is actually serving --
+rem 为什么不能固定等几秒就开（I-20261109-01「重启后 web 页面等半天」的真因）：
+rem   cargo run 在下面这行**先编译再启动**。实测：源码有改动时全量重编 25s、只动
+rem   agent-loop 也要 2s，之后 assemble 还要 3.1s（bash 沙箱探测 + provider ping +
+rem   技能预热）才 bind 端口。旧写法 `timeout /t 4 & start http://...` 在编译没完时
+rem   就把浏览器打开了 —— 用户看到的是「连不上/白屏」，等多久取决于编译，于是成了
+rem   「等半天」。改成轮询探测：端口真起来（GET / 返回任何响应）才开浏览器。
 set "ADDR=%WEB_ADDR%"
 if not defined ADDR set "ADDR=127.0.0.1:8710"
 if /i "%REACT_FRONTEND%"=="web" if "%~1"=="" (
-  echo [rsi] Web UI: http://%ADDR% - browser opens in a few seconds; Ctrl+C to stop
-  start "" cmd /c "timeout /t 4 /nobreak >nul & start http://%ADDR%"
+  echo [rsi] Web UI: http://%ADDR% - waiting for the host to be ready (compiling on first run can take ~30s)...
+  echo [rsi] 浏览器会在服务真正就绪后自动打开；Ctrl+C 可随时停止。
+  start "" /b powershell -NoProfile -ExecutionPolicy Bypass -File "%REPO%\scripts\wait-host-ready.ps1" -Url "http://%ADDR%/" -TimeoutSecs 180
 )
 cargo run --manifest-path "%REPO%\runtime\Cargo.toml" -p react-agent-host %*
 

@@ -127,5 +127,42 @@ class StaticStructure(unittest.TestCase):
                          f"切换逻辑与实际页签不一致：DOM={sorted(p.chains)} JS={sorted(listed)}")
 
 
+class LauncherReadinessContract(unittest.TestCase):
+    """I-20261109-01「重启后 web 页面等半天」的定点回归。
+
+    真因：run.cmd 用固定 `timeout /t 4` 之后无脑开浏览器，而 `cargo run` 是
+    **先编译再启动**——实测有改动时全量重编 ~25s、只动 agent-loop 也 ~2s，
+    编译完 assemble 还要 ~3.1s（bash 沙箱探测 + provider ping + 技能预热）
+    才 bind 端口。浏览器在编译期就被打开，用户看到白屏，等多久取决于编译。
+
+    契约：启动器不得再用固定延时开页面，必须等端口真就绪。
+    """
+
+    def test_no_fixed_delay_browser_open(self):
+        src = (ROOT / "run.cmd").read_text(encoding="utf-8", errors="replace")
+        self.assertNotIn(
+            "timeout /t 4 /nobreak >nul & start http://",
+            src,
+            "run.cmd 又回到了「固定等 4 秒就开浏览器」——重启后会白屏，等多久取决于编译耗时",
+        )
+
+    def test_opens_browser_after_readiness_probe(self):
+        src = (ROOT / "run.cmd").read_text(encoding="utf-8", errors="replace")
+        self.assertIn("wait-host-ready.ps1", src,
+                      "run.cmd 应调用就绪探测脚本，而不是无脑开页面")
+        self.assertRegex(src, r"wait-host-ready\.ps1\"\s+-Url",
+                         "就绪探测必须传入真实地址")
+
+    def test_readiness_script_waits_and_times_out(self):
+        """探测脚本必须「就绪才开」且「有上限」，否则会永久挂着或静默失败。"""
+        ps = (ROOT / "scripts" / "wait-host-ready.ps1").read_text(encoding="utf-8")
+        self.assertIn("Invoke-WebRequest", ps, "必须有真实 HTTP 探测")
+        self.assertIn("TimeoutSecs", ps, "必须有超时上限")
+        self.assertIn("Start-Process $Url", ps, "就绪后才打开浏览器")
+        # 退出码：成功 0 / 超时非 0（让 run.cmd 能区分）
+        self.assertIn("exit 0", ps)
+        self.assertRegex(ps, r"exit\s+7", "超时必须返回非 0，便于上层判断")
+
+
 if __name__ == "__main__":
     unittest.main()

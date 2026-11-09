@@ -22,6 +22,10 @@ config.magpie.local.json
 # 补丁回滚备份（scripts/apply-tool-patches.py / apply-q-round.py 自动生成）
 *.patchbak
 *.qpatchbak
+# write_file 覆盖备份与临时 .bak（探针/补丁草稿的副产物，不入库）
+*.bak
+# 隔离构建缓存（.scratch/ 的点目录变体，同样只留痕不入库）
+.scratch-target/
 # Q 轮隔离构建目录（运行中 host 锁住 debug/*.exe 时使用）
 runtime/target-q/
 # D 轮隔离构建目录（同上）
