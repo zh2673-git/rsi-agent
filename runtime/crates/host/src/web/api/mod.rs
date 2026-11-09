@@ -8,6 +8,7 @@
 //! 本文件保留共享件：R3 附件校验（`/api/chat` 闸）。
 mod board;
 mod config;
+mod git_auth;
 mod misc;
 mod profile;
 mod publish;
@@ -20,6 +21,7 @@ pub(super) use misc::{
     reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,
     upstream_checkin, upstream_login, upstream_start, upstream_status,
 };
+pub(super) use git_auth::get_git_auth;
 pub(super) use profile::{get_profile, post_profile};
 pub(super) use publish::{get_publish_config, post_publish_config};
 pub(super) use skills::{delete_skill, get_skill, get_skills, put_skill};

@@ -1,1 +1,3 @@
 .ist { font-size: 10px; color: var(--faint); }
+
+   3. #board-sections 是章节容器：kind 顺序由 app-board.js 钉死（任务→指标→灵感）。 */

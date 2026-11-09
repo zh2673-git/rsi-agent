@@ -1,9 +1,5 @@
 .ist { font-size: 10px; color: var(--faint); }
-.ist { font-size: 10px; color: var(--faint); }
 
-/* ── C 轮：评价体系与布局驱动章节 ─────────────────────────────────────────────
-   1. 验收结论徽章（行内）+ 可执行检查列表（详情里）——把「自证」变成「证据」的可见面。
-   2. 指标卡（metrics 章节）：看板自己回答「有多少活没跑验收」。
    3. #board-sections 是章节容器：kind 顺序由 app-board.js 钉死（任务→指标→灵感）。 */
 .tverdict { flex: 0 0 auto; font-size: 10px; padding: 0 5px; border-radius: 5px; line-height: 15px;
   border: 1px solid var(--border); color: var(--muted); }
@@ -21,7 +17,6 @@
 .dverdict.v-pass { color: var(--ok); }
 .dverdict.v-fail { color: #ff6b6b; }
 
-/* 指标卡：两列网格（标签 + 值），hint 占整行 */
 .sec-body.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 2px 6px; }
 .metric { display: flex; flex-direction: column; gap: 1px; padding: 7px 8px; border-radius: 9px;
   background: var(--card); border: 1px solid var(--border-soft); min-width: 0; }
@@ -34,3 +29,4 @@
 #board-sections > .board-sec[data-kind="tasks"] .sec-body { max-height: 46vh; }
 #board-sections > .board-sec[data-kind="inspirations"] { flex: 1; min-height: 120px; }
 #board-sections > .empty { color: var(--faint); font-size: 12px; padding: 8px; line-height: 1.6; }
+

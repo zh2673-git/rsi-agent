@@ -1,0 +1,2 @@
+        ("GET", "/api/profile") => api::get_profile(&mut stream).await,
+        ("POST", "/api/profile") => api::post_profile(&mut stream, &body).await,

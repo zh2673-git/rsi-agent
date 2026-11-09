@@ -1,0 +1,8 @@
+{
+  "id": "Z6-APPSETTINGS-BADGE-DUP",
+  "description": "app-settings.js：把重复的 showInstBadge(...) 调用收敛为一行（F3-CFG-CACHE 锚点不唯一；重复赋值是合法 JS，node --check 抓不到）。converge 型：坏块不存在 = 已收敛。",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/z6-appset-badge-anchor.txt",
+  "patch_file": "blocks/z6-appset-badge-patch.txt",
+  "converge": true
+}

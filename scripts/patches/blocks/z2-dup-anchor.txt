@@ -1,0 +1,2 @@
+$("mem-refresh").onclick = () => loadMemory();
+$("mem-refresh").onclick = () => loadMemory();

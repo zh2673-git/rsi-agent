@@ -1,0 +1,8 @@
+{
+  "id": "Z1-APPSETTINGS-DUP",
+  "description": "app-settings.js：删除文件末尾重复的整段 F3 能力总览块（ovSet/renderOverview/ovGoto/click 监听被插入两遍 → node --check 报 Identifier 'ovSet' has already been declared，整文件语法错、设置面板全废）。repair 型：重复块锚点不存在 = 已修好（不能用 applied_marker——分发块标题在坏态里同样存在，无法区分好坏；这一点由重放验证暴露）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "repair": true,
+  "anchor_file": "blocks/z1-dup-block.txt",
+  "patch": "\n"
+}

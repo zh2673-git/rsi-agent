@@ -1,5 +1,4 @@
     showInstBadge(c.instance_name ?? ""); // W17：子实例头部徽章（主实例为空不显示）
-    showInstBadge(c.instance_name ?? ""); // W17：子实例头部徽章（主实例为空不显示）
     // F3：缓存本轮 config 喂「能力总览」——总览是只读目录，不该为它多发一次 /api/config
     window.__cfgCache = c;
     renderOverview();

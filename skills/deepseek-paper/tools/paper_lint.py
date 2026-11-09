@@ -207,6 +207,42 @@ def run(args: dict) -> dict:
         detail = f"比较级断言 {cmps} 处（未提供账本，跳过核对）"
     gates.append(gate("G12", g12, detail))
 
+    # ── G13 统计口径声明（借鉴 Nature，I-20260813）─────────────────────────────
+    # Nature 原文两条硬要求：
+    #   "All error bars and statistics must be defined in the figure legend."
+    #   "The exact sample size (n) for each experimental group/condition"
+    # 为什么值得抄：DeepSeek 原文其实做到了（`Scores with a gap smaller than 0.3
+    # are regarded as at the same level`、`assuming the rental price of H800 is
+    # $2 per GPU hour`），但这是**隐性惯例**，没写进门禁 → 换个作者就丢。
+    # 判据取「有误差/区间就必须有口径」：出现 ±/error bar/CI/std 等符号，却没有
+    # 任一说明词，才判红。纯单点数字（如 FLOPs、参数量）不触发——否则全是假阳性。
+    STAT_SYMBOL = re.compile(r"±|\berror bar|标准误|\bs\.e\.m\.|\bs\.d\.|\bstd\b|置信区间|\bCI\b|\b95%", re.I)
+    STAT_DECL = re.compile(r"s\.d\.|s\.e\.m\.|standard deviation|standard error|"
+                           r"confidence interval|置信区间|误差棒表示|误差線表示|"
+                           r"\bn\s*=\s*\d+|n\s*=\s*\d+|个种子|seeds?\b|独立重复", re.I)
+    has_stat_sym = bool(STAT_SYMBOL.search(text))
+    has_stat_decl = bool(STAT_DECL.search(text))
+    # 失败申报条件：只有「用了统计符号」才要求声明（无符号 = 无可声明）
+    g13 = (not has_stat_sym) or has_stat_decl
+    gates.append(gate("G13", g13,
+                      f"统计符号={'有' if has_stat_sym else '无'}, 口径声明={'有' if has_stat_decl else '无'}"
+                      + ("" if g13 else "（有误差/区间就必须写清它表示什么 + n 是多少）")))
+
+    # ── G14 图注必给 n / 口径（Nature: figure legend 里定义 symbols 与 n）──────
+    # 只查图注行，不扫全文——图注是「读者唯一会看的地方」。
+    CAP_N = re.compile(r"\bn\s*=\s*\d+|\d+\s*(?:runs|seeds|trials|repeats|次|个种子|组)", re.I)
+    bad_n = []
+    for line in text.splitlines():
+        m = CAPTION.match(line.strip())
+        if not m or m.group(1).lower() != "figure":
+            continue
+        cap = line.strip()
+        # 图里有误差语义却没说 n，才算缺
+        if STAT_SYMBOL.search(cap) and not CAP_N.search(cap):
+            bad_n.append(m.group(2))
+    gates.append(gate("G14", not bad_n,
+                      f"图注缺 n/重复数: {bad_n or '无'}"))
+
     style = {w: len(re.findall(re.escape(w), text, re.I)) for w in STYLE_WORDS}
     failed = [g["id"] for g in gates if not g["pass"]]
     strict = args.get("strict", True)

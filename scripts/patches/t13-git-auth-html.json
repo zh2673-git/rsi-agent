@@ -1,0 +1,7 @@
+{
+  "id": "T13-GIT-AUTH-HTML",
+  "description": "index.html：设置页「工具」标签下新增 GitHub 登录态区块（显示状态 + 可复制命令）",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/t13-html-anchor.txt",
+  "patch_file": "blocks/t13-html-patch.txt"
+}

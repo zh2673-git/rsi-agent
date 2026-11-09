@@ -1,0 +1,7 @@
+{
+  "id": "T13-GIT-AUTH-MOD",
+  "description": "api/mod.rs：注册 git_auth 模块（锚点取 mod misc/profile/publish 三行，避开 I07 补丁的 mod 块末行）",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor_file": "blocks/t13-mod-anchor.txt",
+  "patch_file": "blocks/t13-mod-patch.txt"
+}

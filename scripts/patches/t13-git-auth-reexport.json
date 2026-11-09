@@ -1,0 +1,7 @@
+{
+  "id": "T13-GIT-AUTH-REEXPORT",
+  "description": "api/mod.rs：re-export get_git_auth（与 mod 声明分开成两条补丁，避免同一补丁改两处导致幂等判据模糊）",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor_file": "blocks/t13-reexport-anchor.txt",
+  "patch_file": "blocks/t13-reexport-patch.txt"
+}

@@ -1,0 +1,14 @@
+      <div id="tools-list"></div>
+      <div class="row"><button class="btn" id="tools-save">保存</button><button class="btn ghost" id="tools-reveal" title="打开 plugins/tools 目录（内置工具源码）">📂 源文件</button><span class="flash" id="tools-flash"></span></div>
+      <!-- T-13：GitHub 登录态。刻意不放「一键登录」按钮：gh auth login 是阻塞式
+           交互命令，host 代跑会挂到超时（实测 K502）。这里只做两件事——
+           ① 显示当前是否已登录（读 gh 已有凭据，不碰 token）；
+           ② 未登录时给一行可复制命令，用户粘到终端跑完再点「重新检测」。 -->
+      <div class="field" style="margin-top:16px">
+        <label>GitHub（提交 / 推送用）</label>
+        <div id="git-auth-box" class="hint">检测中…</div>
+        <div class="row">
+          <button class="btn ghost" id="git-auth-refresh">重新检测</button>
+          <span class="flash" id="git-auth-flash"></span>
+        </div>
+      </div>

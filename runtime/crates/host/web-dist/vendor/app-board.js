@@ -951,7 +951,12 @@ function renderWinMetrics(sec, root) {
 
 function renderWinInsp(sec, root) {
   const body = el("div", "bw-body");
-  const items = boardData?.board?.inspirations ?? [];
+  // 必须与左栏 renderInspSection 走同一个推导（J1）。两处若一处推导、一处读原始
+  // `inspiration.status`，同一条灵感就会左栏显示「已采纳」、看板窗口显示「待议」——
+  // 这不是两个视图的偏好差异，而是同一个事实被算了两遍、其中一遍算错。
+  // 「被哪个任务采纳」只存在任务侧 `task.inspirations`，灵感对象的 status 只表达
+  // 用户的显式动作（归档），所以任何读它的视图都必须先过 deriveInspState。
+  const items = deriveInspState(boardData?.board?.inspirations ?? []);
   if (!items.length) {
     body.appendChild(el("div", "empty", "把零碎想法记在侧栏，需要时在对话里 @ 引入。"));
     root.appendChild(body);

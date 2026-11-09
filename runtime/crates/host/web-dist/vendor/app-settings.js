@@ -29,7 +29,59 @@ async function api(method, url, body) {
 }
 
 let cfgTools = [], cfgMcp = { servers: [], tools: [] };
+// ── T-13：GitHub 登录态（读 gh 已有凭据，绝不显示 token）──────────────────
+// 为什么不是「一键登录」：gh auth login 是阻塞式交互命令（要开浏览器、等授权），
+// host 代跑它会一直挂到超时（历史实测 K502）。所以这里只做两件事——
+// ① 显示当前登录态（含账号与 scopes，便于确认权限够不够）；
+// ② 未登录时给一行**可复制**的命令，用户在自己终端跑完再点「重新检测」。
+// 把命令交给用户复制，好过做一个点了没反应的按钮。
+async function renderGitAuth() {
+  const box = $("git-auth-box");
+  if (!box) return;
+  box.textContent = "检测中…";
+  let v;
+  try {
+    v = await api("GET", "/api/git/auth");
+  } catch (e) {
+    box.textContent = "读取失败：" + e.message;
+    return;
+  }
+  // 三种状态各自说清「下一步做什么」，不留悬空
+  if (v.status === "logged_in") {
+    box.innerHTML =
+      `<span style="color:var(--ok)">✓ 已登录</span>　账号 <b>${esc(v.login || "?")}</b>` +
+      `<br>凭据来源：${esc(v.token_source || "?")}　协议：${esc(v.git_protocol || "?")}` +
+      (v.scopes ? `<br>权限：<span style="font-family:ui-monospace,monospace">${esc(v.scopes)}</span>` : "");
+  } else if (v.status === "logged_out") {
+    box.innerHTML =
+      `未登录 <b>${esc(v.host || "github.com")}</b>。把下面这行粘到终端执行：` +
+      `<br><code style="display:block;margin:6px 0;padding:6px 8px;background:var(--card-2);` +
+      `border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px;user-select:all">` +
+      `${esc(v.command || "")}</code>${esc(v.hint || "")}`;
+  } else if (v.status === "gh_missing") {
+    box.innerHTML =
+      `${esc(v.hint || "未检测到 GitHub CLI")}<br>` +
+      `安装：<code style="user-select:all">${esc(v.install || "")}</code>` +
+      (v.fallback ? `<br><span style="color:var(--faint)">${esc(v.fallback)}</span>` : "");
+  } else {
+    box.textContent = v.hint || "状态未知";
+  }
+}
+
+function initGitAuth() {
+  const btn = $("git-auth-refresh");
+  if (btn) {
+    btn.onclick = async () => {
+      await renderGitAuth();
+      const f = $("git-auth-flash");
+      if (f) { f.textContent = "已刷新"; setTimeout(() => { f.textContent = ""; }, 1600); }
+    };
+  }
+  renderGitAuth();
+}
+
 async function loadConfig() {
+  if (typeof initGitAuth === "function") initGitAuth(); // T-13：GitHub 登录态（独立请求，不拖慢主配置）
   try {
     await loadPresets(); // 站点清单就绪后再回显，base_url 反查预设
     const c = (await api("GET", "/api/config")).config;
@@ -72,7 +124,6 @@ async function loadConfig() {
     // （MCP key 配置已移入「MCP 外接」各服务组内，随 renderTools 渲染）
     syncLlmFields();
     refreshUpstream(); // 回环 base_url 时亮出本地网关状态/积分（非回环自动隐藏）
-    showInstBadge(c.instance_name ?? ""); // W17：子实例头部徽章（主实例为空不显示）
     showInstBadge(c.instance_name ?? ""); // W17：子实例头部徽章（主实例为空不显示）
     // F3：缓存本轮 config 喂「能力总览」——总览是只读目录，不该为它多发一次 /api/config
     window.__cfgCache = c;
@@ -886,7 +937,6 @@ async function memDelete(op, id, domain, label) {
 }
 
 $("mem-refresh").onclick = () => loadMemory();
-$("mem-refresh").onclick = () => loadMemory();
 $("mem-reveal").onclick = () => reveal("config", null, "skill-flash");
 
 // ── F3：能力总览（设置抽屉的目录页）──────────────────────────────────────────
@@ -946,8 +996,6 @@ document.addEventListener("click", (e) => {
   const row = e.target.closest(".ov-row");
   if (row && row.dataset.goto) ovGoto(row.dataset.goto);
 });
-$("mem-refresh").onclick = () => loadMemory();
-$("mem-reveal").onclick = () => reveal("config", null, "skill-flash");
 
 // ── 内容分发面板（I-20261108-07）────────────────────────────────────────────
 // 设计取舍：面板只做两件事——「显示每个平台能不能用、缺什么」和「开关 + 填凭证」。
@@ -1022,62 +1070,3 @@ document.addEventListener("click", async (e) => {
     flash("pub-flash", false, "保存失败：" + err.message);
   }
 });
-
-// ── F3：能力总览（设置抽屉的目录页）──────────────────────────────────────────
-// 三列 = 三类决定来源（见 index.html 注释）。每列的值都从**已有数据**推出来，
-// 不新增任何后端接口：
-//   · 你决定的 → loadConfig 已拉到的 llm / agent / tools
-//   · 它带的牌 → tools 的 pool 分类 + skillsCache
-//   · 它记得的事 → loadMemory 已拉到的 profile
-// 点行跳页签，不展开不弹窗——目录的价值是「一眼看清 + 一步到位」。
-function ovSet(id, text) {
-  const node = $(id);
-  if (node) node.textContent = text;
-}
-
-function renderOverview() {
-  if (!$("cap-overview")) return;
-  const c = window.__cfgCache;
-  if (c) {
-    const m = c.llm ?? {};
-    ovSet("ov-llm", m.model ? `${m.provider ?? "?"} · ${m.model}` : (m.provider ?? "未配置"));
-    const tools = c.tools ?? [];
-    const on = tools.filter((t) => t.enabled).length;
-    ovSet("ov-tools", on ? `${on} / ${tools.length} 启用` : "未启用任何工具");
-    const a = c.agent ?? {};
-    const bits = [];
-    if (a.max_rounds) bits.push(`≤${a.max_rounds} 轮`);
-    if (a.budget_secs > 0) bits.push(`${a.budget_secs}s`);
-    if (a.token_budget > 0) bits.push(`${a.token_budget} tok`);
-    ovSet("ov-agent", bits.length ? bits.join(" · ") : "全部用缺省");
-    const st = tools.filter((t) => t.pool === "skill").length;
-    const mc = tools.filter((t) => t.pool === "mcp").length;
-    const mcOn = tools.filter((t) => t.pool === "mcp" && t.enabled).length;
-    ovSet("ov-pool", `技能 ${st} · MCP ${mcOn}/${mc}`);
-  }
-  if (skillsCache.length || c) {
-    const preset = skillsCache.filter((s) => s.origin === "preset").length;
-    ovSet("ov-skills", skillsCache.length
-      ? `${skillsCache.length} 个（内置 ${preset} · 用户 ${skillsCache.length - preset}）`
-      : "暂无技能");
-  }
-  const p = memData;
-  if (p) {
-    const ns = (p.sections ?? []).length, nn = (p.notes ?? []).length;
-    const nd = Object.keys(p.domains ?? {}).length;
-    ovSet("ov-mem", p.exists ? `${ns} 章节 · ${nn} 观察 · ${nd} 域` : "还没有画像");
-    ovSet("ov-dom", p.current_domain ? p.current_domain : "未选域（只用全局）");
-  }
-}
-
-// 点行跳页签：复用既有 tabs 的点击逻辑（不另写一套切换，避免两处状态不同步）
-function ovGoto(tab) {
-  const btn = [...document.querySelectorAll("#drawer .tabs button")].find((b) => b.dataset.tab === tab);
-  if (btn) btn.click();
-}
-
-document.addEventListener("click", (e) => {
-  const row = e.target.closest(".ov-row");
-  if (row && row.dataset.goto) ovGoto(row.dataset.goto);
-});
-$("mem-reveal").onclick = () => reveal("config", null, "skill-flash");

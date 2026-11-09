@@ -367,12 +367,26 @@ class PromptSectionTest(unittest.TestCase):
         self.assertIn("want_task_plan).await", chat)
 
     def test_board_injection_requires_cli_presence(self):
-        """别的项目工作区没有 board.py → 不得注入这一段（避免污染通用运行时提示词）。"""
+        """CLI 能力锚定**代码根**，与工作区无关；没有 CLI 仍不注入。
+
+        v10 语义变更：旧断言要求 `skills.rs` 里出现 `is_file()`——那条规则本来就是 bug：
+        它把「这套工具带不带看板」挂在 `WORKSPACE_ROOT` 上，用户一开「新窗口」绑到自己的
+        项目，看板段就整段消失，子窗口的看板永远收不到任务。
+        现在门控收敛到 `board_ctx::has_board_cli` → `config::rsi_home`（代码根），
+        所以这里断言的是**结构**（谁负责判定）+ **行为**（无 CLI 时返回空）。
+        """
+        bc = read("runtime/crates/agent-loop/src/board_ctx.rs")
+        # 判定只在 board_ctx 一处，且锚定 rsi_home（代码根）而非 WORKSPACE_ROOT
+        self.assertIn("pub(super) fn board_cli_path() -> Option<PathBuf>", bc)
+        self.assertIn("super::config::rsi_home()", bc)
+        self.assertIn('join("scripts").join("board.py")', bc)
+        # skills.rs 只消费判定结果，不再自己探测工作区
         rs = read("runtime/crates/agent-loop/src/skills.rs")
-        seg = rs.split("fn task_board_section")[1][:800]
-        self.assertIn("board.py", seg)
-        self.assertIn("is_file()", seg)
+        seg = rs.split("fn task_board_section_body")[1][:800]
+        self.assertIn("super::board_ctx::has_board_cli()", seg)
         self.assertIn("return String::new()", seg)
+        self.assertNotIn('join("scripts").join("board.py")', seg,
+                         "skills.rs 不得再自行探测工作区 scripts/board.py（那正是 v10 修的 bug）")
 
 
 class FrozenSurfaceTest(unittest.TestCase):

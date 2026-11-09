@@ -1,5 +1,4 @@
 .mem-dcnt { margin-left: auto; font-size: 10.5px; color: var(--faint); }
-.mem-dcnt { margin-left: auto; font-size: 10.5px; color: var(--faint); }
 
 /* ── F3：能力总览（设置抽屉的目录页）─────────────────────────────────────────
    三列并排表达「谁做的决定」，窄屏退化为单列。视觉上刻意做成**目录**而不是仪表盘：

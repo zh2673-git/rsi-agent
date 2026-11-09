@@ -1,0 +1,4 @@
+.ist { font-size: 10px; color: var(--faint); }
+
+.ist { font-size: 10px; color: var(--faint); }
+/* ── C 轮：评价体系与布局驱动章节 ─────────────────────────────────────────────

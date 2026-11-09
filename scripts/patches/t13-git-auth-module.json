@@ -1,0 +1,8 @@
+{
+  "id": "T13-GIT-AUTH-MODULE",
+  "description": "新增 web/api/git_auth.rs：读 gh 登录态（不暴露 token）、未登录时给可复制命令（不代跑阻塞式 gh auth login）",
+  "file": "runtime/crates/host/src/web/api/git_auth.rs",
+  "create": true,
+  "content_file": "blocks/t13-git-auth.rs.txt",
+  "create_marker": "pub(crate) async fn get_git_auth"
+}

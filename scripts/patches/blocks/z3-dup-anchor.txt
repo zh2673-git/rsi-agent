@@ -1,0 +1,3 @@
+});
+$("mem-refresh").onclick = () => loadMemory();
+$("mem-reveal").onclick = () => reveal("config", null, "skill-flash");

@@ -1,0 +1,8 @@
+{
+  "id": "Z3-APPSETTINGS-DUP-BIND2",
+  "description": "app-settings.js：F3 能力总览块尾的 mem-refresh/mem-reveal 绑定与文件本体（888 行处）重复 → 同一按钮被绑两次 loadMemory（重复发请求）。锚点取「ovGoto 的 click 监听收尾 + 两行绑定」整段，替换为只留监听收尾。repair 型：锚点（ovGoto 收尾+重复两行）不存在=已修好",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/z3-dup-anchor.txt",
+  "patch_file": "blocks/z3-dup-patch.txt",
+  "repair": true
+}

@@ -1,0 +1,2 @@
+.mem-dcnt { margin-left: auto; font-size: 10.5px; color: var(--faint); }
+.mem-dcnt { margin-left: auto; font-size: 10.5px; color: var(--faint); }

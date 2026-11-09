@@ -25,7 +25,7 @@ origin: user
 | 3 | **挖研究点** | 5 条挖掘线各轮一遍，每条写成 `<机制名>: <收益>` | 挖出 3 个以上「主研究点」（还在堆料） |
 | 4 | **搭骨架 + 写** | 按 `references/02` 逐章填必写件 | 某章无证据 → 回工序 2 |
 | 5 | **出图表** | `paper_table` / `paper_figure` 生成，不手写 | 图/表未被正文引用 |
-| 6 | **机检 + 移交** | `paper_lint` G1–G12 全绿 + 评分 ≥14/20 | 有 FAIL 门禁 |
+| 6 | **机检 + 移交** | `paper_lint` G1–G14 全绿 + 评分 ≥14/20 | 有 FAIL 门禁 |
 
 ## 工序 3 的五条挖掘线（本技能的判断核心）
 
@@ -54,7 +54,7 @@ origin: user
 evidence_scan  扫项目 → 账本骨架（全部 todo，等人判定）
 paper_table    表数据 JSON → booktabs LaTeX + Markdown（自动 best 加粗/second 下划线）
 paper_figure   图数据 JSON → PNG（三线网格 + 单一强调色）
-paper_lint     明文 → G1–G12 门禁报告 + 排版指纹
+paper_lint     明文 → G1–G14 门禁报告 + 排版指纹
 paper_render   Markdown → 单文件 HTML + DOCX（交付给人读的形态）
 ```
 
@@ -85,7 +85,7 @@ paper_render   Markdown → 单文件 HTML + DOCX（交付给人读的形态）
 
 ## 验收
 
-- [ ] `paper_lint` G1–G12 全绿，或余项在 `lint-report.json` 写明理由并经用户确认；
+- [ ] `paper_lint` G1–G14 全绿，或余项在 `lint-report.json` 写明理由并经用户确认；
 - [ ] `references/06-质检与反例.md` 评分项 ≥14/20；
 - [ ] 正文每个数字能追到账本 `status: ok` 的条目；`outperforms` 类断言 100% 有 `compare` 证据；
 - [ ] 摘要 / 贡献组 / 结论三段式三处数字一致；

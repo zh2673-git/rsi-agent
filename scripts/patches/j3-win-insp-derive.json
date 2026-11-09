@@ -1,0 +1,8 @@
+{
+  "id": "J3-WIN-INSP-DERIVE",
+  "description": "看板窗口灵感列表：改用 deriveInspState 推导状态，修「左栏已采纳 / 看板仍待议」的不一致",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/j3-win-insp-anchor.txt",
+  "patch_file": "blocks/j3-win-insp-patch.txt",
+  "applied_marker": "deriveInspState(boardData?.board?.inspirations ?? []);\n  if (!items.length) {"
+}

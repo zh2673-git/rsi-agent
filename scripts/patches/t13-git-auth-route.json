@@ -1,0 +1,8 @@
+{
+  "id": "T13-GIT-AUTH-ROUTE",
+  "description": "web/mod.rs：新增 GET /api/git/auth 路由（读 gh 登录态）",
+  "file": "runtime/crates/host/src/web/mod.rs",
+  "anchor_file": "blocks/t13-route-anchor.txt",
+  "patch_file": "blocks/t13-route-patch.txt",
+  "applied_marker": "\"/api/git/auth\""
+}

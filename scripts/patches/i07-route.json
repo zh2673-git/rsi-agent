@@ -3,5 +3,6 @@
   "description": "web/mod.rs：注册 GET/POST /api/publish/config 路由",
   "file": "runtime/crates/host/src/web/mod.rs",
   "anchor_file": "blocks/i07-route-anchor.txt",
-  "patch_file": "blocks/i07-route-patch.txt"
+  "patch_file": "blocks/i07-route-patch.txt",
+  "applied_marker": "\"/api/publish/config\""
 }

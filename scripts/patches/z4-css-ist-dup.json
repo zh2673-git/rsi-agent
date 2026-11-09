@@ -1,0 +1,8 @@
+{
+  "id": "Z4-CSS-IST-DUP",
+  "description": "style.css：把重复的 .ist 规则收敛为一行（C-STYLE 锚点不唯一 + replace(...,1) 只换第一处，导致每次重放都多插一份）。converge 型：坏块不存在 = 已收敛。",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "converge": true,
+  "anchor_file": "blocks/z4-css-ist-anchor.txt",
+  "patch_file": "blocks/z4-css-ist-replace.txt"
+}

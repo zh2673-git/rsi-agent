@@ -321,6 +321,10 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         // 「能看」解决「我记了什么看不见」，「只能删」守住「结论该由观察产生」。
         ("GET", "/api/profile") => api::get_profile(&mut stream).await,
         ("POST", "/api/profile") => api::post_profile(&mut stream, &body).await,
+        // T-13 / I-20261108-11：GitHub 登录态（读 gh 已有凭据，不暴露 token）。
+        // 刻意只做「读」：登录动作由用户在终端执行 gh auth login，
+        // host 拉那条阻塞式交互命令会挂到超时（历史实测 K502）。
+        ("GET", "/api/git/auth") => api::get_git_auth(&mut stream).await,
         // I-20261108-07：内容分发平台配置（凭证单独落 config/publish.json）
         ("GET", "/api/publish/config") => api::get_publish_config(&mut stream).await,
         ("POST", "/api/publish/config") => api::post_publish_config(&mut stream, &body).await,

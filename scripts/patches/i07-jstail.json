@@ -1,7 +1,8 @@
 {
- "id": "I07-UI-JS-TAIL",
- "description": "app-settings.js：loadPublish/renderPublish/保存逻辑（空 secret 不修改语义）",
- "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
- "anchor_file": "blocks/i07-js-tail-anchor.txt",
- "patch_file": "blocks/i07-js-tail-patch.txt"
+  "id": "I07-UI-JS-TAIL",
+  "description": "app-settings.js：loadPublish/renderPublish/保存逻辑（空 secret 不修改语义）。G 轮转幂等校验：原锚点 mem-reveal 单行在文件里出现两处（分发块尾与能力总览块尾），已应用后仍会命中 → 二次追加整块。改为以分发块标题作 applied_marker，命中即视为已应用",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/i07-js-tail-anchor.txt",
+  "patch_file": "blocks/i07-js-tail-patch.txt",
+  "applied_marker": "\u2500\u2500 内容分发面板（I-20261108-07）"
 }

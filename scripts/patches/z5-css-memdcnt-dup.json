@@ -1,0 +1,8 @@
+{
+  "id": "Z5-CSS-MEMDCNT-DUP",
+  "description": "style.css：把重复的 .mem-dcnt 规则收敛为一行（F3-CAP-CSS 锚点不唯一）。converge 型：坏块不存在 = 已收敛。",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/z5-css-memdcnt-anchor.txt",
+  "patch_file": "blocks/z5-css-memdcnt-patch.txt",
+  "converge": true
+}

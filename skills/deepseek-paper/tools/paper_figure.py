@@ -18,6 +18,23 @@ from pathlib import Path
 PALETTE = ["#8C9BAB", "#B9C2CC", "#D5DAE0", "#6E7F92", "#A7B3BF"]
 ACCENT = "#2F5D8C"
 
+# ── 色盲安全色板（Nature 指定：Wong, Nature Methods 8, 441 (2011)）────────────
+# 为什么要有这一档（I-13 借鉴 Nature 的产物）：DeepSeek 的灰蓝系「看起来」安全，
+# 但它是**单色明度梯度**——灰度打印或重度色觉障碍下，相邻两项会糊成一片。
+# Nature 直接把 8 个 hex 写进作者指南并规定「禁红绿、禁彩虹、避图案」。
+# 纪律：**默认仍走 DeepSeek 灰蓝**（风格一致性优先），需要无障碍/灰度投稿时才切
+# `style.palette = "colorblind"`。两个色板都不含红绿对（diff 工具能机械校验）。
+WONG = ["#000000", "#E69F00", "#56B4E9", "#009E73",
+        "#F0E442", "#0072B2", "#D55E00", "#CC79A7"]
+WONG_ACCENT = "#D55E00"   # 朱红：在灰/蓝/绿底上都跳得出来，且不与绿构成红绿对
+
+
+def pick_palette(style: dict) -> tuple[list[str], str]:
+    """按 `style.palette` 选色板。缺省 deepseek（灰蓝），colorblind 走 Wong。"""
+    if str(style.get("palette", "")).lower() in ("colorblind", "wong", "accessible"):
+        return WONG, WONG_ACCENT
+    return PALETTE, ACCENT
+
 
 def load_data(args: dict) -> dict:
     raw = args.get("data")
@@ -61,6 +78,7 @@ def run(args: dict) -> dict:
     kind = (d.get("type") or "bar").lower()
     style = d.get("style") or {}
     apply_style(plt, style.get("grid", "three-line"))
+    palette, accent = pick_palette(style)
     out = Path(args["out"])
     out.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(float(style.get("width", 7.0)),
@@ -74,7 +92,7 @@ def run(args: dict) -> dict:
         width = 0.8 / max(n, 1)
         for i, s in enumerate(normal + hi_first):
             xs = [j + (i - (n - 1) / 2) * width for j in range(len(cats))]
-            color = ACCENT if s.get("highlight") else PALETTE[i % len(PALETTE)]
+            color = accent if s.get("highlight") else palette[i % len(palette)]
             bars = ax.bar(xs, s["values"], width * 0.92, label=s.get("name", f"s{i}"),
                           color=color, edgecolor="none")
             if style.get("value_labels"):
@@ -88,7 +106,7 @@ def run(args: dict) -> dict:
     elif kind in ("line", "scaling"):
         xs = d.get("x_values") or list(range(len(series[0]["values"])))
         for i, s in enumerate(normal + hi_first):
-            color = ACCENT if s.get("highlight") else PALETTE[i % len(PALETTE)]
+            color = accent if s.get("highlight") else palette[i % len(palette)]
             ax.plot(xs, s["values"], marker=style.get("marker", "o"), ms=3,
                     lw=1.6 if s.get("highlight") else 1.1, color=color,
                     label=s.get("name", f"s{i}"))
@@ -115,7 +133,7 @@ def run(args: dict) -> dict:
                   ncol=min(len(series), 5), fontsize=7.5)
     else:
         ax.legend(loc=style["legend"], fontsize=7.5)
-    fig.savefig(out, dpi=int(args.get("dpi", 200)))
+    fig.savefig(out, dpi=int(args.get("dpi", 300)))
     plt.close(fig)
     cap = d.get("caption", "")
     return {

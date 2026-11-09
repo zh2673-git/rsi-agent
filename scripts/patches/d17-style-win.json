@@ -1,7 +1,8 @@
 {
- "id": "D17-STYLE-WIN",
- "description": "style.css：看板弹窗/任务卡栅格/人财物行/owner 徽章/分解块/灵感就地编辑与行内确认样式",
- "file": "runtime/crates/host/web-dist/style.css",
- "anchor_file": "blocks/d-style-anchor.txt",
- "patch_file": "blocks/d-style-patch.txt"
+  "id": "D17-STYLE-WIN",
+  "description": "style.css：看板弹窗/任务卡栅格/人财物行/owner 徽章/分解块/灵感就地编辑与行内确认样式（K 轮补 applied_marker：原锚点 .ist 行在应用后仍存在，重放会重复追加整块——实测已把 style.css 写成 4 份）",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/d-style-anchor.txt",
+  "patch_file": "blocks/d-style-patch.txt",
+  "applied_marker": ".bw-insp-act button:hover"
 }

@@ -3,5 +3,6 @@
  "description": "board_ctx.rs：新增 decompose_hint（plan[].owner 三种判据 + 何时拆子任务 + parent 删除不连带）",
  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
  "anchor_file": "blocks/d-board-decompose-anchor.txt",
- "patch_file": "blocks/d-board-decompose-patch.txt"
+ "patch_file": "blocks/d-board-decompose-patch.txt",
+ "applied_marker": "pub(super) fn decompose_hint() -> String {"
 }

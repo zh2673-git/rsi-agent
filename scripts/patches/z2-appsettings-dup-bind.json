@@ -1,0 +1,8 @@
+{
+  "id": "Z2-APPSETTINGS-DUP-BIND",
+  "description": "app-settings.js：删除重复的 $(\"mem-refresh\").onclick 绑定（连续两行完全相同 → 同一按钮绑两次 loadMemory，重复发请求）。锚点=两行连写，patch=单行；applied_marker 取终态（分发块标题）避免二次执行。repair 型：双行锚点不存在=已修好（分发块标题在坏态也命中，不可用 marker）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/z2-dup-anchor.txt",
+  "patch_file": "blocks/z2-dup-patch.txt",
+  "repair": true
+}

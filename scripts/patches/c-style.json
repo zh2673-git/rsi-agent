@@ -1,7 +1,8 @@
 {
- "id": "C-STYLE",
- "description": "style.css：验收徽章/检查列表/指标卡/章节容器样式（C 轮）",
- "file": "runtime/crates/host/web-dist/style.css",
- "anchor_file": "blocks/c-style-anchor.txt",
- "patch_file": "blocks/c-style-patch.txt"
+  "id": "C-STYLE",
+  "description": "style.css：验收徽章/检查列表/指标卡/章节容器样式（C 轮）。锚点曾用单行 `.ist {...}`——该行在文件里出现 3 次（另两处是相邻重复行），replace(...,1) 只换第一处，且 patch 以锚点开头 → 每重放一次就多插一份整块样式，实测把 style.css 写成 4 份。现锚点改为「.ist + 空行 + C 轮注释头」的唯一组合，并加 applied_marker 兜住幂等。",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/c-style-anchor.txt",
+  "patch_file": "blocks/c-style-patch.txt",
+  "applied_marker": "#board-sections > .empty { color: var(--faint); font-size: 12px; padding: 8px; line-height: 1.6; }"
 }

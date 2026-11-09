@@ -1,0 +1,7 @@
+{
+  "id": "T13-GIT-AUTH-JS",
+  "description": "app-settings.js：新增 renderGitAuth/initGitAuth（读 /api/git/auth 并渲染三种状态），在 loadConfig 开头挂载",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/t13-js-anchor.txt",
+  "patch_file": "blocks/t13-js-final.txt"
+}

@@ -1,0 +1,3 @@
+function renderWinInsp(sec, root) {
+  const body = el("div", "bw-body");
+  const items = boardData?.board?.inspirations ?? [];

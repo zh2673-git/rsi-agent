@@ -75,6 +75,31 @@ class InspDerivedStateTest(unittest.TestCase):
         js = read(APP_BOARD)
         self.assertIn('status: "adopted"', js, "adopted 必须在 UI 侧可达（推导）")
 
+    def test_every_inspiration_reader_derives_first(self):
+        """**每一个**读灵感列表的渲染器都必须先过 deriveInspState。
+
+        为什么这条要通用扫描而不是逐个点名（J3 真实故障）：
+        J1 只修了左栏 `renderInspSection`，看板窗口 `renderWinInsp` 仍读原始
+        `inspiration.status`，于是同一条灵感在左栏显示「已采纳」、在看板窗口
+        显示「待议」——同一个事实被算了两遍，其中一遍算错。
+
+        J1 的测试只断言 `renderInspSection` 走了推导，那是**按名字点名**：
+        点到的那个修好了，没点到的照样犯错，且测试全绿。所以这里改成扫全部
+        读取点——新增第三个视图时，只要它读灵感列表就自动被这条约束覆盖。
+        """
+        js = read(APP_BOARD)
+        # 匹配「取灵感列表」的赋值语句，不管右侧是裸取还是包了推导函数。
+        # 注意别把正则写成 `const items = boardData?...`——那一版漏掉了已经包了
+        # deriveInspState 的写法，会让本测试恒判「找不到读取点」而失去意义（实测踩到）。
+        raw_reads = re.findall(r"const items = [^;\n]*inspirations[^;\n]*;", js)
+        self.assertTrue(raw_reads, "没找到任何灵感列表读取点（文件结构变了？请更新本测试）")
+        bad = [r for r in raw_reads if "deriveInspState(" not in r]
+        self.assertEqual(
+            bad, [],
+            "存在绕过 deriveInspState 直接读 inspiration.status 的渲染器——"
+            "会让同一灵感在不同视图显示不同状态:\n  " + "\n  ".join(bad),
+        )
+
 
 class NoDeadCommandGuidanceTest(unittest.TestCase):
     """文档不能再教 agent 跑已删除的命令——这类死路没有编译器能发现。"""

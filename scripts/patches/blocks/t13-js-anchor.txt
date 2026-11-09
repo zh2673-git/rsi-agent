@@ -1,0 +1,3 @@
+async function loadConfig() {
+  try {
+    await loadPresets(); // 站点清单就绪后再回显，base_url 反查预设
