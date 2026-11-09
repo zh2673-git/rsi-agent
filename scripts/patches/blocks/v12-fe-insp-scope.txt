@@ -1,0 +1,4 @@
+  const items = deriveInspState(boardData?.board?.inspirations ?? []).filter(scopeVisible);
+  wrap.appendChild(sectionHead(sec, `${items.filter((i) => i.status === "open").length} 待议 / ${items.length}`, false));
+  // v12：灵感侧也要档位开关——用户在自己项目窗口记的灵感，就该在本项目视图里看得见。
+  wrap.appendChild(scopeBar());

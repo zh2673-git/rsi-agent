@@ -1,0 +1,6 @@
+  const items = deriveInspState(boardData?.board?.inspirations ?? []);
+  if (!items.length) {
+    body.appendChild(el("div", "empty", "把零碎想法记在侧栏，需要时在对话里 @ 引入。"));
+    root.appendChild(body);
+    return;
+  }

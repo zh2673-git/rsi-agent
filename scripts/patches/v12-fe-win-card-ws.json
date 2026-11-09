@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-WIN-CARD-WS",
+  "description": "app-board.js：弹窗任务卡显示归属工作区徽章（只在「全部」档且真有标签时显示）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-win-card-ws-anchor.txt",
+  "patch_file": "blocks/v12-fe-win-card-ws.txt",
+  "applied_marker": "class=\"bw-ws\"",
+  "order": -2
+}

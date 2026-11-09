@@ -1,0 +1,11 @@
+  root.innerHTML = "";
+  const sec = secs.find((s) => s.kind === active);
+  // v12：弹窗顶部也给档位开关（与左栏同一个 boardScope，切换两处同步）。
+  // 弹窗是「摊开细看」的宽面，用户在这里最可能问「这些活分别是哪个项目的」，
+  // 所以档位条必须也在——否则同一个开关在窄栏有、宽面没有，观感像两个不同系统。
+  const bar = scopeBar();
+  bar.classList.add("bw-scope");
+  root.appendChild(bar);
+  const renderers = { tasks: renderWinTasks, metrics: renderWinMetrics, inspirations: renderWinInsp };
+  const fn = renderers[sec.kind];
+  if (fn) fn(sec, root);

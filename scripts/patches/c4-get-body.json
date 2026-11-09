@@ -3,5 +3,6 @@
  "description": "board.rs get_board 响应体：board.layout 规整回显 + summary.tasks.by_verdict（指标章节数据源）",
  "file": "runtime/crates/host/src/web/api/board.rs",
  "anchor": "    json_resp(\n        stream,\n        200,\n        json!({\n            \"ok\": true,\n            \"path\": board_path().display().to_string(),\n            \"board\": board,\n            \"summary\": {\n                \"tasks\": {\"total\": tasks.len(), \"by_status\": Value::Object(by_status)},\n                \"inspirations\": {\"total\": insps.len(), \"by_status\": Value::Object(insp_by)},\n            },\n            \"limits\": {\"tasks\": MAX_TASKS, \"inspirations\": MAX_INSP},\n        }),\n    )\n    .await\n}\n",
- "patch_file": "blocks/c4-get-body.txt"
+ "patch_file": "blocks/c4-get-body.txt",
+ "applied_marker": "\"by_verdict\": Value::Object(by_verdict)"
 }

@@ -1,0 +1,7 @@
+    `<span class="tverdict v-${boardEsc(verdict)}">${boardEsc(VERDICT_LABEL[verdict] ?? verdict)}</span>` +
+    // v12：归属标签只在「全部」档且真有标签时显示——本项目档下每条都一样，
+    // 印出来只是噪声；归属未知的老条目不显示（不写「未知」，那会被读成「丢失」）。
+    (boardScope !== "mine" && t.workspace
+      ? `<span class="bw-ws" title="这条任务在哪个工作区产生">${boardEsc(t.workspace)}</span>`
+      : "") +
+    `<button class="bw-ref" title="在输入框引用这个任务（@T）">@ 引用</button>` +

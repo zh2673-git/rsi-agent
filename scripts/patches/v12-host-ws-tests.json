@@ -1,0 +1,9 @@
+{
+  "id": "V12-HOST-WS-TESTS",
+  "description": "board.rs：workspace_tag 两条单测（取目录名/与 board.py 同口径、未设置给空串不编造、有界 ≤64）",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/v12-host-ws-tests-anchor.txt",
+  "patch_file": "blocks/v12-host-ws-tests.txt",
+  "applied_marker": "fn workspace_tag_takes_last_path_segment()",
+  "order": -1
+}

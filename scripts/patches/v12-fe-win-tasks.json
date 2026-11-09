@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-WIN-TASKS",
+  "description": "app-board.js：弹窗任务列表接归属过滤（空态文案分档）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-win-tasks-anchor.txt",
+  "patch_file": "blocks/v12-fe-win-tasks.txt",
+  "applied_marker": "let all = (boardData?.board?.tasks ?? []).filter(scopeVisible);",
+  "order": -2
+}

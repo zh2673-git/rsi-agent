@@ -1,0 +1,51 @@
+/// GET /api/board：返回整块看板 + 路径 + 汇总计数（前端一次拿全，不做多次往返）。
+pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let board = load_board();
+    let tasks = board.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default();
+    // C 轮：layout 规整一次后同时用于「回显给前端」与「兜底」——前端因此永远拿到
+    // 一份**合法且顺序已定**的章节表，不必自己再判空/排序（判空逻辑只在一处）。
+    let layout = normalize_layout(board.get("layout"));
+    let mut by_verdict: Map<String, Value> = Map::new();
+    for v in ["none", "pending", "pass", "fail"] {
+        let n = tasks
+            .iter()
+            .filter(|t| {
+                t.get("evaluation")
+                    .and_then(|e| e.get("verdict"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("none")
+                    == v
+            })
+            .count();
+        by_verdict.insert(v.to_string(), json!(n));
+    }    let insps = board.get("inspirations").and_then(Value::as_array).cloned().unwrap_or_default();
+    let mut by_status: Map<String, Value> = Map::new();
+    for s in TASK_STATUSES {
+        let n = tasks.iter().filter(|t| t.get("status").and_then(Value::as_str) == Some(s)).count();
+        by_status.insert((*s).to_string(), json!(n));
+    }
+    let mut insp_by: Map<String, Value> = Map::new();
+    for s in INSP_STATUSES {
+        let n = insps.iter().filter(|i| i.get("status").and_then(Value::as_str) == Some(s)).count();
+        insp_by.insert((*s).to_string(), json!(n));
+    }
+    let mut board = board;
+    board["layout"] = layout;
+    json_resp(
+        stream,
+        200,
+        json!({
+            "ok": true,
+            "path": board_path().display().to_string(),
+            // 回显的是**规整后**的 layout：前端拿到的永远合法，不必自己再判空/排序。
+            "board": board,
+            "summary": {
+                "tasks": {"total": tasks.len(), "by_status": Value::Object(by_status),
+                          "by_verdict": Value::Object(by_verdict)},
+                "inspirations": {"total": insps.len(), "by_status": Value::Object(insp_by)},
+            },
+            "limits": {"tasks": MAX_TASKS, "inspirations": MAX_INSP, "sections": MAX_SECTIONS},
+        }),
+    )
+    .await
+}

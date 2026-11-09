@@ -1,0 +1,3 @@
+let boardData = null;       // 最近一次 GET /api/board 的 payload
+let boardFilter = "all";    // all | open | done（只作用于 tasks 章节）
+let boardTimer = null;

@@ -1,0 +1,38 @@
+        assert!(!p.starts_with(&proj), "看板不得落在工作区（会让每个窗口各有一块板）");
+    }
+
+    /// v12「按工作区分板 vs 一本账 + 归属标签」的核心不变量：
+    /// 标签取**目录名**，且与 `scripts/board.py::workspace_tag` 同口径——两边一旦取法
+    /// 不同（一边全路径一边目录名），UI 记的标签与 CLI 记的就对不上，「本项目」档
+    /// 永远半空，用户会以为是过滤坏了。
+    #[test]
+    fn workspace_tag_takes_last_path_segment() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = std::env::var_os("WORKSPACE_ROOT");
+        std::env::set_var("WORKSPACE_ROOT", "D:/ZH/vibe code/WF/1108");
+        assert_eq!(workspace_tag(), "1108", "取目录名，不是全路径");
+        // 尾随分隔符不能让标签变成空串（`Path::file_name` 已处理，此处钉住）
+        std::env::set_var("WORKSPACE_ROOT", "D:/ZH/vibe code/WF/1108/");
+        assert_eq!(workspace_tag(), "1108");
+        // 未设置 → 空串（「不知道归属」，不是「归属叫空」）
+        std::env::set_var("WORKSPACE_ROOT", "   ");
+        assert_eq!(workspace_tag(), "", "空白工作区必须给空标签，不能编一个");
+        match saved {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+    }
+
+    /// 有界：标签会进 JSON 与 UI，必须截断（路径名可能极长）。
+    #[test]
+    fn workspace_tag_is_bounded() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = std::env::var_os("WORKSPACE_ROOT");
+        std::env::set_var("WORKSPACE_ROOT", format!("D:/tmp/{}", "x".repeat(200)));
+        assert!(workspace_tag().chars().count() <= 64, "标签必须 ≤64 字符");
+        match saved {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+    }
+}

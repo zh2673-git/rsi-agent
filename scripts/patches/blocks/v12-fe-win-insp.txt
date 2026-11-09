@@ -1,0 +1,8 @@
+  const items = deriveInspState(boardData?.board?.inspirations ?? []).filter(scopeVisible);
+  if (!items.length) {
+    body.appendChild(el("div", "empty", boardScope === "mine" && boardMine()
+      ? `本项目（${boardMine()}）下暂无灵感。切「全部」看整本账。`
+      : "把零碎想法记在侧栏，需要时在对话里 @ 引入。"));
+    root.appendChild(body);
+    return;
+  }

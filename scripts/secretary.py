@@ -249,6 +249,32 @@ def skill_usage(tasks: list[dict]) -> dict[str, int]:
 
 # ── 组装 ──────────────────────────────────────────────────────────────────
 
+def workspace_survey(tasks: list[dict], insps: list[dict]) -> dict:
+    """按归属工作区切片——一本账的不同视角，不是几本账。
+
+    为什么秘书需要它：用户开多个窗口做不同项目时，「哪些活是 1108 的、哪些是
+    rsi-agent 的」原先答不出来（28 条任务全 session=main，没有归属字段）。加了
+    `workspace` 标签后，秘书**仍然读同一本账**（`B.load()` 一次），只是额外按标签
+    分一次组——所以它天然掌握所有工作区，不需要去每个目录找 board.json。
+
+    空标签单列在「（归属未知）」下，明确标注老条目：那是事实，不是缺陷，
+    标出来用户才知道哪些需要补归属，而不是被悄悄归到某一类里。
+    """
+    out: dict[str, dict] = {}
+    for t in tasks:
+        k = str(t.get("workspace") or "")
+        slot = out.setdefault(k, {"tasks": 0, "open": 0, "inspirations": 0})
+        slot["tasks"] += 1
+        if str(t.get("status") or "") not in ("done", "cancelled"):
+            slot["open"] += 1
+    for i in insps:
+        k = str(i.get("workspace") or "")
+        slot = out.setdefault(k, {"tasks": 0, "open": 0, "inspirations": 0})
+        slot["inspirations"] += 1
+    # 有未完结活的排前面——秘书是「现在什么情况」，不是「历史上有什么」。
+    return dict(sorted(out.items(), key=lambda kv: (-kv[1]["open"], -kv[1]["tasks"], kv[0])))
+
+
 def build(limit: int = MAX_SECTION_ITEMS) -> dict:
     board = B.load()
     tasks = board["tasks"]
@@ -268,6 +294,10 @@ def build(limit: int = MAX_SECTION_ITEMS) -> dict:
         "ok": True,
         "corrupt": bool(board.get("corrupt")),
         "data_root": str(B.board_path()),
+        # 秘书看的是**全局一本账**，同时回显它自己当前所在的工作区，
+        # 便于用户判断「这句总结是按哪个窗口的口径说的」。
+        "current_workspace": B.workspace_tag(),
+        "by_workspace": workspace_survey(tasks, insps),
         "counts": {
             "tasks": len(tasks),
             "by_status": status_counts,
@@ -304,6 +334,18 @@ def render(d: dict) -> str:
     out.append("状态: " + " / ".join(f"{k}={v}" for k, v in bs.items() if v)
                + f" / 灵感 adopted={c['inspirations']['adopted']} open={c['inspirations']['orphan']}"
                + f" archived={c['inspirations']['archived']}")
+
+    # v12：按工作区切片。放在最前面是刻意的——用户开多窗口时，第一件想知道的是
+    # 「这些活分别属于哪个项目」，而不是总量。多工作区才显示，单工作区时一行都不占。
+    ws = d.get("by_workspace") or {}
+    if len(ws) > 1:
+        out.append("\n## 0. 按工作区")
+        cur = d.get("current_workspace") or ""
+        for name, s in ws.items():
+            label = name or "（归属未知）"
+            mark = " ← 当前窗口" if name and name == cur else ""
+            out.append(f"- **{label}**{mark}: {s['tasks']} 任务（{s['open']} 未完成）"
+                       f" / {s['inspirations']} 灵感")
 
     open_tasks = d["open_tasks"]
     out.append("\n## 1. 在做的事（未完成）")

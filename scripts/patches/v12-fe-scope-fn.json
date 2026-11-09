@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-SCOPE-FN",
+  "description": "app-board.js：新增 boardMine / scopeVisible / scopeBar（空标签条目在任何档位都显示，不让人以为丢账）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-scope-fn-anchor.txt",
+  "patch_file": "blocks/v12-fe-scope-fn.txt",
+  "applied_marker": "function scopeVisible(it) {",
+  "order": -3
+}

@@ -27,6 +27,23 @@ const DEFAULT_SECTIONS = [
 
 let boardData = null;       // 最近一次 GET /api/board 的 payload
 let boardFilter = "all";    // all | open | done（只作用于 tasks 章节）
+// v12（B 方案）：视图档位。`all` = 这本账的全部；`mine` = 只显示本窗口所属工作区
+// 产生的条目。
+//
+// 为什么是「视图开关」而不是「每个工作区一块板」：账本只有一本（`.rsi/board.json`，
+// 锚代码根），工作区只是**归属标签**。拆板会退回「每个窗口各一块、互不相见」——
+// 那正是用户报过的 bug（新窗口里任务在跑、左侧看板没变化）。
+//
+// 默认 `all` 而不是 `mine`：用户打开看板最常见的意图是「我现在总共还有多少事」，
+// 而不是「这个项目还有多少事」。且老条目没有归属标签，默认 `mine` 会让它们
+// 看起来像消失了——那是让人以为丢账的观感，比多显示几条更糟。
+let boardScope = "all";     // all | mine
+// 记在 localStorage：看板是长期视图，不该每次打开都要重选一遍档位。
+const SCOPE_KEY = "ra.boardscope";
+try {
+  const v = localStorage.getItem(SCOPE_KEY);
+  if (v === "mine" || v === "all") boardScope = v;
+} catch { /* 隐私模式/坏值：用缺省 all，不阻断渲染 */ }
 let boardTimer = null;
 const boardOpen = new Set(); // 展开中的任务行 id（轮询重绘不丢展开态）
 
@@ -102,6 +119,51 @@ function taskVisible(t, filter) {
   return true;
 }
 
+// v12：当前窗口的工作区标签（后端 GET /api/board 回显）。解析不出就是空串。
+function boardMine() {
+  return String(boardData?.workspace ?? "");
+}
+
+// v12：归属过滤。**空标签的条目在任何档位都显示** —— 空是「归属未知」（老条目），
+// 不是「属于别的项目」。按等值硬过滤会让既有条目在「本项目」档里集体消失，
+// 用户会以为账被删了一半；宁可多显示几条，也不让人怀疑数据没了。
+function scopeVisible(it) {
+  if (boardScope !== "mine") return true;
+  const tag = String(it?.workspace ?? "");
+  return !tag || tag === boardMine();
+}
+
+// v12：档位开关条（tasks 与 inspirations 共用同一档位）。
+//
+// 位置取舍：放在每个章节里，而不是页面顶部一个全局开关。看板可以有多块同类章节
+// （用户能加章节），全局开关会让「这一个现在是全部还是本项目」变得不可知——
+// 控件贴着它控制的东西放，是唯一不会被误读的做法。
+function scopeBar() {
+  const bar = el("div", "sec-filter scope");
+  const mine = boardMine();
+  for (const [v, label] of [["all", "全部"], ["mine", mine ? `本项目·${mine}` : "本项目"]]) {
+    const b = el("button", v === boardScope ? "on" : "");
+    b.dataset.scope = v;
+    b.textContent = label;
+    b.title = v === "mine"
+      ? "只看本窗口所属工作区产生的条目（归属未知的老条目仍会显示）"
+      : "整本账：所有工作区的任务与灵感";
+    // 没有工作区标签时「本项目」无从判定——点它等于把全部藏起来，故禁用而不是骗人。
+    if (v === "mine" && !mine) {
+      b.disabled = true;
+      b.title = "当前窗口没有工作区标签（未设置 WORKSPACE_ROOT），无法按项目过滤";
+    }
+    b.onclick = () => {
+      boardScope = v;
+      try { localStorage.setItem(SCOPE_KEY, v); } catch { /* 存不下就只在本次生效 */ }
+      refreshSections();
+      if (typeof renderBoardWin === "function") renderBoardWin();
+    };
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
 // FE9：与 app-core.js 的 el(html) 消歧。本文件最后加载，原来这 5 行把全局 el 静默
 // 改写成了 tag 版——app-events/stream/files 里 el('<div …>') 全抛 InvalidCharacterError，
 // 用户气泡、工具卡、流式回答一个都不渲染（观感就是「发消息没有回应」，刷新后历史也空）。
@@ -141,11 +203,17 @@ function renderTasksSection(sec) {
   const wrap = el("section", "board-sec");
   wrap.dataset.kind = "tasks";
   wrap.dataset.sec = sec.id;
-  const tasksAll = (boardData?.board?.tasks ?? []).filter((t) => taskVisible(t, sec.filter));
+  const tasksAll = (boardData?.board?.tasks ?? [])
+    .filter((t) => taskVisible(t, sec.filter))
+    .filter(scopeVisible);
   const sum = boardData?.summary?.tasks;
   const bs = sum?.by_status ?? {};
   const openN = (bs.planning ?? 0) + (bs.doing ?? 0) + (bs.verifying ?? 0);
   wrap.appendChild(sectionHead(sec, `${openN} 进行中 / ${sum?.total ?? 0}`, true));
+
+  // v12：档位开关。放在状态筛选条之前——它决定「哪些条目进入这一章」，
+  // 状态筛选决定「进去之后怎么切」，顺序与语义一致。
+  wrap.appendChild(scopeBar());
 
   // 筛选只在「该章节不限 filter」时提供（章节自己指定 filter=open 时不再给开关）
   const showFilter = !sec.filter || sec.filter === "all";
@@ -170,8 +238,10 @@ function renderTasksSection(sec) {
   wrap.appendChild(body);
   const limit = Number(sec.limit ?? 30);
   if (!tasksAll.length) {
-    body.appendChild(el("div", "empty", boardFilter === "all"
-      ? "暂无任务（agent 会把成规模的事登记到这里）" : "该筛选下没有任务"));
+    body.appendChild(el("div", "empty",
+      boardScope === "mine" && boardMine()
+        ? `本项目（${boardMine()}）下暂无任务；切「全部」看整本账`
+        : (boardFilter === "all" ? "暂无任务（agent 会把成规模的事登记到这里）" : "该筛选下没有任务")));
     return wrap;
   }
   // F1：分组折叠——活跃组默认展开，落定组（完成/取消）默认折成一行。
@@ -475,8 +545,10 @@ function renderInspSection(sec) {
   const wrap = el("section", "board-sec grow");
   wrap.dataset.kind = "inspirations";
   wrap.dataset.sec = sec.id;
-  const items = deriveInspState(boardData?.board?.inspirations ?? []);
+  const items = deriveInspState(boardData?.board?.inspirations ?? []).filter(scopeVisible);
   wrap.appendChild(sectionHead(sec, `${items.filter((i) => i.status === "open").length} 待议 / ${items.length}`, false));
+  // v12：灵感侧也要档位开关——用户在自己项目窗口记的灵感，就该在本项目视图里看得见。
+  wrap.appendChild(scopeBar());
 
   const add = el("div", "insp-add");
   const input = document.createElement("input");
@@ -789,6 +861,11 @@ function winTaskCard(t) {
     `<span class="bw-title">${boardEsc(t.title)}</span>` +
     `<span class="bw-st st-${boardEsc(t.status)}">${boardEsc(BOARD_LABEL[t.status] ?? t.status)}</span>` +
     `<span class="tverdict v-${boardEsc(verdict)}">${boardEsc(VERDICT_LABEL[verdict] ?? verdict)}</span>` +
+    // v12：归属标签只在「全部」档且真有标签时显示——本项目档下每条都一样，
+    // 印出来只是噪声；归属未知的老条目不显示（不写「未知」，那会被读成「丢失」）。
+    (boardScope !== "mine" && t.workspace
+      ? `<span class="bw-ws" title="这条任务在哪个工作区产生">${boardEsc(t.workspace)}</span>`
+      : "") +
     `<button class="bw-ref" title="在输入框引用这个任务（@T）">@ 引用</button>` +
     `<button class="bw-link" title="查哪几轮对话提过它（读 trace 的 refs 字段）">⌕ 对话</button>`;
   card.appendChild(head);
@@ -897,9 +974,11 @@ function winTaskCard(t) {
 
 function renderWinTasks(sec, root) {
   const body = el("div", "bw-body");
-  const all = boardData?.board?.tasks ?? [];
+  let all = (boardData?.board?.tasks ?? []).filter(scopeVisible);
   if (!all.length) {
-    body.appendChild(el("div", "empty", "还没有任务。把一件成规模的事交代下来，agent 会把它登记到这里。"));
+    body.appendChild(el("div", "empty", boardScope === "mine" && boardMine()
+      ? `本项目（${boardMine()}）下暂无任务。切「全部」看整本账。`
+      : "还没有任务。把一件成规模的事交代下来，agent 会把它登记到这里。"));
     root.appendChild(body);
     return;
   }
@@ -959,9 +1038,11 @@ function renderWinInsp(sec, root) {
   // 这不是两个视图的偏好差异，而是同一个事实被算了两遍、其中一遍算错。
   // 「被哪个任务采纳」只存在任务侧 `task.inspirations`，灵感对象的 status 只表达
   // 用户的显式动作（归档），所以任何读它的视图都必须先过 deriveInspState。
-  const items = deriveInspState(boardData?.board?.inspirations ?? []);
+  const items = deriveInspState(boardData?.board?.inspirations ?? []).filter(scopeVisible);
   if (!items.length) {
-    body.appendChild(el("div", "empty", "把零碎想法记在侧栏，需要时在对话里 @ 引入。"));
+    body.appendChild(el("div", "empty", boardScope === "mine" && boardMine()
+      ? `本项目（${boardMine()}）下暂无灵感。切「全部」看整本账。`
+      : "把零碎想法记在侧栏，需要时在对话里 @ 引入。"));
     root.appendChild(body);
     return;
   }
@@ -1008,6 +1089,12 @@ function renderBoardWin() {
   }
   root.innerHTML = "";
   const sec = secs.find((s) => s.kind === active);
+  // v12：弹窗顶部也给档位开关（与左栏同一个 boardScope，切换两处同步）。
+  // 弹窗是「摊开细看」的宽面，用户在这里最可能问「这些活分别是哪个项目的」，
+  // 所以档位条必须也在——否则同一个开关在窄栏有、宽面没有，观感像两个不同系统。
+  const bar = scopeBar();
+  bar.classList.add("bw-scope");
+  root.appendChild(bar);
   const renderers = { tasks: renderWinTasks, metrics: renderWinMetrics, inspirations: renderWinInsp };
   const fn = renderers[sec.kind];
   if (fn) fn(sec, root);

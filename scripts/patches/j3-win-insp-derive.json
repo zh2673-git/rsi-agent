@@ -4,5 +4,5 @@
   "file": "runtime/crates/host/web-dist/vendor/app-board.js",
   "anchor_file": "blocks/j3-win-insp-anchor.txt",
   "patch_file": "blocks/j3-win-insp-patch.txt",
-  "applied_marker": "deriveInspState(boardData?.board?.inspirations ?? []);\n  if (!items.length) {"
+  "applied_marker": "const items = deriveInspState(boardData?.board?.inspirations ?? [])"
 }

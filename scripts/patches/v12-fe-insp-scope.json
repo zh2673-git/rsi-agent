@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-INSP-SCOPE",
+  "description": "app-board.js：inspirations 章节接上归属过滤 + 档位条",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-insp-scope-anchor.txt",
+  "patch_file": "blocks/v12-fe-insp-scope.txt",
+  "applied_marker": "wrap.appendChild(scopeBar());",
+  "order": -2
+}

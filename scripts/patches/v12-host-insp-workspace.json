@@ -1,0 +1,9 @@
+{
+  "id": "V12-HOST-INSP-WORKSPACE",
+  "description": "board.rs：inspiration.add 记 workspace 标签（与任务同口径，「本项目」视图里灵感也可见）",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/v12-host-insp-ws-anchor.txt",
+  "patch_file": "blocks/v12-host-insp-ws-patch.txt",
+  "applied_marker": "\"workspace\": workspace_tag(), \"created_at\": ts",
+  "order": -1
+}

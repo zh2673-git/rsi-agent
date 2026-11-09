@@ -1,0 +1,89 @@
+fn workspace_tag() -> String {
+    let ws = config::workspace_root();
+    let s = ws.trim();
+    if s.is_empty() {
+        return String::new();
+    }
+    // 取目录名而不是完整路径：完整路径在 UI 里是噪声，换机器还会失真。
+    // 与 `scripts/board.py::workspace_tag` 同一口径（都取最后一段），
+    // 否则同一台机器上 UI 记的标签与 CLI 记的标签对不上，过滤就永远半空。
+    Path::new(s)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
+        .chars()
+        .take(64)
+        .collect()
+}
+
+/// GET /api/board：返回整块看板 + 路径 + 汇总计数（前端一次拿全，不做多次往返）。
+pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let board = load_board();
+    let tasks = board.get("tasks").and_then(Value::as_array).cloned().unwrap_or_default();
+    // C 轮：layout 规整一次后同时用于「回显给前端」与「兜底」——前端因此永远拿到
+    // 一份**合法且顺序已定**的章节表，不必自己再判空/排序（判空逻辑只在一处）。
+    let layout = normalize_layout(board.get("layout"));
+    let mut by_verdict: Map<String, Value> = Map::new();
+    for v in ["none", "pending", "pass", "fail"] {
+        let n = tasks
+            .iter()
+            .filter(|t| {
+                t.get("evaluation")
+                    .and_then(|e| e.get("verdict"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("none")
+                    == v
+            })
+            .count();
+        by_verdict.insert(v.to_string(), json!(n));
+    }    let insps = board.get("inspirations").and_then(Value::as_array).cloned().unwrap_or_default();
+    let mut by_status: Map<String, Value> = Map::new();
+    for s in TASK_STATUSES {
+        let n = tasks.iter().filter(|t| t.get("status").and_then(Value::as_str) == Some(s)).count();
+        by_status.insert((*s).to_string(), json!(n));
+    }
+    let mut insp_by: Map<String, Value> = Map::new();
+    for s in INSP_STATUSES {
+        let n = insps.iter().filter(|i| i.get("status").and_then(Value::as_str) == Some(s)).count();
+        insp_by.insert((*s).to_string(), json!(n));
+    }
+    // v12（B 方案）：按归属工作区切片 + 回显当前工作区。
+    // 前端据此提供「本项目 / 全部」两档视图：同一份数据，两种投影，账仍只有一本。
+    // 空标签（旧条目）单独归到 `""` 下，前端在两个视图里都显示它——宁可多显示，
+    // 也不让老条目凭空消失（那会被理解成丢账）。
+    let current_ws = workspace_tag();
+    let mut ws_of_task: Map<String, Value> = Map::new();
+    let mut ws_of_insp: Map<String, Value> = Map::new();
+    for t in &tasks {
+        let k = t.get("workspace").and_then(Value::as_str).unwrap_or("").to_string();
+        let cur = ws_of_task.get(&k).and_then(Value::as_u64).unwrap_or(0);
+        ws_of_task.insert(k, json!(cur + 1));
+    }
+    for i in &insps {
+        let k = i.get("workspace").and_then(Value::as_str).unwrap_or("").to_string();
+        let cur = ws_of_insp.get(&k).and_then(Value::as_u64).unwrap_or(0);
+        ws_of_insp.insert(k, json!(cur + 1));
+    }
+    let mut board = board;
+    board["layout"] = layout;
+    json_resp(
+        stream,
+        200,
+        json!({
+            "ok": true,
+            "path": board_path().display().to_string(),
+            // 回显的是**规整后**的 layout：前端拿到的永远合法，不必自己再判空/排序。
+            "board": board,
+            // 当前窗口所属工作区（目录名）；前端「本项目」档用它过滤。
+            "workspace": current_ws,
+            "by_workspace": {"tasks": Value::Object(ws_of_task), "inspirations": Value::Object(ws_of_insp)},
+            "summary": {
+                "tasks": {"total": tasks.len(), "by_status": Value::Object(by_status),
+                          "by_verdict": Value::Object(by_verdict)},
+                "inspirations": {"total": insps.len(), "by_status": Value::Object(insp_by)},
+            },
+            "limits": {"tasks": MAX_TASKS, "inspirations": MAX_INSP, "sections": MAX_SECTIONS},
+        }),
+    )
+    .await
+}

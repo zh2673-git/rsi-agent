@@ -1,0 +1,5 @@
+  root.innerHTML = "";
+  const sec = secs.find((s) => s.kind === active);
+  const renderers = { tasks: renderWinTasks, metrics: renderWinMetrics, inspirations: renderWinInsp };
+  const fn = renderers[sec.kind];
+  if (fn) fn(sec, root);

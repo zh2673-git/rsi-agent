@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-CSS",
+  "description": "style.css：档位条与归属徽章样式（patch = 锚点行 + 新增行，replace(…,1) 后锚点仍只有一份）",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/v12-fe-css-anchor.txt",
+  "patch_file": "blocks/v12-fe-css.txt",
+  "applied_marker": ".bw-ws { font-size: 10px;",
+  "order": -2
+}

@@ -1,0 +1,8 @@
+            let id = next_id(&items, "I");
+            let ts = now_iso();
+            // v12：灵感也记归属工作区（与任务同口径）。用户在哪个窗口记的灵感，
+            // 「本项目」视图里就该看得见——否则灵感侧永远只能在「全部」里翻。
+            let item = json!({
+                "id": id, "text": text, "tags": tags, "status": "open", "tasks": [],
+                "workspace": workspace_tag(), "created_at": ts, "updated_at": ts,
+            });

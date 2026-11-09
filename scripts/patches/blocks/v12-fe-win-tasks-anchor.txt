@@ -1,0 +1,6 @@
+  const all = boardData?.board?.tasks ?? [];
+  if (!all.length) {
+    body.appendChild(el("div", "empty", "还没有任务。把一件成规模的事交代下来，agent 会把它登记到这里。"));
+    root.appendChild(body);
+    return;
+  }

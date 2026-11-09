@@ -110,6 +110,37 @@ def workspace_root() -> Path:
     return Path(env) if env else Path.cwd()
 
 
+# v12（B 方案）：任务的「归属工作区」标签。
+#
+# 为什么要它（用户 2026-11-09 提的「要不要每个工作区一块板」）：账本**只有一本**
+# （见 data_root 的长注释），但「这本账现在记的是哪个项目的活」这个信息原先丢了——
+# 28 条任务全部 session=main，没有任何字段能回答「这件是 1108 那个项目的」。
+# 于是一本账里混着多个项目的活，用户在自己项目的窗口里看不出哪些是自己的。
+#
+# 解法不是拆板（那会退回「每窗口各一块、互不相见」），而是给每条记一个**归属标签**，
+# 再让视图按标签过滤：同一个文件，两种投影。
+#
+# 标签取**目录名**而不是完整路径：完整路径（`D:\ZH\vibe code\WF\1108`）既长又含
+# 反斜杠，在 UI 里是噪声，且换机器就失真；目录名（`1108`）足够区分用户自己开的窗口。
+# 同名目录冲突时用户看到的是两个同标签分组——比一片完整路径更好认，不为这种边缘
+# 情况引入哈希后缀（那才是真正难懂的东西）。
+MAX_WORKSPACE = 64
+
+
+def workspace_tag() -> str:
+    """当前进程所属工作区的短标签；解析不出则空串（**不猜**）。
+
+    空串的语义是「不知道归属」，不是「属于某个叫空的目录」：视图侧把空标签的条目
+    在两个过滤档里都显示，宁可多显示也不让老条目凭空消失（28 条既有任务全无此字段，
+    一旦按标签硬过滤，它们会集体消失——那不是整理，那是丢账）。
+    """
+    try:
+        name = workspace_root().resolve().name
+    except (OSError, RuntimeError):
+        return ""
+    return name[:MAX_WORKSPACE]
+
+
 def data_root() -> Path:
     """看板/画像的数据根：`RSI_HOME`（代码根）优先，退化到工作区。
 
@@ -542,6 +573,17 @@ def validate_task(raw: dict, existing: dict | None) -> dict:
         "pro": _str(outs.get("pro", prev_outs.get("pro")), "outcomes.pro", MAX_NOTE * 2, required=False),
     }
     task["session"] = _str(raw.get("session", base.get("session", "main")), "session", 64, required=False) or "main"
+    # v12：归属工作区标签。规则：
+    #   ① 显式给了就用给的（用户/agent 可以纠正归属）；
+    #   ② 更新既有任务时**沿用原值**——否则在 A 窗口改一下 B 窗口的任务，归属就被
+    #      改写成 A，等于把账搬了家；
+    #   ③ 新建且没给 → 当前进程的工作区标签；解析不出就留空（不猜）。
+    if "workspace" in raw:
+        task["workspace"] = _str(raw.get("workspace"), "workspace", MAX_WORKSPACE, required=False)
+    elif base.get("workspace"):
+        task["workspace"] = str(base["workspace"])
+    else:
+        task["workspace"] = workspace_tag()
     task["created_at"] = str(base.get("created_at") or now_iso())
     task["updated_at"] = now_iso()
     del progresses
@@ -858,20 +900,39 @@ def cmd_resolve(args: argparse.Namespace) -> dict:
     return out
 
 
+def _ws_matches(item: dict, want: str) -> bool:
+    """条目是否属于 `want` 这个工作区视图。
+
+    空标签的条目在**任何**视图里都显示——那是「老条目，归属未知」，不是「属于别的
+    工作区」。反过来若按等值过滤，28 条既有任务会集体消失，用户以为账丢了一半。
+    `want` 为空表示不过滤（全部）。
+    """
+    if not want:
+        return True
+    tag = str(item.get("workspace") or "")
+    return not tag or tag == want
+
+
 def cmd_list(args: argparse.Namespace) -> dict:
     board = load()
     tasks = board["tasks"]
     if args.status:
         _enum(args.status, "status", TASK_STATUSES)
         tasks = [t for t in tasks if t.get("status") == args.status]
+    # `--workspace <tag>` 过滤；缺省不过滤（agent 与秘书要的是全部）。
+    want = str(getattr(args, "workspace", "") or "")
+    if want:
+        tasks = [t for t in tasks if _ws_matches(t, want)]
     tasks = sorted(tasks, key=lambda t: (PRIORITIES.index(t.get("priority", "P2"))
                                          if t.get("priority") in PRIORITIES else 9,
                                          str(t.get("updated_at", ""))), reverse=False)
     order = {s: i for i, s in enumerate(TASK_STATUSES)}
     tasks = sorted(tasks, key=lambda t: order.get(str(t.get("status", "planning")), 99))
     if args.compact:
-        tasks = [{k: t.get(k) for k in ("id", "title", "status", "priority", "progress")} for t in tasks]
-    out = {"ok": True, "path": str(board_path()), "tasks": tasks, "total": len(tasks)}
+        tasks = [{k: t.get(k) for k in ("id", "title", "status", "priority", "progress", "workspace")}
+                 for t in tasks]
+    out = {"ok": True, "path": str(board_path()), "tasks": tasks, "total": len(tasks),
+           "workspace": want or None, "current_workspace": workspace_tag()}
     if board.get("corrupt"):
         out["corrupt"] = True
         out["note"] = "board.json 解析失败，已按空板返回；原文件未改动，请人工核对"
@@ -897,11 +958,22 @@ def cmd_stats(args: argparse.Namespace) -> dict:
     insp = {s: 0 for s in INSP_STATUSES}
     for i in board["inspirations"]:
         insp[i.get("status", "open")] = insp.get(i.get("status", "open"), 0) + 1
+    # v12：按归属工作区切片。这不是另一本账——同一份数据按标签分组，
+    # 用户问「我那个项目做了多少」时才答得出来（老条目归在 "" 下，明说不详）。
+    by_ws: dict[str, dict] = {}
+    for t in board["tasks"]:
+        k = str(t.get("workspace") or "")
+        slot = by_ws.setdefault(k, {"tasks": 0, "by_status": {}})
+        slot["tasks"] += 1
+        st = str(t.get("status") or "planning")
+        slot["by_status"][st] = slot["by_status"].get(st, 0) + 1
     return {
         "ok": True,
         "path": str(board_path()),
         "tasks": {"total": len(board["tasks"]), "by_status": counts},
         "inspirations": {"total": len(board["inspirations"]), "by_status": insp},
+        "by_workspace": by_ws,
+        "current_workspace": workspace_tag(),
         "updated_at": board.get("updated_at"),
     }
 
@@ -1039,11 +1111,21 @@ def cmd_refresh(args: argparse.Namespace) -> dict:
         if not isinstance(t.get("outcomes"), dict):
             t["outcomes"] = {"brief": "", "pro": ""}
             fixed += 1
+        # v12：归属工作区。旧条目没有这个字段 = 归属未知，**补成当前工作区而不是留空**。
+        # 理由：这些条目确实都是在本工作区里产生的（v11 之前账本就落在工作区目录），
+        # 留空只是把「其实知道」说成「不知道」。若用户在多窗口下想纠正归属，
+        # 显式传 workspace 即可覆盖（见 validate_task 的三条规则）。
+        if "workspace" not in t:
+            t["workspace"] = workspace_tag()
+            fixed += 1
     for i in board["inspirations"]:
         for key, default in (("tags", []), ("tasks", []), ("status", "open")):
             if key not in i:
                 i[key] = default
                 fixed += 1
+        if "workspace" not in i:
+            i["workspace"] = workspace_tag()
+            fixed += 1
     save(board)
     return {"ok": True, "fixed": fixed, "path": str(board_path())}
 
@@ -1169,6 +1251,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("list", help="列出任务")
     p.add_argument("--status", default="")
     p.add_argument("--compact", action="store_true")
+    # v12：按归属工作区过滤。空 = 全部（agent 与秘书要的就是全部）。
+    p.add_argument("--workspace", default="")
     p.set_defaults(fn=cmd_list)
 
     p = sub.add_parser("show", help="查看任务或灵感详情")

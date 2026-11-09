@@ -369,6 +369,24 @@ fn parse_tags(v: &Value) -> Result<Vec<String>, Value> {
     Ok(out)
 }
 
+fn workspace_tag() -> String {
+    let ws = config::workspace_root();
+    let s = ws.trim();
+    if s.is_empty() {
+        return String::new();
+    }
+    // 取目录名而不是完整路径：完整路径在 UI 里是噪声，换机器还会失真。
+    // 与 `scripts/board.py::workspace_tag` 同一口径（都取最后一段），
+    // 否则同一台机器上 UI 记的标签与 CLI 记的标签对不上，过滤就永远半空。
+    Path::new(s)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
+        .chars()
+        .take(64)
+        .collect()
+}
+
 /// GET /api/board：返回整块看板 + 路径 + 汇总计数（前端一次拿全，不做多次往返）。
 pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
     let board = load_board();
@@ -400,6 +418,23 @@ pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
         let n = insps.iter().filter(|i| i.get("status").and_then(Value::as_str) == Some(s)).count();
         insp_by.insert((*s).to_string(), json!(n));
     }
+    // v12（B 方案）：按归属工作区切片 + 回显当前工作区。
+    // 前端据此提供「本项目 / 全部」两档视图：同一份数据，两种投影，账仍只有一本。
+    // 空标签（旧条目）单独归到 `""` 下，前端在两个视图里都显示它——宁可多显示，
+    // 也不让老条目凭空消失（那会被理解成丢账）。
+    let current_ws = workspace_tag();
+    let mut ws_of_task: Map<String, Value> = Map::new();
+    let mut ws_of_insp: Map<String, Value> = Map::new();
+    for t in &tasks {
+        let k = t.get("workspace").and_then(Value::as_str).unwrap_or("").to_string();
+        let cur = ws_of_task.get(&k).and_then(Value::as_u64).unwrap_or(0);
+        ws_of_task.insert(k, json!(cur + 1));
+    }
+    for i in &insps {
+        let k = i.get("workspace").and_then(Value::as_str).unwrap_or("").to_string();
+        let cur = ws_of_insp.get(&k).and_then(Value::as_u64).unwrap_or(0);
+        ws_of_insp.insert(k, json!(cur + 1));
+    }
     let mut board = board;
     board["layout"] = layout;
     json_resp(
@@ -410,6 +445,9 @@ pub(crate) async fn get_board(stream: &mut TcpStream) -> anyhow::Result<()> {
             "path": board_path().display().to_string(),
             // 回显的是**规整后**的 layout：前端拿到的永远合法，不必自己再判空/排序。
             "board": board,
+            // 当前窗口所属工作区（目录名）；前端「本项目」档用它过滤。
+            "workspace": current_ws,
+            "by_workspace": {"tasks": Value::Object(ws_of_task), "inspirations": Value::Object(ws_of_insp)},
             "summary": {
                 "tasks": {"total": tasks.len(), "by_status": Value::Object(by_status),
                           "by_verdict": Value::Object(by_verdict)},
@@ -489,9 +527,11 @@ pub(crate) async fn post_board(stream: &mut TcpStream, body: &[u8]) -> anyhow::R
             }
             let id = next_id(&items, "I");
             let ts = now_iso();
+            // v12：灵感也记归属工作区（与任务同口径）。用户在哪个窗口记的灵感，
+            // 「本项目」视图里就该看得见——否则灵感侧永远只能在「全部」里翻。
             let item = json!({
                 "id": id, "text": text, "tags": tags, "status": "open", "tasks": [],
-                "created_at": ts, "updated_at": ts,
+                "workspace": workspace_tag(), "created_at": ts, "updated_at": ts,
             });
             let mut merged = vec![item.clone()];
             merged.extend(items);
@@ -1068,5 +1108,40 @@ mod tests {
         assert_eq!(p, code.join(".rsi").join("board.json"),
                    "RSI_HOME 在场时必须锚代码根，实际 {p:?}");
         assert!(!p.starts_with(&proj), "看板不得落在工作区（会让每个窗口各有一块板）");
+    }
+
+    /// v12「按工作区分板 vs 一本账 + 归属标签」的核心不变量：
+    /// 标签取**目录名**，且与 `scripts/board.py::workspace_tag` 同口径——两边一旦取法
+    /// 不同（一边全路径一边目录名），UI 记的标签与 CLI 记的就对不上，「本项目」档
+    /// 永远半空，用户会以为是过滤坏了。
+    #[test]
+    fn workspace_tag_takes_last_path_segment() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = std::env::var_os("WORKSPACE_ROOT");
+        std::env::set_var("WORKSPACE_ROOT", "D:/ZH/vibe code/WF/1108");
+        assert_eq!(workspace_tag(), "1108", "取目录名，不是全路径");
+        // 尾随分隔符不能让标签变成空串（`Path::file_name` 已处理，此处钉住）
+        std::env::set_var("WORKSPACE_ROOT", "D:/ZH/vibe code/WF/1108/");
+        assert_eq!(workspace_tag(), "1108");
+        // 未设置 → 空串（「不知道归属」，不是「归属叫空」）
+        std::env::set_var("WORKSPACE_ROOT", "   ");
+        assert_eq!(workspace_tag(), "", "空白工作区必须给空标签，不能编一个");
+        match saved {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+    }
+
+    /// 有界：标签会进 JSON 与 UI，必须截断（路径名可能极长）。
+    #[test]
+    fn workspace_tag_is_bounded() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = std::env::var_os("WORKSPACE_ROOT");
+        std::env::set_var("WORKSPACE_ROOT", format!("D:/tmp/{}", "x".repeat(200)));
+        assert!(workspace_tag().chars().count() <= 64, "标签必须 ≤64 字符");
+        match saved {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
     }
 }

@@ -1,0 +1,6 @@
+            let id = next_id(&items, "I");
+            let ts = now_iso();
+            let item = json!({
+                "id": id, "text": text, "tags": tags, "status": "open", "tasks": [],
+                "created_at": ts, "updated_at": ts,
+            });

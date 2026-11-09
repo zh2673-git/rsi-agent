@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-TASKS-SCOPE",
+  "description": "app-board.js：tasks 章节接上归属过滤 + 档位条（空态文案分档）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-tasks-scope-anchor.txt",
+  "patch_file": "blocks/v12-fe-tasks-scope.txt",
+  "applied_marker": ".filter(scopeVisible);\n  const sum = boardData?.summary?.tasks;",
+  "order": -2
+}

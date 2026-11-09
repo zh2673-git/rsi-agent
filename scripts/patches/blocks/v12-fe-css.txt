@@ -1,0 +1,11 @@
+.sec-filter button.on { border-color: var(--accent); color: var(--text); }
+/* v12：工作区档位条。与状态筛选条同形但更弱——它是「看哪个账本切片」，
+   比「看哪些状态」更少切换，视觉上不该抢眼。 */
+.sec-filter.scope { padding-top: 2px; }
+.sec-filter.scope button { font-size: 10px; opacity: 0.85; }
+.sec-filter.scope button.on { opacity: 1; }
+.sec-filter button:disabled { opacity: 0.4; cursor: not-allowed; }
+.bw-scope { padding: 6px 0 8px; }
+/* 弹窗任务卡上的归属标签：低对比度的小徽章，除非在看否则不该抢注意力。 */
+.bw-ws { font-size: 10px; color: var(--faint); border: 1px solid var(--border-soft);
+  border-radius: 5px; padding: 1px 5px; margin-left: 4px; }

@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-WIN-INSP",
+  "description": "app-board.js：弹窗灵感列表接归属过滤（空态文案分档）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-win-insp-anchor.txt",
+  "patch_file": "blocks/v12-fe-win-insp.txt",
+  "applied_marker": "const items = deriveInspState(boardData?.board?.inspirations ?? []).filter(scopeVisible);\n  if (!items.length) {",
+  "order": -2
+}

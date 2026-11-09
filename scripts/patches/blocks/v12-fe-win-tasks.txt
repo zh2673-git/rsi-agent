@@ -1,0 +1,8 @@
+  let all = (boardData?.board?.tasks ?? []).filter(scopeVisible);
+  if (!all.length) {
+    body.appendChild(el("div", "empty", boardScope === "mine" && boardMine()
+      ? `本项目（${boardMine()}）下暂无任务。切「全部」看整本账。`
+      : "还没有任务。把一件成规模的事交代下来，agent 会把它登记到这里。"));
+    root.appendChild(body);
+    return;
+  }

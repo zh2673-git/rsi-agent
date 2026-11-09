@@ -1,0 +1,9 @@
+{
+  "id": "V12-HOST-WORKSPACE-TAG",
+  "description": "board.rs：新增 workspace_tag（取工作区目录名，与 board.py 同口径），GET /api/board 回显当前工作区 + by_workspace 切片",
+  "file": "runtime/crates/host/src/web/api/board.rs",
+  "anchor_file": "blocks/v12-host-get-board-anchor.txt",
+  "patch_file": "blocks/v12-host-get-board-patch.txt",
+  "applied_marker": "fn workspace_tag() -> String {",
+  "order": -2
+}

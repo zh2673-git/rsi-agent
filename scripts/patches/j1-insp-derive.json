@@ -3,5 +3,6 @@
   "description": "灵感分组：从任务侧 inspirations 推导 adopted，不再依赖无人可写的 status（修「永远是待议」）",
   "file": "runtime/crates/host/web-dist/vendor/app-board.js",
   "anchor_file": "blocks/j1-derive-anchor.txt",
-  "patch_file": "blocks/j1-derive-fn.txt"
+  "patch_file": "blocks/j1-derive-fn.txt",
+  "applied_marker": "function deriveInspState(items) {"
 }

@@ -1,0 +1,41 @@
+  const tasksAll = (boardData?.board?.tasks ?? [])
+    .filter((t) => taskVisible(t, sec.filter))
+    .filter(scopeVisible);
+  const sum = boardData?.summary?.tasks;
+  const bs = sum?.by_status ?? {};
+  const openN = (bs.planning ?? 0) + (bs.doing ?? 0) + (bs.verifying ?? 0);
+  wrap.appendChild(sectionHead(sec, `${openN} 进行中 / ${sum?.total ?? 0}`, true));
+
+  // v12：档位开关。放在状态筛选条之前——它决定「哪些条目进入这一章」，
+  // 状态筛选决定「进去之后怎么切」，顺序与语义一致。
+  wrap.appendChild(scopeBar());
+
+  // 筛选只在「该章节不限 filter」时提供（章节自己指定 filter=open 时不再给开关）
+  const showFilter = !sec.filter || sec.filter === "all";
+  if (showFilter) {
+    const bar = el("div", "sec-filter");
+    for (const [f, label] of [["all", "全部"], ["open", "未完成"], ["done", "已完成"]]) {
+      const b = el("button", f === boardFilter ? "on" : "");
+      b.dataset.f = f;
+      b.textContent = label;
+      b.onclick = () => {
+        boardFilter = f;
+        for (const x of bar.querySelectorAll("button")) x.classList.toggle("on", x === b);
+        refreshSections();
+      };
+      bar.appendChild(b);
+    }
+    wrap.appendChild(bar);
+  }
+
+  const body = el("div", "sec-body");
+  body.id = `sec-${sec.id}-body`;
+  wrap.appendChild(body);
+  const limit = Number(sec.limit ?? 30);
+  if (!tasksAll.length) {
+    body.appendChild(el("div", "empty",
+      boardScope === "mine" && boardMine()
+        ? `本项目（${boardMine()}）下暂无任务；切「全部」看整本账`
+        : (boardFilter === "all" ? "暂无任务（agent 会把成规模的事登记到这里）" : "该筛选下没有任务")));
+    return wrap;
+  }

@@ -1,0 +1,2 @@
+    `<span class="tverdict v-${boardEsc(verdict)}">${boardEsc(VERDICT_LABEL[verdict] ?? verdict)}</span>` +
+    `<button class="bw-ref" title="在输入框引用这个任务（@T）">@ 引用</button>` +

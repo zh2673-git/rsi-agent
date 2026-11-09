@@ -1,0 +1,20 @@
+let boardData = null;       // 最近一次 GET /api/board 的 payload
+let boardFilter = "all";    // all | open | done（只作用于 tasks 章节）
+// v12（B 方案）：视图档位。`all` = 这本账的全部；`mine` = 只显示本窗口所属工作区
+// 产生的条目。
+//
+// 为什么是「视图开关」而不是「每个工作区一块板」：账本只有一本（`.rsi/board.json`，
+// 锚代码根），工作区只是**归属标签**。拆板会退回「每个窗口各一块、互不相见」——
+// 那正是用户报过的 bug（新窗口里任务在跑、左侧看板没变化）。
+//
+// 默认 `all` 而不是 `mine`：用户打开看板最常见的意图是「我现在总共还有多少事」，
+// 而不是「这个项目还有多少事」。且老条目没有归属标签，默认 `mine` 会让它们
+// 看起来像消失了——那是让人以为丢账的观感，比多显示几条更糟。
+let boardScope = "all";     // all | mine
+// 记在 localStorage：看板是长期视图，不该每次打开都要重选一遍档位。
+const SCOPE_KEY = "ra.boardscope";
+try {
+  const v = localStorage.getItem(SCOPE_KEY);
+  if (v === "mine" || v === "all") boardScope = v;
+} catch { /* 隐私模式/坏值：用缺省 all，不阻断渲染 */ }
+let boardTimer = null;

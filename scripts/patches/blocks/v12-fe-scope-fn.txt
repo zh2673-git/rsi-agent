@@ -1,0 +1,51 @@
+function taskVisible(t, filter) {
+  const f = filter ?? boardFilter;
+  if (f === "open") return t.status !== "done" && t.status !== "cancelled";
+  if (f === "done") return t.status === "done" || t.status === "cancelled";
+  return true;
+}
+
+// v12：当前窗口的工作区标签（后端 GET /api/board 回显）。解析不出就是空串。
+function boardMine() {
+  return String(boardData?.workspace ?? "");
+}
+
+// v12：归属过滤。**空标签的条目在任何档位都显示** —— 空是「归属未知」（老条目），
+// 不是「属于别的项目」。按等值硬过滤会让既有条目在「本项目」档里集体消失，
+// 用户会以为账被删了一半；宁可多显示几条，也不让人怀疑数据没了。
+function scopeVisible(it) {
+  if (boardScope !== "mine") return true;
+  const tag = String(it?.workspace ?? "");
+  return !tag || tag === boardMine();
+}
+
+// v12：档位开关条（tasks 与 inspirations 共用同一档位）。
+//
+// 位置取舍：放在每个章节里，而不是页面顶部一个全局开关。看板可以有多块同类章节
+// （用户能加章节），全局开关会让「这一个现在是全部还是本项目」变得不可知——
+// 控件贴着它控制的东西放，是唯一不会被误读的做法。
+function scopeBar() {
+  const bar = el("div", "sec-filter scope");
+  const mine = boardMine();
+  for (const [v, label] of [["all", "全部"], ["mine", mine ? `本项目·${mine}` : "本项目"]]) {
+    const b = el("button", v === boardScope ? "on" : "");
+    b.dataset.scope = v;
+    b.textContent = label;
+    b.title = v === "mine"
+      ? "只看本窗口所属工作区产生的条目（归属未知的老条目仍会显示）"
+      : "整本账：所有工作区的任务与灵感";
+    // 没有工作区标签时「本项目」无从判定——点它等于把全部藏起来，故禁用而不是骗人。
+    if (v === "mine" && !mine) {
+      b.disabled = true;
+      b.title = "当前窗口没有工作区标签（未设置 WORKSPACE_ROOT），无法按项目过滤";
+    }
+    b.onclick = () => {
+      boardScope = v;
+      try { localStorage.setItem(SCOPE_KEY, v); } catch { /* 存不下就只在本次生效 */ }
+      refreshSections();
+      if (typeof renderBoardWin === "function") renderBoardWin();
+    };
+    bar.appendChild(b);
+  }
+  return bar;
+}

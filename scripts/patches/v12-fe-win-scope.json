@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-WIN-SCOPE",
+  "description": "app-board.js：看板弹窗顶部也挂档位条（与左栏同一个 boardScope，两处同步）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-win-scope-anchor.txt",
+  "patch_file": "blocks/v12-fe-win-scope.txt",
+  "applied_marker": "bar.classList.add(\"bw-scope\");",
+  "order": -2
+}

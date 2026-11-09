@@ -1,0 +1,9 @@
+{
+  "id": "V12-FE-SCOPE-STATE",
+  "description": "app-board.js：新增 boardScope 档位状态（all|mine，localStorage 记住）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v12-fe-scope-state-anchor.txt",
+  "patch_file": "blocks/v12-fe-scope-state.txt",
+  "applied_marker": "let boardScope = \"all\";",
+  "order": -3
+}

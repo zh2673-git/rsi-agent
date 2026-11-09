@@ -1,0 +1,6 @@
+function taskVisible(t, filter) {
+  const f = filter ?? boardFilter;
+  if (f === "open") return t.status !== "done" && t.status !== "cancelled";
+  if (f === "done") return t.status === "done" || t.status === "cancelled";
+  return true;
+}
