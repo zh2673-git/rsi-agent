@@ -1,0 +1,3 @@
+            // X3：传入下一条事件的起始偏移，readEventLine 据此只读本行字节
+            // （末条无后继 → 传 undefined，退回文件尾/1MB 上限）。
+            const ev = readEventLine(file, offsets[cursor], offsets[cursor + 1]);

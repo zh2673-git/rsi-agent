@@ -1,0 +1,4 @@
+  // X1e：「重新生成」本来就会把原文发出去（下面 send(ut.text)），不能同时预填——
+  // 否则输入框留着这句话、而它已经在跑，看起来像没发出去。只有普通回滚才预填。
+  stashRollbackTarget(resend ? null : ut);
+  stashDraftForRollback();

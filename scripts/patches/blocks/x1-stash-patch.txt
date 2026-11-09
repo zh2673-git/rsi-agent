@@ -1,0 +1,4 @@
+  // D 轮：回滚前把输入框内容存成草稿——用户重打过的字不该因为点了回滚就没了。
+  // X1：同时记下将被删掉的那条提问，回滚完成后预填进输入框（改一改即可再发）。
+  stashRollbackTarget(ut);
+  stashDraftForRollback();

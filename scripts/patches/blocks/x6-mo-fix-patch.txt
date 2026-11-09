@@ -1,0 +1,16 @@
+  processFollowQueued = false;
+  processPinned = true;
+  processBody.addEventListener("scroll", () => {
+    processPinned = processBody.scrollHeight - processBody.scrollTop - processBody.clientHeight < 48;
+  }, { passive: true });
+  // X6：改「按需触发 + 每帧合并」，语义不变（内容增长仍贴底、上滚仍暂停）。
+  // 原实现是 MutationObserver(childList+subtree+characterData) —— 历史重放时每个事件都会
+  // 产生 mutation record，回调里再同步读 scrollHeight（forced reflow），且每回合新建一个
+  // observer、旧的从不 disconnect（闭包抓着整棵 DOM 子树）。实测 CPU 采样 65.8s 里
+  // 63.5s 落在这个观察者上，页面看起来就是「转圈很久」。
+  // 现在：唯一句柄，新建过程框时先断开旧的；观察范围只留 childList（思考文本走
+  // noteProcessGrow 显式通知）；回调合并到每帧一次。
+  if (processBoxMo) { processBoxMo.disconnect(); processBoxMo = null; }
+  processBoxMo = new MutationObserver(() => scheduleProcessFollow());
+  processBoxMo.observe(processBody, { childList: true });
+  feed.appendChild(processBox);

@@ -1,0 +1,8 @@
+{
+ "id": "X6D-PROCESS-GROW1",
+ "description": "app-stream.js：流式思考文本增长时通知跟随（textContent 不产生 childList mutation）",
+ "file": "runtime/crates/host/web-dist/vendor/app-stream.js",
+ "anchor_file": "blocks/x6-grow1-anchor.txt",
+ "patch_file": "blocks/x6-grow1-patch.txt",
+ "applied_marker": "noteProcessGrow(); // X6：文本增长"
+}

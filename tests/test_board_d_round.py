@@ -354,8 +354,11 @@ class FrontEndContractTest(unittest.TestCase):
         self.assertIn("stashDraftForRollback()", js)
         self.assertIn("restoreDraftAfterRollback()", js)
         qs = read("runtime/crates/host/web-dist/vendor/q-session.js")
-        self.assertIn("if (d.text && !input.value.trim())", qs,
+        self.assertIn("!input.value.trim()", qs,
                       "回滚后输入框已有新内容时不得覆盖（否则吞掉用户刚打的字）")
+        # X1：优先级必须是被回滚的提问原文 > 回滚前未发草稿（target 在前，d 在后）
+        self.assertIn("const pick = (target && target.text) ? target : (d && d.text) ? d : null;", qs,
+                      "回滚预填优先级：被删掉的提问原文应优先于回滚前草稿")
 
     def test_style_has_board_win(self):
         css = read("runtime/crates/host/web-dist/style.css")

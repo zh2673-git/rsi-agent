@@ -1,0 +1,1 @@
+function scrollFeed() { if (feedPinned) scroll(); }

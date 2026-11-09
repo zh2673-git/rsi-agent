@@ -1,0 +1,3 @@
+      // X1：普通回滚也把本轮来源传进去——预填需要原文，索引只能定位不能恢复文字。
+      const _turn = userTurns[userTurns.length - 1];
+      uel.querySelector(".rb-btn").onclick = () => rollbackTo(idx, false, _turn);

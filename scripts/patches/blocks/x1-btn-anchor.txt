@@ -1,0 +1,1 @@
+      uel.querySelector(".rb-btn").onclick = () => rollbackTo(idx, false);

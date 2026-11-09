@@ -3,5 +3,6 @@
  "description": "app-events.js rollbackTo：回滚前 stashDraftForRollback，回滚后 restoreDraftAfterRollback（输入框已有新内容则不覆盖）",
  "file": "runtime/crates/host/web-dist/vendor/app-events.js",
  "anchor_file": "blocks/d-rollback-draft-anchor.txt",
- "patch_file": "blocks/d-rollback-draft.txt"
+ "patch_file": "blocks/d-rollback-draft.txt",
+ "applied_marker": "stashDraftForRollback();"
 }

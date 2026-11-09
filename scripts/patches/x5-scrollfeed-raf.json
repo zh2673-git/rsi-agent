@@ -1,0 +1,8 @@
+{
+ "id": "X5-SCROLLFEED-RAF",
+ "description": "app-core.js：scrollFeed 合并到每帧一次（历史重放期每事件一次 forced reflow，实测 0.42ms×14811≈6.3s 主线程阻塞）",
+ "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+ "anchor_file": "blocks/x5-scrollfeed-anchor.txt",
+ "patch_file": "blocks/x5-scrollfeed-patch.txt",
+ "applied_marker": "feedScrollQueued"
+}

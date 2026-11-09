@@ -1,0 +1,2 @@
+      processThink.textContent = ev.reasoning; // 兜底：流式思考帧缺失时补全
+      noteProcessGrow(); // X6：同上

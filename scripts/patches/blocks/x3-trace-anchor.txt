@@ -1,0 +1,8 @@
+function readEventLine(file: string, off: number): unknown {
+  const fd = fs.openSync(file, "r");
+  try {
+    const len = Math.min(1 << 20, fs.fstatSync(fd).size - off); // 单事件上限 1MB（与分页字节预算同量级）
+    if (len <= 0) return null;
+    const buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, off);
+    const t = buf.toString("utf8").split("\n")[0].trim();

@@ -1,0 +1,21 @@
+// X6：过程框跟随的每帧合并器。原实现靠 MutationObserver 直接同步读 scrollHeight，
+// 历史重放时每个事件都触发一次 forced reflow（实测单次 0.42ms，×14811 事件 ≈ 6.3s，
+// 且全在主线程）。合并到每帧一次后语义不变（仍贴底、上滚仍暂停），只是同一帧内多次
+// 请求只执行一次。
+let processFollowQueued = false;
+let processPinned = true;
+function scheduleProcessFollow() {
+  if (processFollowQueued) return;
+  processFollowQueued = true;
+  requestAnimationFrame(() => {
+    processFollowQueued = false;
+    if (!processBody) return;
+    if (processPinned) processBody.scrollTop = processBody.scrollHeight;
+    scrollFeed();
+  });
+}
+// 思考文本增长（textContent 变更不产生 childList mutation，需要显式通知）。
+function noteProcessGrow() {
+  scheduleProcessFollow();
+}
+function ensureProcessBox() {

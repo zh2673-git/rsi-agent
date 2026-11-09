@@ -1,0 +1,22 @@
+function restoreDraftAfterRollback() {
+  const target = pendingRollbackText;
+  pendingRollbackText = null;
+  const d = rollbackDraft;
+  rollbackDraft = null;
+  // X1：优先级 = 被回滚的提问原文 > 回滚前的未发草稿。两者都只在输入框仍空时写入，
+  // 用户回滚后已经开始打新字就绝不覆盖。
+  const pick = (target && target.text) ? target : (d && d.text) ? d : null;
+  if (pick && !input.value.trim()) {
+    input.value = pick.text;
+    input.style.height = "48px";
+    input.style.height = Math.min(input.scrollHeight, 180) + "px";
+  }
+  const atts = (target && target.atts?.length) ? target.atts : (d && d.atts) || [];
+  if (atts.length && !pendingAtts.length) pendingAtts = atts.slice();
+  renderAtts();
+  // 光标落到末尾：预填的目的就是「改一改再发」，不是让人先按 End。
+  if (pick && input.value === pick.text) {
+    input.focus();
+    try { input.setSelectionRange(input.value.length, input.value.length); } catch { /* 非文本框忽略 */ }
+  }
+}

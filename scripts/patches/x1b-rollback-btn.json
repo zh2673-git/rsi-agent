@@ -1,0 +1,8 @@
+{
+ "id": "X1b-ROLLBACK-BTN",
+ "description": "app-events.js：用户气泡的回滚按钮把本轮原文一并传入（否则只能定位不能恢复文字）",
+ "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+ "anchor_file": "blocks/x1-btn-anchor.txt",
+ "patch_file": "blocks/x1-btn-patch.txt",
+ "applied_marker": "rollbackTo(idx, false, _turn)"
+}

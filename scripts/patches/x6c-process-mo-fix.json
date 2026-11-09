@@ -1,0 +1,8 @@
+{
+ "id": "X6C-PROCESS-MO-FIX",
+ "description": "app-stream.js：MutationObserver 断旧接新 + 只观察 childList + 每帧合并（实测占 63.5s/65.8s 采样的那个热点）",
+ "file": "runtime/crates/host/web-dist/vendor/app-stream.js",
+ "anchor_file": "blocks/x6-mo-fix-anchor.txt",
+ "patch_file": "blocks/x6-mo-fix-patch.txt",
+ "applied_marker": "processBoxMo = new MutationObserver("
+}

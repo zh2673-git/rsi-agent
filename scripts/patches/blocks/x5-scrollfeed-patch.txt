@@ -1,0 +1,11 @@
+// X5：scrollFeed 在历史重放期被**每个事件**调用一次，而 scroll() 每次读 scrollHeight
+// 都是一次 forced reflow。实测（DOM 10 万节点）：纯 append 500 次 0.4ms，
+// append 后读一次 scrollHeight 要 211.5ms —— 单次 0.42ms，×14811 事件 ≈ 6.3s 纯重排，
+// 而且这段全在主线程同步执行，页面在这期间完全无响应（用户感知即「加载很慢」）。
+// 合并到每帧一次：语义不变（仍跟随贴底、上滚仍暂停），只是同一帧内的多次请求只执行一次。
+let feedScrollQueued = false;
+function scrollFeed() {
+  if (!feedPinned || feedScrollQueued) return;
+  feedScrollQueued = true;
+  requestAnimationFrame(() => { feedScrollQueued = false; if (feedPinned) scroll(); });
+}

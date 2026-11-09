@@ -1,0 +1,13 @@
+function restoreDraftAfterRollback() {
+  if (!rollbackDraft) return;
+  const d = rollbackDraft;
+  rollbackDraft = null;
+  // 只在输入框仍为空时还回：用户如果已经在回滚后打了新字，不要覆盖他刚打的。
+  if (d.text && !input.value.trim()) {
+    input.value = d.text;
+    input.style.height = "48px";
+    input.style.height = Math.min(input.scrollHeight, 180) + "px";
+  }
+  if (d.atts?.length && !pendingAtts.length) pendingAtts = d.atts.slice();
+  renderAtts();
+}

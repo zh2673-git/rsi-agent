@@ -1,0 +1,8 @@
+{
+ "id": "X6-PROCESS-MO-DECL",
+ "description": "app-stream.js：登记过程框 MutationObserver 句柄（原来每回合新建且从不 disconnect）",
+ "file": "runtime/crates/host/web-dist/vendor/app-stream.js",
+ "anchor_file": "blocks/x6-mo-decl-anchor.txt",
+ "patch_file": "blocks/x6-mo-decl-patch.txt",
+ "applied_marker": "let processBoxMo = null;"
+}

@@ -1,0 +1,8 @@
+{
+ "id": "X1e-RESEND-NO-PREFILL",
+ "description": "app-events.js：重新生成路径不预填（原文已发出去，预填会看起来像没发）",
+ "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+ "anchor_file": "blocks/x1e-resend-anchor.txt",
+ "patch_file": "blocks/x1e-resend-patch.txt",
+ "applied_marker": "resend ? null : ut"
+}

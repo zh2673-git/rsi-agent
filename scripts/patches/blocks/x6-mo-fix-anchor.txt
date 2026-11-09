@@ -1,0 +1,9 @@
+  let pinned = true;
+  processBody.addEventListener("scroll", () => {
+    pinned = processBody.scrollHeight - processBody.scrollTop - processBody.clientHeight < 48;
+  }, { passive: true });
+  new MutationObserver(() => {
+    if (pinned) processBody.scrollTop = processBody.scrollHeight;
+    scrollFeed(); // 框内内容增长时页面同步跟随：工具卡/思考段始终保持在视口内
+  }).observe(processBody, { childList: true, subtree: true, characterData: true });
+  feed.appendChild(processBox);

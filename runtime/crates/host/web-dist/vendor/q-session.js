@@ -185,22 +185,49 @@ function copyQueueItem(item) {
 // 不存 localStorage——草稿的生命周期就该是这一次操作。
 let rollbackDraft = null;
 
+// R2 补强（X1）：回滚到某条提问之前，就把那条提问本身预填进输入框。
+// D 轮只还了「用户当时正在打但还没发」的草稿；而回滚的常见意图是「这条问得不对，
+// 改一改再问一次」——被回滚掉的那条提问恰恰是最该预填的文字。原实现里它只在
+// 「重新生成」（resend=true 复用 ut.text）路径才有，普通回滚按钮走的是
+// `rollbackTo(idx, false)`，索引传了、ut 没传，用户只好手打一遍。
+// pendingRollbackText 与 rollbackDraft 分开存：一个是「回滚掉了什么」，一个是
+// 「回滚前正在打什么」。两者都有时优先还提问原文——那一轮已经删掉了，草稿还在
+// 输入框里没丢。附件同理（trace user 事件带全量 b64）。
+let pendingRollbackText = null;
+
 function stashDraftForRollback() {
   rollbackDraft = { text: input.value, atts: pendingAtts.slice() };
+  // 若输入框非空（用户已在准备下一句），不覆盖它——那是他手打的东西。
+  if (rollbackDraft.text.trim()) pendingRollbackText = null;
+}
+
+// 由回滚入口在调 stashDraftForRollback() 之前调用，记下将被删掉的那条提问。
+function stashRollbackTarget(turn) {
+  if (!turn) return;
+  pendingRollbackText = { text: turn.text ?? "", atts: (turn.atts || []).slice() };
 }
 
 function restoreDraftAfterRollback() {
-  if (!rollbackDraft) return;
+  const target = pendingRollbackText;
+  pendingRollbackText = null;
   const d = rollbackDraft;
   rollbackDraft = null;
-  // 只在输入框仍为空时还回：用户如果已经在回滚后打了新字，不要覆盖他刚打的。
-  if (d.text && !input.value.trim()) {
-    input.value = d.text;
+  // X1：优先级 = 被回滚的提问原文 > 回滚前的未发草稿。两者都只在输入框仍空时写入，
+  // 用户回滚后已经开始打新字就绝不覆盖。
+  const pick = (target && target.text) ? target : (d && d.text) ? d : null;
+  if (pick && !input.value.trim()) {
+    input.value = pick.text;
     input.style.height = "48px";
     input.style.height = Math.min(input.scrollHeight, 180) + "px";
   }
-  if (d.atts?.length && !pendingAtts.length) pendingAtts = d.atts.slice();
+  const atts = (target && target.atts?.length) ? target.atts : (d && d.atts) || [];
+  if (atts.length && !pendingAtts.length) pendingAtts = atts.slice();
   renderAtts();
+  // 光标落到末尾：预填的目的就是「改一改再发」，不是让人先按 End。
+  if (pick && input.value === pick.text) {
+    input.focus();
+    try { input.setSelectionRange(input.value.length, input.value.length); } catch { /* 非文本框忽略 */ }
+  }
 }
 async function postChatDirect(sid, item) {
   const s = qState(sid);

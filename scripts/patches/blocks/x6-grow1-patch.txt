@@ -1,0 +1,3 @@
+    processThink.textContent = streamBuf.reasoning;
+    processBox.open = true; // 过程进行中保持展开
+    noteProcessGrow(); // X6：文本增长不产生 childList mutation，显式通知跟随

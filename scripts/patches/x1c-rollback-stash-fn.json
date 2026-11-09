@@ -1,0 +1,8 @@
+{
+ "id": "X1c-ROLLBACK-STASH-FN",
+ "description": "q-session.js：新增 pendingRollbackText 与 stashRollbackTarget（记下被回滚的提问）",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/x1-draft-anchor.txt",
+ "patch_file": "blocks/x1-draft-patch.txt",
+ "applied_marker": "function stashRollbackTarget("
+}

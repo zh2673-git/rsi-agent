@@ -1,0 +1,8 @@
+{
+ "id": "X6B-PROCESS-FOLLOW-HELPERS",
+ "description": "app-stream.js：过程框跟随改为每帧合并（scheduleProcessFollow / noteProcessGrow）",
+ "file": "runtime/crates/host/web-dist/vendor/app-stream.js",
+ "anchor_file": "blocks/x6-helpers-anchor.txt",
+ "patch_file": "blocks/x6-helpers-patch.txt",
+ "applied_marker": "function scheduleProcessFollow("
+}

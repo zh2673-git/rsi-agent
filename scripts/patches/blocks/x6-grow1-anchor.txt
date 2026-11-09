@@ -1,0 +1,2 @@
+    processThink.textContent = streamBuf.reasoning;
+    processBox.open = true; // 过程进行中保持展开

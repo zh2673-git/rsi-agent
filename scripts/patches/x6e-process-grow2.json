@@ -1,0 +1,8 @@
+{
+ "id": "X6E-PROCESS-GROW2",
+ "description": "app-stream.js：assistant 兜底思考文本落块时通知跟随",
+ "file": "runtime/crates/host/web-dist/vendor/app-stream.js",
+ "anchor_file": "blocks/x6-grow2-anchor.txt",
+ "patch_file": "blocks/x6-grow2-patch.txt",
+ "applied_marker": "noteProcessGrow(); // X6：同上"
+}

@@ -1,0 +1,8 @@
+{
+ "id": "X1d-ROLLBACK-RESTORE",
+ "description": "q-session.js：回滚完成后优先还回被删掉的提问原文（其次才是未发草稿），光标置末尾",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/x1-restore-anchor.txt",
+ "patch_file": "blocks/x1-restore-patch.txt",
+ "applied_marker": "const target = pendingRollbackText;"
+}

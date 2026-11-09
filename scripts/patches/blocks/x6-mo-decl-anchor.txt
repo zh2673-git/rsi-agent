@@ -1,0 +1,1 @@
+const doneSids = new Set(); // 已完成回合的 sid：最终 assistant 事件已渲染，后续同 sid 的重连 stream_* 帧一律忽略，避免尾部覆盖/重弹

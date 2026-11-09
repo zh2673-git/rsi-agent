@@ -42,7 +42,9 @@ function render(ev) {
           : `<span class="batt-file">📄 ${esc(a.name)}</span>`
       ).join("");
       const uel = el(`<div class="ev user"><button class="rb-btn" title="删除该问题及其后的对话，回到提问前">⤺ 回滚</button><div class="bubble">${attsHtml ? `<div class="batts">${attsHtml}</div>` : ""}<div class="txt">${esc(ev.text)}</div></div></div>`);
-      uel.querySelector(".rb-btn").onclick = () => rollbackTo(idx, false);
+      // X1：普通回滚也把本轮来源传进去——预填需要原文，索引只能定位不能恢复文字。
+      const _turn = userTurns[userTurns.length - 1];
+      uel.querySelector(".rb-btn").onclick = () => rollbackTo(idx, false, _turn);
       feed.appendChild(uel);
       break;
     }
@@ -300,6 +302,10 @@ async function rollbackTo(idx, resend, ut) {
     : "";
   if (!confirm(resend ? `回滚本问题并重新生成回答？${undoNote}` : `回滚到该问题之前？（该问题及其后的对话将被删除）${undoNote}`)) return;
   // D 轮：回滚前把输入框内容存成草稿——用户重打过的字不该因为点了回滚就没了。
+  // X1：同时记下将被删掉的那条提问，回滚完成后预填进输入框（改一改即可再发）。
+  // X1e：「重新生成」本来就会把原文发出去（下面 send(ut.text)），不能同时预填——
+  // 否则输入框留着这句话、而它已经在跑，看起来像没发出去。只有普通回滚才预填。
+  stashRollbackTarget(resend ? null : ut);
   stashDraftForRollback();
   try {
     const v = await api("POST", "/api/chat/rollback", { session_id: session, upto_user_index: idx });

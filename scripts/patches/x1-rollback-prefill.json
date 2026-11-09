@@ -1,0 +1,8 @@
+{
+ "id": "X1-ROLLBACK-PREFILL",
+ "description": "app-events.js：回滚后把被删掉的那条提问预填进输入框（普通回滚也传 ut）",
+ "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+ "anchor_file": "blocks/x1-stash-anchor.txt",
+ "patch_file": "blocks/x1-stash-patch.txt",
+ "applied_marker": "stashRollbackTarget("
+}

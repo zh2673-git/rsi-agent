@@ -1,0 +1,5 @@
+const doneSids = new Set(); // 已完成回合的 sid：最终 assistant 事件已渲染，后续同 sid 的重连 stream_* 帧一律忽略，避免尾部覆盖/重弹
+// X6：当前活动过程框的 MutationObserver 句柄。以前每个用户回合都 new 一个且从不
+// disconnect——旧 observer 连同它闭包里的整个 DOM 子树一起常驻，历史重放 38 个回合就
+// 攒下 38 个观察者，全部挂在 childList+subtree+characterData 上。
+let processBoxMo = null;

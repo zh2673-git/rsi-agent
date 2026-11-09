@@ -1,0 +1,8 @@
+{
+ "id": "X3b-TRACE-READ-CALL",
+ "description": "memory_plugin.ts：trace.read 分页循环把下一条偏移传给 readEventLine",
+ "file": "runtime/plugins/memory/memory_plugin.ts",
+ "anchor_file": "blocks/x3-call-anchor.txt",
+ "patch_file": "blocks/x3-call-patch.txt",
+ "applied_marker": "offsets[cursor + 1]"
+}
