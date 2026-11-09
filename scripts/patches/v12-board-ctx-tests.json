@@ -1,0 +1,9 @@
+{
+  "id": "V12-BOARD-CTX-TESTS",
+  "description": "board_ctx.rs：新增 4 条回归测试——子窗口形态读代码根那份（v12 bug 本身）/ 空白 env 穿透 / RSI_BOARD_PATH 覆盖优先 / 渲染纯函数不碰 env",
+  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+  "anchor_file": "blocks/v12-board-ctx-tests-anchor.txt",
+  "patch_file": "blocks/v12-board-ctx-tests-patch.txt",
+  "applied_marker": "fn board_follows_rsi_home_not_workspace() {",
+  "order": -2
+}

@@ -71,13 +71,23 @@ const KIND_LABEL: &[(&str, &str)] = &[
     ("env", "Environment gotchas"),
 ];
 
-fn workspace_root() -> Option<PathBuf> {
-    let ws = std::env::var("WORKSPACE_ROOT").ok()?;
-    let ws = ws.trim();
-    if ws.is_empty() {
-        return None;
+/// 画像数据的根目录（`RSI_PROFILE_PATH` 相对路径的锚点）。
+///
+/// 与 `board_ctx::data_root` 同一判据、同一顺序（`RSI_HOME` → `WORKSPACE_ROOT` →
+/// cwd），理由见那里的长注释。这里补一条画像特有的后果：`profile_ops_hint`
+/// 的门控早已锚代码根（`config::rsi_home`），所以子窗口里「你有个画像文件」那段
+/// 照样注入，而 `load_profile()` 读的是用户项目下不存在的文件 → 每轮 prompt 多出
+/// 一段承诺却拿不到数据的纪律段。门控与读口必须同源，这是同一缺陷的两半。
+fn data_root() -> Option<PathBuf> {
+    for key in ["RSI_HOME", "WORKSPACE_ROOT"] {
+        if let Ok(v) = std::env::var(key) {
+            let v = v.trim();
+            if !v.is_empty() {
+                return Some(PathBuf::from(v));
+            }
+        }
     }
-    Some(PathBuf::from(ws))
+    std::env::current_dir().ok()
 }
 
 fn profile_path() -> Option<PathBuf> {
@@ -91,7 +101,7 @@ fn profile_path() -> Option<PathBuf> {
     if p.is_absolute() {
         Some(p)
     } else {
-        workspace_root().map(|ws| ws.join(p))
+        data_root().map(|root| root.join(p))
     }
 }
 

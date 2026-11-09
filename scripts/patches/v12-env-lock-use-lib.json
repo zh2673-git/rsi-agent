@@ -1,0 +1,9 @@
+{
+  "id": "V12-ENV-LOCK-USE-LIB",
+  "description": "lib.rs 测试模块：改用 crate::ENV_LOCK（删掉模块内私有那把，否则两把锁互不相让）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/v12-env-lock-use-anchor.txt",
+  "patch_file": "blocks/v12-env-lock-use-patch.txt",
+  "applied_marker": "use crate::ENV_LOCK;",
+  "order": -1
+}

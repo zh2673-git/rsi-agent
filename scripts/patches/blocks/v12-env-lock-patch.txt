@@ -1,0 +1,18 @@
+mod tools_exec;
+mod trace;
+
+/// 进程级 env 是共享可变状态（`cargo test` 多测同进程并行跑）。
+///
+/// 实测过的伤害：S 轮新增的 `routing_hint_declares_three_tiers_and_tie_break` 与既有的
+/// `task_board_section_requires_cli_and_scales_by_flag` 都要 `set_var("RSI_HOME")`，
+/// 两个线程交错时后者读到前者布置的空目录 → 提示段为空 → 既有用例红。
+/// 这类红有个恶劣特征：**换个跑法就绿**（单线程跑不复现），于是最容易被当成 flaky 忽略，
+/// 而它每次在 CI 上的结论都是随机的。
+///
+/// v12：锁必须**跨模块**共用。`board_ctx::tests` 与本文件的测试都改
+/// `RSI_HOME` / `WORKSPACE_ROOT`，各自持有自己的 `ENV_LOCK` 等于没加锁——实测：
+/// 单包跑 `-p react-agent-agent-loop --lib` 全绿，`--workspace --lib` 时
+/// `board_follows_rsi_home_not_workspace` 读到本文件用例留下的 `RSI_HOME` 而红。
+/// 锁的粒度要覆盖它保护的状态，而不是「看起来相关的那几个用例」。
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

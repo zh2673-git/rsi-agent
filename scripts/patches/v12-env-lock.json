@@ -1,0 +1,9 @@
+{
+  "id": "V12-ENV-LOCK",
+  "description": "lib.rs：ENV_LOCK 提升到 crate 根（pub(crate)）——board_ctx::tests 与 lib::tests 各自持锁等于没加锁，整套跑时实测串扰",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/v12-env-lock-anchor.txt",
+  "patch_file": "blocks/v12-env-lock-patch.txt",
+  "applied_marker": "pub(crate) static ENV_LOCK",
+  "order": -2
+}

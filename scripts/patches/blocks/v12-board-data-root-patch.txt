@@ -1,0 +1,41 @@
+/// 看板数据的根目录（`RSI_BOARD_PATH` 相对路径的锚点）。
+///
+/// v12（I-20261108-14 的漏改一侧）：v11 把 UI/CLI 的数据根统一到 `RSI_HOME`，
+/// 但**本文件漏了**——原来这里独占 `WORKSPACE_ROOT`。主窗口里两者恰好同源
+/// （都是代码根），所以看不出来；子窗口（`instances.rs` 把 `WORKSPACE_ROOT` 设成
+/// 用户项目、`RSI_HOME` 设成代码根）里两者必然分叉，而用户项目下没有
+/// `.rsi/board.json` → `load_board()` 返回 `None` → `refs_context` 静默给空串。
+///
+/// 后果不是「少一段提示」，而是**提示词在说谎**：`board_ops_hint` 已锚代码根
+/// （`has_board_cli`），所以子窗口里「@引用会自动装载、不要再 show」照样注入，
+/// 而装载实际什么都没发生——用户 @ 了任务，模型却看不到。
+///
+/// 判定顺序与 `host/src/web/api/board.rs::data_root`、`scripts/board.py::data_root`
+/// 逐字一致：`RSI_HOME` → `WORKSPACE_ROOT` → cwd。三处必须同源，否则会出现
+/// 「UI 写 A 文件、agent 读 B 文件」——最难查的一类不一致。
+fn data_root() -> Option<PathBuf> {
+    for key in ["RSI_HOME", "WORKSPACE_ROOT"] {
+        if let Ok(v) = std::env::var(key) {
+            let v = v.trim();
+            if !v.is_empty() {
+                return Some(PathBuf::from(v));
+            }
+        }
+    }
+    std::env::current_dir().ok()
+}
+
+fn board_path() -> Option<PathBuf> {
+    let raw = std::env::var("RSI_BOARD_PATH").unwrap_or_default();
+    let raw = raw.trim();
+    let p = if raw.is_empty() {
+        PathBuf::from(".rsi").join("board.json")
+    } else {
+        PathBuf::from(raw)
+    };
+    if p.is_absolute() {
+        Some(p)
+    } else {
+        data_root().map(|root| root.join(p))
+    }
+}

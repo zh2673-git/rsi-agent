@@ -1,0 +1,1 @@
+    use crate::ENV_LOCK; // v12：跨模块共用一把锁，见 crate 根注释

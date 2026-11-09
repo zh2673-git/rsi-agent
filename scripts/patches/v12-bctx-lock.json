@@ -1,0 +1,9 @@
+{
+  "id": "V12-BCTX-LOCK",
+  "description": "board_ctx.rs 测试模块：改用 crate::ENV_LOCK（与 lib.rs 测试模块共用同一把锁）",
+  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+  "anchor_file": "blocks/v12-bctx-lock-anchor.txt",
+  "patch_file": "blocks/v12-bctx-lock-patch.txt",
+  "applied_marker": "use crate::ENV_LOCK;",
+  "order": -1
+}

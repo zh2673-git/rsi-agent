@@ -1,0 +1,4 @@
+         Two invariants regardless of tier: verification is never skipped for M/L, and a registered \
+         task is never opened just to look busy.\n",
+    )
+}

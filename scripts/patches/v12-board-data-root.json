@@ -1,0 +1,9 @@
+{
+  "id": "V12-BOARD-DATA-ROOT",
+  "description": "board_ctx.rs：数据根从 WORKSPACE_ROOT 改为与 UI/CLI 同序的 data_root（RSI_HOME→WORKSPACE_ROOT→cwd），修子窗口 @引用静默读空",
+  "file": "runtime/crates/agent-loop/src/board_ctx.rs",
+  "anchor_file": "blocks/v12-board-data-root-anchor.txt",
+  "patch_file": "blocks/v12-board-data-root-patch.txt",
+  "applied_marker": "fn data_root() -> Option<PathBuf> {",
+  "order": -2
+}

@@ -28,13 +28,31 @@ const MAX_OPEN_TASKS: usize = 12;
 /// 单条引用里计划/验收/检查的展示条数上限。
 const MAX_ITEMS: usize = 6;
 
-fn workspace_root() -> Option<PathBuf> {
-    let ws = std::env::var("WORKSPACE_ROOT").ok()?;
-    let ws = ws.trim();
-    if ws.is_empty() {
-        return None;
+/// 看板数据的根目录（`RSI_BOARD_PATH` 相对路径的锚点）。
+///
+/// v12（I-20261108-14 的漏改一侧）：v11 把 UI/CLI 的数据根统一到 `RSI_HOME`，
+/// 但**本文件漏了**——原来这里独占 `WORKSPACE_ROOT`。主窗口里两者恰好同源
+/// （都是代码根），所以看不出来；子窗口（`instances.rs` 把 `WORKSPACE_ROOT` 设成
+/// 用户项目、`RSI_HOME` 设成代码根）里两者必然分叉，而用户项目下没有
+/// `.rsi/board.json` → `load_board()` 返回 `None` → `refs_context` 静默给空串。
+///
+/// 后果不是「少一段提示」，而是**提示词在说谎**：`board_ops_hint` 已锚代码根
+/// （`has_board_cli`），所以子窗口里「@引用会自动装载、不要再 show」照样注入，
+/// 而装载实际什么都没发生——用户 @ 了任务，模型却看不到。
+///
+/// 判定顺序与 `host/src/web/api/board.rs::data_root`、`scripts/board.py::data_root`
+/// 逐字一致：`RSI_HOME` → `WORKSPACE_ROOT` → cwd。三处必须同源，否则会出现
+/// 「UI 写 A 文件、agent 读 B 文件」——最难查的一类不一致。
+fn data_root() -> Option<PathBuf> {
+    for key in ["RSI_HOME", "WORKSPACE_ROOT"] {
+        if let Ok(v) = std::env::var(key) {
+            let v = v.trim();
+            if !v.is_empty() {
+                return Some(PathBuf::from(v));
+            }
+        }
     }
-    Some(PathBuf::from(ws))
+    std::env::current_dir().ok()
 }
 
 fn board_path() -> Option<PathBuf> {
@@ -48,7 +66,7 @@ fn board_path() -> Option<PathBuf> {
     if p.is_absolute() {
         Some(p)
     } else {
-        workspace_root().map(|ws| ws.join(p))
+        data_root().map(|root| root.join(p))
     }
 }
 
@@ -548,4 +566,142 @@ pub(super) fn routing_hint() -> String {
          Two invariants regardless of tier: verification is never skipped for M/L, and a registered \
          task is never opened just to look busy.\n",
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// 进程级 env 是共享可变状态：改 env 的用例必须串行，否则彼此串扰而红。
+    /// v12：用 crate 根那把锁（`crate::ENV_LOCK`）——本模块与 `lib.rs` 测试模块
+    /// 改的是同一组 key，各持一把等于没加锁。
+    use crate::ENV_LOCK;
+
+    /// 用例结束自动还原 env——断言中途 panic 也要还原，否则后续用例读到脏值。
+    struct EnvGuard {
+        saved: Vec<(&'static str, Option<std::ffi::OsString>)>,
+    }
+
+    impl EnvGuard {
+        fn new(keys: &[&'static str]) -> Self {
+            Self { saved: keys.iter().map(|k| (*k, std::env::var_os(k))).collect() }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            for (k, v) in &self.saved {
+                match v {
+                    Some(v) => std::env::set_var(k, v),
+                    None => std::env::remove_var(k),
+                }
+            }
+        }
+    }
+
+    /// 子窗口形态：WORKSPACE_ROOT 是用户项目、RSI_HOME 是代码根。
+    ///
+    /// 这是 v12 修的 bug 本身。v11 把 UI/CLI 的数据根搬到代码根，本文件漏改，
+    /// 于是子窗口里 board_path 指向「用户项目/.rsi/board.json」——那个文件不存在，
+    /// load_board() 返回 None，@引用与在办摘要全部静默为空，而提示词里「@引用会自动
+    /// 装载」那段照样注入：**提示词在说谎**。
+    ///
+    /// 断言的是「读到的是代码根那份」，而非路径形状：路径可随判据顺序调整，
+    /// 「读谁的数据」才是这一处的不变量。
+    #[test]
+    fn board_follows_rsi_home_not_workspace() {
+        use std::io::Write;
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _g = EnvGuard::new(&["RSI_HOME", "WORKSPACE_ROOT", "RSI_BOARD_PATH"]);
+        std::env::remove_var("RSI_BOARD_PATH");
+
+        let tmp = std::env::temp_dir().join(format!("ra-bctx-{}", std::process::id()));
+        let home = tmp.join("code-root");
+        let proj = tmp.join("user-project");
+        for d in [home.join(".rsi"), proj.join(".rsi")] {
+            std::fs::create_dir_all(&d).expect("mkdir");
+        }
+        // 代码根那份**有**任务；用户项目那份先**故意为空**（子窗口真实形态）。
+        let mut f = std::fs::File::create(home.join(".rsi").join("board.json")).expect("create");
+        f.write_all(br#"{"tasks":[{"id":"T-20260101-01","title":"from code root","status":"doing"}]}"#)
+            .expect("write");
+        drop(f);
+
+        std::env::set_var("RSI_HOME", &home);
+        std::env::set_var("WORKSPACE_ROOT", &proj);
+
+        let loaded = load_board().expect("必须读到代码根那份；读空即 v12 bug 复发");
+        assert_eq!(
+            loaded["tasks"][0]["title"].as_str().unwrap_or(""),
+            "from code root",
+            "读到了错误的工作区账本: {loaded}"
+        );
+        // 引用渲染是这条链的最终消费者：修好之前这里恒为空串。
+        let ctx = render_refs("@T-20260101-01 看下这个", &loaded);
+        assert!(ctx.contains("from code root"), "@引用装载必须命中: {ctx}");
+
+        // 反过来：用户项目那份写了也别读——数据根只有一处，两处都读等于又拆成两本账。
+        std::fs::write(
+            proj.join(".rsi").join("board.json"),
+            br#"{"tasks":[{"id":"T-20260101-02","title":"from workspace","status":"doing"}]}"#,
+        )
+        .expect("write proj");
+        assert_eq!(
+            load_board().expect("board")["tasks"][0]["title"].as_str().unwrap_or(""),
+            "from code root",
+            "工作区有板也不该被读——那正是拆板的形态"
+        );
+
+        // 只有 WORKSPACE_ROOT（主窗口 / 老部署）时仍要能读：修子窗口不能弄坏主窗口。
+        std::env::remove_var("RSI_HOME");
+        assert_eq!(
+            load_board().expect("退化形态必须继续可用")["tasks"][0]["title"].as_str().unwrap_or(""),
+            "from workspace",
+            "无 RSI_HOME 时应退化到工作区"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// 空白 env 必须被当成「未设置」，而不是「数据根是空路径」。
+    ///
+    /// 若把空串当有效值，`PathBuf::from("").join(".rsi/board.json")` 得到相对路径，
+    /// 数据落点就由 cwd 决定——静默漂移到「启动目录里的 .rsi」。
+    #[test]
+    fn blank_env_falls_through_to_next_key() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _g = EnvGuard::new(&["RSI_HOME", "WORKSPACE_ROOT", "RSI_BOARD_PATH"]);
+        std::env::remove_var("RSI_BOARD_PATH");
+        std::env::set_var("RSI_HOME", "   ");
+        std::env::set_var("WORKSPACE_ROOT", "D:/fake-ws");
+        let p = board_path().expect("path");
+        assert!(
+            p.to_string_lossy().replace('\\', "/").starts_with("D:/fake-ws/"),
+            "空白 RSI_HOME 应被跳过: {p:?}"
+        );
+    }
+
+    /// 显式 RSI_BOARD_PATH 覆盖仍优先（测试隔离与自定义账本位置靠它）。
+    #[test]
+    fn explicit_board_path_overrides_data_root() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _g = EnvGuard::new(&["RSI_HOME", "WORKSPACE_ROOT", "RSI_BOARD_PATH"]);
+        std::env::set_var("RSI_HOME", "D:/code-root");
+        std::env::set_var("RSI_BOARD_PATH", "D:/custom/board.json");
+        assert_eq!(board_path().expect("path"), PathBuf::from("D:/custom/board.json"));
+    }
+
+    /// 渲染层纯函数不碰 env：给什么 board 就渲染什么（可测性契约）。
+    #[test]
+    fn render_refs_is_pure_over_given_board() {
+        let board = json!({"tasks": [{"id": "T-20260101-01", "title": "t", "status": "doing"}],
+                           "inspirations": [{"id": "I-20260101-01", "text": "idea", "status": "open"}]});
+        let out = render_refs("@T-20260101-01 @I-20260101-01", &board);
+        assert!(out.contains("T-20260101-01"));
+        assert!(out.contains("idea"));
+        // 未命中的引用要**明说**未命中，而不是静默丢掉（空壳 header 更误导）。
+        let miss = render_refs("@T-20260101-99", &board);
+        assert!(miss.contains("not on the board"), "缺失引用必须显式回报: {miss}");
+    }
 }

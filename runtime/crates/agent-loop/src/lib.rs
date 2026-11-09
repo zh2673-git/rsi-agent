@@ -41,6 +41,22 @@ mod subagent;
 mod tools_exec;
 mod trace;
 
+/// 进程级 env 是共享可变状态（`cargo test` 多测同进程并行跑）。
+///
+/// 实测过的伤害：S 轮新增的 `routing_hint_declares_three_tiers_and_tie_break` 与既有的
+/// `task_board_section_requires_cli_and_scales_by_flag` 都要 `set_var("RSI_HOME")`，
+/// 两个线程交错时后者读到前者布置的空目录 → 提示段为空 → 既有用例红。
+/// 这类红有个恶劣特征：**换个跑法就绿**（单线程跑不复现），于是最容易被当成 flaky 忽略，
+/// 而它每次在 CI 上的结论都是随机的。
+///
+/// v12：锁必须**跨模块**共用。`board_ctx::tests` 与本文件的测试都改
+/// `RSI_HOME` / `WORKSPACE_ROOT`，各自持有自己的 `ENV_LOCK` 等于没加锁——实测：
+/// 单包跑 `-p react-agent-agent-loop --lib` 全绿，`--workspace --lib` 时
+/// `board_follows_rsi_home_not_workspace` 读到本文件用例留下的 `RSI_HOME` 而红。
+/// 锁的粒度要覆盖它保护的状态，而不是「看起来相关的那几个用例」。
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub use contract::{Attachment, ChatReq, LlmChatResp, MemoryMsg, StepRecord, ToolCall, ToolObs, ToolObsChanges, ToolSpec};
 
 use agent_kernel_sdk::*;
@@ -432,7 +448,7 @@ mod tests {
     /// 故所有改 env 的用例取同一把锁串行化（与 host `board.rs` 的 `ENV_LOCK` 同一处置）。
     /// 注意必须放在**模块开头**：插在 `#[test]` 与 `fn` 之间会让属性挂到不该挂的项上
     /// （S4 初版就踩了这个，编译器报 `#[test] may only be used on a free function`）。
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    use crate::ENV_LOCK; // v12：跨模块共用一把锁，见 crate 根注释
 
     // O3：env 互相污染防不住并发——三测合并串行跑（语义：缺省→覆盖→误配回退）
     #[test]

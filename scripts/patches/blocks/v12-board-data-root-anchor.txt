@@ -1,0 +1,23 @@
+fn workspace_root() -> Option<PathBuf> {
+    let ws = std::env::var("WORKSPACE_ROOT").ok()?;
+    let ws = ws.trim();
+    if ws.is_empty() {
+        return None;
+    }
+    Some(PathBuf::from(ws))
+}
+
+fn board_path() -> Option<PathBuf> {
+    let raw = std::env::var("RSI_BOARD_PATH").unwrap_or_default();
+    let raw = raw.trim();
+    let p = if raw.is_empty() {
+        PathBuf::from(".rsi").join("board.json")
+    } else {
+        PathBuf::from(raw)
+    };
+    if p.is_absolute() {
+        Some(p)
+    } else {
+        workspace_root().map(|ws| ws.join(p))
+    }
+}

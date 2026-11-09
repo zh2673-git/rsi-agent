@@ -335,9 +335,13 @@ class CrossLayerContractTest(unittest.TestCase):
         self.assertIn("fn extract_refs", ctx)
         self.assertIn("fn refs_context", ctx)
         self.assertIn("fn board_ops_hint", ctx)
-        # 只读纪律：不得有写盘调用
+        # 只读纪律：**生产代码**不得有写盘调用。
+        # 范围限定到 `#[cfg(test)]` 之前：测试需要造 fixture 文件（`fs::write` 写一份
+        # 假 board.json 才能验证「读的是代码根那份」），那与「装载器会不会写用户的账」
+        # 是两件事。整文件搜会把测试脚手架也算成违约，逼人为了过测试不写回归测试。
+        prod = ctx.split("#[cfg(test)]")[0]
         for banned in ("fs::write", "fs::rename", "OpenOptions"):
-            self.assertNotIn(banned, ctx, "看板上下文装载只能是只读")
+            self.assertNotIn(banned, prod, "看板上下文装载只能是只读")
 
     def test_ui_still_read_only_on_tasks_and_no_new_event_types(self):
         js = read("runtime/crates/host/web-dist/vendor/app-board.js")
