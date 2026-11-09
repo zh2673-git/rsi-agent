@@ -1,0 +1,9 @@
+    match saved {
+        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+    }
+    match saved_provider {
+        Some(v) => std::env::set_var("LLM_PROVIDER", v),
+        None => std::env::remove_var("LLM_PROVIDER"),
+    }
+}

@@ -1,0 +1,5 @@
+    assert!(rb["answer"].as_str().unwrap().contains("SUB-DONE"), "B 的委派应拿到子代理答案: {rb}");
+}
+
+#[tokio::test]
+async fn task_denied_for_chain_depth_one() {

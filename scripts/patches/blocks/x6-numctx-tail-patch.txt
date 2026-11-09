@@ -1,0 +1,2 @@
+    // env 还原由函数开头的 `_env_restore` 守卫在 Drop 时完成（panic 安全）。
+}

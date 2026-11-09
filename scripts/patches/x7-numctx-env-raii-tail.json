@@ -1,0 +1,8 @@
+{
+ "id": "L7",
+ "description": "num_ctx 用例尾部：删掉手动 env 恢复（还原已由 L6 的 RAII 守卫在 Drop 完成，panic 安全）；保留手动恢复会让「恢复」语义出现两处真相",
+ "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+ "anchor_file": "blocks/x6-numctx-tail-anchor.txt",
+ "patch_file": "blocks/x6-numctx-tail-patch.txt",
+ "applied_marker": "// env 还原由函数开头的 `_env_restore` 守卫在 Drop 时完成（panic 安全）。"
+}

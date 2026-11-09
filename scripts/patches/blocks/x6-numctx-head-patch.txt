@@ -1,0 +1,9 @@
+    // 用 RAII 保存/还原 env：本用例中途有多处 `assert!`，手动恢复语句在 panic
+    // 展开时永不执行，会把 `LLM_CONTEXT_TOKENS=4096` 泄漏给同进程其它用例——
+    // 它们随即按「窗口 4096 / 预算 2867」估算，正文直接 CONTEXT_OVERFLOW，
+    // 全量跑时 20+ 用例级联红掉（单跑则全绿）。守卫在 Drop 里还原，panic 也安全。
+    let _env_restore = EnvGuard(vec![
+        ("LLM_PROVIDER", std::env::var("LLM_PROVIDER").ok()),
+        ("LLM_CONTEXT_TOKENS", std::env::var("LLM_CONTEXT_TOKENS").ok()),
+    ]);
+    std::env::set_var("LLM_PROVIDER", "ollama");

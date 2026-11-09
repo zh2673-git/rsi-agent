@@ -1,0 +1,3 @@
+    let saved_provider = std::env::var("LLM_PROVIDER").ok();
+    let saved = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    std::env::set_var("LLM_PROVIDER", "ollama");

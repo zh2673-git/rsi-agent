@@ -367,6 +367,171 @@ async fn concurrent_top_level_chats_both_can_delegate() {
     assert!(rb["answer"].as_str().unwrap().contains("SUB-DONE"), "B 的委派应拿到子代理答案: {rb}");
 }
 
+/// 环境变量的 panic 安全恢复（RAII）。
+///
+/// 为什么必须有：本文件里多个用例用 `set_var` 改 `LLM_CONTEXT_TOKENS` 等进程级
+/// 全局量，然后**在用例末尾**手动恢复。一旦中间的断言 panic，恢复语句就永不执行，
+/// 污染泄漏给同进程的其它用例——实测 `num_ctx_passthrough_follows_context_window`
+/// 把上下文窗口设成 4096 后断言失败，全量跑时后续用例全部按「窗口 4096 / 预算 2867」
+/// 估算，正文直接 CONTEXT_OVERFLOW，20+ 用例级联红掉（单跑则全绿）。
+///
+/// 本守卫只修「我这两条用例」的卫生：不依赖任何 env，且把可能被上游污染的
+/// 上下文/预算变量在入口处归零、在 Drop 里还原（含 panic 展开路径）。
+struct EnvGuard(Vec<(&'static str, Option<String>)>);
+
+impl EnvGuard {
+    /// 清空这些变量（None 表示原本未设置），返回还原守卫。
+    fn clean(keys: &[&'static str]) -> Self {
+        let saved: Vec<(&'static str, Option<String>)> =
+            keys.iter().map(|k| (*k, std::env::var(k).ok())).collect();
+        for k in keys {
+            std::env::remove_var(k);
+        }
+        Self(saved)
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        for (k, v) in &self.0 {
+            match v {
+                Some(val) => std::env::set_var(k, val),
+                None => std::env::remove_var(k),
+            }
+        }
+    }
+}
+
+/// 跨会话真并行（T-20261108-14 的回归）：两条不同 session 的 chat 同时在途，
+/// LLM 观测到的并发峰值必须 ≥2。这不是「测时间」，是测内核真的把两条 dispatch
+/// 同时放进了 llm.chat —— 若哪天有人把 agent-loop 改回 Serial，或给 chat_body
+/// 加回进程级互斥，这条用例会立刻红。
+#[tokio::test]
+async fn cross_session_chats_overlap_in_flight() {
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // 上下文/预算类 env 必须归零：否则上游用例泄漏的窗口值会让 chat 在进
+    // llm.chat 之前就 CONTEXT_OVERFLOW，用例前提（有在途请求）根本不成立。
+    let _clean = EnvGuard::clean(&[
+        "LLM_CONTEXT_TOKENS", "CHAT_TOKEN_BUDGET", "HISTORY_LIMIT",
+        "TOOL_RESULT_LIMIT", "COMPACT_TRIGGER", "COMPACT_KEEP", "LLM_PROVIDER",
+    ]);
+    let inflight = Arc::new(AtomicUsize::new(0));
+    let peak = Arc::new(AtomicUsize::new(0));
+    let (i2, p2) = (inflight.clone(), peak.clone());
+    // Concurrent 语义是必须的：Serial 会被内核按插件串行化，测不出重叠。
+    let llm = MockPlugin::concurrent_async("llm-adapter", &["llm.chat"], move |_env| {
+        let i = i2.clone();
+        let p = p2.clone();
+        Box::pin(async move {
+            let cur = i.fetch_add(1, Ordering::SeqCst) + 1;
+            p.fetch_max(cur, Ordering::SeqCst);
+            // 持有 120ms：让第二条有机会真正进来。
+            tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+            i.fetch_sub(1, Ordering::SeqCst);
+            json!({"ok": true, "content": "done", "tool_calls": [], "model": "mock", "finish_reason": "stop"})
+        })
+    });
+    let kernel = boot(vec![
+        mock_memory(Arc::new(Mutex::new(vec![]))),
+        llm,
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+
+    let k1 = kernel.clone();
+    let f1 = tokio::spawn(async move {
+        k1.dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "chat", "session_id": "s-a", "user_text": "a"}),
+        ))
+        .await
+    });
+    // 确定性等待：第一条真的进了 llm.chat（inflight=1）再发第二条，避免靠 sleep 猜调度。
+    for _ in 0..200 {
+        if inflight.load(Ordering::SeqCst) >= 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    assert_eq!(inflight.load(Ordering::SeqCst), 1, "第一条 chat 未进入 llm.chat，用例前提不成立");
+
+    let r2 = kernel
+        .dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "chat", "session_id": "s-b", "user_text": "b"}),
+        ))
+        .await
+        .expect("dispatch chat b");
+    assert_eq!(r2["ok"], json!(true), "跨会话第二条 chat 应放行: {r2}");
+
+    let r1 = f1.await.expect("join a").expect("dispatch chat a");
+    assert_eq!(r1["ok"], json!(true), "跨会话第一条 chat 应成功: {r1}");
+    assert!(
+        peak.load(Ordering::SeqCst) >= 2,
+        "跨会话应真并行（llm.chat 在途峰值 {} < 2）——agent-loop 的 Concurrent 语义或会话闸作用域被改坏了",
+        peak.load(Ordering::SeqCst)
+    );
+}
+
+/// 同会话仍串行（K409 不被这条需求顺手放开）：同 session_id 的第二次 chat 必须
+/// 被拒且**不排队**。车道机制靠这条边界成立——放开它，两条回合会互踩取消/流式/回滚定位。
+#[tokio::test]
+async fn same_session_second_chat_rejected_with_k409() {
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _clean = EnvGuard::clean(&[
+        "LLM_CONTEXT_TOKENS", "CHAT_TOKEN_BUDGET", "HISTORY_LIMIT",
+        "TOOL_RESULT_LIMIT", "COMPACT_TRIGGER", "COMPACT_KEEP", "LLM_PROVIDER",
+    ]);
+    let inflight = Arc::new(AtomicUsize::new(0));
+    let i2 = inflight.clone();
+    let llm = MockPlugin::concurrent_async("llm-adapter", &["llm.chat"], move |_env| {
+        let i = i2.clone();
+        Box::pin(async move {
+            i.fetch_add(1, Ordering::SeqCst);
+            tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+            i.fetch_sub(1, Ordering::SeqCst);
+            json!({"ok": true, "content": "done", "tool_calls": [], "model": "mock", "finish_reason": "stop"})
+        })
+    });
+    let kernel = boot(vec![
+        mock_memory(Arc::new(Mutex::new(vec![]))),
+        llm,
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+
+    let k1 = kernel.clone();
+    let f1 = tokio::spawn(async move {
+        k1.dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "chat", "session_id": "s1", "user_text": "first"}),
+        ))
+        .await
+    });
+    for _ in 0..200 {
+        if inflight.load(Ordering::SeqCst) >= 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    assert_eq!(inflight.load(Ordering::SeqCst), 1, "第一条 chat 未进入 llm.chat，用例前提不成立");
+
+    let r2 = kernel
+        .dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "chat", "session_id": "s1", "user_text": "second"}),
+        ))
+        .await
+        .expect("dispatch chat second");
+    assert_eq!(r2["ok"], json!(false), "同会话并发 chat 应被拒: {r2}");
+    assert_eq!(r2["error"]["code"], json!("K409"), "应回 K409 而非排队或其它错误: {r2}");
+
+    let r1 = f1.await.expect("join first").expect("dispatch first");
+    assert_eq!(r1["ok"], json!(true), "被拒的第二条不应干扰第一条: {r1}");
+}
+
 #[tokio::test]
 async fn task_denied_for_chain_depth_one() {
     // 深度随链传播的直接验证：depth=1 的 chat（即子代理链）内调 task → 字段级拒绝。
@@ -1409,8 +1574,14 @@ async fn num_ctx_passthrough_follows_context_window() {
     // 携带平级字段 num_ctx（ollama native 映射 options.num_ctx，本地估算闸与服务端窗口对齐）；
     // 0/缺省不携带（向后兼容）。L7：num_ctx 仅本地窗口型 provider 下发，故预置 ollama。
     let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let saved_provider = std::env::var("LLM_PROVIDER").ok();
-    let saved = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    // 用 RAII 保存/还原 env：本用例中途有多处 `assert!`，手动恢复语句在 panic
+    // 展开时永不执行，会把 `LLM_CONTEXT_TOKENS=4096` 泄漏给同进程其它用例——
+    // 它们随即按「窗口 4096 / 预算 2867」估算，正文直接 CONTEXT_OVERFLOW，
+    // 全量跑时 20+ 用例级联红掉（单跑则全绿）。守卫在 Drop 里还原，panic 也安全。
+    let _env_restore = EnvGuard(vec![
+        ("LLM_PROVIDER", std::env::var("LLM_PROVIDER").ok()),
+        ("LLM_CONTEXT_TOKENS", std::env::var("LLM_CONTEXT_TOKENS").ok()),
+    ]);
     std::env::set_var("LLM_PROVIDER", "ollama");
 
     let ok = json!({"ok": true, "content": "hi", "tool_calls": [], "model": "mock", "finish_reason": "stop"});
@@ -1451,14 +1622,7 @@ async fn num_ctx_passthrough_follows_context_window() {
         "0=禁用不下发 num_ctx"
     );
 
-    match saved {
-        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
-        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
-    }
-    match saved_provider {
-        Some(v) => std::env::set_var("LLM_PROVIDER", v),
-        None => std::env::remove_var("LLM_PROVIDER"),
-    }
+    // env 还原由函数开头的 `_env_restore` 守卫在 Drop 时完成（panic 安全）。
 }
 
 // ---- R9（agent 自造技能闭环：skill_install / skill_loaded / 会话技能工具）------
