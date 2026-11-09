@@ -285,12 +285,21 @@ class LayoutTest(unittest.TestCase):
     def test_layout_written_by_cli_is_visible_to_host_and_persists(self):
         with tempfile.TemporaryDirectory() as td:
             ws = Path(td)
-            self._wc(ws, {"sections": [{"id": "tasks", "kind": "tasks", "title": "我的任务"}]})
+            # 写**真实形态**的布局（任务 + 灵感两段）：只写任务段的用例一旦
+            # 漏进真账，用户的灵感看板就整段消失（实测事故，见 test_board_isolation）。
+            self._wc(ws, {"sections": [
+                {"id": "tasks", "kind": "tasks", "title": "我的任务"},
+                {"id": "insp", "kind": "inspirations", "title": "灵感"},
+            ]})
             data = json.loads((ws / ".rsi" / "board.json").read_text(encoding="utf-8"))
             self.assertEqual(data["layout"]["sections"][0]["title"], "我的任务")
+            self.assertEqual([s["kind"] for s in data["layout"]["sections"]],
+                             ["tasks", "inspirations"], "灵感段不得被写没")
             # 再读回来仍是同一份（不被兜底覆盖）
             _, out = board_json("layout", ws=ws)
             self.assertEqual(out["layout"]["sections"][0]["title"], "我的任务")
+            self.assertEqual([s["kind"] for s in out["layout"]["sections"]],
+                             ["tasks", "inspirations"], "回读同样不得丢灵感段")
 
     def test_refresh_fills_checks_and_evaluation(self):
         with tempfile.TemporaryDirectory() as td:
