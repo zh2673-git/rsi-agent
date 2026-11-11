@@ -30,6 +30,7 @@ mod budget;
 mod queue;   // Q 轮 Phase 3：服务端显式队列（全局有界状态，不动插件结构体）
 mod board_ctx; // C 轮：任务看板上下文装载（@引用 + 在办任务摘要，只读 .rsi/board.json）
 mod profile_ctx; // D 轮：习惯画像装载（.rsi/profile.json 的有界摘要，只读；写口是 scripts/profile.py）
+mod memory_ctx; // G 轮：记忆 L2 时间轴（.rsi/memory/L3/index.json 的元数据，只读；写口是 scripts/memory_consolidate.py）
 mod chat;
 mod compaction;
 mod config;
@@ -38,6 +39,8 @@ mod contract;
 mod secrets;
 mod skills;
 mod subagent;
+mod tools_defer; // G 轮：按需装载工具（deferred：schema 不进清单，load_tools 报名后下发）
+mod turn;        // G 轮：回合对象（turn_id + trace 游标区间 + paused 暂停态 + 补播视图）
 mod tools_exec;
 mod trace;
 
@@ -92,6 +95,14 @@ pub const RESERVED_TASK: &str = "task";
 /// （preset 装载即启用并视同已加载；用户技能进池待界面确认），trace `skill_installed`
 /// 事件供前端内联卡与一键启用。不下发 tools。
 pub const RESERVED_SKILL_INSTALL: &str = "skill_install";
+
+/// 保留工具名：按需装载报名（G 轮）——`ToolSpec.deferred` 的工具不进下发清单，
+/// 模型调本工具报过名之后，完整 schema 自下一轮起下发（见 tools_defer.rs）。不下发 tools。
+pub const RESERVED_LOAD_TOOLS: &str = "load_tools";
+
+/// 保留工具名：向用户提问并**暂停回合**（G 轮）——与「把问题写进最终答复然后结束」
+/// 的区别是回合不结束：用户回答后按 tool_call_id 接回同一条 tool 结果，工作集不重建。
+pub const RESERVED_ASK_USER: &str = "ask_user";
 
 /// RSI 策略钩子（Phase 1 接缝，**默认关闭**）：由 rsi-agent 的配置显式开启。
 /// - `contract_first`：非平凡任务的第一个工具调用前要求先写验收清单（可落 todo）；
@@ -422,6 +433,61 @@ impl Plugin for AgentLoopPlugin {
                     Ok(json!({"ok": true, "session_id": sid, "note": "取消信号已置位；当前轮完成后中断"}))
                 }
             }
+            // G 轮：回合补播。
+            //
+            // 为什么做成 op 而不是 host 路由：host 在核心禁写区（改它要走补丁且牵动
+            // 前端契约），而**补播本质是「读 turn 文件 + 算游标」**——纯读、无副作用，
+            // 放在插件里就是一行 dispatch；等前端真要接时再在 host 加薄路由即可。
+            // 返回游标区间而**不是事件本体**：事件由调用方经 `trace.read(after=…)`
+            // 分页拉（既有能力），于是补播不引入第二个事件通道，也就不可能与 trace 不一致。
+            "turn/replay" => {
+                let sid = env.payload.get("session_id").and_then(Value::as_str).unwrap_or("");
+                let tid = env.payload.get("turn_id").and_then(Value::as_str).unwrap_or("");
+                let after = env.payload.get("after_seq").and_then(Value::as_u64).unwrap_or(0);
+                let Some(store) = turn::TurnStore::open() else {
+                    return Ok(json!({"ok": false, "error": {"code": "K500",
+                        "message": "回合目录不可用（RSI_TURNS_DIR / RSI_HOME / WORKSPACE_ROOT 均未解析出）"}}));
+                };
+                // turn_id 给了就精确定位；没给取该会话最近一条未终结的（前端刷新后
+                // 通常只知道 session_id，这是补播最常见的入口）。
+                let found = if tid.is_empty() {
+                    store.list_session(sid).into_iter().find(|t| {
+                        !turn::is_terminal(t.get("status").and_then(Value::as_str).unwrap_or(""))
+                    })
+                } else {
+                    store.load(tid)
+                };
+                match found {
+                    Some(t) if sid.is_empty() || t.get("session_id").and_then(Value::as_str) == Some(sid) => {
+                        Ok(turn::replay_view(&t, after))
+                    }
+                    Some(_) => Ok(json!({"ok": false, "error": {"code": "K403",
+                        "message": "该回合不属于此会话"}})),
+                    None => Ok(json!({"ok": false, "error": {"code": "K404",
+                        "message": "找不到可补播的回合（可能已收敛且超出保留上限）"}})),
+                }
+            }
+            // G 轮：列出一段会话的回合（前端「历史回合」列表与排障用）。
+            "turn/list" => {
+                let sid = env.payload.get("session_id").and_then(Value::as_str).unwrap_or("");
+                let Some(store) = turn::TurnStore::open() else {
+                    return Ok(json!({"ok": false, "error": {"code": "K500", "message": "回合目录不可用"}}));
+                };
+                let items: Vec<Value> = store
+                    .list_session(sid)
+                    .into_iter()
+                    .map(|t| json!({
+                        "turn_id": t.get("turn_id"),
+                        "status": t.get("status"),
+                        "started_at": t.get("started_at"),
+                        "ended_at": t.get("ended_at"),
+                        "start_cursor": t.get("start_cursor"),
+                        "end_cursor": t.get("end_cursor"),
+                        "has_pending": t.get("pending").map(|p| !p.is_null()).unwrap_or(false),
+                    }))
+                    .collect();
+                Ok(json!({"ok": true, "session_id": sid, "count": items.len(), "turns": items}))
+            }
             other => Ok(json!({"ok": false, "error": {"code": "K400", "message": format!("unknown op: {other}")}})),
         }
     }
@@ -437,17 +503,6 @@ mod tests {
     use super::tools_exec::ObsPlan;
     use super::*;
 
-    /// 进程级 env 是共享可变状态（`cargo test` 多测同进程并行跑）。
-    ///
-    /// 实测过的伤害：S 轮新增的 `routing_hint_declares_three_tiers_and_tie_break` 与既有的
-    /// `task_board_section_requires_cli_and_scales_by_flag` 都要 `set_var("RSI_HOME")`，
-    /// 两个线程交错时后者读到前者布置的空目录 → 提示段为空 → 既有用例红。
-    /// 这类红有个恶劣特征：**换个跑法就绿**（单线程跑不复现），于是最容易被当成 flaky 忽略，
-    /// 而它每次在 CI 上的结论都是随机的。
-    ///
-    /// 故所有改 env 的用例取同一把锁串行化（与 host `board.rs` 的 `ENV_LOCK` 同一处置）。
-    /// 注意必须放在**模块开头**：插在 `#[test]` 与 `fn` 之间会让属性挂到不该挂的项上
-    /// （S4 初版就踩了这个，编译器报 `#[test] may only be used on a free function`）。
     use crate::ENV_LOCK; // v12：跨模块共用一把锁，见 crate 根注释
 
     // O3：env 互相污染防不住并发——三测合并串行跑（语义：缺省→覆盖→误配回退）
@@ -640,7 +695,8 @@ mod tests {
         assert_eq!(effective_result_limit("bash", &cfg), 8_000);
         // 0 = 禁用语义不变
         std::env::set_var("TOOL_RESULT_LIMIT", "0");
-        assert_eq!(effective_result_limit("web_read", &AgentLoopConfig::from_env(10)), 0);
+        let off = AgentLoopConfig::from_env(10);
+        assert_eq!(effective_result_limit("web_read", &off), 0);
         match saved {
             Some(v) => std::env::set_var("TOOL_RESULT_LIMIT", v),
             None => std::env::remove_var("TOOL_RESULT_LIMIT"),

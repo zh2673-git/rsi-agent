@@ -188,6 +188,316 @@ fn tool_call_resp(calls: Value) -> Value {
 // ---- 用例 -------------------------------------------------------------------
 
 #[tokio::test]
+async fn ask_user_pauses_the_turn_and_reply_resumes_it() {
+    // G 轮：`ask_user` 是**暂停**而不是结束。
+    //
+    // 反证设计（四处，缺一即算不上验证）：
+    //  ① 第一轮返回 paused=true 且回合状态落成 `paused`（不是 done）；
+    //  ② 暂停时**没有**再调一次 LLM（否则暂停就只是「多花一次钱说我等你」）；
+    //  ③ 回复后同一个 turn_id 继续（不新建回合），且工作集里能看到「我问了、用户答了」；
+    //  ④ 回复后正常收敛为 done。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let turns = std::env::temp_dir().join(format!("rsi-turn-e2e-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&turns);
+    std::env::set_var("RSI_TURNS_DIR", &turns);
+    let _env_turns = EnvGuard(vec![("RSI_TURNS_DIR", Some(turns.to_string_lossy().to_string()))]);
+
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let caps = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let llm_script = vec![
+        // r1：模型决定问用户
+        tool_call_resp(json!([{"id": "ask1", "name": "ask_user",
+            "arguments": {"question": "要 A 还是 B？", "options": ["A", "B"]}}])),
+        // r2（回复后）：收敛
+        json!({"ok": true, "content": "按你选的 A 做完了", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let seq = Arc::new(Mutex::new(llm_script));
+    let c2 = caps.clone();
+    let llm = MockPlugin::simple("llm-adapter", &["llm.chat"], move |env| {
+        c2.lock().unwrap().push(env.payload.clone());
+        let mut s = seq.lock().unwrap();
+        if s.len() > 1 { s.remove(0) } else { s.first().cloned().unwrap() }
+    });
+    let kernel = boot(vec![
+        mock_memory_traced(Arc::new(Mutex::new(vec![])), events.clone()),
+        llm,
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+
+    let r1 = chat(&kernel, "帮我做件事").await;
+    assert_eq!(r1["ok"], json!(true), "暂停不是失败: {r1}");
+    assert_eq!(r1["paused"], json!(true), "ask_user 应让回合暂停: {r1}");
+    assert_eq!(r1["turn_status"], json!("paused"), "{r1}");
+    assert_eq!(r1["answer"], json!("要 A 还是 B？"), "答案位放问题本身（前端直接渲染提问卡）");
+    let turn_id = r1["turn_id"].as_str().expect("turn_id").to_string();
+    let pending_call = r1["pending"]["tool_call_id"].as_str().expect("tool_call_id").to_string();
+    assert_eq!(pending_call, "ask1", "回复要按这条调用的 id 接回去");
+
+    // ② 暂停时不该再调 LLM：只有 r1 那一次
+    assert_eq!(caps.lock().unwrap().len(), 1, "暂停后不该再花一次 LLM 调用: {:?}", caps.lock().unwrap().len());
+
+    // trace 里有 turn_paused 事件（前端据此渲染提问卡）
+    assert!(
+        events.lock().unwrap().iter().any(|e| e["type"] == json!("turn_paused")),
+        "turn_paused 事件缺失: {:?}",
+        events.lock().unwrap()
+    );
+
+    // ③ 回复：复用同一 turn_id
+    let reply = kernel
+        .dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "chat", "session_id": "s1", "user_text": "选 A",
+                   "turn_id": turn_id, "tool_reply": {"tool_call_id": pending_call, "answer": "选 A"}}),
+        ))
+        .await
+        .expect("dispatch reply");
+    assert_eq!(reply["ok"], json!(true), "{reply}");
+    assert_eq!(reply["turn_id"], json!(turn_id), "回复必须续在同一回合，不能新开");
+    assert_eq!(reply["turn_status"], json!("done"), "{reply}");
+    assert_eq!(reply["answer"], json!("按你选的 A 做完了"), "{reply}");
+
+    // 工作集里能看到「我问了、用户答了」（而不是孤立的 tool 结果）
+    let c = caps.lock().unwrap();
+    assert_eq!(c.len(), 2, "回复后恰再调一次 LLM: {}", c.len());
+    let seen = serde_json::to_string(&c[1]["messages"]).unwrap_or_default();
+    assert!(seen.contains("要 A 还是 B？"), "工作集要带原问题: {seen}");
+    assert!(seen.contains("选 A"), "工作集要带用户回答: {seen}");
+
+    let _ = &_env_turns;
+    let _ = std::fs::remove_dir_all(&turns);
+}
+
+#[tokio::test]
+async fn reply_to_non_paused_turn_is_rejected() {
+    // 回复一个已收敛的回合 = 确定性 K409。静默放行会让「回复了却没接上」
+    // 表现为「模型又开始重新规划」，那是最难查的一种失败。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let turns = std::env::temp_dir().join(format!("rsi-turn-e2e2-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&turns);
+    let _env_turns = EnvGuard(vec![("RSI_TURNS_DIR", Some(turns.to_string_lossy().to_string()))]);
+
+    let kernel = boot(vec![
+        mock_memory(Arc::new(Mutex::new(vec![]))),
+        mock_llm(vec![json!({"ok": true, "content": "done", "tool_calls": [], "model": "mock", "finish_reason": "stop"})]),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r1 = chat(&kernel, "随便问问").await;
+    let turn_id = r1["turn_id"].as_str().expect("turn_id").to_string();
+    assert_eq!(r1["turn_status"], json!("done"));
+
+    let reply = kernel
+        .dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "chat", "session_id": "s1", "user_text": "回答",
+                   "turn_id": turn_id, "tool_reply": {"tool_call_id": "ghost", "answer": "x"}}),
+        ))
+        .await
+        .expect("dispatch");
+    assert_eq!(reply["ok"], json!(false), "已收敛的回合不接受回复: {reply}");
+    assert_eq!(reply["error"]["code"], json!("K409"), "{reply}");
+
+    let _ = &_env_turns;
+    let _ = std::fs::remove_dir_all(&turns);
+}
+
+#[tokio::test]
+async fn turn_replay_returns_cursor_range_not_events() {
+    // 补播返回的是**游标区间**不是事件本体：事件经 trace.read(after=…) 分页拉，
+    // 于是补播不引入第二个事件通道，也就不可能与 trace 不一致。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let turns = std::env::temp_dir().join(format!("rsi-turn-e2e3-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&turns);
+    let _env_turns = EnvGuard(vec![("RSI_TURNS_DIR", Some(turns.to_string_lossy().to_string()))]);
+
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let kernel = boot(vec![
+        mock_memory_traced(Arc::new(Mutex::new(vec![])), events.clone()),
+        mock_llm(vec![json!({"ok": true, "content": "ok", "tool_calls": [], "model": "mock", "finish_reason": "stop"})]),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "跑一轮").await;
+    let turn_id = r["turn_id"].as_str().expect("turn_id").to_string();
+
+    let rep = kernel
+        .dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "turn/replay", "session_id": "s1", "turn_id": turn_id, "after_seq": 0}),
+        ))
+        .await
+        .expect("dispatch replay");
+    assert_eq!(rep["ok"], json!(true), "{rep}");
+    assert_eq!(rep["turn_id"], json!(turn_id));
+    assert_eq!(rep["status"], json!("done"));
+    // 关键：给区间不给事件
+    assert!(rep.get("from_cursor").is_some(), "{rep}");
+    assert!(rep.get("end_cursor").is_some(), "{rep}");
+    assert!(rep.get("events").is_none(), "补播不该回事件本体（那是 trace.read 的职责）: {rep}");
+
+    // 未知 turn → K404 而不是空成功（「找不到」与「没有新内容」是两件事）
+    let miss = kernel
+        .dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "turn/replay", "session_id": "s1", "turn_id": "t-does-not-exist"}),
+        ))
+        .await
+        .expect("dispatch");
+    assert_eq!(miss["error"]["code"], json!("K404"), "{miss}");
+
+    // turn/list 能列出这段会话的回合
+    let list = kernel
+        .dispatch(Envelope::new(
+            PluginId::new("agent-loop"),
+            json!({"op": "turn/list", "session_id": "s1"}),
+        ))
+        .await
+        .expect("dispatch list");
+    assert_eq!(list["ok"], json!(true), "{list}");
+    assert!(list["count"].as_u64().unwrap_or(0) >= 1, "{list}");
+
+    let _ = &_env_turns;
+    let _ = std::fs::remove_dir_all(&turns);
+}
+
+#[tokio::test]
+async fn deferred_tools_are_withheld_until_load_tools_asks() {
+    // G 轮：ToolSpec.deferred = true 的工具**不进下发清单**（省 schema token），
+    // 但模型能调 load_tools 报名，自下一轮起完整 schema 下发。
+    //
+    // 反证设计（三处，缺一即算不上验证）：
+    //  ① r1 的 tools 里必须没有 mcp__fs__read（证明真的挡住了，不是「碰巧有」）；
+    //  ② r1 的 system prompt 必须含它的名字（证明挡的是 schema 不是「模型不知道有它」）；
+    //  ③ r2 的 tools 里必须有它（证明报名生效，不是永久隐藏）。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let caps = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let llm_script = vec![
+        tool_call_resp(json!([{"id": "c1", "name": "load_tools", "arguments": {"names": ["mcp__fs__read"]}}])),
+        json!({"ok": true, "content": "loaded and done", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let seq = Arc::new(Mutex::new(llm_script));
+    let c2 = caps.clone();
+    let llm = MockPlugin::simple("llm-adapter", &["llm.chat"], move |env| {
+        c2.lock().unwrap().push(env.payload.clone());
+        let mut s = seq.lock().unwrap();
+        if s.len() > 1 { s.remove(0) } else { s.first().cloned().unwrap() }
+    });
+    let tools = MockPlugin::simple("tools", &["tools.exec"], move |env| {
+        match env.payload.get("op").and_then(|v| v.as_str()) {
+            Some("list") => json!({"ok": true, "tools": [
+                {"name": "calculator", "description": "math", "parameters": {}},
+                {"name": "mcp__fs__read", "description": "read a file", "parameters": {}, "deferred": true}
+            ]}),
+            Some("call") => json!({"ok": true, "result": "from-remote"}),
+            _ => json!({"ok": false}),
+        }
+    });
+    let kernel = boot(vec![
+        mock_memory(Arc::new(Mutex::new(vec![]))),
+        llm,
+        tools,
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "read the config through mcp").await;
+    assert_eq!(r["ok"], json!(true), "{r}");
+    assert_eq!(r["answer"], json!("loaded and done"));
+
+    let c = caps.lock().unwrap();
+    assert_eq!(c.len(), 2, "r1 + r2 两次 LLM 调用: {}", c.len());
+
+    // ① r1 清单里没有 deferred 工具，但有 load_tools（否则模型无从报名）
+    let names_r1: Vec<&str> = c[0]["tools"].as_array().expect("r1 tools")
+        .iter().filter_map(|t| t["name"].as_str()).collect();
+    assert!(!names_r1.contains(&"mcp__fs__read"), "r1 不该下发 deferred 工具 schema: {names_r1:?}");
+    assert!(names_r1.contains(&"calculator"), "普通工具照常下发: {names_r1:?}");
+    assert!(names_r1.contains(&"load_tools"), "有 deferred 工具时必须给 load_tools: {names_r1:?}");
+
+    // ② r1 的 system prompt 里留着它的名字（挡的是 schema，不是「模型不知道有它」）
+    let sys_r1 = c[0]["messages"][0]["content"].as_str().unwrap_or_default();
+    assert!(sys_r1.contains("mcp__fs__read"), "名字摘要必须进系统提示词: {sys_r1}");
+    assert!(sys_r1.contains("load_tools"), "摘要要指向 load_tools: {sys_r1}");
+
+    // ③ r2 清单里有它了（报名生效），且回喂只含名字不含 schema
+    let names_r2: Vec<&str> = c[1]["tools"].as_array().expect("r2 tools")
+        .iter().filter_map(|t| t["name"].as_str()).collect();
+    assert!(names_r2.contains(&"mcp__fs__read"), "报名后应下发完整 schema: {names_r2:?}");
+    let tool_msg = c[1]["messages"].as_array().unwrap().iter()
+        .find(|m| m["role"] == json!("tool")).expect("tool result");
+    let fed = tool_msg["content"].as_str().unwrap_or_default();
+    assert!(fed.contains("loaded"), "回喂应确认装载: {fed}");
+    assert!(!fed.contains("read a file"), "回喂不该重复 schema（下一轮就下发）: {fed}");
+}
+
+#[tokio::test]
+async fn deferred_call_still_works_without_loading() {
+    // 「猜中即可用」：deferred 只影响**下发**，不影响**调用**——模型凭记忆直接调
+    // 一个没报名的 deferred 工具也必须成功（tools.call 不看该标记）。
+    // 这条是防止把「省 token」做成「省功能」的护栏。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let llm_script = vec![
+        tool_call_resp(json!([{"id": "c1", "name": "mcp__fs__read", "arguments": {"path": "a.txt"}}])),
+        json!({"ok": true, "content": "ok", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let mem_state = Arc::new(Mutex::new(Vec::<MemoryMsg>::new()));
+    let tools = MockPlugin::simple("tools", &["tools.exec"], move |env| {
+        match env.payload.get("op").and_then(|v| v.as_str()) {
+            Some("list") => json!({"ok": true, "tools": [
+                {"name": "mcp__fs__read", "description": "read", "parameters": {}, "deferred": true}
+            ]}),
+            Some("call") => json!({"ok": true, "result": "FILE-BODY"}),
+            _ => json!({"ok": false}),
+        }
+    });
+    let kernel = boot(vec![
+        mock_memory(mem_state.clone()),
+        mock_llm(llm_script),
+        tools,
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "just read it").await;
+    assert_eq!(r["ok"], json!(true), "{r}");
+    let mem = mem_state.lock().unwrap();
+    assert!(
+        mem.iter().any(|m| m.role == "tool" && m.content.as_deref().unwrap_or("").contains("FILE-BODY")),
+        "未报名的 deferred 工具被直接调用也必须真的执行: {mem:?}"
+    );
+}
+
+#[tokio::test]
+async fn no_deferred_tools_means_no_load_tools_in_list() {
+    // 无 deferred 工具时不该多出 load_tools（否则每轮白送一件用不上的 schema 与摘要段）。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let caps = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let c2 = caps.clone();
+    let llm = MockPlugin::simple("llm-adapter", &["llm.chat"], move |env| {
+        c2.lock().unwrap().push(env.payload.clone());
+        json!({"ok": true, "content": "done", "tool_calls": [], "model": "mock", "finish_reason": "stop"})
+    });
+    let kernel = boot(vec![
+        mock_memory(Arc::new(Mutex::new(vec![]))),
+        llm,
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "hi").await;
+    assert_eq!(r["ok"], json!(true), "{r}");
+    let c = caps.lock().unwrap();
+    let names: Vec<&str> = c[0]["tools"].as_array().expect("tools")
+        .iter().filter_map(|t| t["name"].as_str()).collect();
+    assert!(!names.contains(&"load_tools"), "无 deferred 工具时不加 load_tools: {names:?}");
+    let sys = c[0]["messages"][0]["content"].as_str().unwrap_or_default();
+    assert!(!sys.contains("loaded on demand"), "无 deferred 工具时不加摘要段: {sys}");
+}
+
+#[tokio::test]
 async fn react_answers_without_tool_calls() {
     let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); // 隐式依赖 env 缺省（token 闸禁用）
     let kernel = boot(vec![

@@ -33,7 +33,7 @@ MAX_TOOL_NAME = 64
 # 内置工具名（模型已熟悉，技能工具不得占用）——与 tools_plugin 的 ALL_TOOLS 同名清单。
 RESERVED_NAMES = frozenset({
     "read_file", "write_file", "edit_file", "list_dir", "bash", "web_search", "web_read",
-    "grep", "symbols_search", "todo", "load_skill", "skill_install", "task",
+    "grep", "symbols_search", "todo", "load_skill", "skill_install", "task", "load_tools",
 })
 
 

@@ -107,6 +107,13 @@ impl AgentLoopPlugin {
         if !profile_ops.is_empty() {
             lines.push(profile_ops);
         }
+        // G 轮：记忆 L2 通道（同「新增能力单独成段」纪律）。三层分工必须讲清，否则
+        // 模型会在「上周干了什么」这类问题上直接去读 trace 原文——单个会话实测
+        // 17.6 MB / 29507 条事件，既塞不进上下文，也看不出重点。
+        let memory_ops = super::memory_ctx::memory_ops_hint();
+        if !memory_ops.is_empty() {
+            lines.push(memory_ops);
+        }
         // D 轮：习惯画像通道（同「新增能力单独成段」纪律）。按需注入：问「是不是交代
         // 一件成规模的事」时不谈画像——画像写的是跨会话结论，与当轮任务规划无关。
         // D 轮：任务分解与委派纪律（I-20261107-01 的落点）。B 轮已要求「先想清怎么做
