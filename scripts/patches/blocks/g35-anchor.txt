@@ -1,0 +1,7 @@
+            let line = tools_defer::deferred_line(&deferred_names);
+            if let Some(sys) = messages.first_mut().and_then(|m| m.content.as_mut()) {
+                sys.push_str(&line);
+            }
+        }
+
+        let mut steps: Vec<StepRecord> = Vec::new();

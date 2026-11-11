@@ -1,0 +1,26 @@
+        // 覆盖态下只留 override 本身，既兑现文档，也让钉死提示词的用例真正确定。
+        // G 轮：记忆 L2 时间轴。「上周那件事我们怎么定的」原本只有两个坏答案——读 trace
+        // 原文（单会话实测 17.6 MB / 29507 条事件，塞不进上下文）或读画像（只有结论，
+        // 记不住经过）。这里注入的是**最薄的一层**：最近哪几天有活、各多大；要细节让
+        // 模型按天精确打开 `.rsi/memory/L2/<YYYYMMDD>.md`。只读 index.json 一个文件。
+        // 与画像同一纪律：属于**输入**，不该让模型每轮花一次工具往返去取；
+        // override 态下同样清空（钉死提示词时不该被追加「本机状态」）。
+        let override_on = cfg.system_prompt_override.is_some();
+        let (skills_apx, board_ctx, profile_ctx, memory_ctx) = if override_on {
+            (String::new(), String::new(), String::new(), String::new())
+        } else {
+            (
+                self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await,
+                board_ctx,
+                profile_ctx,
+                super::memory_ctx::memory_context(),
+            )
+        };
+        let system = format!(
+            "{}{}{}{}{}",
+            self.resolve_system_prompt(env, &cfg).await,
+            skills_apx,
+            board_ctx,
+            profile_ctx,
+            memory_ctx
+        );

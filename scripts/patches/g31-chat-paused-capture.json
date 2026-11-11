@@ -1,0 +1,9 @@
+{
+ "id": "G31-CHAT-PAUSED-CAPTURE",
+ "description": "chat.rs：波次内 ask_user 成功时记录 paused_by_ask（问题 + tool_call_id）",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g31-anchor.txt",
+ "patch_file": "blocks/g31-patch.txt",
+ "applied_marker": "result.get(\"paused\")",
+ "order": 24
+}

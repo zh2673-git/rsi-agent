@@ -1,0 +1,8 @@
+{
+ "id": "G9B-CHAT-COLLECT-LOADED",
+ "description": "chat.rs：波次内 load_tools 报名成功 → 收集 loaded 名字到 newly_visible",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g9b-anchor.txt",
+ "patch_file": "blocks/g9b-patch.txt",
+ "applied_marker": "RESERVED_LOAD_TOOLS && result.get"
+}

@@ -1,0 +1,8 @@
+{
+ "id": "G13-CONFORMANCE-RESERVED",
+ "description": "conformance_gate.py：保留名清单加 load_tools（技能工具不得占用，与运行时同口径）",
+ "file": "scripts/conformance_gate.py",
+ "anchor": "    \"grep\", \"symbols_search\", \"todo\", \"load_skill\", \"skill_install\", \"task\",\n",
+ "patch": "    \"grep\", \"symbols_search\", \"todo\", \"load_skill\", \"skill_install\", \"task\", \"load_tools\",\n",
+ "applied_marker": "\"task\", \"load_tools\","
+}

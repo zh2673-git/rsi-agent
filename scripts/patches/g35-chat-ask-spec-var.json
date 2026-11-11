@@ -1,0 +1,9 @@
+{
+ "id": "G35-CHAT-ASK-SPEC-VAR",
+ "description": "chat.rs：tools 清单加 ask_user 声明 + 声明 paused_by_ask（暂停信号位），两处在同一锚点上下文",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g35-anchor.txt",
+ "patch_file": "blocks/g35-patch.txt",
+ "applied_marker": "let mut paused_by_ask",
+ "order": 25
+}

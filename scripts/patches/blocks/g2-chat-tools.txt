@@ -1,0 +1,35 @@
+            tools.extend(self.session_skill_tools(env, &loaded_skills).await);
+        }
+
+        // G 轮：按需装载（deferred）分流。工具 schema 随**每一轮**请求重发，MCP 接一台
+        // server 就是十几件工具的完整 JSON Schema，而单轮真正用得上的通常只有 1-2 件。
+        // 此处把 deferred 工具挡在下发清单之外（`visible`），只留一行名字摘要进系统提示词；
+        // 模型调 load_tools 报名后，该工具的完整 schema 自下一轮起进入 `visible`。
+        //
+        // 为什么在技能工具装配**之后**做：`visible` 要一次建全，否则已加载技能的工具
+        // 会漏出清单（「装了却看不见」是本仓库踩过的老坑）。
+        // 为什么只挡 MCP：技能工具通常 1-3 件且刚 load_skill 就期待可见；MCP 才是
+        // 「多而少用」的形态。默认策略在 tools guest 侧声明（见 tools_plugin.py）。
+        let deferred_names: Vec<String> = tools
+            .iter()
+            .filter(|t| t.deferred == Some(true))
+            .map(|t| t.name.clone())
+            .collect();
+        let mut visible: Vec<ToolSpec> = tools
+            .iter()
+            .filter(|t| t.deferred != Some(true))
+            .cloned()
+            .collect();
+        if !deferred_names.is_empty() {
+            let spec = tools_defer::load_tools_spec();
+            tools.push(spec.clone());
+            visible.push(spec);
+            // 系统提示词在上面已经 format! 完，故此处追加而不重排构造顺序——改动面最小，
+            // 且摘要天然落在提示词末尾（紧邻工具区，模型的注意力位置更合理）。
+            let line = tools_defer::deferred_line(&deferred_names);
+            if let Some(sys) = messages.first_mut().and_then(|m| m.content.as_mut()) {
+                sys.push_str(&line);
+            }
+        }
+
+        let mut steps: Vec<StepRecord> = Vec::new();

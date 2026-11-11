@@ -3,5 +3,6 @@
   "description": "左栏任务章节：状态组可折叠，完成/取消组默认收起（一组一行汇总），折叠态记在 localStorage",
   "file": "runtime/crates/host/web-dist/vendor/app-board.js",
   "anchor_file": "blocks/f1-task-fold-anchor.txt",
-  "patch_file": "blocks/f1-task-fold.txt"
+  "patch_file": "blocks/f1-task-fold.txt",
+  "applied_marker": "function tgroupHead("
 }

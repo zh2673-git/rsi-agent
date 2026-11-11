@@ -1,0 +1,8 @@
+{
+ "id": "G23-CONTRACT-TURN-REPLY",
+ "description": "contract.rs：ChatReq 增 turn_id / tool_reply 两字段（回合寻址键 + 暂停回答接回），并新增 ToolReply 结构",
+ "file": "runtime/crates/agent-loop/src/contract.rs",
+ "anchor": "fn default_session() -> String {\n    \"default\".into()\n}\n",
+ "patch": "fn default_session() -> String {\n    \"default\".into()\n}\n\n/// G 轮：对 `ask_user` 暂停的回答。\n///\n/// 为什么要 `tool_call_id` 而不是只给文本：回复必须作为**那一条 tool_call 的结果**\n/// 接回去，否则模型看到的是「一个没有对应调用的孤立 tool 消息」——严格函数调用协议\n/// 下直接报错，宽松协议下模型会重新规划、把已有进度丢掉。\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct ToolReply {\n    pub tool_call_id: String,\n    pub answer: String,\n}\n",
+ "applied_marker": "pub struct ToolReply"
+}

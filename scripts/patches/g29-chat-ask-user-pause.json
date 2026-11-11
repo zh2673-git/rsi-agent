@@ -1,0 +1,9 @@
+{
+ "id": "G29-CHAT-ASK-USER-PAUSE",
+ "description": "chat.rs：波次末检测 ask_user 成功 → 落盘 paused + 收敛本回合（不再进下一轮 LLM）",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g29-anchor.txt",
+ "patch_file": "blocks/g29-patch.txt",
+ "applied_marker": "paused_by_ask",
+ "order": 22
+}

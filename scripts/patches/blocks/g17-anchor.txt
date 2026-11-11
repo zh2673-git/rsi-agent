@@ -1,0 +1,14 @@
+        // 覆盖态下只留 override 本身，既兑现文档，也让钉死提示词的用例真正确定。
+        let override_on = cfg.system_prompt_override.is_some();
+        let (skills_apx, board_ctx, profile_ctx) = if override_on {
+            (String::new(), String::new(), String::new())
+        } else {
+            (self.skills_appendix(env, &cfg, want_skill_build, want_task_plan).await, board_ctx, profile_ctx)
+        };
+        let system = format!(
+            "{}{}{}{}",
+            self.resolve_system_prompt(env, &cfg).await,
+            skills_apx,
+            board_ctx,
+            profile_ctx
+        );

@@ -1,0 +1,47 @@
+                // G 轮：ask_user 命中 → 本回合**暂停**而不是结束。
+                //
+                // 判定放在波次末：同波次里可能还有别的工具在跑（并行），必须等它们
+                // 都收尾、结果都落库，回合才能安全挂起——否则那些结果会随回合收敛丢失。
+                // 收敛方式：写 `paused` + 问题与 tool_call_id 到 turn 文件，然后把
+                // assistant 的「问题」作为本回合最终答复返回（前端据此渲染提问卡）。
+                // **不进下一轮 LLM**：那会花一次钱再让模型自己说「我在等回答」。
+                if let Some((q, call_id)) = paused_by_ask.as_ref() {
+                    let end_cursor = self
+                        .call(env, CAP_MEMORY, json!({"op": "trace.read", "session_id": req.session_id, "after": 0}), MEM_DEADLINE)
+                        .await
+                        .ok()
+                        .and_then(|v| v.get("next").and_then(Value::as_u64))
+                        .unwrap_or(start_cursor);
+                    if turn::mark_paused(&mut turn, q, call_id, end_cursor) {
+                        if let Some(s) = turn_store.as_ref() {
+                            s.save(&turn);
+                        }
+                        self.trace(
+                            env,
+                            &req.session_id,
+                            json!({"type": "turn_paused", "turn_id": turn.get("turn_id"), "question": q, "tool_call_id": call_id}),
+                        )
+                        .await;
+                        // 暂停不是失败：ok=true + paused=true，答案位放问题本身
+                        // （前端可直接渲染成提问卡，不必再拼一句「我在等你说」）。
+                        let mut out = json!({
+                            "ok": true,
+                            "answer": q,
+                            "paused": true,
+                            "turn_id": turn.get("turn_id"),
+                            "pending": turn.get("pending"),
+                            "rounds": rounds,
+                            "steps": steps,
+                            "session_id": req.session_id,
+                        });
+                        out["turn_status"] = json!("paused");
+                        out["end_cursor"] = json!(end_cursor);
+                        return out;
+                    }
+                }
+                if !newly.is_empty() {
+                    // 技能工具并集：tools 与 visible 同步（否则「装了却看不见」）
+                    let extra = self.session_skill_tools(env, &newly).await;
+                    tools.extend(extra.clone());
+                    visible.extend(extra);
+                }

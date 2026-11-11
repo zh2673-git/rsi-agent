@@ -1,0 +1,59 @@
+        let out = self.chat_run(env, &req).await;
+        // G 轮：回合交接（回填 + 终结）。
+        //
+        // 为什么放在包装层而不是 chat_run 内部：`chat_run` 有 20 个 return 出口
+        // （取消 / 预算硬停 / context 溢出 / LLM 失败 / 空答案 / 轮次耗尽…），
+        // 逐口补终结既容易漏，也会让每个出口都变长。这里只有一个出入口，
+        // 且 `chat_run` 已经把暂停写进了 turn 文件——包装层**读文件**即得真相，
+        // 不必让两个函数共享可变状态。
+        let mut out = out;
+        // 本轮事件已由 chat_run 全部写完，现在读到的 `next` 就是本轮终点。
+        // 失败按 0 → 退化为 `start_cursor`（补播会少给，但不会给错）。
+        let trace_next = self
+            .call(env, CAP_MEMORY, json!({"op": "trace.read", "session_id": req.session_id, "after": 0}), MEM_DEADLINE)
+            .await
+            .ok()
+            .and_then(|v| v.get("next").and_then(Value::as_u64));
+        let turn_meta = (|| {
+            let store = turn::TurnStore::open()?;
+            // chat_run 里建的 turn 是**最新一条非终结态**；按 started_at 倒序取第一条即可
+            // （同一会话有并发闸，不会有第二条 running）。
+            let turn_id = out
+                .get("turn_id")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .or_else(|| {
+                    store
+                        .list_session(&req.session_id)
+                        .into_iter()
+                        .find(|t| !turn::is_terminal(t.get("status").and_then(Value::as_str).unwrap_or("")))
+                        .and_then(|t| t.get("turn_id").and_then(Value::as_str).map(str::to_string))
+                })?;
+            let mut turn = store.load(&turn_id)?;
+            let paused = out.get("paused").and_then(Value::as_bool) == Some(true)
+                || turn.get("status").and_then(Value::as_str) == Some("paused");
+            if !paused {
+                let ok = out.get("ok").and_then(Value::as_bool) == Some(true);
+                let end_cursor = trace_next
+                    .unwrap_or_else(|| turn.get("end_cursor").and_then(Value::as_u64).unwrap_or(0));
+                turn::mark_terminal(&mut turn, if ok { "done" } else { "failed" }, end_cursor);
+                store.save(&turn);
+            }
+            Some(turn)
+        })();
+        if out.is_object() {
+            match turn_meta {
+                Some(t) => {
+                    out["turn_id"] = t.get("turn_id").cloned().unwrap_or(Value::Null);
+                    out["turn_status"] = t.get("status").cloned().unwrap_or(Value::Null);
+                    out["start_cursor"] = t.get("start_cursor").cloned().unwrap_or(Value::Null);
+                    out["end_cursor"] = t.get("end_cursor").cloned().unwrap_or(Value::Null);
+                    if let Some(p) = t.get("pending").cloned().filter(|p| !p.is_null()) {
+                        out["pending"] = p;
+                    }
+                }
+                // 回合持久化不可用（无写权限/无目录）：**不加字段**。加 null 会让前端
+                // 以为「这轮没有 id」，而真相是「这套部署不支持补播」——两者处置不同。
+                None => {}
+            }
+        }

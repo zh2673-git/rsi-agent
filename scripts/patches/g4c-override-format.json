@@ -1,7 +1,8 @@
 {
   "id": "G4C-OVERRIDE-FORMAT",
-  "description": "chat.rs：format! 改用预算好的 skills_apx（与 G4C-OVERRIDE-IS-TOTAL 配套）",
+  "description": "chat.rs：format! 改用预算好的 skills_apx（与 G4C-OVERRIDE-IS-TOTAL 配套）。G 轮把 format 段扩到五参（含 memory_ctx）后本补丁锚点不再存在——但意图（format 用 skills_apx 而非原地再算）已由 G17 兑现，故以终态串判定幂等",
   "file": "runtime/crates/agent-loop/src/chat.rs",
   "anchor_file": "blocks/g4c-format-anchor.txt",
-  "patch_file": "blocks/g4c-format-patch.txt"
+  "patch_file": "blocks/g4c-format-patch.txt",
+  "applied_marker": "            memory_ctx\n        );"
 }

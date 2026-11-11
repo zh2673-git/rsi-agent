@@ -1,0 +1,9 @@
+{
+ "id": "G17-CHAT-MEMORY-CTX-WIRE",
+ "description": "chat.rs：system prompt 拼装纳入 memory_ctx（override 态下同样清空，保持钉死提示词的确定性语义）",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g17-anchor.txt",
+ "patch_file": "blocks/g17-patch.txt",
+ "applied_marker": "memory_ctx,\n        );",
+ "order": -10
+}

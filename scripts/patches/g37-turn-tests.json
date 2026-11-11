@@ -1,0 +1,8 @@
+{
+ "id": "G37-TURN-TESTS",
+ "description": "react_mocks.rs：新增 3 个回合端到端用例（ask_user 暂停+回复续同回合 / 非暂停态回复被拒 / 补播只回游标不回事件）",
+ "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+ "anchor_file": "blocks/g37-anchor.txt",
+ "patch_file": "blocks/g37-turn-tests.txt",
+ "applied_marker": "async fn ask_user_pauses_the_turn_and_reply_resumes_it()"
+}

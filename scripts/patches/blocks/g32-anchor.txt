@@ -1,0 +1,4 @@
+        self.turn_starts
+            .lock()
+            .unwrap()
+            .insert(req.session_id.clone(), std::time::SystemTime::now());

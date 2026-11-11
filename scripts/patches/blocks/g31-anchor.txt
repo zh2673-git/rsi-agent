@@ -1,0 +1,2 @@
+                    // G 轮：load_tools 报名成功 → 这些名字的完整 schema 自下一轮起下发。
+                    // 与技能工具那条并集互不干扰（技能工具走 loaded_skills，这里走 visible）。

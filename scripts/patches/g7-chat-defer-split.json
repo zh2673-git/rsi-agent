@@ -1,0 +1,8 @@
+{
+ "id": "G7-CHAT-DEFER-SPLIT",
+ "description": "chat.rs：工具清单按 deferred 分流（visible）+ 系统提示词追加名字摘要 + 下发 visible",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g7-chat-anchor.txt",
+ "patch_file": "blocks/g2-chat-tools.txt",
+ "applied_marker": "tools_defer::load_tools_spec()"
+}

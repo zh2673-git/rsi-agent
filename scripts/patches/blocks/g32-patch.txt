@@ -1,0 +1,43 @@
+        self.turn_starts
+            .lock()
+            .unwrap()
+            .insert(req.session_id.clone(), std::time::SystemTime::now());
+        // G 轮：回合对象。一次 chat 不再只是「一次阻塞调用」——它有一条可寻址的记录
+        // （`.rsi/turns/<turn_id>.json`），带 trace 游标区间。补播只读这一轮，
+        // 暂停则由本记录承接用户回答（三条边界见 turn.rs 模块注释）。
+        //
+        // `start_cursor` 取 `trace.read(after=0)` 的 `next`（= 已有事件条数）。
+        // 拿不到就按 0：补播会多给一些旧事件但不会漏——错在多给一侧用户能自己扫过去，
+        // 错在少给一侧就是静默丢内容。
+        let turn_store = turn::TurnStore::open();
+        let start_cursor = match self
+            .call(env, CAP_MEMORY, json!({"op": "trace.read", "session_id": req.session_id, "after": 0}), MEM_DEADLINE)
+            .await
+        {
+            Ok(v) => v.get("next").and_then(Value::as_u64).unwrap_or(0),
+            Err(_) => 0,
+        };
+        // 复用还是新建：给了 turn_id 且归属同会话才复用（防跨会话串回合）；
+        // 否则新建。归属校验不是洁癖——turn_id 来自前端，不校验就能读到别人的回合。
+        let mut turn = match req
+            .turn_id
+            .as_deref()
+            .filter(|id| turn::valid_turn_id(id))
+            .and_then(|id| turn_store.as_ref()?.load(id))
+        {
+            Some(t) if t.get("session_id").and_then(Value::as_str) == Some(req.session_id.as_str()) => t,
+            _ => turn::new_turn(&turn::new_turn_id(&req.session_id), &req.session_id, start_cursor),
+        };
+        // 暂停中的回答：先把 turn 从 paused 接回 running（拿到 tool_call_id），再跑。
+        // 接不回（状态不是 paused）= 确定性 K409——静默放行会让「回复了却没接上」
+        // 表现为「模型又开始重新规划」，那种最难查。
+        if let Some(rep) = req.tool_reply.as_ref() {
+            if turn::apply_reply(&mut turn, &rep.answer).is_none() {
+                return json!({"ok": false, "error": {"code": "K409",
+                    "message": format!("该回合当前状态为 '{}'，不接受回复（只有 paused 可接）",
+                        turn.get("status").and_then(Value::as_str).unwrap_or("?"))}});
+            }
+        }
+        if let Some(s) = turn_store.as_ref() {
+            s.save(&turn);
+        }

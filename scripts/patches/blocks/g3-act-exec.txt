@@ -1,0 +1,16 @@
+    pub(super) async fn act_exec(
+        &self,
+        src: &Envelope,
+        session_id: &str,
+        depth: u32,
+        tc: &ToolCall,
+        budget_snap: Option<(Option<u64>, Option<u64>)>,
+        deferred: &[String],
+    ) -> (Value, u64) {
+        let started = Instant::now();
+        let result = if tc.name == RESERVED_LOAD_TOOLS {
+            // G 轮：按需装载报名。结果只回名字——schema 下一轮随工具清单下发，回喂一遍
+            // 等于同一条信息花两遍 token（且 tool_result 另有 8000 字符回喂上限，大
+            // schema 会被腰斩成残缺 JSON，比不回更糟）。
+            tools_defer::load_tools_result(tc, deferred)
+        } else if tc.name == RESERVED_TASK {

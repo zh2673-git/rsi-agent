@@ -1,0 +1,9 @@
+{
+ "id": "G33-CHAT-BODY-FILL",
+ "description": "chat.rs：chat_body 包装层——建 turn（若 chat_run 未建则补建）、读回状态、把 turn_id/status/游标并进响应、非暂停态则终结落盘",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g33-anchor.txt",
+ "patch_file": "blocks/g33-patch.txt",
+ "applied_marker": "turn_meta",
+ "order": 40
+}

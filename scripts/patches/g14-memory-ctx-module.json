@@ -1,0 +1,8 @@
+{
+ "id": "G14-MEMORY-CTX-MODULE",
+ "description": "新建 agent-loop/src/memory_ctx.rs：读 .rsi/memory/L3/index.json 把「最近哪几天有活」注入提示词（只读元数据，不读正文）",
+ "file": "runtime/crates/agent-loop/src/memory_ctx.rs",
+ "create": true,
+ "content_file": "blocks/g14-memory-ctx.txt",
+ "create_marker": "pub(super) fn render_recall"
+}

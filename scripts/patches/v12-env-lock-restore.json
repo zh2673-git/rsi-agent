@@ -1,0 +1,8 @@
+{
+ "id": "V12-ENV-LOCK-RESTORE",
+ "description": "lib.rs 测试模块：补回 `use crate::ENV_LOCK;`（历史补丁 V12 的终态；一次误用旧备份回滚把它丢了，表现为 env 互扰用例随机红）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "mod tests {\n    use super::chat::build_user_msg;\n    use super::tools_exec::ObsPlan;\n    use super::*;\n\n    // O3：env 互相污染防不住并发——三测合并串行跑（语义：缺省→覆盖→误配回退）\n",
+ "patch": "mod tests {\n    use super::chat::build_user_msg;\n    use super::tools_exec::ObsPlan;\n    use super::*;\n\n    use crate::ENV_LOCK; // v12：跨模块共用一把锁，见 crate 根注释\n\n    // O3：env 互相污染防不住并发——三测合并串行跑（语义：缺省→覆盖→误配回退）\n",
+ "applied_marker": "use crate::ENV_LOCK; // v12"
+}

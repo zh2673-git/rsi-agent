@@ -1,0 +1,4 @@
+        let profile_ops = super::profile_ctx::profile_ops_hint(want_task_plan);
+        if !profile_ops.is_empty() {
+            lines.push(profile_ops);
+        }

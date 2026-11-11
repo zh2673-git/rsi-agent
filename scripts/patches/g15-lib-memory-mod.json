@@ -1,0 +1,8 @@
+{
+ "id": "G15-LIB-MEMORY-MOD",
+ "description": "lib.rs：注册 memory_ctx 模块（L2 记忆时间轴注入）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "mod profile_ctx; // D 轮：习惯画像装载（.rsi/profile.json 的有界摘要，只读；写口是 scripts/profile.py）\n",
+ "patch": "mod profile_ctx; // D 轮：习惯画像装载（.rsi/profile.json 的有界摘要，只读；写口是 scripts/profile.py）\nmod memory_ctx; // G 轮：记忆 L2 时间轴（.rsi/memory/L3/index.json 的元数据，只读；写口是 scripts/memory_consolidate.py）\n",
+ "applied_marker": "mod memory_ctx;"
+}

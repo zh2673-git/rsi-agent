@@ -1,0 +1,10 @@
+    pub(super) async fn act_exec(
+        &self,
+        src: &Envelope,
+        session_id: &str,
+        depth: u32,
+        tc: &ToolCall,
+        budget_snap: Option<(Option<u64>, Option<u64>)>,
+    ) -> (Value, u64) {
+        let started = Instant::now();
+        let result = if tc.name == RESERVED_TASK {

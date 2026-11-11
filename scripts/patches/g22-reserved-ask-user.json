@@ -1,0 +1,8 @@
+{
+ "id": "G22-RESERVED-ASK-USER",
+ "description": "lib.rs：新增保留工具名 ask_user（模型主动暂停等回答，回复按 tool_call_id 接回同一回合）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "pub const RESERVED_LOAD_TOOLS: &str = \"load_tools\";\n\n/// RSI 策略钩子",
+ "patch": "pub const RESERVED_LOAD_TOOLS: &str = \"load_tools\";\n\n/// 保留工具名：向用户提问并**暂停回合**（G 轮）——与「把问题写进最终答复然后结束」\n/// 的区别是回合不结束：用户回答后按 tool_call_id 接回同一条 tool 结果，工作集不重建。\npub const RESERVED_ASK_USER: &str = \"ask_user\";\n\n/// RSI 策略钩子",
+ "applied_marker": "pub const RESERVED_ASK_USER"
+}

@@ -1,0 +1,2 @@
+#[tokio::test]
+async fn deferred_tools_are_withheld_until_load_tools_asks() {

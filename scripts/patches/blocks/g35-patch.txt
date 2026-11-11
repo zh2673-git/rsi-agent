@@ -1,0 +1,18 @@
+            let line = tools_defer::deferred_line(&deferred_names);
+            if let Some(sys) = messages.first_mut().and_then(|m| m.content.as_mut()) {
+                sys.push_str(&line);
+            }
+        }
+        // G 轮：ask_user 保留工具随清单下发（模型才看得见可调）。
+        //
+        // 门控 = 回合持久化可用：拿不到 turns 目录时暂停无处落盘，给了这个工具就是
+        // 给一个承诺不了的承诺（模型暂停后用户回复会被丢弃，且没有任何报错）。
+        if turn::TurnStore::open().is_some() {
+            let spec = turn::ask_user_spec();
+            tools.push(spec.clone());
+            visible.push(spec);
+        }
+        // G 轮：本轮是否命中 ask_user（问题文本 + 那条调用的 id）。None = 正常跑。
+        let mut paused_by_ask: Option<(String, String)> = None;
+
+        let mut steps: Vec<StepRecord> = Vec::new();

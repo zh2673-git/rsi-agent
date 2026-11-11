@@ -1,0 +1,11 @@
+            for name, e in _MCP_TOOLS.items():
+                if show_all or name in _ENABLED:
+                    tools.append(
+                        {
+                            "name": name,
+                            "description": e["description"],
+                            "parameters": e["parameters"],
+                            "mcp_server": e["server"],
+                            **({"enabled": name in _ENABLED} if show_all else {}),
+                        }
+                    )

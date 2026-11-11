@@ -1,0 +1,9 @@
+{
+ "id": "G28-CHAT-REPLY-INJECT",
+ "description": "chat.rs：chat_run 里把暂停回答注入工作集（模型看到「我问了、用户答了」，不是孤立 tool 结果）",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g28-anchor.txt",
+ "patch_file": "blocks/g28-patch.txt",
+ "applied_marker": "[用户回答（回合",
+ "order": 20
+}

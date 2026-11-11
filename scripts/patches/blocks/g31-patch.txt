@@ -1,0 +1,15 @@
+                    // G 轮：ask_user 成功 → 记下问题与调用 id，波次末统一收敛为 paused。
+                    // 只记第一条：模型一轮里问两个问题是设计外的（第二个问题会随
+                    // 回合挂起丢失），记第一条至少保住一个。
+                    if paused_by_ask.is_none() && result.get("paused") == Some(&json!(true)) {
+                        if let Some(q) = result.get("question").and_then(Value::as_str) {
+                            let cid = result
+                                .get("tool_call_id")
+                                .and_then(Value::as_str)
+                                .unwrap_or(tc.id.as_str())
+                                .to_string();
+                            paused_by_ask = Some((q.to_string(), cid));
+                        }
+                    }
+                    // G 轮：load_tools 报名成功 → 这些名字的完整 schema 自下一轮起下发。
+                    // 与技能工具那条并集互不干扰（技能工具走 loaded_skills，这里走 visible）。

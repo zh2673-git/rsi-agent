@@ -1,0 +1,3 @@
+                if !newly.is_empty() {
+                    tools.extend(self.session_skill_tools(env, &newly).await);
+                }

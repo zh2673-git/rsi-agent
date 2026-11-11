@@ -1,0 +1,5 @@
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub obs: Option<ToolObs>,
+}
+
+/// R16 观测面声明（胸牌 schema）：声明工具结果中可被结构化观测的三类产物。

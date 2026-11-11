@@ -1,0 +1,4 @@
+            tools.extend(self.session_skill_tools(env, &loaded_skills).await);
+        }
+
+        let mut steps: Vec<StepRecord> = Vec::new();

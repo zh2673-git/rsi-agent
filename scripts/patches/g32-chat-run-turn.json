@@ -1,0 +1,9 @@
+{
+ "id": "G32-CHAT-RUN-TURN",
+ "description": "chat.rs：chat_run 开头建/复用 turn（供内部暂停收敛读取 turn_id/start_cursor）；终结与响应回填由 chat_body 包装层统一做",
+ "file": "runtime/crates/agent-loop/src/chat.rs",
+ "anchor_file": "blocks/g32-anchor.txt",
+ "patch_file": "blocks/g32-patch.txt",
+ "applied_marker": "let mut turn = ",
+ "order": 10
+}

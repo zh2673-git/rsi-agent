@@ -1,0 +1,1 @@
+        let out = self.chat_run(env, &req).await;

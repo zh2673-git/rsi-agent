@@ -1,0 +1,8 @@
+{
+ "id": "G25-ACT-EXEC-ASK-USER",
+ "description": "tools_exec.rs：act_exec 增 ask_user 分支（记暂停意图，回合由 chat 侧落盘并收敛）",
+ "file": "runtime/crates/agent-loop/src/tools_exec.rs",
+ "anchor": "        let result = if tc.name == RESERVED_LOAD_TOOLS {",
+ "patch": "        let result = if tc.name == RESERVED_ASK_USER {\n            // G 轮：向用户提问并暂停回合。此处只**校验并回显**问题文本——真正的\n            // 暂停由 chat 侧在波次末判定（act_exec 单条工具不知道本轮还有没有别\n            // 的调用要跑，也不该知道：暂停是回合级决策，不是工具级副作用）。\n            // 返回 `paused: true` 作为 chat 侧的信号位。\n            let q = tc.arguments.get(\"question\").and_then(Value::as_str).unwrap_or(\"\").trim();\n            if q.is_empty() {\n                json!({\"ok\": false, \"error\": {\"code\": \"K400\", \"field\": \"question\",\n                    \"message\": \"ask_user 需非空参数 {\\\"question\\\": str}（要问用户的问题）\"}})\n            } else {\n                json!({\"ok\": true, \"paused\": true, \"question\": q, \"tool_call_id\": tc.id})\n            }\n        } else if tc.name == RESERVED_LOAD_TOOLS {",
+ "applied_marker": "tc.name == RESERVED_ASK_USER"
+}

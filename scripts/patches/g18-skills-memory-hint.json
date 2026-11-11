@@ -1,0 +1,8 @@
+{
+ "id": "G18-SKILLS-MEMORY-HINT",
+ "description": "skills.rs：系统提示词插入记忆 L2 通道段（三层分工：trace 原文 / L2 按天摘要 / profile 结论）",
+ "file": "runtime/crates/agent-loop/src/skills.rs",
+ "anchor_file": "blocks/g18-anchor.txt",
+ "patch_file": "blocks/g18-patch.txt",
+ "applied_marker": "memory_ops_hint()"
+}

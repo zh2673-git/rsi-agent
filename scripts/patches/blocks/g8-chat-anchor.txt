@@ -1,0 +1,1 @@
+            let round_tools: Option<&[ToolSpec]> = if wrap_up.is_some() { None } else { Some(&tools[..]) };

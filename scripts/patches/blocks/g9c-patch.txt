@@ -1,0 +1,15 @@
+                if !newly.is_empty() {
+                    // 技能工具并集：tools 与 visible 同步（否则「装了却看不见」）
+                    let extra = self.session_skill_tools(env, &newly).await;
+                    tools.extend(extra.clone());
+                    visible.extend(extra);
+                }
+                // G 轮：load_tools 报名过的工具并入 visible（已在下发集里则跳过，防同名双份）
+                for n in newly_visible {
+                    if visible.iter().any(|t| t.name == n) {
+                        continue;
+                    }
+                    if let Some(spec) = tools.iter().find(|t| t.name == n).cloned() {
+                        visible.push(spec);
+                    }
+                }

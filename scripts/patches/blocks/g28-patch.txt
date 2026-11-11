@@ -1,0 +1,41 @@
+                return json!({"ok": false, "error": {"code": e.code(), "message": format!("memory.get failed: {e}")}});
+            }
+        }
+        // G 轮：暂停回答注入。用户答的那句话作为一条 user 消息进工作集——模型看到的是
+        // 「我问了、用户答了」，而不是一个孤立的 tool 结果（后者会让它重新规划、
+        // 把已有进度丢掉）。这就是「暂停而不是结束」与「结束再开新回合」的区别所在。
+        //
+        // 用 `req.tool_reply` 的存在与否判定，而不是看 turn 状态：turn 已在
+        // chat_body 里被接回 running（apply_reply 把它改了），这里判状态就永远为假。
+        if let Some(rep) = req.tool_reply.as_ref() {
+            let pending_q = turn::TurnStore::open()
+                .and_then(|s| req.turn_id.as_deref().and_then(|id| s.load(id)))
+                .and_then(|t| {
+                    t.get("pending")
+                        .and_then(|p| p.get("question"))
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                })
+                .unwrap_or_default();
+            let msg = MemoryMsg {
+                role: "user".into(),
+                content: Some(format!(
+                    "[用户回答（回合 {} 暂停中提问）]\n问题: {}\n回答: {}",
+                    req.turn_id.as_deref().unwrap_or(""),
+                    pending_q,
+                    rep.answer
+                )),
+                tool_calls: None,
+                tool_call_id: None,
+                attachments: None,
+            };
+            // 两处都要写，缺一不可：
+            // ① memory（持久层）——否则下一轮历史缺这段；
+            // ② `messages`（本轮工作集）——第 ① 步只影响**下一次** perceive，
+            //    本轮模型根本看不到它。原实现只做了 ①，端到端用例实测
+            //    「回答消失」，模型于是重新规划。
+            if !self.observe(env, &req.session_id, &[msg.clone()]).await {
+                tracing::warn!(target: ID, session = %req.session_id, "暂停回答落库失败，本轮继续但历史会缺这段");
+            }
+            messages.push(msg);
+        }

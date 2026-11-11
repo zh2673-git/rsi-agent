@@ -1,0 +1,8 @@
+{
+ "id": "G6-RESERVED-LOAD-TOOLS",
+ "description": "lib.rs：新增保留工具名 load_tools（不出 tools，agent-loop 内路由按需装载报名）",
+ "file": "runtime/crates/agent-loop/src/lib.rs",
+ "anchor": "pub const RESERVED_SKILL_INSTALL: &str = \"skill_install\";\n",
+ "patch": "pub const RESERVED_SKILL_INSTALL: &str = \"skill_install\";\n\n/// 保留工具名：按需装载报名（G 轮）——`ToolSpec.deferred` 的工具不进下发清单，\n/// 模型调本工具报过名之后，完整 schema 自下一轮起下发（见 tools_defer.rs）。不下发 tools。\npub const RESERVED_LOAD_TOOLS: &str = \"load_tools\";\n",
+ "applied_marker": "pub const RESERVED_LOAD_TOOLS"
+}

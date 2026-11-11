@@ -1,0 +1,6 @@
+                if !newly.is_empty() {
+                    // 技能工具并集：tools 与 visible 同步（否则「装了却看不见」）
+                    let extra = self.session_skill_tools(env, &newly).await;
+                    tools.extend(extra.clone());
+                    visible.extend(extra);
+                }
