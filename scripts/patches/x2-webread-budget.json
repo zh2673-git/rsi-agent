@@ -1,8 +1,0 @@
-{
- "id": "X-webread-budget",
- "description": "effective_result_limit 为 web_read 补 4× 倍数：原表只放大 read_file(4)/grep(3)/symbols_search(3)，web_read 落 _ => 1，实测 246/487（50.5%）次网页结果被截在 8000 字符，agent 被迫分页重读。补 4× 与 read_file 对齐（web_read 自身有 limit 参数上限 64000，仍受该参数约束）",
- "file": "runtime/crates/agent-loop/src/tools_exec.rs",
- "anchor": "        \"read_file\" => 4,                       // 2000 行级文件尽量一次读全\n        \"grep\" | \"symbols_search\" => 3,         // 命中块 / 引用清单不被腰斩\n        _ => 1,\n",
- "patch": "        \"read_file\" => 4,                       // 2000 行级文件尽量一次读全\n        \"web_read\" => 4,                        // 网页正文一次读全；实测 50% 的网页结果被 1× 腰斩\n        \"grep\" | \"symbols_search\" => 3,         // 命中块 / 引用清单不被腰斩\n        _ => 1,\n",
- "applied_marker": "\"web_read\" => 4"
-}

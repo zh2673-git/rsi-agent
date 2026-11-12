@@ -1,8 +1,0 @@
-{
- "id": "G8-CHAT-DEFER-ROUND-TOOLS",
- "description": "chat.rs：轮次下发改 visible（deferred 工具不进清单）+ act_exec 传 deferred 名单 + 波次间并入同步 visible",
- "file": "runtime/crates/agent-loop/src/chat.rs",
- "anchor_file": "blocks/g8-chat-anchor.txt",
- "patch_file": "blocks/g8-chat-patch.txt",
- "applied_marker": "Some(&visible[..])"
-}

@@ -1,8 +1,0 @@
-{
- "id": "G5-TASK-SPEC-DEFERRED",
- "description": "subagent.rs：task_spec 补 deferred: None（ToolSpec 新字段，保留工具不需要按需装载）",
- "file": "runtime/crates/agent-loop/src/subagent.rs",
- "anchor": "        name: RESERVED_TASK.into(),\n        obs: None,\n",
- "patch": "        name: RESERVED_TASK.into(),\n        obs: None,\n        deferred: None,\n",
- "applied_marker": "deferred: None,"
-}

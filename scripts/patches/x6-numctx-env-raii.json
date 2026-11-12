@@ -1,8 +1,0 @@
-{
- "id": "L6",
- "description": "num_ctx 用例：env 保存/还原改走 RAII 守卫——原先在函数末尾手动恢复，中途 assert panic 时恢复语句永不执行，把 LLM_CONTEXT_TOKENS=4096 泄漏给同进程其它用例，全量跑时 20+ 用例按「窗口4096/预算2867」估算而 CONTEXT_OVERFLOW 级联红（单跑全绿，是最容易误判成「新改动引入回归」的假信号）",
- "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
- "anchor_file": "blocks/x6-numctx-head-anchor.txt",
- "patch_file": "blocks/x6-numctx-head-patch.txt",
- "applied_marker": "let _env_restore = EnvGuard(vec!["
-}

@@ -1,8 +1,0 @@
-{
- "id": "G3-TOOLS-DEFER-MODULE",
- "description": "新建 agent-loop/src/tools_defer.rs：deferred 工具名字摘要 + load_tools 保留工具声明与结果（纯函数可测）",
- "file": "runtime/crates/agent-loop/src/tools_defer.rs",
- "create": true,
- "content_file": "blocks/g-tools-defer.txt",
- "create_marker": "pub(super) fn deferred_line"
-}

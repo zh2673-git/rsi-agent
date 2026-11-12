@@ -1,8 +1,0 @@
-{
- "id": "G1-CONTRACT-DEFERRED",
- "description": "contract.rs：ToolSpec 增 deferred 字段（按需装载的工具不进下发清单，只留名字摘要）",
- "file": "runtime/crates/agent-loop/src/contract.rs",
- "anchor_file": "blocks/g1-contract-anchor.txt",
- "patch_file": "blocks/g1-contract-patch.txt",
- "applied_marker": "pub deferred: Option<bool>"
-}

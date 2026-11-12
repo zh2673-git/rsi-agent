@@ -1,8 +1,0 @@
-{
- "id": "G12-DEFER-TESTS",
- "description": "react_mocks.rs：新增 3 个 deferred 回归用例（挡住 schema / 名字仍在提示词 / 报名后下发 / 猜中即可用 / 无 deferred 不加重）",
- "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
- "anchor_file": "blocks/g12-tests-anchor.txt",
- "patch_file": "blocks/g12-tests.txt",
- "applied_marker": "async fn deferred_tools_are_withheld_until_load_tools_asks()"
-}

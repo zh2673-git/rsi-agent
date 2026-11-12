@@ -1,8 +1,0 @@
-{
- "id": "X3-TRACE-READ-PRECISE",
- "description": "memory_plugin.ts：readEventLine 支持 end 偏移，只读本行字节（每条曾白读 1MB）",
- "file": "runtime/plugins/memory/memory_plugin.ts",
- "anchor_file": "blocks/x3-trace-anchor.txt",
- "patch_file": "blocks/x3-trace-patch.txt",
- "applied_marker": "end?: number"
-}

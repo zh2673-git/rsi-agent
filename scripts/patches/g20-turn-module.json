@@ -1,8 +1,0 @@
-{
- "id": "G20-TURN-MODULE",
- "description": "新建 agent-loop/src/turn.rs：回合对象（turn_id + trace 游标区间 + paused 暂停态 + 补播视图），纯状态机可测",
- "file": "runtime/crates/agent-loop/src/turn.rs",
- "create": true,
- "content_file": "blocks/g20-turn-module.txt",
- "create_marker": "pub(super) struct TurnStore"
-}

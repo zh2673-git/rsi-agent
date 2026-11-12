@@ -1,8 +1,0 @@
-{
- "id": "G11-ACT-EXEC-DEFERRED",
- "description": "tools_exec.rs：act_exec 增 deferred 形参 + load_tools 路由分支（结果只回名字，不回 schema）",
- "file": "runtime/crates/agent-loop/src/tools_exec.rs",
- "anchor_file": "blocks/g11-anchor.txt",
- "patch_file": "blocks/g11-patch.txt",
- "applied_marker": "deferred: &[String],"
-}

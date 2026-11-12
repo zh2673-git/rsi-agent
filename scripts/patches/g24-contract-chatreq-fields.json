@@ -1,8 +1,0 @@
-{
-  "id": "G24-CONTRACT-CHATREQ-FIELDS",
-  "description": "contract.rs：ChatReq 增 turn_id / tool_reply 字段（锚点精确到 ChatReq 尾：R3 用户附件注释行，避开 MemoryMsg 的同形结尾）",
-  "file": "runtime/crates/agent-loop/src/contract.rs",
-  "anchor": "    /// R3 用户附件（可选）：host 已做形状/条数/体量校验，此处仅透传。\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attachments: Option<Vec<Attachment>>,\n}\n",
-  "patch": "    /// R3 用户附件（可选）：host 已做形状/条数/体量校验，此处仅透传。\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attachments: Option<Vec<Attachment>>,\n    /// G 轮：回合寻址键（可选）。给了就复用该 turn（暂停后回复走这里），\n    /// 没给就新开一条。缺省 None 向后兼容所有既有调用方。\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub turn_id: Option<String>,\n    /// G 轮：对 `ask_user` 暂停的回答。给了它就按 `tool_call_id` 接回同一回合，\n    /// 不重新装配工作集（这正是「暂停而不是结束」的收益）。\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub tool_reply: Option<ToolReply>,\n}\n",
-  "applied_marker": "pub turn_id: Option<String>"
-}

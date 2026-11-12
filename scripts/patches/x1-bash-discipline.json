@@ -1,8 +1,0 @@
-{
- "id": "X-bash-discipline",
- "description": "bash 工具描述强化三条纪律：①cwd 已固定为 WORKSPACE_ROOT，禁止再写 cd /d 前缀；②工作区内的文件读写/列目录/搜索一律走专用工具，禁止 powershell Get-Content/Set-Content/Get-ChildItem/Select-String；③越界路径只在显式需要且工具报 PATH_OUTSIDE_WORKSPACE 时才用 bash 读取",
- "file": "runtime/plugins/tools/tools/bash.py",
- "anchor": "        \"This tool is for running/building/testing, git, process and port queries - do NOT use it for \"\n        \"file operations (reading, writing, editing, searching, listing files); use the dedicated tools \"\n        \"(read_file/write_file/edit_file/grep/list_dir/symbols_search) instead.\"\n",
- "patch": "        \"This tool is for running/building/testing, git, process and port queries - do NOT use it for \"\n        \"file operations (reading, writing, editing, searching, listing files); use the dedicated tools \"\n        \"(read_file/write_file/edit_file/grep/list_dir/symbols_search) instead. \"\n        \"The cwd is ALREADY the workspace root: never prefix commands with 'cd /d \\\"...\\\" &&' (redundant). \"\n        \"Paths inside the workspace are off-limits for file work: read/write/edit/search/list there MUST go \"\n        \"through the dedicated tools, never through powershell Get-Content/Set-Content/Get-ChildItem/Select-String. \"\n        \"Use bash for file access only when a path legitimately falls outside the workspace \"\n        \"(after the dedicated tool returns PATH_OUTSIDE_WORKSPACE), or for binary/archive operations.\"\n",
- "applied_marker": "cwd is ALREADY the workspace root"
-}

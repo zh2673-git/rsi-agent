@@ -1,8 +1,0 @@
-{
- "id": "G2-LIB-DEFER-MOD",
- "description": "lib.rs：注册 tools_defer 模块 + 保留工具名 load_tools",
- "file": "runtime/crates/agent-loop/src/lib.rs",
- "anchor": "mod tools_exec;\nmod trace;\n",
- "patch": "mod tools_defer; // G 轮：按需装载工具（deferred：schema 不进清单，load_tools 报名后下发）\nmod tools_exec;\nmod trace;\n",
- "applied_marker": "mod tools_defer;"
-}

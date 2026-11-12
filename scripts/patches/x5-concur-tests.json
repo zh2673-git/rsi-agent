@@ -1,8 +1,0 @@
-{
- "id": "L5",
- "description": "并发回归（T-20261108-14 收口）：补两条跨会话/同会话的 in-flight 实测——跨会话在途峰值 ≥2（真并行），同会话第二次 chat 必回 K409（边界没被顺手放开）。此前只有推导层断言，没人真发过两条并发 chat",
- "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
- "anchor_file": "blocks/x5-concur-anchor.txt",
- "patch_file": "blocks/x5-concur-tests.txt",
- "applied_marker": "async fn cross_session_chats_overlap_in_flight()"
-}

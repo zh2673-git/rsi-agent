@@ -1,8 +1,0 @@
-{
- "id": "G9A-CHAT-NEWLY-VISIBLE",
- "description": "chat.rs：波次执行时传 deferred 名单给 act_exec + 声明 newly_visible 收集本轮报名",
- "file": "runtime/crates/agent-loop/src/chat.rs",
- "anchor_file": "blocks/g9a-anchor.txt",
- "patch_file": "blocks/g9a-patch.txt",
- "applied_marker": "let mut newly_visible: Vec<String> = Vec::new();"
-}
