@@ -1,0 +1,8 @@
+{
+  "id": "E6-PLUGIN-EMBED-OP",
+  "description": "llm_plugin.py：op==embed 分派 + _embed()（provider 未实现 embed 时给字段级 K400，不抛异常）",
+  "file": "runtime/plugins/llm_adapter/llm_plugin.py",
+  "anchor": "        if op == \"presets.list\":\n            from presets import list_presets\n\n            return list_presets(payload)\n        if op == \"upstream.status\":",
+  "patch": "        if op == \"presets.list\":\n            from presets import list_presets\n\n            return list_presets(payload)\n        if op == \"embed\":\n            return self._embed(payload)\n        if op == \"upstream.status\":",
+  "applied_marker": "return self._embed(payload)"
+}

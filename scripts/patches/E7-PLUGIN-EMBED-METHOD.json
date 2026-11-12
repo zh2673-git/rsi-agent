@@ -1,0 +1,8 @@
+{
+  "id": "E7-PLUGIN-EMBED-METHOD",
+  "description": "llm_plugin.py：新增 _embed() 方法（放在 _models_list 之前）",
+  "file": "runtime/plugins/llm_adapter/llm_plugin.py",
+  "anchor": "        return {\"ok\": True, \"applied\": applied}\n\n    def _models_list(self, payload: dict) -> dict:",
+  "patch": "        return {\"ok\": True, \"applied\": applied}\n\n    def _embed(self, payload: dict) -> dict:\n        \"\"\"embedding 分派。provider pack 未实现 embed 时给字段级错误，不抛异常。\n\n        与 chat 不同：embedding 无流式、无 abort——它是短请求，中断没有意义。\n        \"\"\"\n        name = payload.get(\"provider\") or os.environ.get(\"LLM_PROVIDER\", \"mock\")\n        provider = resolve(name)\n        if provider is None:\n            return _err(f\"unknown provider: {name}（可用: {', '.join(sorted_providers())}）\", code=\"K400\")\n        fn = provider.get(\"embed\")\n        if fn is None:\n            return _err(f\"provider {name} 不支持 embed（该 pack 未实现）\", code=\"K400\")\n        try:\n            return fn(payload)\n        except ValueError as exc:\n            return _err(str(exc), code=\"K400\")\n        except Exception as exc:  # noqa: BLE001\n            return _err(f\"{type(exc).__name__}: {exc}\")\n\n    def _models_list(self, payload: dict) -> dict:",
+  "applied_marker": "def _embed(self, payload: dict) -> dict:"
+}

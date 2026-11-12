@@ -1,0 +1,8 @@
+{
+  "id": "E1-BASE-EMBED-HELPERS",
+  "description": "providers/base.py：新增 require_inputs() / norm_embed()——embed 入参校验与响应归一化（4 个 provider pack 共用同一套字段级错误）",
+  "file": "runtime/plugins/llm_adapter/providers/base.py",
+  "anchor": "    if elapsed_ms is not None:\n        out[\"elapsed_ms\"] = elapsed_ms\n    return out\n\n\ndef map_usage(u: dict | None) -> dict:",
+  "patch": "    if elapsed_ms is not None:\n        out[\"elapsed_ms\"] = elapsed_ms\n    return out\n\n\ndef require_inputs(payload: dict) -> list:\n    \"\"\"embed 入参校验：input 必须是非空字符串数组（或单字符串）。\n\n    单独成函数而不是散在 provider 里：各 provider pack 共用同一套字段级错误，\n    错误码与文案才能一致（K400 = 请求侧确定性失败，重试无意义）。\n    \"\"\"\n    raw = payload.get(\"input\")\n    if isinstance(raw, str):\n        raw = [raw]\n    if not isinstance(raw, list) or not raw:\n        raise ValueError(\"embed 需要 input：非空字符串数组\")\n    if not all(isinstance(x, str) for x in raw):\n        raise ValueError(\"embed 的 input 每项必须是字符串\")\n    return raw\n\n\ndef norm_embed(vectors, model, dim=None, usage=None) -> dict:\n    \"\"\"归一化 embed 响应。\n\n    形状与 norm() 同风格（ok 打头、可选字段「有才写」）；vectors 一定是二维数组，\n    dim 由首条长度推出（provider 不报维度时也不猜错）。\n    \"\"\"\n    if dim is None and vectors:\n        dim = len(vectors[0])\n    out = {\"ok\": True, \"vectors\": vectors, \"model\": model}\n    if dim is not None:\n        out[\"dim\"] = dim\n    if usage:\n        out[\"usage\"] = usage\n    return out\n\n\ndef map_usage(u: dict | None) -> dict:",
+  "applied_marker": "def norm_embed(vectors, model, dim=None, usage=None) -> dict:"
+}

@@ -159,6 +159,12 @@ impl HostConfig {
             "AGENT_SYSTEM_PROMPT",
             "PROMPT",
             "HISTORY_LIMIT",
+            // embedding（B 通道）：技能脚本不经 agent loop，直接读 env 打 /embeddings。
+            // 与 MEDIA_* 同款持久通道语义——改后需重启 host。
+            "EMBEDDING_BASE_URL",
+            "EMBEDDING_MODEL",
+            "EMBEDDING_KEY",
+            "EMBEDDING_EXTRA_BODY",
         ];
         KEYS
             .iter()
@@ -459,6 +465,24 @@ pub fn apply_config_file_to_env() -> usize {
             }
         }
     }
+    // embedding（LLM 之外的第二条模型通道）：embedding 段 → EMBEDDING_* env。
+    // 与 media 段同构：空串不覆盖（存在才传语义），extra 对象整体序列化为 JSON env
+    // （部分网关要 dimensions / encoding_format，站点差异继续以配置适配）。
+    // 与 MCP_SERVERS 同款持久通道——改后需重启 host。
+    if let Some(emb) = cfg.get("embedding").filter(|v| v.is_object()) {
+        for (key, env) in [("base_url", "EMBEDDING_BASE_URL"), ("model", "EMBEDDING_MODEL"), ("key", "EMBEDDING_KEY")] {
+            if let Some(v) = emb.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()) {
+                set(env, v.into());
+            }
+        }
+        if let Some(extra) = emb.get("extra").filter(|v| v.is_object()) {
+            if let Ok(s) = serde_json::to_string(extra) {
+                if s != "{}" {
+                    set("EMBEDDING_EXTRA_BODY", s.into());
+                }
+            }
+        }
+    }
     n
 }
 
@@ -573,6 +597,69 @@ mod tests {
         assert_eq!(extra["n"], 1);
         // 空 key 不落 env（存在才传语义）；未知键忽略
         assert!(std::env::var("MEDIA_VIDEO_KEY").is_err());
+
+        for (k, v) in saved {
+            match v {
+                Some(val) => std::env::set_var(k, val),
+                None => std::env::remove_var(k),
+            }
+        }
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn config_embedding_section_applies_to_env() {
+        // embedding 段与 media 段同构：空串不覆盖、extra 整体序列化。
+        let _guard = crate::config::env_lock();
+        let tmp = std::env::temp_dir().join("ra-embedding-config-test.json");
+        std::fs::write(
+            &tmp,
+            r#"{"embedding":{"base_url":"https://emb.example.com/v1","model":"emb-1","key":"ek-123","unknown":true,"extra":{"dimensions":1024,"encoding_format":"float"}}}"#,
+        )
+        .unwrap();
+        let keys = [
+            "EMBEDDING_BASE_URL", "EMBEDDING_MODEL", "EMBEDDING_KEY",
+            "EMBEDDING_EXTRA_BODY", "CONFIG_FILE",
+        ];
+        let saved: Vec<(String, Option<String>)> = keys.iter().map(|k| (k.to_string(), std::env::var(k).ok())).collect();
+        std::env::set_var("CONFIG_FILE", &tmp);
+
+        let _ = apply_config_file_to_env();
+
+        assert_eq!(std::env::var("EMBEDDING_BASE_URL").unwrap(), "https://emb.example.com/v1");
+        assert_eq!(std::env::var("EMBEDDING_MODEL").unwrap(), "emb-1");
+        assert_eq!(std::env::var("EMBEDDING_KEY").unwrap(), "ek-123");
+        // extra 对象 → JSON env（站点个性出口：dimensions / encoding_format 等）
+        let extra: Value = serde_json::from_str(&std::env::var("EMBEDDING_EXTRA_BODY").unwrap()).unwrap();
+        assert_eq!(extra["dimensions"], 1024);
+        assert_eq!(extra["encoding_format"], "float");
+
+        for (k, v) in saved {
+            match v {
+                Some(val) => std::env::set_var(k, val),
+                None => std::env::remove_var(k),
+            }
+        }
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn config_embedding_empty_key_does_not_override() {
+        // 空串 = 「不修改」：面板留空不应把已有 env（来自 shell 或上一次配置）抹掉。
+        let _guard = crate::config::env_lock();
+        let tmp = std::env::temp_dir().join("ra-embedding-empty-test.json");
+        std::fs::write(&tmp, r#"{"embedding":{"base_url":"","model":"","key":""}}"#).unwrap();
+        let keys = [
+            "EMBEDDING_BASE_URL", "EMBEDDING_MODEL", "EMBEDDING_KEY",
+            "EMBEDDING_EXTRA_BODY", "CONFIG_FILE",
+        ];
+        let saved: Vec<(String, Option<String>)> = keys.iter().map(|k| (k.to_string(), std::env::var(k).ok())).collect();
+        std::env::set_var("EMBEDDING_BASE_URL", "https://keep.example.com/v1");
+        std::env::set_var("CONFIG_FILE", &tmp);
+
+        let _ = apply_config_file_to_env();
+
+        assert_eq!(std::env::var("EMBEDDING_BASE_URL").unwrap(), "https://keep.example.com/v1");
 
         for (k, v) in saved {
             match v {

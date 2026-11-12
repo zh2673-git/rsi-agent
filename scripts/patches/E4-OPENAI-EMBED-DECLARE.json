@@ -1,0 +1,8 @@
+{
+  "id": "E4-OPENAI-EMBED-DECLARE",
+  "description": "providers/openai_compat.py：PROVIDER 声明 embed 能力（multiline 形式）",
+  "file": "runtime/plugins/llm_adapter/providers/openai_compat.py",
+  "anchor": "PROVIDER = {\"name\": \"openai\", \"chat\": chat, \"models\": models, \"requires_env\": [\"OPENAI_API_KEY\"]}",
+  "patch": "PROVIDER = {\n    \"name\": \"openai\",\n    \"chat\": chat,\n    \"models\": models,\n    \"embed\": embed,\n    \"requires_env\": [\"OPENAI_API_KEY\"],\n}",
+  "applied_marker": "\"embed\": embed,"
+}

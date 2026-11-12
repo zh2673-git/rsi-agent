@@ -1,0 +1,8 @@
+{
+  "id": "E8-HOST-PASSTHROUGH-EMBEDDING",
+  "description": "host config.rs：passthrough_env 白名单加 EMBEDDING_BASE_URL / MODEL / KEY / EXTRA_BODY（技能脚本子进程可直连 embedding 端点）",
+  "file": "runtime/crates/host/src/config.rs",
+  "anchor": "            // agent-loop（InProcess 自读，但 WSL/远程场景下保持子进程一致）\n            \"AGENT_SYSTEM_PROMPT\",\n            \"PROMPT\",\n            \"HISTORY_LIMIT\",\n        ];",
+  "patch": "            // agent-loop（InProcess 自读，但 WSL/远程场景下保持子进程一致）\n            \"AGENT_SYSTEM_PROMPT\",\n            \"PROMPT\",\n            \"HISTORY_LIMIT\",\n            // embedding（B 通道）：技能脚本不经 agent loop，直接读 env 打 /embeddings。\n            // 与 MEDIA_* 同款持久通道语义——改后需重启 host。\n            \"EMBEDDING_BASE_URL\",\n            \"EMBEDDING_MODEL\",\n            \"EMBEDDING_KEY\",\n            \"EMBEDDING_EXTRA_BODY\",\n        ];",
+  "applied_marker": "            \"EMBEDDING_EXTRA_BODY\",\n        ];"
+}

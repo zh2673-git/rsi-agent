@@ -1,0 +1,8 @@
+{
+  "id": "E5-REGISTRY-EMBED-OPTIONAL",
+  "description": "providers/registry.py：_validate 允许可选 embed 能力（声明即校验签名，未声明不报错）",
+  "file": "runtime/plugins/llm_adapter/providers/registry.py",
+  "anchor": "    if len(inspect.signature(spec[\"chat\"]).parameters) != 1:\n        raise TypeError(f\"provider '{name}': chat 签名必须为 chat(payload) -> dict\")\n    if spec[\"name\"] in PROVIDERS:",
+  "patch": "    if len(inspect.signature(spec[\"chat\"]).parameters) != 1:\n        raise TypeError(f\"provider '{name}': chat 签名必须为 chat(payload) -> dict\")\n    # embed 是**可选**能力：不支持的 pack 缺这个键是合法的，不报错。\n    # 但一旦声明，签名必须与 chat 一致（payload -> dict），否则分派层会在运行期炸。\n    if \"embed\" in spec:\n        if not callable(spec[\"embed\"]):\n            raise TypeError(f\"provider '{name}': embed 必须可调用\")\n        if len(inspect.signature(spec[\"embed\"]).parameters) != 1:\n            raise TypeError(f\"provider '{name}': embed 签名必须为 embed(payload) -> dict\")\n    if spec[\"name\"] in PROVIDERS:",
+  "applied_marker": "embed 签名必须为 embed(payload) -> dict"
+}

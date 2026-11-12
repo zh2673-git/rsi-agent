@@ -1,0 +1,8 @@
+{
+  "id": "E2-MOCK-EMBED",
+  "description": "providers/mock.py：新增确定性伪哈希 embed（EMBED_DIM=8，MOCK_EMBED_FAIL 可注入失败），并声明 embed 能力",
+  "file": "runtime/plugins/llm_adapter/providers/mock.py",
+  "anchor": "def models(payload: dict) -> dict:\n    return {\"ok\": True, \"models\": [\"mock-1\"]}\n\n\nPROVIDER = {\"name\": \"mock\", \"chat\": chat, \"models\": models, \"requires_env\": []}",
+  "patch": "def models(payload: dict) -> dict:\n    return {\"ok\": True, \"models\": [\"mock-1\"]}\n\n\nEMBED_DIM = 8\n\n\ndef embed(payload: dict) -> dict:\n    \"\"\"确定性 embed：同文本必得同向量，长度固定 EMBED_DIM。\n\n    为什么是确定性而非随机：embed 的测试要断言「相同输入→相同输出」「不同输入→不同输出」，\n    随机向量让这两条断言都失效。用字符码求和做伪哈希，够用且可读。\n\n    MOCK_EMBED_FAIL=1 时返回错误，供测试覆盖失败分支（不靠网络造错误）。\n    \"\"\"\n    from .base import norm_embed, require_inputs\n\n    if os.environ.get(\"MOCK_EMBED_FAIL\") == \"1\":\n        return err(\"mock embed 失败（MOCK_EMBED_FAIL=1）\")\n    try:\n        inputs = require_inputs(payload)\n    except ValueError as exc:\n        return err(str(exc), code=\"K400\")\n    vectors = []\n    for text in inputs:\n        seed = sum(ord(c) * (i + 1) for i, c in enumerate(text)) or 1\n        vectors.append([((seed * (j + 1)) % 97) / 97.0 for j in range(EMBED_DIM)])\n    return norm_embed(vectors, payload.get(\"model\") or \"mock-embed\", dim=EMBED_DIM)\n\n\nPROVIDER = {\n    \"name\": \"mock\",\n    \"chat\": chat,\n    \"models\": models,\n    \"embed\": embed,\n    \"requires_env\": [],\n}",
+  "applied_marker": "\"embed\": embed,"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "E9-HOST-EMBEDDING-SECTION",
+  "description": "host config.rs：apply_config_file_to_env 增 embedding 段映射（与 media 段同构：空串不覆盖、extra 整体序列化）",
+  "file": "runtime/crates/host/src/config.rs",
+  "anchor": "            }\n        }\n    }\n    n\n}\n\n/// 工具全集名（与 plugins/tools/tools_plugin.py 的 ALL_TOOLS 保持同步）。",
+  "patch": "            }\n        }\n    }\n    // embedding（LLM 之外的第二条模型通道）：embedding 段 → EMBEDDING_* env。\n    // 与 media 段同构：空串不覆盖（存在才传语义），extra 对象整体序列化为 JSON env\n    // （部分网关要 dimensions / encoding_format，站点差异继续以配置适配）。\n    // 与 MCP_SERVERS 同款持久通道——改后需重启 host。\n    if let Some(emb) = cfg.get(\"embedding\").filter(|v| v.is_object()) {\n        for (key, env) in [(\"base_url\", \"EMBEDDING_BASE_URL\"), (\"model\", \"EMBEDDING_MODEL\"), (\"key\", \"EMBEDDING_KEY\")] {\n            if let Some(v) = emb.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()) {\n                set(env, v.into());\n            }\n        }\n        if let Some(extra) = emb.get(\"extra\").filter(|v| v.is_object()) {\n            if let Ok(s) = serde_json::to_string(extra) {\n                if s != \"{}\" {\n                    set(\"EMBEDDING_EXTRA_BODY\", s.into());\n                }\n            }\n        }\n    }\n    n\n}\n\n/// 工具全集名（与 plugins/tools/tools_plugin.py 的 ALL_TOOLS 保持同步）。",
+  "applied_marker": "\"EMBEDDING_EXTRA_BODY\", s.into()"
+}
