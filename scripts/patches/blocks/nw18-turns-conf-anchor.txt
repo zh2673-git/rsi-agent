@@ -1,0 +1,1 @@
+    std::env::set_var("AGENT_STREAM_DIR", &stream_dir);

@@ -1,0 +1,9 @@
+{
+ "id": "NW18-TURNS-CONFORMANCE",
+ "description": "contract_conformance.rs：两处 set_var(AGENT_STREAM_DIR) 之后同时钉 RSI_TURNS_DIR（锚点全文出现 2 次，replace 会一次改完两处）",
+ "file": "runtime/crates/agent-loop/tests/contract_conformance.rs",
+ "anchor_file": "blocks/nw18-turns-conf-anchor.txt",
+ "patch_file": "blocks/nw18-turns-conf-patch.txt",
+ "applied_marker": "agent-loop-contract-turns-",
+ "order": 64
+}

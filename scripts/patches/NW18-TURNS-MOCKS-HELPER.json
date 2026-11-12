@@ -1,0 +1,9 @@
+{
+ "id": "NW18-TURNS-MOCKS-HELPER",
+ "description": "agent-loop tests/react_mocks.rs：新增 isolate_turns_dir()（与 host 侧同款）——本文件 69 个用例里 8 个调 chat，未隔离时把回合账写进 crate 目录",
+ "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+ "anchor_file": "blocks/nw18-turns-mocks-anchor.txt",
+ "patch_file": "blocks/nw18-turns-mocks-patch.txt",
+ "applied_marker": "pub fn isolate_turns_dir()",
+ "order": 62
+}

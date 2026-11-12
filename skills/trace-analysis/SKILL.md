@@ -65,3 +65,14 @@ python skills/trace-analysis/trace_query.py calls     --trace s-mvzz0e2s --round
 子命令白名单防注入）。技能经 `skill_install` 安装后，该工具进入工具池；**用户技能工具需在
 设置界面（Skills 页）批准启用**。bash 直调 `trace_query.py` 始终可用，两者等价——启用工具的
 意义是「问统计」时无需 bash 参与。
+
+## 验收标准
+
+一次 trace 查询合格，当且仅当：
+
+1. **零新建脚本**：全程未 `write_file` 新脚本、未往 `outputs/` 落盘。自检：`git status --porcelain` 里无 `outputs/_scratch_*.py` 之类新增。
+2. **输出可解析**：stdout 是单个 JSON 对象，含 `ok` 字段。`ok:false` 时带 `error.code`，且**无 traceback**（有 traceback 即不合格——那说明错误没被收敛成模型可读的形状）。
+3. **口径可复核**：给出的每个数字都能用另一条子命令或原始 jsonl 复算。例：`toolmix` 的各工具计数之和应等于 `summary` 的 `calls` 总量；`multiline` 的条数应与 `calls` 里含换行的 bash 条数一致。
+4. **只读**：不修改任何 trace 文件（`git status` 对 traces 目录零改动）。
+
+反例（一律判不合格）：为回答「统计一下」而新建 `.py` 探针；把大 jsonl 全量 `json.loads` 进内存后报 OOM/超时；报错直接抛 traceback 让调用方猜。

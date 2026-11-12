@@ -1,0 +1,9 @@
+{
+ "id": "NW18-TURNS-COMMON-HELPER",
+ "description": "host tests/common/mod.rs：新增 isolate_turns_dir() 并在 fresh_kernel() 内调用——测试进程 cwd 是 crate 目录，turns_root() 三档 env 全空时回落 cwd，cargo test 会往仓库写回合账",
+ "file": "runtime/crates/host/tests/common/mod.rs",
+ "anchor_file": "blocks/nw18-turns-common-anchor.txt",
+ "patch_file": "blocks/nw18-turns-common-patch.txt",
+ "applied_marker": "isolate_turns_dir();\n    Kernel::new(GlobalConfig",
+ "order": 61
+}

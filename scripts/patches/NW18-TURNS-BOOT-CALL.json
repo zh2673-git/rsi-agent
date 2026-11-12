@@ -1,0 +1,9 @@
+{
+ "id": "NW18-TURNS-BOOT-CALL",
+ "description": "react_mocks.rs：boot() 里调 isolate_turns_dir()——一个挂点覆盖全部 69 个用例，不必逐用例插（比逐处插入更难漏）",
+ "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+ "anchor_file": "blocks/nw18-turns-boot-anchor.txt",
+ "patch_file": "blocks/nw18-turns-boot-patch.txt",
+ "applied_marker": "isolate_turns_dir();\n    let kernel",
+ "order": 63
+}

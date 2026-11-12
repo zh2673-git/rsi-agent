@@ -1,0 +1,2 @@
+async fn boot(plugins: Vec<PluginInstance>) -> Arc<Kernel> {
+    let kernel

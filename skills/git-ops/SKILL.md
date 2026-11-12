@@ -67,3 +67,14 @@ gh release list && gh pr status             # 查看
 stdout JSON，子命令白名单：status / diff_stat / log / remote / branch，无任何写操作）。
 经 `skill_install` 安装后进入工具池，**用户技能工具需在设置界面（Skills 页）批准启用**；
 bash 直调 `python skills/git-ops/repo_query.py status` 始终可用，两者等价。
+
+## 验收标准
+
+一次提交/推送合格，当且仅当：
+
+1. **暂存即所想**：`git status --porcelain` 与 `git diff --stat HEAD` 逐文件核对过，暂存清单里没有意外文件。**未使用 `git add -A` / `git add .`**（用了即不合格，哪怕结果碰巧对）。
+2. **无密钥**：`git diff --cached` 全文搜 `api[_-]?key|token|password|secret` 零命中；命中即停手报告，不提交。
+3. **一笔一事**：提交信息首行符合 `type(scope): 中文摘要` 且 ≤72 字符；正文要点与 `git show --stat` 的文件清单能对上。
+4. **push 可核**：`git log origin/main..HEAD` 为空（该推的都推了），且推送后 `gh release list` / `git ls-remote --tags origin` 能查到对应 tag。
+
+反例（一律判不合格）：`git add -A` 后直接 commit；把多个主题塞进一笔提交；release 未给用户过目就创建；force push 到 main。

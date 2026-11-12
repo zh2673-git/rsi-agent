@@ -1,0 +1,3 @@
+pub fn fresh_kernel() -> Arc<Kernel> {
+    Kernel::new(GlobalConfig { node_id: "react-agent-test".into(), max_total_inflight: 32 })
+}
