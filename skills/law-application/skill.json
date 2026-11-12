@@ -1,0 +1,95 @@
+{
+  "name": "law-application",
+  "version": "1.0.0",
+  "status": "candidate",
+  "description": "法条适用分析：事实裁剪→程序前置→定性→检索→涵摄→冲突裁决→抗辩→量化→兜底，产出带核验声明的结构化报告。",
+  "triggers": [
+    "用户提交事件经过或案件材料要做法律定性",
+    "用户问某事在法律上能否成立、构成什么",
+    "用户要算赔偿数额或量刑区间",
+    "用户要分析行政行为的合法性",
+    "用户要判断某条法条是否适用"
+  ],
+  "inputs": [
+    "事件描述或案件材料",
+    "用户想达到的目的（维权/应诉/评估风险）",
+    "地域信息（涉及地方性规定与赔偿标准时必须）"
+  ],
+  "outputs": [
+    "结构化法律分析报告（Markdown，14 节骨架）",
+    "规范检索台账（法条四要素 + 效力状态 + 来源）",
+    "案例检索台账（案号 + 层级 + 相似度）",
+    "证据清单（要件→材料→渠道→证明力）",
+    "后果量化区间（含数据来源与假设）"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "条号纪律零违规：全文每个条文号都能在规范检索表中找到来源行，未核实的一律写 第〔待校验〕条",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "程序性前置已作答：管辖、时效/期间、前置程序三项均有明确结论",
+      "check": "assert"
+    },
+    {
+      "id": "a3",
+      "criterion": "检索层级已声明：第 0 节写明 L1/L2/L3 与未核实条目统计",
+      "check": "assert"
+    },
+    {
+      "id": "a4",
+      "criterion": "要件三格归位：每个要件只落在满足/不满足/存疑，无模糊表述；三段论遮住结论仍可推出",
+      "check": "rubric"
+    },
+    {
+      "id": "a5",
+      "criterion": "法条四要素齐全（名称+条文号+版本+效力状态），案例均带案号",
+      "check": "assert"
+    },
+    {
+      "id": "a6",
+      "criterion": "量化给区间与数据来源，不给单一精确数；无法量化时列明缺失数据",
+      "check": "rubric"
+    },
+    {
+      "id": "a7",
+      "criterion": "置信度有依据，与 references/06 置信度表对应，不得凭空标高",
+      "check": "rubric"
+    },
+    {
+      "id": "a8",
+      "criterion": "抗辩三分法逐项覆盖（权利未发生/消灭/受阻抗辩），不只查时效",
+      "check": "assert"
+    },
+    {
+      "id": "a9",
+      "criterion": "三段论形式有效：遮住结论后大小前提仍能推出结论，无四类谬误",
+      "check": "rubric"
+    },
+    {
+      "id": "a10",
+      "criterion": "每个案例引用带案号+法院+来源，无案号一律视为未完成检索",
+      "check": "assert"
+    }
+  ],
+  "requires": [
+    "creat-skill"
+  ],
+  "handoff": [
+    "file:markdown",
+    "file:json"
+  ],
+  "verification": "unverified",
+  "source_level": "mixed",
+  "created_at": "2026-11-13",
+  "parent": null,
+  "legacy": false,
+  "source": {
+    "path": "用户提交的《法条适用与分析 Skill》prompt（2026-11-13）",
+    "note": "原始 prompt 为单文件方法论；本技能按 creat-skill 流程重构为骨架+references，并修正其内容缺陷（见 registry/failure-fixes.md）"
+  },
+  "not_doing": "不起草文书、不代理诉讼、不出具法律意见；不做商业决策",
+  "downstream": "文书起草技能（起诉状/合同/答辩状）；本技能交接结构化报告与检索台账"
+}

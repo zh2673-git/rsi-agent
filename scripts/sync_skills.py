@@ -34,6 +34,7 @@ from rsi_common import SKILLS_DIR, TOOL_ROOT, emit  # noqa: E402
 # 源仓库在兄弟目录；键=技能名，值=源仓库内的技能根（相对 TOOL_ROOT）
 SOURCE_MAP = {
     "deepseek-paper": "deepseek-paper",
+    "law-application": "law-application",
 }
 
 # 源仓库独有、不进部署副本的条目（相对源仓库根的路径前缀）。
