@@ -244,7 +244,16 @@ one day's digest (open this when asked \"what did we do last week\"); `.rsi/prof
 the durable conclusions. The timeline above is already loaded; use \
 `python scripts/memory_consolidate.py recall --days N` to re-window it, and read the L2 file \
 for the day you actually need. Do not write into `.rsi/memory/` — it is a derived view, rebuilt \
-by `build` (hand edits are overwritten).\n",
+by `build` (hand edits are overwritten).\n\
+         \n\
+         ### Content search (`scripts/index.py`)\n\
+         The timeline above answers what happened on a given day. When the question is where we decided\n\
+         something (content, not date), do not grep the whole tree — it misses Chinese wording and\n\
+         returns too many hits. Use the FTS5 index instead:\n\
+         `python scripts/index.py search <question> --k 5` -> path:line + snippet, ranked by bm25.\n\
+         A fresh clone needs `python scripts/index.py build` once (incremental afterwards;\n\
+         `.rsi/index/fts.db` is a derived view, safe to delete). Prefer this over grep for prose;\n\
+         keep grep/symbols_search for exact identifiers and code.\n",
     )
 }
 

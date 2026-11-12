@@ -1,0 +1,8 @@
+{
+  "id": "E11-MEMORY-HINT-INDEX",
+  "description": "memory_ctx.rs：记忆提示段扩一句「按内容找用 index.py search」——既有段落的扩展，不是新通道",
+  "file": "runtime/crates/agent-loop/src/memory_ctx.rs",
+  "anchor": "for the day you actually need. Do not write into `.rsi/memory/` — it is a derived view, rebuilt \\\nby `build` (hand edits are overwritten).\\n\",\n    )\n}\n",
+  "patch": "for the day you actually need. Do not write into `.rsi/memory/` — it is a derived view, rebuilt \\\nby `build` (hand edits are overwritten).\\n\\\n         \\n\\\n         ### Content search (`scripts/index.py`)\\n\\\n         The timeline above answers what happened on a given day. When the question is where we decided\\n\\\n         something (content, not date), do not grep the whole tree — it misses Chinese wording and\\n\\\n         returns too many hits. Use the FTS5 index instead:\\n\\\n         `python scripts/index.py search <question> --k 5` -> path:line + snippet, ranked by bm25.\\n\\\n         A fresh clone needs `python scripts/index.py build` once (incremental afterwards;\\n\\\n         `.rsi/index/fts.db` is a derived view, safe to delete). Prefer this over grep for prose;\\n\\\n         keep grep/symbols_search for exact identifiers and code.\\n\",\n    )\n}\n",
+  "applied_marker": "Content search (`scripts/index.py`)"
+}
