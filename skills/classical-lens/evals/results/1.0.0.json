@@ -1,0 +1,124 @@
+{
+  "ok": true,
+  "skill": "classical-lens",
+  "version": "1.0.0",
+  "suite": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\skills\\classical-lens\\evals\\cases.jsonl",
+  "evaluated_at": "2026-11-13T10:13:53+08:00",
+  "summary": {
+    "total": 10,
+    "decided": 8,
+    "pending": 2,
+    "invalid": 0,
+    "pass_rate": 1.0
+  },
+  "cases": [
+    {
+      "id": "c1",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c2",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c3",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c4",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c5",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c6",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c7",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c8",
+      "signal": "assert",
+      "weight": 1.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "c9",
+      "signal": "judge",
+      "weight": 1.0,
+      "status": "pending",
+      "score": null,
+      "pass": null,
+      "reason": "未提供 --judge-cmd（pending）"
+    },
+    {
+      "id": "c10",
+      "signal": "judge",
+      "weight": 1.0,
+      "status": "pending",
+      "score": null,
+      "pass": null,
+      "reason": "未提供 --judge-cmd（pending）"
+    }
+  ],
+  "llm": {
+    "provider": "",
+    "models": [],
+    "drift": false,
+    "recorded": false
+  },
+  "baseline": {
+    "path": "D:\\ZH\\vibe code\\skills\\tool\\rsi-agent\\ledger\\baseline.json",
+    "version": "1.0.0",
+    "pass_rate": 1.0
+  },
+  "regressions": [],
+  "degraded": false,
+  "promotion": {
+    "eligible": true,
+    "reasons": [],
+    "note": "仍需至少一条 E1/E2/E3 外部信号（见 skill_state.py promote）"
+  }
+}

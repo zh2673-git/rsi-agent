@@ -35,6 +35,7 @@ from rsi_common import SKILLS_DIR, TOOL_ROOT, emit  # noqa: E402
 SOURCE_MAP = {
     "deepseek-paper": "deepseek-paper",
     "law-application": "law-application",
+    "classical-lens": "classical-lens-repo",
 }
 
 # 源仓库独有、不进部署副本的条目（相对源仓库根的路径前缀）。
