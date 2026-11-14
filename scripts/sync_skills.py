@@ -36,6 +36,11 @@ SOURCE_MAP = {
     "deepseek-paper": "deepseek-paper",
     "law-application": "law-application",
     "classical-lens": "classical-lens-repo",
+    # 一个源仓库装三门协作技能（编排层 + 逆向阅读 + 验证执行器）：
+    # project-dev-skill/skills/{project-dev,repo-explorer,tdd}
+    "project-dev": "project-dev-skill/skills/project-dev",
+    "repo-explorer": "project-dev-skill/skills/repo-explorer",
+    "tdd": "project-dev-skill/skills/tdd",
 }
 
 # 源仓库独有、不进部署副本的条目（相对源仓库根的路径前缀）。

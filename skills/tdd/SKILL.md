@@ -7,8 +7,8 @@ origin: preset
 
 # TDD（改完必须验证）
 
-本技能把「改完必须跑测试」固化为配套工具 `run_tests`：固定探测 cargo test / pytest / npm test，
-不接受任意命令。装载后（skill_install + 设置面板启用）即可在会话内调用。
+本技能把「改完必须跑测试」固化为配套工具 `run_tests`：固定探测 cargo test / python -m pytest /
+python -m unittest / npm test，不接受任意命令。装载后（skill_install + 设置面板启用）即可在会话内调用。
 定位：方法论 **P/Q/I 验证环的执行器**（project-dev 验证阶段路由到这里）。
 
 ## 1. P/Q/I 视角（保留 / 回退判定）
@@ -29,10 +29,12 @@ origin: preset
 
 ## 3. 工具约束
 
-- `run_tests` 只运行固定探测到的测试命令（`profile` 可指定 cargo/pytest/npm，`extra` 只能附加
+- `run_tests` 只运行固定探测到的测试命令（`profile` 可指定 cargo/pytest/unittest/npm，`extra` 只能附加
   测试框架参数），**不能执行任意命令**——需要编译检查、单文件脚本等场景用 `bash` 工具。
-- 长测试套件超时上限 900s（工具声明 timeout_secs）；输出只回尾部，超长输出自行用 `grep`
-  在日志文件里定位。
+- 探测顺序 cargo > pytest > unittest > npm，理由写进返回值的 `profile_reason`（可审计）；
+  有 `tests/test_*.py` 但无 pytest 清单时按 unittest discover 跑，避免 pytest 跨目录收集同名文件造成假红。
+- 时长有上界：`timeout_secs`（默认/上限 900）到点杀**整个进程树**并如实回 `timeout=true`，
+  不留后台孤儿进程；输出只回尾部，超长输出自行用 `grep` 在日志文件里定位。
 
 ## 4. 汇报约定
 
