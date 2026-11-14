@@ -34,6 +34,30 @@ export const MOTION_WHITELIST = [
 export const ACCENT_PRIMITIVES = ['MV.slam', 'MV.punch', 'MV.whip'];
 /** 往里推的运镜词（V-MOT-014 不连三镜往里推） */
 export const PUSH_CAMERAS = ['push-in', 'punch-in'];
+/**
+ * MV.camera 的 move 词表 —— 必须与 templates/motion/motion-lib.js 的 if 分支一致。
+ * 拼错或漏实现会走 else 分支「静默 set scale」，画面看起来正常但根本没运镜。
+ * V-SCENE-006 用本表把关（v1.1.1 案例 s09 写 move:'push' 踩过）。
+ */
+export const CAMERA_MOVES = [
+    'push-in',
+    'pull-out',
+    'pan',
+    'pan-left',
+    'tilt-up',
+    'tilt-down',
+    // 2026-11-13 增补：全片只有 push/pull/drift/tilt 四类时，16 镜必然成对重复，
+    // 观感是「同一种缓慢放大」。补三种带纵深/升降的机位，给运镜留出可区分的词。
+    'dolly-in',
+    'dolly-out',
+    'crane-up',
+    'crane-down',
+    'punch-in',
+    'whip-pan',
+    'drift',
+    'static',
+    'none',
+];
 /** 3D 痕迹：透视/三轴旋转/景深原语任一出现即视为用了立体素材 */
 const HAS_3D = /perspective\s*:|preserve-3d|rotate3d\(|rotate[XY]\(|translateZ\(|rotation[XY]\s*:|transformPerspective|MV\.(depth|tilt3d|orbit|card3d|spin3d)/i;
 export function uses3d(html) {
@@ -66,6 +90,17 @@ export function validateSceneFile(html, opts) {
     for (const call of calls) {
         if (!whitelist.includes(call)) {
             issues.push(err('V-SCENE-003', `场景引用非白名单原语 ${call}`));
+        }
+    }
+    // V-SCENE-006 运镜词拼写：MV.camera 的 move 只认词表里的值，
+    // 拼错（如 move:'push'）在 motion-lib 里走 else 分支 → 静默失效，
+    // 结果是「声明了运镜、画面其实没动」，V-RHY-004 到 compose 期才炸。
+    // 实测来历：v1.1.1 案例 s09 写 move:'push'，整镜无相机腿，重音载体只剩 1 路。
+    for (const m of html.matchAll(/MV\.camera\s*\(\s*[^,]+,\s*\{([^}]*)\}/g)) {
+        const moveMatch = /move\s*:\s*['"]([^'"]+)['"]/.exec(m[1] ?? '');
+        const move = moveMatch?.[1];
+        if (move && !CAMERA_MOVES.includes(move)) {
+            issues.push(err('V-SCENE-006', `MV.camera 的 move「${move}」不在词表（${CAMERA_MOVES.join('/')}）——运行时走 else 分支静默失效，等于没运镜`));
         }
     }
     // V-MOT-021 每镜必须有母题循环（error）：画面里一直有事发生。

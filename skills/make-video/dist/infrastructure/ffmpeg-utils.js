@@ -147,3 +147,39 @@ export async function runFfmpeg(args) {
         throw mvError(ERR.PROBE, `ffmpeg 执行失败: ${e.message}`);
     }
 }
+/**
+ * 镜内空窗探针（V-RHY-012，T1a 精修闭环）：
+ * ffmpeg silencedetect 扫音频文件，返回 ≥ minMs 的静音段（毫秒，相对文件开头）。
+ * cue 时间轴是字符比例铺满的，看不出真停顿——空窗必须基于实测音频。
+ */
+export async function detectSilences(file, minMs) {
+    if (!exists(file))
+        throw mvError(ERR.PROBE, `音频不存在: ${file}`);
+    // silencedetect 把结果写在 stderr，且 ffmpeg 对 `-f null` 常给非 0 退出码——
+    // 所以不能用 promisify 的抛错路径拿输出，直接走底层 execFile 手动接。
+    // 「没扫到静音」是合法结果（旁白连续），不是失败：以 stderr 里有没有
+    // 'Input #0'（文件真的被读了）判定成败，不以有没有 silence_ 行判定。
+    const { execFile } = await import('node:child_process');
+    const out = await new Promise((resolve, reject) => {
+        execFile('ffmpeg', ['-hide_banner', '-i', file, '-af', `silencedetect=noise=-30dB:d=${(minMs / 1000).toFixed(2)}`, '-f', 'null', '-'], { maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, _stdout, stderr) => {
+            const text = String(stderr ?? '');
+            if (text.includes('Input #0'))
+                resolve(text);
+            else
+                reject(err ?? new Error(`silencedetect 无法读取音频: ${file}`));
+        });
+    });
+    const gaps = [];
+    let start = null;
+    for (const line of out.split(/\r?\n/)) {
+        const s = line.match(/silence_start:\s*([\d.]+)/);
+        if (s)
+            start = Math.round(Number(s[1]) * 1000);
+        const e = line.match(/silence_end:\s*([\d.]+)/);
+        if (e && start !== null) {
+            gaps.push({ startMs: start, endMs: Math.round(Number(e[1]) * 1000) });
+            start = null;
+        }
+    }
+    return gaps;
+}

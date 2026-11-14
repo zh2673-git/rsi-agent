@@ -16,6 +16,21 @@ const ZOOM_AMP = {
     CU: 0.060,
     ECU: 0.072,
 };
+/**
+ * 恒定过扫（no-zoom 模式）。
+ *
+ * 2026-11-15 用户裁决：「放大缩小的运镜能否取消掉，感觉在各个视频里这种效果都不好看」，
+ * 并要求改用「移动视角的运镜」。这不是调参数能解决的——**只要 scale 随时间变化，观众
+ * 读到的就是变焦**，无论幅度多小、缓动多柔。故引入一条硬规则：
+ *
+ *   机位轨的 scale 全片恒定 = SCALE_HOLD，运动只由 xPercent / yPercent 承担。
+ *
+ * 为什么不是恒为 1：平移需要画面比窗口大，否则边缘露出空白。SCALE_HOLD=1.06 给出
+ * 3% 的单侧余量，2.2 的 DRIFT 行程（pan）刚好落在余量内，不会露边。
+ * 同理，coverage 的 scale 也一律折成 1（见 accumulate）——「换机位」靠位移与旋转表达，
+ * 不靠放大。
+ */
+export const SCALE_HOLD = 1.06;
 /** 从 shot.visual.params 读显式运镜参数（cameraAmp / cameraPunchOut / cameraDir） */
 export function parseCameraOptions(params) {
     const p = params ?? {};
@@ -107,9 +122,17 @@ export function deriveCoverage(shot, emphasis, durationMs, auto = false) {
     }
     return cuts.sort((a, b) => a.atMs - b.atMs);
 }
-/** 覆盖偏移：scale 连乘、位移/旋转累加，都有上限，避免叠加成"越切越糊的近景" */
+/**
+ * 覆盖偏移：位移/旋转累加，各有上限，避免叠加成"构图飘走"。
+ *
+ * 历史（2026-11-13）这里曾按 scale 连乘并夹到 1.28，导致 16 镜全被推到 1.2-1.28
+ * 满幅放大，成片读起来就是「每镜都在刻意放大 + 段间硬阶跃」。2026-11-15 用户进一步
+ * 裁决「放大缩小的动效不要，改用移动视角」——于是 scale 彻底退出机位轨：
+ * coverage 只剩位移（±6）与旋转（±1.5）两种构图手段，不再产生任何缩放。
+ *
+ * 保留函数签名与 clamp 边界：位移/旋转是构图选择，不是放大，自由度照留。
+ */
 function accumulate(cuts, tS, inclusive) {
-    let scale = 1;
     let x = 0;
     let y = 0;
     let rotation = 0;
@@ -117,14 +140,15 @@ function accumulate(cuts, tS, inclusive) {
         const at = c.atMs / 1000;
         if (inclusive ? at > tS + 1e-6 : at >= tS - 1e-6)
             break;
-        scale *= c.scale;
         x += c.xPercent;
         y += c.yPercent;
         rotation += c.rotation;
     }
     return {
         atS: tS,
-        scale: clamp(scale, 1, 1.28),
+        // no-zoom：coverage 的 scale 恒为 1（全片不允许「换机位 = 放大」）。
+        // 位移与旋转仍是构图手段，保留 —— 用户要的是「移动视角」，不是「画面不动」。
+        scale: 1,
         xPercent: clamp(x, -6, 6),
         yPercent: clamp(y, -6, 6),
         rotation: clamp(rotation, -1.5, 1.5),
@@ -148,86 +172,130 @@ function sample(waypoints, t) {
     }
     return { ...waypoints.at(-1), t };
 }
+/** 平移行程基准（%画幅）：配 SCALE_HOLD=1.06 的余量，>2.4 会露边 */
 const DRIFT = 2.2;
-// 标点运镜的行程（V-MOT-013 全片预算）：花叔实测 快推 18-32% / 甩镜视线突变
-const PUNCH_AMP = 0.26;
+/**
+ * 机位轨迹。**no-zoom 模式（2026-11-15 起）**：所有 scale 恒为 SCALE_HOLD，
+ * 运动只由 x/y 位移承担。用户原话「放大缩小的运镜能否取消掉，感觉在各个视频里
+ * 这种效果都不好看」——只要 scale 随时间变，读者就读成变焦，柔化幅度只是让它
+ * 变得更难察觉，不是消除。故这里的 scale 字面量一律 SCALE_HOLD，改这一个常量
+ * 就调整全片过扫量。
+ *
+ * 词表语义随之重新定义（保留词位，语义改为方位）：
+ *   push-in / dolly-in / punch-in / drift  → 向主体方向**平移**
+ *   pull-out / dolly-out                   → 背离主体方向**平移**
+ *   pan / pan-left / tilt-up / tilt-down   → 原有横/纵摇，本来就无缩放
+ */
 function waypointsFor(move, amp, durS, enterS, midS, sign) {
+    const S = SCALE_HOLD; // 恒定过扫：单镜内不放大也不缩小
+    const travel = DRIFT * (0.6 + amp * 6); // 位移幅度：景别越近，视野越窄，同样位移占比越大
     switch (move) {
+        // 向主体「推」= 画面沿主体方向平移，主体由远及近地滑向中心（视觉上仍是靠近，
+        // 但读作机位横移而非变焦）
         case 'push-in':
             return [
-                { t: 0, scale: 1 + amp * 0.12, x: -sign * 0.9, y: 0 },
-                { t: enterS, scale: 1 + amp * 0.28, x: 0, y: 0 },
-                { t: midS, scale: 1 + amp * 0.92, x: sign * 0.5, y: 0 },
-                { t: durS, scale: 1 + amp * 1.16, x: sign * 0.7, y: 0 },
+                { t: 0, scale: S, x: -sign * travel * 0.9, y: 0 },
+                { t: enterS, scale: S, x: -sign * travel * 0.62, y: 0 },
+                { t: midS, scale: S, x: sign * travel * 0.22, y: 0 },
+                { t: durS, scale: S, x: sign * travel * 0.5, y: 0 },
             ];
-        // 快推标点：0.25-0.35s 推到位**然后停住**（不是慢推到底）。
-        // 它是文章里的加粗，不是每段都换行——推完就安静，把注意力留在画面上。
+        // 标点：短促冲到位的平移（0.25-0.35s），冲完停住，是加粗不是换行
         case 'punch-in': {
             const hit = Math.min(durS * 0.42, 0.32);
             return [
-                { t: 0, scale: 1, x: 0, y: 0 },
-                { t: hit, scale: 1 + PUNCH_AMP * amp * 4.2, x: sign * 0.4, y: 0 },
-                { t: durS, scale: 1 + PUNCH_AMP * amp * 4.4, x: sign * 0.5, y: 0 },
+                { t: 0, scale: S, x: 0, y: 0 },
+                { t: hit, scale: S, x: sign * travel * 1.1, y: 0 },
+                { t: durS, scale: S, x: sign * travel * 1.2, y: 0 },
             ];
         }
         // 甩镜：视线突然转移。前段冲出去、后段落定，中段是运动模糊的主体。
         case 'whip-pan': {
             const hit = Math.min(durS * 0.3, 0.28);
             return [
-                { t: 0, scale: 1 + amp * 0.6, x: -sign * DRIFT * 1.6, y: 0 },
-                { t: hit, scale: 1 + amp * 0.62, x: sign * DRIFT * 1.5, y: 0 },
-                { t: durS, scale: 1 + amp * 0.58, x: sign * DRIFT * 1.1, y: 0 },
+                { t: 0, scale: S, x: -sign * DRIFT * 1.6, y: 0 },
+                { t: hit, scale: S, x: sign * DRIFT * 1.5, y: 0 },
+                { t: durS, scale: S, x: sign * DRIFT * 1.1, y: 0 },
             ];
         }
-        // 慢漂：整镜 1-4%/s 匀速——只给氛围镜/艺术风格镜（花叔：解说片每镜慢推 = PPT）
+        // 慢漂：整镜匀速横移（原来靠缩放表现，现改为纯位移）
         case 'drift':
             return [
-                { t: 0, scale: 1, x: 0, y: 0 },
-                { t: enterS, scale: 1 + amp * 0.1, x: -sign * 0.2, y: 0 },
-                { t: midS, scale: 1 + amp * 0.36, x: sign * 0.2, y: 0 },
-                { t: durS, scale: 1 + amp * 0.54, x: sign * 0.35, y: 0 },
+                { t: 0, scale: S, x: -sign * travel * 0.5, y: 0 },
+                { t: enterS, scale: S, x: -sign * travel * 0.34, y: 0 },
+                { t: midS, scale: S, x: sign * travel * 0.1, y: 0 },
+                { t: durS, scale: S, x: sign * travel * 0.3, y: 0 },
             ];
+        // 拉远 = 背离主体平移（原为缩小）
         case 'pull-out':
             return [
-                { t: 0, scale: 1 + amp * 1.12, x: sign * 0.8, y: 0 },
-                { t: enterS, scale: 1 + amp * 0.96, x: 0, y: 0 },
-                { t: midS, scale: 1 + amp * 0.30, x: -sign * 0.4, y: 0 },
-                { t: durS, scale: 1 + amp * 0.16, x: -sign * 0.5, y: 0 },
+                { t: 0, scale: S, x: sign * travel * 0.6, y: 0 },
+                { t: enterS, scale: S, x: sign * travel * 0.4, y: 0 },
+                { t: midS, scale: S, x: -sign * travel * 0.2, y: 0 },
+                { t: durS, scale: S, x: -sign * travel * 0.45, y: 0 },
             ];
         case 'pan':
             return [
-                { t: 0, scale: 1 + amp * 0.6, x: -DRIFT * 0.82, y: 0 },
-                { t: enterS, scale: 1 + amp * 0.58, x: -DRIFT, y: 0 },
-                { t: midS, scale: 1 + amp * 0.56, x: DRIFT, y: 0 },
-                { t: durS, scale: 1 + amp * 0.58, x: DRIFT * 1.1, y: 0 },
+                { t: 0, scale: S, x: -DRIFT * 0.82, y: 0 },
+                { t: enterS, scale: S, x: -DRIFT, y: 0 },
+                { t: midS, scale: S, x: DRIFT, y: 0 },
+                { t: durS, scale: S, x: DRIFT * 1.1, y: 0 },
             ];
         case 'pan-left':
             return [
-                { t: 0, scale: 1 + amp * 0.6, x: DRIFT * 0.82, y: 0 },
-                { t: enterS, scale: 1 + amp * 0.58, x: DRIFT, y: 0 },
-                { t: midS, scale: 1 + amp * 0.56, x: -DRIFT, y: 0 },
-                { t: durS, scale: 1 + amp * 0.58, x: -DRIFT * 1.1, y: 0 },
+                { t: 0, scale: S, x: DRIFT * 0.82, y: 0 },
+                { t: enterS, scale: S, x: DRIFT, y: 0 },
+                { t: midS, scale: S, x: -DRIFT, y: 0 },
+                { t: durS, scale: S, x: -DRIFT * 1.1, y: 0 },
             ];
         case 'tilt-up':
             return [
-                { t: 0, scale: 1 + amp * 0.6, x: 0, y: DRIFT * 0.7 },
-                { t: enterS, scale: 1 + amp * 0.58, x: 0, y: DRIFT * 0.9 },
-                { t: midS, scale: 1 + amp * 0.56, x: 0, y: -DRIFT * 0.9 },
-                { t: durS, scale: 1 + amp * 0.58, x: 0, y: -DRIFT },
+                { t: 0, scale: S, x: 0, y: DRIFT * 0.7 },
+                { t: enterS, scale: S, x: 0, y: DRIFT * 0.9 },
+                { t: midS, scale: S, x: 0, y: -DRIFT * 0.9 },
+                { t: durS, scale: S, x: 0, y: -DRIFT },
             ];
         case 'tilt-down':
             return [
-                { t: 0, scale: 1 + amp * 0.6, x: 0, y: -DRIFT * 0.7 },
-                { t: enterS, scale: 1 + amp * 0.58, x: 0, y: -DRIFT * 0.9 },
-                { t: midS, scale: 1 + amp * 0.56, x: 0, y: DRIFT * 0.9 },
-                { t: durS, scale: 1 + amp * 0.58, x: 0, y: DRIFT },
+                { t: 0, scale: S, x: 0, y: -DRIFT * 0.7 },
+                { t: enterS, scale: S, x: 0, y: -DRIFT * 0.9 },
+                { t: midS, scale: S, x: 0, y: DRIFT * 0.9 },
+                { t: durS, scale: S, x: 0, y: DRIFT },
+            ];
+        // dolly / crane 原本靠缩放表达纵深与升降，现一律平移（带一点纵向分量区分）
+        case 'dolly-in':
+            return [
+                { t: 0, scale: S, x: -sign * travel * 0.8, y: DRIFT * 0.2 },
+                { t: enterS, scale: S, x: -sign * travel * 0.5, y: DRIFT * 0.15 },
+                { t: midS, scale: S, x: sign * travel * 0.2, y: -DRIFT * 0.15 },
+                { t: durS, scale: S, x: sign * travel * 0.45, y: -DRIFT * 0.2 },
+            ];
+        case 'dolly-out':
+            return [
+                { t: 0, scale: S, x: sign * travel * 0.5, y: -DRIFT * 0.2 },
+                { t: enterS, scale: S, x: sign * travel * 0.32, y: -DRIFT * 0.15 },
+                { t: midS, scale: S, x: -sign * travel * 0.15, y: DRIFT * 0.15 },
+                { t: durS, scale: S, x: -sign * travel * 0.35, y: DRIFT * 0.2 },
+            ];
+        case 'crane-up':
+            return [
+                { t: 0, scale: S, x: -sign * travel * 0.25, y: DRIFT * 0.9 },
+                { t: enterS, scale: S, x: -sign * travel * 0.15, y: DRIFT * 0.7 },
+                { t: midS, scale: S, x: sign * travel * 0.15, y: -DRIFT * 0.7 },
+                { t: durS, scale: S, x: sign * travel * 0.25, y: -DRIFT * 0.9 },
+            ];
+        case 'crane-down':
+            return [
+                { t: 0, scale: S, x: -sign * travel * 0.25, y: -DRIFT * 0.9 },
+                { t: enterS, scale: S, x: -sign * travel * 0.15, y: -DRIFT * 0.7 },
+                { t: midS, scale: S, x: sign * travel * 0.15, y: DRIFT * 0.7 },
+                { t: durS, scale: S, x: sign * travel * 0.25, y: DRIFT * 0.9 },
             ];
         default:
             return [
-                { t: 0, scale: 1 + amp * 0.10, x: 0, y: 0 },
-                { t: enterS, scale: 1 + amp * 0.14, x: 0, y: 0 },
-                { t: midS, scale: 1 + amp * 0.40, x: sign * 0.4, y: 0 },
-                { t: durS, scale: 1 + amp * 0.54, x: sign * 0.5, y: 0 },
+                { t: 0, scale: S, x: -sign * travel * 0.5, y: 0 },
+                { t: enterS, scale: S, x: -sign * travel * 0.34, y: 0 },
+                { t: midS, scale: S, x: sign * travel * 0.12, y: 0 },
+                { t: durS, scale: S, x: sign * travel * 0.32, y: 0 },
             ];
     }
 }
@@ -267,8 +335,8 @@ export function planCameraRig(args) {
     }
     const waypoints = move === 'static'
         ? [
-            { t: 0, scale: 1, x: 0, y: 0 },
-            { t: durationS, scale: 1, x: 0, y: 0 },
+            { t: 0, scale: SCALE_HOLD, x: 0, y: 0 },
+            { t: durationS, scale: SCALE_HOLD, x: 0, y: 0 },
         ]
         : waypointsFor(move, amp, durationS, enterS, midS, sign);
     // 标点运镜（punch-in / whip-pan）的「打中点」必须成为分段边界，
@@ -338,7 +406,8 @@ function stateAt(waypoints, cuts, tS, inclusive) {
     const off = accumulate(cuts, tS, inclusive);
     return {
         atS: +tS.toFixed(3),
-        scale: +(base.scale * off.scale).toFixed(4),
+        // no-zoom：整条机位轨的 scale 恒定（base 已是 SCALE_HOLD，off 恒为 1）
+        scale: SCALE_HOLD,
         xPercent: +(base.x + off.xPercent).toFixed(3),
         yPercent: +(base.y + off.yPercent).toFixed(3),
         rotation: +off.rotation.toFixed(3),
@@ -348,8 +417,8 @@ function stateAt(waypoints, cuts, tS, inclusive) {
 export function rigStateAt(plan, tS, inclusive = false) {
     const waypoints = plan.move === 'static'
         ? [
-            { t: 0, scale: 1, x: 0, y: 0 },
-            { t: plan.durationS, scale: 1, x: 0, y: 0 },
+            { t: 0, scale: SCALE_HOLD, x: 0, y: 0 },
+            { t: plan.durationS, scale: SCALE_HOLD, x: 0, y: 0 },
         ]
         : waypointsFor(plan.move, plan.amp, plan.durationS, plan.enterS, plan.midS, plan.sign);
     return stateAt(waypoints, plan.coverage, tS, inclusive);

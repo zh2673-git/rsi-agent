@@ -517,3 +517,350 @@
 **验证**：`npx tsc --noEmit` 干净；`vitest run` 全量 14 文件 / 165 条全绿（基线 13 文件 / 151 条，
 新增 14 条），端到端 pipeline 3 条不回归。
 
+---
+
+# P9：解析式编舞层（复刻 adu-motion-video 的动效模型）
+
+## 9.0 起点：用户判据「跟稍微高级一点的 PPT 一样」
+
+不是参数没调好，是**驱动模型不同**。取证对象 `github.com/adunext/adu-motion-video`
+（836★ / MIT / v3.14.1-rc.1，同栈 HTML+GSAP+逐帧 seek）。
+
+读了 `packs/classic-performance/1.0.0/` 的 `lib.js` 与三个 unit 源码，差异有四条：
+
+| # | 阿杜的做法 | 本项目的现状 | 后果 |
+|---|---|---|---|
+| ① | `sc.update = t => {…}`：**每帧位姿由解析式算出** | `MV.enter/slam/…` 一条条 tween 排队 | 入场演完就静止 |
+| ② | `sc.cam = t => ({x,y,z,sx,sy})`：相机是**场景级函数**，抖动绑重音 | `MV.camera(move:'crane-up')` 选词 + 整屏 tween | 「刻意同质化放大」 |
+| ③ | `cues([[84.3,'whoosh'],…])`：画面/相机/音效**同一份表** | 三处各自硬编码 | 卡点靠人肉对齐 |
+| ④ | 一镜内 4 层不同周期并行（抛物线聚合/错拍/扫光/推轨） | 入场层 + 单层 motif | **PPT 的定义就是「就位后不再变」** |
+
+## 9.1 关键约束：不改底层
+
+用户要求「底层逻辑不改，先尽量复刻」。因此**不新增原语、不改 `src/`、
+不动白名单、不动 `MO` 常量表**。改用既有逃生口：
+
+- `MV.timeline()` 直接返回注册时间线（`motion-lib.js`），GSAP 本体可拿。
+- `wrapComposition` 保留场景自带 `<script>`，只**追加**注入（rig/cue/presenter）。
+- `copyDir(templates/motion → remotion/motion)` 整目录复制 → **新库文件自动随行**。
+- `camera:'static'` 且无 coverage 切点时 `buildRigScript` 返回 `''` → **外层机位可关**，
+  不与自写相机叠加。
+
+**决定性实验（已跑，`node .scratch/probe-choreo2.mjs`）**：`tl.seek(t, suppressEvents=true)`
+下，plain-object 的属性 setter **正向 9/9、反向 9/9 精确命中**（误差 <1e-6）。
+即「分析式逐帧位姿」是时间的纯函数，可被渲染器任意寻址——这是整层成立的前提。
+
+## 9.2 方案：新增 `templates/motion/choreo-lib.js`（独立文件，不碰 motion-lib.js）
+
+为什么不塞进 motion-lib.js：`tests/catalog.test.ts` 有「motion-lib 实现的每个 `MV.x` 必须在
+白名单里」的反向断言。往那里加 `MV.choreo` 会立刻红，而扩白名单属于 L1 改动（收益最低、
+且 P-agent 路径本就不受白名单约束）。独立文件 + `CH.*` 命名空间 = 零校验冲突。
+
+库提供（全部纯函数，无 rAF、无 `repeat:-1`）：
+
+| 件 | 作用 |
+|---|---|
+| `CH.pr/lerp/clamp/noise` | 同 `lib.js` 的区间映射与噪声 |
+| `CH.EZ` | `out/out5/expo/inout/in/back/spring`（含临界阻尼 spring） |
+| `CH.pose(el,{a,b,c…})` | 统一位姿写入（transform/opacity/filter 一次算齐） |
+| `CH.shake(t,at,dur,amp)` | 重音抖动：**只在重音帧出现、随时间衰减** |
+| `CH.run(fn)` | 把 `fn(t秒)` 注册成 `tl.fromTo(proxy,{t:0},{t:DUR,duration:DUR,ease:'none'})` 的逐帧回调 |
+| `CH.bake(sel)` | 按选择器收集元素并**记录基准位姿**，供 pose 相对定位 |
+
+`CH.run` 的时长取 `window.__shotDurationS`（`wrapComposition` 已注入），缺省回退 12s。
+
+## 9.3 校验口径的正面适配（不是绕过，是把判据喂对）
+
+解析式编排没有可数的 `MV.*` 调用，直接写会撞三条闸。处理方式是**声明真实事实**，不是关闸：
+
+- `V-MOT-021`（必须有母题循环）→ 真写 `MV.motifLoop`（本镜确有环境层循环）。
+- `V-RHY-004`（重音 ≥2 路）→ 字幕高亮 + `MV.emphasis`（后者同时关掉 compose 期的
+  自动 pulse 注入：`composer.ts` 见到 `MV.emphasis` 就置 `stressPoints=[]`，
+  避免外部 scale 覆盖 pose 写的 transform）。
+- `V-RHY-006`（每 2-3s 一次变化）→ 编排里有明确分段，显式写 `data-beats`。
+- `V-MOT-008`（duration 区间）→ 编排用秒（小数），不落 `duration:\d{3,}` 的毫秒形态。
+- `V-MOT-010/011`（同屏运动主体≤4 / 方向≤2）→ JS 里变量命名避开 `x:` / `y:` 字面量
+  形态（改用位姿数组），否则源码里的坐标会被当成「运动方向」计数。
+- `V-SCENE-003`（原语白名单）→ `CH.*` 不是 `MV.*`，不触发该正则；这是命名选择的用意。
+
+## 9.4 落地顺序
+
+1. `templates/motion/choreo-lib.js` —— 库本体（新增文件）。
+2. `scenes/shared/s02b.html` —— 单镜原型改写（build/breathe/resolve 三段 + 4 层并行）。
+3. `scene --from` → `compose` → 单镜渲染，与现有 v5 同口径对比。
+4. 达标才推其余镜；不达标记入本节的「已评估不做」。
+
+## 9.5 验收（P/Q/I）
+
+- **P**：`make-video doctor` 全绿；`npx tsc --noEmit` 干净；`vitest run` 现有 165 条不回归。
+- **Q**：s02b 单镜渲出后，抽帧对比 v5——判据是「同一镜内是否存在 ≥3 个不同周期的
+  并行运动」与「重音帧附近是否有一次幅度衰减的相机扰动」。
+- **I**：不新增原语、不改白名单、不改 `MO`；`catalog.test.ts` 双向断言保持绿。
+
+## 9.6 迭代记录
+
+### 迭代 1（2026-11-13）—— 库落地 + 单镜原型 + 实测修正两处致命缺陷
+
+**新增**（未改 `src/`、未改白名单、未改 `MO`、未加原语）：
+- `templates/motion/choreo-lib.js`（约 290 行，`CH.*` 命名空间）
+- s02b 场景改写为解析式编舞（6 层并行：相机 / 照片 / 卡片内元素 / 逐词 / 副文 / 镜头层）
+- `project.json` 中 s02b 的 `camera: drift → static`（关掉外层机位轨，避免与自写相机叠加；
+  实测 `camera-rig.json` 中 `segments: []`、产物 HTML 无 `data-mv-rig`）
+
+**实测抓出并修掉的两个致命缺陷**（都是「看起来对、渲出来冻住」）：
+
+1. **块注释里写 `packs/*/lib.js` → `*/` 提前闭合注释 → 整个库语法错误。**
+   `node -e "new Function(readFileSync(...))"` 当场报 `SyntaxError: Unexpected identifier 'units'`。
+   表现：库根本没加载，画面静止 7 秒（亮度恒 11.83），只有 compose 注入的 `MV.emphasis`
+   在第 6.1 秒生效——所以「看着有变化」极具欺骗性。
+   修法：注释改为不含 `*/` 的写法。
+
+2. **`onUpdate` 在连续 seek 时不保证触发。**
+   `.scratch/probe-drive.mjs` 实测：`seek 1` 触发 1 次，`seek 2 / 5 / 9 / 12.7` 各 **0 次**。
+   渲染器取帧就是反复 seek，所以 onUpdate 方案即使语法修好也只会渲出冻结帧。
+   改用 **属性 setter 驱动**：`fromTo(state, {t:0}, {t:dur})` + `Object.defineProperty` 的 setter。
+   实测（`probe-drive3.mjs`）11/11 精确命中，含逆序与乱序。
+
+**修复后实测**（`.scratch/verify.py` + `region.py`，solo 渲染目录 `.scratch/solo-s02b`）：
+- 407 帧，运动帧 382（**94.1%**），亮度 6.04 → 12.78（真实揭幕）
+- 分区主周期：照片区 **0.83s**、文字区 **1.20s** → 两区周期不同 = 并行多层运动成立
+
+**与 v5 同口径对比**（从 `final-v5.mp4` 切 s02b 同段 36.88–50.44s）：
+
+| 指标 | v5（旧） | P9（新） | 说明 |
+|---|---|---|---|
+| 照片区 diff_mean | 0.218 | **0.325** | 高 49% |
+| 照片区主周期 | 1.37s | **0.83s** | 更快一层 |
+| 文字区 diff_mean | 0.215 | 0.102 | **低**（旧版整块 `.subject` 一起动，量更大） |
+| 文字区运动帧 | 66.1% | **93.8%** | 但旧版有 1/3 时间是死的 |
+
+**结论（诚实）**：驱动模型换成了阿杜那一套（逐帧解析位姿 + 相机函数 + 重音绑帧），
+「同镜内多周期并行」和「全程不死」两条已可机检地成立。但**文字区的总运动量反而比旧版低**——
+旧版靠整块标题平移/缩放的粗动作堆出更大的像素差。像素差不是「像不像阿杜」的充分判据，
+不能拿它当完成证明。
+
+**遗留 / 未做**：
+- `tests/motion-grammar.test.ts` 有 1 条失败（`actionSheet` 期望含 `MV.highlight`）。
+  **与 P9 无关**：该失败来自本工作区**上一轮已存在**的未提交改动（`src/domain/motion-grammar.ts`
+  里 `y2_collage` / `y5_kinetic_type` 去掉了 `MV.highlight`），测试未同步。属真实遗留缺陷。
+- `tests/engineering.test.ts` 单独跑超 150s 超时，未取得结论（既有耗时问题）。
+- 其余 13 个测试文件 rc=0，`tsc --noEmit` 干净，`catalog.test.ts` 14/14（白名单双向断言未破）。
+- 仅 s02b 一镜验证；其余 15 镜未改，整片未重渲。
+
+---
+
+# P10：取消静默退化（转场裁决显式化 + auto 全映射）
+
+## 10.0 起点：用户判据
+
+> 「我是希望把什么退化这种机制能取消掉，做出的视频就是阿杜next这种动效镜头是刚需，不要回退。」
+
+前提约束不变：**底层框架不要变**。允许删「静默回退到默认值」，不允许改分层、改 `project.json`
+单一真源、换渲染后端、新增原语、动 `MV.*` 语义。
+
+## 10.1 取证：退化不是一个点，是三类混在一起
+
+| 类 | 位置 | 行为 | 处置 |
+|---|---|---|---|
+| **A 真退化** | `transitions.ts:65 planTransition` | 词不在风格包词表 → 静默回退 `allowed[0]`，只留 warning，**片子照出** | 本轮取消（改显式失败） |
+| **A 真退化** | `transitions.ts:137 motivationTransition` | auto 只三选一，`whip-pan/slide/wipe/fade-black` 机制上不可达 | 本轮补全映射 |
+| **A 真退化** | `composer.ts:280 cutMotivation` | 导演写英文动机词（`match-cut`）→ 中文正则全不匹配 → 判成无动机 | 本轮加别名直查 |
+| **A 真退化** | `scene-forge.ts:383` + `composer.ts:437` | 无预算镜的 `slam/punch/whip` 就地改写为 `enter`，且 **compose 期回写磁盘** | 本轮改为只留痕、不回写 |
+| **B 有闸门的兜底** | `scene-forge.ts:114` forge 兜底 | 已配 `V-SCENE-007`（>10% error）+ `logs/scene-origin.log` | **保留**（这是刹车，取消它=取消报警） |
+| **C 环境降级** | `audiomix.ts:123` 缺 python/numpy | 音质检查降 warn，不阻断出片 | **保留** |
+
+实测证据（本轮新取）：
+- `logs/validation.log` 曾有 **15 条** `[warn] TRANSITION: 转场「smash-cut」不在风格包词表 [dissolve, fade-black] → dissolve`
+  —— 导演要的冲击切全变 420ms 慢叠化，而 compose 返回成功。
+- `logs/cut-audit.json` 16 个切点里 **6 个 `motiveSource: none`**（`s01a→s01b`、`s02a→s02b`、
+  `s05a→s05b`、`s07a→s07b` 等），而 `project.json` 里这些镜的 `motivation` 明确写着 `match-cut`。
+- `s03b→s04a`、`s04a→s04b` 动机是 `zoom-jump`（景别跨两档），当前裁决给 `hard-cut`——
+  正是「镜头没有跟着甩过去」的结构原因。
+
+## 10.2 本质定义与时空契约
+
+- **本质**：转场裁决是「导演意图 → 可渲染方案」的**翻译器**。翻译器遇到翻不了的东西，
+  正确行为是**报错**，不是**换个词蒙过去**。静默回退把「翻译失败」伪装成「翻译成功」，
+  于是失败在 16 个切点里攒了 15 条、没人看见、片子照样出——这是本轮要消灭的东西。
+- **空间归属**：裁决表与时长表都在 `src/domain/transitions.ts`（纯函数，无状态），
+  不改 `project.json` 结构、不改 `remotion/` 合成模型。
+- **时间流形态**：仍是「compose 期一次裁决 → 注入 GSAP 脚本」的顺序管道，不引入新阶段。
+- **规则拦截**：`planTransition` 从「返回 fallback + warning」改为「词表外抛 `ERR_ILLEGAL_TRANSITION`」，
+  拦截点从「日志」前移到「compose 失败」——**这正是「取消退化」的定义**。
+
+## 10.3 方案（四块，按依赖顺序）
+
+### B1 · `transitions.ts`：auto 全映射（消除 A2）
+
+`motivationTransition` 从三选一扩成全表。关键一行 `zoom-jump → whip-pan`：
+景别跨两档本就是「镜头跟不过去、干脆甩过去」，这是阿杜最典型的动线。
+
+```ts
+const MOTIVE_TRANSITION: Record<CutMotivation, TransitionKind> = {
+  'match-cut': 'hard-cut',   // 形状接住 → 硬切才是接住
+  action:      'smash-cut',  // 动作/冲击
+  'eye-line':  'slide',      // 视线横移 → 整幅横推（有动线）
+  emotion:     'dissolve',
+  beat:        'smash-cut',
+  'zoom-jump': 'whip-pan',   // 景别跳 → 甩镜
+  '':          'hard-cut',
+};
+```
+
+### B2 · `transitions.ts`：词表外硬报错（消除 A1）
+
+`planTransition(word, allowed)` 语义改为：
+- 词表为空 → 任何请求都允许（旧项目无词表，不误伤）；
+- 词在词表内 → 用；
+- **词不在词表 → `throw mvError(ERR.ILLEGAL_TRANSITION, ...)`**，消息里同时给出
+  「导演要什么 / 词表有什么 / 怎么修（加进 `style.overrides.transitions` 或改声明）」。
+
+同时删掉 `TransitionPlan.warning` 字段（它是「回退了但告诉你」的载体，字段在就说明退化还在）。
+
+### B3 · `transitions.ts`：动机别名直查（消除 A3）
+
+`cutMotivation` 开头先做 `MOTIVATION_ALIASES` 直查（`match-cut` / `action` / `eye-line` /
+`emotion` / `beat` / `zoom-jump` 及连字符变体、中文名），命中即返回；未命中再走现有中文关键词正则。
+导演写英文词是合法表达，读不懂是翻译器的缺陷。
+
+### B4 · `composer.ts` + `scene-forge.ts`：重音降级不再回写磁盘（消除 A4 的越界部分）
+
+- `compose` 期 `normalizeSceneHtml` 只用于**本次装配**，**不再 `atomicWriteText` 回写
+  `scenes/Scene_<id>.html`**。用户/agent 精修的场景文件是资产，装配器无权改盘。
+- 超预算的重音镜改为写 `logs/accent-overflow.log` 留痕 + 由既有 `V-MOT-013`（error）拦。
+- 就地降级逻辑本身**保留**（`MV.slam → MV.enter` 是签名兼容的确定性改写，且 `drawScene`
+  路径上它让单镜可独立生成），只是从「偷偷改盘」变成「改内存 + 记账」。
+
+## 10.4 连带成本（改前已核）
+
+| 位置 | 影响 | 处理 |
+|---|---|---|
+| `composer.ts:531-533` `transitionWarnings` | 读 `plan.warning`，字段删了会编译失败 | 同步删除该段 |
+| `composer.ts:295` 调用 `planTransition` | 现在可能抛错 | 加 try/catch 聚合全部失败切点后一次抛（不让用户改一处跑一次） |
+| `tests/composer.test.ts` PACK 词表 `[hard-cut, smash-cut, dissolve]` | `emotion→dissolve` 仍在表内，测试不破 | 已核，无需改 |
+| 现有 3 个项目 | `noir-contrast` 项目已把 6 种写进 `style.overrides.transitions`；`kurzgesagt` 两个项目只有 `auto` + 3 个显式词（`whip-pan`/`smash-cut`/`dissolve`），其词表 `[slide, dissolve]` **不含** `whip-pan`/`smash-cut` → 硬报错会炸 | 这两个项目 `confirmed=false` 且 `stage` 停在 `sourcing`/`done`，本轮不重跑；但为避免「老项目突然跑不动」，B2 采用**词表外硬报错 + 一次性放行清单**：`planTransition` 收 `strict` 参数，`compose` 传 `true`；`confirmed=false` 的历史项目由 `state-engine` 走 `strict=false` 兼容路径 |
+| `normalizeSceneHtml` 的 4 条单测 | 断言的是「函数返回值」，不涉及回写 | 不破 |
+| `V-STYLE-003` 确认门 | 新增 overrides 会触发 | 本轮**不新增** overrides（词表已在上一轮写好） |
+
+## 10.5 验收（P/Q/I）
+
+- **P**：`npx tsc --noEmit` 干净；`vitest run` 全量不回归。
+- **Q**：
+  1. `cut-audit.json` 中 `zoom-jump` 的切点（`s03b→s04a`、`s04a→s04b`）`transition` 变 `whip-pan`；
+  2. `cut-audit.json` 中导演写了 `match-cut` 的切点 `motiveSource` 变 `text`（不再 `none`）；
+  3. `validation.log` 里 `[warn] TRANSITION` 条目数 = 0；
+  4. 全片重渲后，`remotion/index.html` 的 `__timelines['root']` 里 `whip-pan` 注入段数 ≥ 2。
+- **I**：不新增原语、不动 `MOTION_WHITELIST` / `MO` / `motion-lib.js`、不改 `project.json` schema、
+  不改 `remotion/` 合成模型；`catalog.test.ts` 双向断言保持绿；`scenes/Scene_*.html` 内容字节不变。
+
+## 10.6 已评估不做
+
+- **直接套 `.motion` 包结构**（`motion.json` / `params.schema.json` / `integrity.json` 搬进本项目）：
+  会替换 `project.json` 单一真源与 `remotion/` 合成模型，违反「底层框架不要变」。
+  只能对齐**契约层**（确定性 seek、素材角色、参数 schema、时长策略），见 §10.7。
+- **改全局 `styles/noir-contrast.json` 的 `transitions`**：全片/他项目共用，越界；
+  项目级 `style.overrides.transitions` 已合法生效。
+- **取消 B 类 forge 兜底**：它是「退化了但立刻报警」（`V-SCENE-007` + `scene-origin.log`），
+  取消它等于拆刹车。用户要取消的是 A 类静默，不是 B 类可观测兜底。
+
+## 10.7 与 motiongit `.motion` 模板的边界（本轮结论，供后续迭代）
+
+`.motion` 与本项目**架构同构、层次不同**：它是「单模板自包含 + 参数化」，本项目是
+「多镜流水线 + 校验器 + 状态机」。可对齐的只有契约层，不可搬的是包结构。
+
+| `.motion` 里的东西 | 本项目对应物 | 状态 |
+|---|---|---|
+| `runtime.profile: html-canvas/1`（`window.renderFrame`） | hyperframes + `remotion/` | 已有 |
+| `src/index.html` | `scenes/Scene_<id>.html` | 已有 |
+| `output.durationPolicy: fit-voiceover` | `pacing.shotLenMs` + TTS 实测 | 已有且更强 |
+| `integrity.json` / `motion.lock.json` | `core/catalog.ts` 单一事实源 | 有等价物 |
+| **`params.schema.json`**（阿杜 1.4 MB） | `shots[].visual.params` 是自由 record | **缺** |
+| **`kit.params.schema.json`（70 控件）** | 风格包 `motion` 只有 4 个全局数 | **缺控件表** |
+| **`capacity-matrix.json`（232 KB）** | 无 | **缺** |
+
+**关键边界**：`.motion` 模板只定义**片内动效**，不定义**镜间衔接**——切点是使用者的剪辑决定。
+所以下载模板能救「字/图/版式」，救不了「衔接」；衔接只能靠本轮 B1/B2 改裁决策略。
+
+## 10.8 执行记录
+
+### 迭代 1（2026-11-14 05:40）· 转场裁决策略 + 装配纪律
+
+**改了什么**
+
+| 文件 | 改动 |
+|---|---|
+| `src/domain/transitions.ts` | 删 `TransitionPlan.warning`；词表外/拼错一律抛 `ERR.ILLEGAL_TRANSITION`；新增 `MOTIVATION_ALIASES` 直查表与 `MOTIVE_TRANSITION` 全映射 |
+| `src/domain/composer.ts` | `adjudicateCuts` 聚合抛错（一次列出全部失败切点）；删 `transitionWarnings` 消费；compose 期规范化不再 `atomicWriteText` 回写 `scenes/`，降级写 `logs/accent-overflow.log` |
+| `tests/composer.test.ts` | `PACK` 扩至 5 种转场 + `NARROW_PACK`；+4 条（别名可读、词表外报错、拼错报错、auto 受词表约束） |
+| `tests/motion-grammar.test.ts` | `MV.highlight` 断言改为「含 `MV.staggeredIn`、不含 `MV.highlight`」（对齐 `REQUIRED_BY_GRAMMAR` 源码） |
+
+**实测（Q 全达成）**
+
+1. `cut-audit.json` 16 个切点中 `whip-pan` 从 1 处增至 **3 处**（`s02a→s02b`、`s03b→s04a`、`s04a→s04b`）。
+2. `motiveSource: none` 从 6 个降至 **1 个**（`s01a→s01b`，该镜 `motivation` 确为空串）。
+3. 最后一次 compose 追加段落 `TRANSITION: 0` / `CUT-MOTIVATION: 0`。
+4. `remotion/index.html` 中 `blur(14px)` 出现 3 次，`xPercent` 正负交替（`focusSign` 驱动，非常量）。
+5. 成片 `out/final-v6.mp4`：167.366667s / 5021 帧 / 138,331,365 B / `artifact validated`。
+
+**产物级抽帧复验**（`.scratch/whipcheck.py`，320×180 灰度逐帧差）
+
+| 切点 | 动画起点 `t0` | 跳变峰值 | 后 333ms 运动帧 | 结论 |
+|---|---|---|---|---|
+| `s02a→s02b` | 36.58s | 6.99 | 10/10 | 持续衰减扫入 6.99→0.37 |
+| `s03b→s04a` | 72.58s | 3.53 | 10/10 | 持续衰减扫入 3.53→0.16 |
+| `s04a→s04b` | 86.02s | 3.89 | 8/10 | 持续衰减扫入 3.89→0.38 |
+
+同切点 v5 对比：`s02a→s02b` 峰值仅 1.84 且 3 帧内归零（硬切），`s03b→s04a` 1.09 → 归零。**甩镜是真进了成片**，不是只进了 HTML。
+
+> 观测口径修正：`whip-pan` 的 tween 起点是 `atMs − overlapMs`（`cut-audit.atMs` 是重叠窗**结束**处）。
+> 按 `atMs` 抽帧会落在扫入尾部，误判成硬切。这是本轮踩到的第二个口径坑。
+
+**I 不变量**
+
+- `npx tsc --noEmit` 干净；`compose` 变更清单**不含** `scenes/Scene_*.html` → 装配器不再改盘。
+- `catalog.test.ts` 14/14，白名单双向断言未破，未新增原语。
+
+### 迭代 2（2026-11-14 06:10）· 查清 `V-RHY-011` 归零的真因
+
+迭代 1 结束时留了一个未确认疑点：`validation.log` 尾段 `V-RHY-011` 计数 = 0，
+但 `cut-audit.json` 里 `s01a→s01b` 的 `motivation` 是空、`motiveSource: none`。两者矛盾。
+
+**查清了，而且比预想严重**：不是日志被截断，是**校验器读的字段被伪造了**。
+
+`composer.ts:272-274` 的锚点分支原本写：
+
+```ts
+if (prev?.exitAnchor && cur?.enterAnchor && prev.exitAnchor === cur.enterAnchor) {
+  prevT.motivation = 'match-cut';   // ← 把上一镜的动机也改了
+  t.motivation = 'match-cut';
+```
+
+`motivation` 的语义是「**切入本镜**的动机」。改写上一镜等于替它那个切点凭空补了动机。
+`validateCutMotivation` 恰好读的就是这个字段，于是「切点无动机」这条 warn 被一条锚点规则
+永久掩盖：`cut-audit.json` 走的是 `decision.motivation`（真实值 → 空），
+`validation.log` 走的是 `timeline.shots[i].motivation`（被改写值 → 非空）。**两条链路各说一套。**
+
+**修复**：删掉 `prevT.motivation = 'match-cut'`（`prevT` 随之无用，一并删）。
+新增回归测试「锚点匹配只补当前镜动机，不改写上一镜」。
+
+**修复后实测**：`[warn] V-RHY-011: 剪切点未声明动机 1/15（7%）：s01b`。
+
+这条 warn 现在报出来了，而且它报的是**真话**：`s01a` 是 `LS`、`s01b` 是 `MLS`，
+`ZOOM_ORDER` 差值 1，`deriveRelationMotivation` 不触发（要求 `gap >= 2`）；
+锚点 `silhouette-frame → lobby-wall` 不同；导演也没写 `motivation`。
+→ 这是**真实的未解项**，不是校验器噪音。补法有二：导演给 `s01b.motivation` 写清理由，
+或放宽 `deriveRelationMotivation` 让 `gap == 1` 也算景别变化（后者会改变全项目判据，未做）。
+
+### 10.9 本轮未解（不得报完成）
+
+| 项 | 实测值 | 状态 |
+|---|---|---|
+| `s02b` 镜内空窗 | 3 段 >1.2s：`2.40–3.62(1.22s)`、`9.30–10.55(1.25s)`、`11.03–13.00(1.97s)` | **未修**，比上一轮承认的「尾段一处」更差 |
+| 其余 15 镜 | 照片层与镜内编舞未动（本轮只改镜间衔接） | **未动** |
+| `V-MOT-016` | 文字主导镜 6/16 = 38% > 30% | warn，未修 |
+| `V-MOT-017` | 13 个长镜 >6.5s | warn，未修 |
+| `V-RHY-006` | 全 16 镜「0 个节拍」 | warn；手写 HTML 用 `CH.*` 不写 `MV.*`，`sceneBeats` 数不到——**判据口径问题**，未修 |
+| `V-RHY-011` | `1/15（7%）：s01b` | 真话，见迭代 2 |
+| `MV.emphasis` 卡点 | 晚到 +266/+366/+433ms | 仅 `s02b` 用显式 `points` 解决 |
+| `tests/engineering.test.ts` | 单跑 `ERR:TimeoutExpired`（>150s） | 无结论 |
+

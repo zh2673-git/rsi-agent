@@ -14,7 +14,7 @@
  * 的 shots[].visual.params.actionSheet（项目独占，人工可改）。
  */
 /**
- * 九种语法（y1-y5 / t1-t3 + b_roll 兜底）。
+ * 十一种语法（y1-y7 / t1-t3 + b_roll 兜底）。
  * motionBeats 里的箭头 = 动作的先后关系，不是时间刻度——
  * 阿杜的要点是「保留动作之间的关系比照抄总秒数更重要」。
  */
@@ -25,9 +25,9 @@ export const GRAMMARS = [
         when: '讲一个概念、一个机制，需要一个能无限缩放的具体对象',
         avoid: '没有真实材料可贴时用 y2 会变成假档案；讲自己经历时用 y4',
         motionBeats: ['主体淡入定场', '→ 环境母题开始循环', '→ 尺度推进（推/拉揭示内部）', '→ 关键部件逐个点亮', '→ 拉远交代全貌'],
-        cameraBias: ['push-in', 'pull-out', 'drift'],
+        cameraBias: ['push-in', 'dolly-in', 'pull-out'],
         textShare: 0.3,
-        motifs: ['float', 'pulse'],
+        motifs: ['float', 'pulse', 'rotate'],
     },
     {
         id: 'y2_collage',
@@ -37,7 +37,7 @@ export const GRAMMARS = [
         motionBeats: ['桌面/画布铺开', '→ 材料以冲印件落下（错峰）', '→ 高亮扫过要读那一行', '→ 红线连接两件材料', '→ 拉远看全桌'],
         cameraBias: ['pan', 'pan-left', 'push-in'],
         textShare: 0.25,
-        motifs: ['shimmer'],
+        motifs: ['shimmer', 'sweep'],
     },
     {
         id: 'y3_whiteboard',
@@ -45,9 +45,9 @@ export const GRAMMARS = [
         when: '边讲边推导，说一句写一句，最后拉远看全图',
         avoid: '一次整屏切换的快剪段落',
         motionBeats: ['白板留白', '→ 笔尖擦除式揭出第一行（maskReveal）', '→ 相机跟到论证点（横移）', '→ 逐行追加', '→ 结尾拉远看全图'],
-        cameraBias: ['pan', 'pan-left', 'pull-out'],
+        cameraBias: ['pan', 'pan-left', 'dolly-out'],
         textShare: 0.35,
-        motifs: ['shimmer'],
+        motifs: ['shimmer', 'scan'],
     },
     {
         id: 'y4_story',
@@ -55,9 +55,9 @@ export const GRAMMARS = [
         when: '第一人称讲经历、翻车、笑点；观众要的是「这个人」',
         avoid: '自带好消息情绪的产品发布用它会被压住',
         motionBeats: ['角色姿势快切后定住（0.1s）', '→ 反应特写跳近', '→ 笑点那一下闭嘴+定格', '→ 停顿后再接下一句'],
-        cameraBias: ['static', 'punch-in'],
+        cameraBias: ['static', 'punch-in', 'tilt-up'],
         textShare: 0.2,
-        motifs: ['pulse'],
+        motifs: ['pulse', 'settle'],
     },
     {
         id: 'y5_kinetic_type',
@@ -67,7 +67,27 @@ export const GRAMMARS = [
         motionBeats: ['关键词整词砸入（slam）', '→ 主词拉开字距定住', '→ 辅助词错峰跟上', '→ 色带/擦除换场', '→ 数字滚动落定'],
         cameraBias: ['punch-in', 'static', 'drift'],
         textShare: 0.7,
-        motifs: ['shimmer', 'float'],
+        motifs: ['shimmer', 'float', 'scan'],
+    },
+    {
+        id: 'y6_mechanism',
+        cues: ['原理', '机制', '内部', '拆开', '拆解', '怎么运作', '怎么工作', '组成部分', '零件', '模块', '协作', '传导', '触发', '驱动'],
+        when: '讲一个东西内部怎么运作：拆开外壳、部件逐个上场、力传导到结果',
+        avoid: '只是罗列部件名称而没有「怎么动起来」时，用 y1 讲尺度更清楚',
+        motionBeats: ['外壳/整体先定场（maskReveal 揭出）', '→ 部件逐个点亮（staggeredIn 错峰）', '→ 关键部件高亮 + 位移到联动位', '→ 力传导：A 动→B 跟→结果出现', '→ 收回到整体（morphTo 合拢）'],
+        cameraBias: ['push-in', 'crane-up', 'drift'],
+        textShare: 0.25,
+        motifs: ['float', 'rotate', 'compress'],
+    },
+    {
+        id: 'y7_system_map',
+        cues: ['系统', '全局', '整体', '架构', '地图', '全貌', '生态', '之间', '关系', '层级', '脉络', '链路', '拓扑'],
+        when: '讲多个主体之间的关系/一张地图：先看全貌，再放大关键局部，最后回望全图',
+        avoid: '只有一个主体时用 t1/y6——地图至少要三件事物才成立',
+        motionBeats: ['全貌定场（整张地图淡入）', '→ 关系线逐条描出（maskReveal）', '→ 推进到关键局部（punch-in 停住）', '→ 局部细节点亮 + 数字/名词落定', '→ 拉远回望全图（pull-out 收束）'],
+        cameraBias: ['pull-out', 'push-in', 'crane-down'],
+        textShare: 0.3,
+        motifs: ['float', 'pulse'],
     },
     {
         id: 't1_3b1b',
@@ -75,9 +95,9 @@ export const GRAMMARS = [
         when: '讲一个机制怎么一步步变成另一个东西；颜色=概念名，几乎不切',
         avoid: '没有能变形的对象时（清单/金句）用它',
         motionBeats: ['黑底只放正在讲的那一个对象', '→ 用 morphTo 变成下一个概念', '→ 停在结论上让它读', '→ 镜头穿越到细节', '→ 概念接力'],
-        cameraBias: ['drift', 'push-in', 'static'],
+        cameraBias: ['drift', 'push-in', 'dolly-out'],
         textShare: 0.25,
-        motifs: ['shimmer'],
+        motifs: ['shimmer', 'breathe'],
     },
     {
         id: 't2_keynote',
@@ -85,9 +105,9 @@ export const GRAMMARS = [
         when: '产品/功能发布、版本更新、教程步骤、参数公布；一屏一件事',
         avoid: '玻璃和光斑不承载逻辑，别用来讲机制',
         motionBeats: ['一屏一件事定场', '→ 主角（截图/实物）推近', '→ 名词与数字在口播说到时落定', '→ 相邻功能卡压后', '→ 换屏'],
-        cameraBias: ['push-in', 'punch-in', 'static'],
+        cameraBias: ['push-in', 'dolly-in', 'static'],
         textShare: 0.35,
-        motifs: ['float'],
+        motifs: ['float', 'pulse'],
     },
     {
         id: 't3_finance',
@@ -95,9 +115,9 @@ export const GRAMMARS = [
         when: '讲数字、增长、走势、对比；观众会截图较真',
         avoid: '一段里只有一个数——用 t2/y5 的大数字，不画图表',
         motionBeats: ['先搭坐标系（轴线擦出）', '→ 数据自己长出来（counter/描线）', '→ 只标一件事（高亮扫过）', '→ 缓推该数据点约 1s', '→ 拉回全图'],
-        cameraBias: ['push-in', 'pull-out', 'static'],
+        cameraBias: ['push-in', 'pull-out', 'dolly-in'],
         textShare: 0.3,
-        motifs: ['shimmer'],
+        motifs: ['shimmer', 'sweep'],
     },
     {
         id: 'b_roll',
@@ -105,9 +125,9 @@ export const GRAMMARS = [
         when: '无形式可依的氛围/过渡镜',
         avoid: '能用前八种讲清时别用它（它是兜底不是风格）',
         motionBeats: ['主体定场', '→ 环境母题循环（画一直是活的）', '→ 慢漂', '→ 收在可读的静止'],
-        cameraBias: ['drift', 'slow-drift', 'static'],
+        cameraBias: ['drift', 'static', 'slow-drift'],
         textShare: 0.15,
-        motifs: ['float', 'pulse', 'rotate'],
+        motifs: ['float', 'pulse', 'rotate', 'breathe'],
     },
 ];
 export function getGrammar(id) {
@@ -136,13 +156,28 @@ export function pickGrammar(narration, ctx = {}) {
     const recent = ctx.recent ?? [];
     const isExcluded = (g) => {
         if (g.id === 'b_roll')
-            return false; // 兜底永远可选
+            return !ctx.suppressBroll; // 兜底永远可选；上镜已 b_roll 时抑制（X2）
         if (recent.includes(g.id))
             return true;
         if (ctx.singleNumber && g.id === 't3_finance')
             return true;
         if (ctx.hasRealMaterial && g.id === 'y3_whiteboard')
             return true;
+        // P8-T6 文字主导闸：y5 是重音大户（slam 受 V-MOT-013 预算），
+        // 导演声明文字主导或显式降低 y5 权重时，把它移出候选而不是靠扣分（扣分会被线索词淹没）
+        if (ctx.suppressTextLed && g.id === 'y5_kinetic_type')
+            return true;
+        // T1c 能量曲线：低能量幕排掉高能量语法（反之亦然）——但只排到「次优候选」层，
+        // 全排除会让候选池空转 b_roll（那才是真死板）。b_roll 已在上面按 suppressBroll 处理。
+        if (ctx.energy !== undefined) {
+            const id = g.id;
+            const highEnergy = id === 't3_finance' || id === 'y5_kinetic_type' || id === 'y6_mechanism';
+            const lowEnergy = id === 'y4_story' || id === 't1_3b1b';
+            if (ctx.energy >= 0.7 && lowEnergy)
+                return true;
+            if (ctx.energy <= 0.4 && highEnergy)
+                return true;
+        }
         return false;
     };
     const score = (g) => {
@@ -173,20 +208,73 @@ export function pickGrammar(narration, ctx = {}) {
     if (ranked[0])
         return ranked[0].g;
     // 放宽：只有「连用」是软规则（可以放宽一次），singleNumber / hasRealMaterial 是硬规则不放宽。
-    const relaxed = GRAMMARS.filter((g) => g.id !== 'b_roll' &&
+    // suppressBroll 在放宽轮仍然生效（X2 的目的就是不让 b_roll 成对）——放宽后仍无候选
+    // 才落回 b_roll（192 行兜底），此时是「真没有任何语法可讲」而不是「成对偷懒」。
+    const relaxed = GRAMMARS.filter((g) => !(ctx.suppressBroll && g.id === 'b_roll') &&
         !(ctx.singleNumber && g.id === 't3_finance') &&
-        !(ctx.hasRealMaterial && g.id === 'y3_whiteboard'))
+        !(ctx.hasRealMaterial && g.id === 'y3_whiteboard') &&
+        !(ctx.suppressTextLed && g.id === 'y5_kinetic_type'))
         .map((g) => ({ g, score: score(g) - (recent.includes(g.id) ? 1 : 0) }))
         .filter((x) => x.score > 0)
         .sort((a, b) => b.score - a.score);
     return relaxed[0]?.g ?? getGrammar('b_roll');
 }
-/** 机位偏好落成词表值（b_roll 的 slow-drift 是别名 → drift） */
+/**
+ * 语法 → 必选原语（P8-T5 约束表）。
+ * 取材于各语法 motionBeats 里点名的动作：动作谱写了什么，场景就必须做什么。
+ * motifLoop 全语法必选（阿杜/花叔共同铁律「画面一直是活的」= V-MOT-021）。
+ */
+export const REQUIRED_BY_GRAMMAR = {
+    y1_flat_explainer: ['MV.enter', 'MV.motifLoop'],
+    // y2 的动作拍是「材料冲印件落下（错峰）→ 高亮扫过要读那一行 → 红线连接」。
+    // 只强制错峰 + 红线（骨架），高亮要求由导演按镜头取舍：很多 y2 镜只有一个
+    // 待读对象，硬扫一道高亮反而是噪音（本片 8 个 y2 镜里 8 个都没写 highlight，
+    // 若强制则全部打回，等于把主力路径卡死）。
+    y2_collage: ['MV.staggeredIn', 'MV.motifLoop'],
+    y3_whiteboard: ['MV.maskReveal', 'MV.motifLoop'],
+    y4_story: ['MV.enter', 'MV.performance', 'MV.motifLoop'],
+    // y5 的动作拍是「关键词整词砸入 → 主词拉开字距定住 → 辅助词错峰跟上」。
+    // 原来这里点的是 highlight（高亮扫过，那是 y2 的动作），与 motionBeats 不符——
+    // 后果是本片 6 个 y5 镜全被判「缺 highlight」，而语法真正要求的砸入反而没被约束。
+    //
+    // 只强制 emphasis + staggeredIn：slam 是**戏剧标点**，受 V-MOT-013「全片重音镜 ≤1/3」
+    // 约束（16 镜只有 5 个配额，见 accent-budget.ts），强制它必然和预算闸死锁。
+    // 卡点跟随（emphasis）才是每镜都该有的东西，且它不计入重音预算。
+    y5_kinetic_type: ['MV.staggeredIn', 'MV.emphasis', 'MV.motifLoop'],
+    y6_mechanism: ['MV.maskReveal', 'MV.staggeredIn', 'MV.highlight', 'MV.morphTo', 'MV.motifLoop'],
+    y7_system_map: ['MV.maskReveal', 'MV.motifLoop'],
+    t1_3b1b: ['MV.morphTo', 'MV.motifLoop'],
+    t2_keynote: ['MV.staggeredIn', 'MV.motifLoop'],
+    t3_finance: ['MV.counter', 'MV.highlight', 'MV.motifLoop'],
+    b_roll: ['MV.motifLoop'],
+};
+/**
+ * 机位偏好落成词表值（b_roll 的 slow-drift 是别名 → drift）。
+ * 死板清除 X3（2026-11-14）：cameraBias 补上 v3 新机位词（dolly/crane），让语法认领
+ * 每类运镜——此前新词只被人工作业随手用，语法永远给老四类，全片机位分布贫瘠。
+ */
 export function normalizeCameraBias(bias) {
     if (bias === 'slow-drift')
         return 'drift';
     return bias;
 }
+/**
+ * 语法 → 收势措辞。与 REQUIRED_BY_GRAMMAR 一样是「新增语法必须同时登记」的表，
+ * 缺项由 settleText() 显式告警（不再静默回退成「减速落定」）。
+ */
+export const SETTLE_BY_GRAMMAR = {
+    y1_flat_explainer: '尺度推进落定在可读尺度，减速 power2.out',
+    y2_collage: '材料落下后回弹 3%，再静止给读字留白',
+    y3_whiteboard: '笔尖停住，等下一句再动',
+    y4_story: '定格 + 挤压回弹（0.1s expo.out 后定住）',
+    y5_kinetic_type: '砸入 0.94 → 1.0 回弹后完全静止，焦点唯一',
+    y6_mechanism: '部件合拢回整体（morphTo 收束）后完全静止',
+    y7_system_map: '拉远回望全图，停在可读的全貌上',
+    t1_3b1b: '形变完成即停，结论留在画面上被读',
+    t2_keynote: '名词/数字落定即静止，不叠滑入',
+    t3_finance: '数据长完标一件事，镜头停住',
+    b_roll: '慢漂自然收住',
+};
 /**
  * 由语法 + 镜头生成动作谱。
  * prepare/settle/secondary 的措辞按语法给具体值，不是模板套话——
@@ -196,30 +284,83 @@ export function actionSheet(shot, grammar) {
     const beats = grammar.motionBeats;
     const bias = grammar.cameraBias[0] ?? 'static';
     const textLed = grammar.textShare >= 0.5;
-    const settleByGrammar = {
-        y1_flat_explainer: '尺度推进落定在可读尺度，减速 power2.out',
-        y2_collage: '材料落下后回弹 3%，再静止给读字留白',
-        y3_whiteboard: '笔尖停住，等下一句再动',
-        y4_story: '定格 + 挤压回弹（0.1s expo.out 后定住）',
-        y5_kinetic_type: '砸入 0.94 → 1.0 回弹后完全静止，焦点唯一',
-        t1_3b1b: '形变完成即停，结论留在画面上被读',
-        t2_keynote: '名词/数字落定即静止，不叠滑入',
-        t3_finance: '数据长完标一件事，镜头停住',
-        b_roll: '慢漂自然收住',
-    };
     return {
         grammar: grammar.id,
         line: shot.narration,
         subject: textLed ? '画面主体是字（关键词/数字）' : '画面主体是一个具体物件',
         prepare: textLed ? '关键字先缩小到 1.2 倍外、留 120ms 蓄势' : '主体先反向位移 3%（60-100ms anticipation）',
         main: beats[Math.min(1, beats.length - 1)].replace(/^→\s*/, ''),
-        settle: settleByGrammar[grammar.id] ?? '减速落定',
+        settle: settleText(grammar.id),
         secondary: '非主语元素透明度 ≤70%、压后 180ms，且在主动作落点前不动',
         cameraPath: shot.camera && shot.camera !== 'none' ? shot.camera : normalizeCameraBias(bias),
         soundCue: textLed ? 'hit 与砸入同帧' : 'whoosh 峰值落在动作启动帧',
         motif: grammar.motifs[0] ?? 'float',
+        requiredPrimitives: requiredPrimitivesFor(grammar.id),
     };
 }
+/**
+ * 缺省机位由该镜语法的机位偏好决定，不再一律 push-in（I-05「为了动而动」修复之一）。
+ *
+ * 旧兜底把漏填/none 一律落成 push-in：全片每镜都往里推，「静」这个合法语汇
+ * 被机制性消灭——提示词自己写着「static 是合法选择」，兜底却从不产生它。
+ * 现在按语法取 cameraBias[0]（b_roll→drift、y4→static、y2→pan…），
+ * 机位语汇随语法分布，比全片一推更接近真实分镜。
+ */
+export function defaultCameraFor(grammarId) {
+    const g = grammarId ? GRAMMARS.find((x) => x.id === grammarId) : undefined;
+    return normalizeCameraBias(g?.cameraBias[0] ?? 'static');
+}
+/**
+ * 同语法相邻镜的机位变奏（死板清除 X1，2026-11-14）。
+ *
+ * 背景：storyboard 的 splitShots 用 `...shot` 展开 b 镜，机位原样继承——
+ * 实测黄仁勋片 8 对拆分镜里 4 对机位完全相同（s01a/b 同 push-in、s04a/b 同
+ * tilt-down…），观众看到的是「同一动作播两遍」。景别已由 nextZoomIn 变奏，
+ * 机位却在照抄。这里在语法机位偏好里取一个与 prev 不同的值（确定性：按
+ * bias 顺序取第一个不同的；全同则保持——不同语法镜间不该强行变奏）。
+ */
+export function varyCameraFor(grammarId, prevCamera) {
+    const g = grammarId ? GRAMMARS.find((x) => x.id === grammarId) : undefined;
+    const bias = (g?.cameraBias ?? ['static']).map(normalizeCameraBias);
+    const prev = prevCamera ?? '';
+    const other = bias.find((c) => c !== prev);
+    return other ?? bias[0];
+}
+/**
+ * 新增语法时最容易漏的两处：REQUIRED_BY_GRAMMAR（骨架）与 settleByGrammar（收势）。
+ * 以前它们用 `?? 默认值` 静默兜底——漏登记的新语法会得到「只有 motifLoop」的最松骨架，
+ * 而且没有任何人知道，等于有语法没骨架。这里改成显式告警：缺登记照旧给默认值（不阻断
+ * 出片），但一定在控制台留证，配合 tests/catalog.test.ts 的覆盖断言在 CI 阶段就红。
+ */
+const warnedGrammarGaps = new Set();
+function warnGrammarGap(kind, grammarId) {
+    const key = `${kind}:${grammarId}`;
+    if (warnedGrammarGaps.has(key))
+        return;
+    warnedGrammarGaps.add(key);
+    console.warn(`[motion-grammar] 语法 ${grammarId} 未登记 ${kind === 'required' ? 'REQUIRED_BY_GRAMMAR（必选原语骨架）' : 'settleByGrammar（收势措辞）'}，` +
+        `已按默认值继续——请补登记，否则这条语法等于没有${kind === 'required' ? '骨架约束' : '收势设计'}`);
+}
+function requiredPrimitivesFor(grammarId) {
+    const hit = REQUIRED_BY_GRAMMAR[grammarId];
+    if (hit)
+        return hit;
+    warnGrammarGap('required', grammarId);
+    return ['MV.motifLoop'];
+}
+function settleText(grammarId) {
+    const hit = SETTLE_BY_GRAMMAR[grammarId];
+    if (hit)
+        return hit;
+    warnGrammarGap('settle', grammarId);
+    return '减速落定';
+}
+/**
+ * V-MOT-022 母题可见度阈值（P8-T3）。
+ * 出处是渲染实测：float amp=0.32 → ±1.9px，720p 下等同静止，静止帧 88-93%。
+ * 「调用了 motifLoop」不等于「画面活着」——动至少 3px 才算活。
+ */
+export const MOTIF_MIN_MOTION_PX = 3;
 const PUSH_SET = new Set(['push-in', 'punch-in']);
 /**
  * 混剪审计：把两家「哪些做法被判过坏片」的判据落成能数的比例。
@@ -234,6 +375,7 @@ const PUSH_SET = new Set(['push-in', 'punch-in']);
  * | V-MOT-018 | 开头 3 秒是具体小场景 | 花叔「开头 3 秒不是标题」 |
  * | V-MOT-019 | 每镜 ≥1 主动作；同语法不连 ≥3 | 阿杜 motion-quality |
  * | V-MOT-020 | 相邻两镜换构图 | 花叔「相邻两镜换构图，不换画风」 |
+ * | V-MOT-022 | 母题循环可见（动 ≥3px）且 ≥1 种 | P8：渲染实测 amp 0.3 = 静止 |
  */
 export function auditMotionMix(shots, totalMs) {
     const issues = [];
@@ -302,7 +444,7 @@ export function auditMotionMix(shots, totalMs) {
             message: `过长镜头 ${long.length}（${long.slice(0, 4).map((s) => `${s.shotId}:${(s.durationMs / 1000).toFixed(1)}s`).join(' ')}）> 6.5s`,
         });
     }
-    // V-MOT-019 主动作齐全 + 同语法不连三镜
+    // V-MOT-019 主动作齐全 + 语法多样性下限（I-05 新增后半）
     const noAction = shots.filter((s) => !s.hasMainAction);
     if (noAction.length > 0) {
         issues.push({
@@ -311,9 +453,36 @@ export function auditMotionMix(shots, totalMs) {
             message: `${noAction.length} 镜无主动作（${noAction.slice(0, 5).map((s) => s.shotId).join('/')}）：只有标题和一张不变的卡片不构成动画讲解`,
         });
     }
+    // 语法多样性下限：语法只有一种（兜底 b_roll 除外）时，动作家族单一，
+    // 观众 30 秒就能预测下一镜——「效果不丰富」的直接原因之一。
+    // 阈值 0.55 取自「短频快片型至少两条语法交替」的经验线；长纪录片型靠 V-MOT-017 记账。
+    const withGrammar = shots.filter((s) => s.grammar);
+    if (withGrammar.length >= 4) {
+        const counts = new Map();
+        for (const s of withGrammar)
+            counts.set(s.grammar, (counts.get(s.grammar) ?? 0) + 1);
+        const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+        const share = top[1] / withGrammar.length;
+        if (counts.size === 1 && top[0] !== 'b_roll') {
+            issues.push({
+                rule: 'V-MOT-019',
+                level: 'warn',
+                message: `全片只有一种语法 ${top[0]}（${withGrammar.length} 镜）：动作家族单一，观众很快能预测下一镜`,
+            });
+        }
+        else if (share > 0.55) {
+            issues.push({
+                rule: 'V-MOT-019',
+                level: 'warn',
+                message: `语法 ${top[0]} 占 ${top[1]}/${withGrammar.length} = ${Math.round(share * 100)}% > 55%（一条语法讲全片，节拍器感）`,
+            });
+        }
+    }
     let gRun = 1;
     for (let i = 1; i < shots.length; i += 1) {
-        const same = shots[i].grammar && shots[i].grammar === shots[i - 1].grammar;
+        // T3a：continuity 切入的镜不累计「同语法连用」——一镜之内的节拍段本来就该同家族
+        const isContinuity = shots[i].continuity === true;
+        const same = !isContinuity && shots[i].grammar && shots[i].grammar === shots[i - 1].grammar;
         gRun = same ? gRun + 1 : 1;
         if (gRun >= 3) {
             issues.push({
@@ -324,9 +493,11 @@ export function auditMotionMix(shots, totalMs) {
             break;
         }
     }
-    // V-MOT-020 相邻换构图
+    // V-MOT-020 相邻换构图（T3a：continuity 节拍段豁免——同一连续长镜内当然不换构图）
     const sameComp = [];
     for (let i = 1; i < shots.length; i += 1) {
+        if (shots[i].continuity === true)
+            continue;
         if (shots[i].compositionKey && shots[i].compositionKey === shots[i - 1].compositionKey) {
             sameComp.push(`${shots[i - 1].shotId}→${shots[i].shotId}`);
         }
@@ -336,6 +507,25 @@ export function auditMotionMix(shots, totalMs) {
             rule: 'V-MOT-020',
             level: 'warn',
             message: `${sameComp.length}/${total - 1} 处相邻镜构图未变（${sameComp.slice(0, 4).join(', ')}）：换构图不换画风`,
+        });
+    }
+    // V-MOT-022 母题可见度（P8-T3）：「调用了 motifLoop」≠「画面活着」。
+    // 判据：每镜至少 1 种母题，且最小可见位移 ≥ 3px（float amp=0.32 的 ±1.9px 是反例）。
+    // b_roll 语法镜豁免种类要求（氛围镜允许单一母题），但可见性不豁免。
+    const invisible = shots.filter((s) => s.minMotifMotionPx !== undefined && s.minMotifMotionPx < MOTIF_MIN_MOTION_PX);
+    if (invisible.length > 0) {
+        issues.push({
+            rule: 'V-MOT-022',
+            level: 'warn',
+            message: `${invisible.length} 镜母题动幅不可见（${invisible.slice(0, 5).map((s) => `${s.shotId}:${s.minMotifMotionPx?.toFixed(1)}px`).join(' ')}）< ${MOTIF_MIN_MOTION_PX}px：动 1-2px 等于没动，调高 amp`,
+        });
+    }
+    const noMotif = shots.filter((s) => s.minMotifMotionPx === undefined || (s.motifKinds?.length ?? 0) < 1);
+    if (noMotif.length > Math.max(1, Math.floor(total * 0.3))) {
+        issues.push({
+            rule: 'V-MOT-022',
+            level: 'warn',
+            message: `${noMotif.length}/${total} 镜无母题循环：入场结束后画面全静止（阿杜/花叔铁律「画一直是活的」）`,
         });
     }
     return issues;

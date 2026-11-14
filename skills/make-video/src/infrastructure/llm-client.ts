@@ -132,6 +132,7 @@ export function buildSceneSystemPrompt(): string {
    此外动作谱 actionSheet.requiredPrimitives 点名的原语必须全部真的调用。**白名单之外的 MV.xxx 一律判打回**——写之前先对照上面这份清单，不要臆造 MV.from / MV.to / MV.fromTo / MV.fade 之类不存在的原语。
    缓动只能取：power1-4 的 .in/.out/.inOut、sine、expo、quint、back.out、elastic.out、none。时长只允许 150-200/200-400/400-800/300-600/1200-2000ms。
 4. **动作谱就是施工图**（payload.actionSheet）：prepare/main/settle/secondary/cameraPath/soundCue/motif 逐条落实；requiredPrimitives 列出的每个原语必须真的调用一次（缺一个校验器打回）。MV.motifLoop 是**必选**（缺了整镜打回），且 amp ≥ 0.5（动 1-2px 等于没动）。
+4a. **导演精修批注（payload.revisions，可能为空）**：这些是导演对上一版的具体意见（如「收尾再静一点」「数字小一点」），逐条在画面里落实——批注的优先级高于你对画面的默认判断。
 4b. **重音是预算，不是强调语气**（V-MOT-013）：全片只有 ${ACCENT_PRIMITIVES.join('/')} 算重音标点，
    总预算 payload.accentCap 镜（≈ 总镜数 1/3）——全篇都加粗等于没有重点。
    payload.accentAllowed 为 **false 时本镜一个重音标点都不能用**：改用 enter/staggeredIn/highlight/

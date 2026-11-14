@@ -57,9 +57,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '讲一个概念、一个机制，需要一个能无限缩放的具体对象',
     avoid: '没有真实材料可贴时用 y2 会变成假档案；讲自己经历时用 y4',
     motionBeats: ['主体淡入定场', '→ 环境母题开始循环', '→ 尺度推进（推/拉揭示内部）', '→ 关键部件逐个点亮', '→ 拉远交代全貌'],
-    cameraBias: ['push-in', 'pull-out', 'drift'],
+    cameraBias: ['push-in', 'dolly-in', 'pull-out'],
     textShare: 0.3,
-    motifs: ['float', 'pulse'],
+    motifs: ['float', 'pulse', 'rotate'],
   },
   {
     id: 'y2_collage',
@@ -69,7 +69,7 @@ export const GRAMMARS: GrammarSpec[] = [
     motionBeats: ['桌面/画布铺开', '→ 材料以冲印件落下（错峰）', '→ 高亮扫过要读那一行', '→ 红线连接两件材料', '→ 拉远看全桌'],
     cameraBias: ['pan', 'pan-left', 'push-in'],
     textShare: 0.25,
-    motifs: ['shimmer'],
+    motifs: ['shimmer', 'sweep'],
   },
   {
     id: 'y3_whiteboard',
@@ -77,9 +77,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '边讲边推导，说一句写一句，最后拉远看全图',
     avoid: '一次整屏切换的快剪段落',
     motionBeats: ['白板留白', '→ 笔尖擦除式揭出第一行（maskReveal）', '→ 相机跟到论证点（横移）', '→ 逐行追加', '→ 结尾拉远看全图'],
-    cameraBias: ['pan', 'pan-left', 'pull-out'],
+    cameraBias: ['pan', 'pan-left', 'dolly-out'],
     textShare: 0.35,
-    motifs: ['shimmer'],
+    motifs: ['shimmer', 'scan'],
   },
   {
     id: 'y4_story',
@@ -87,9 +87,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '第一人称讲经历、翻车、笑点；观众要的是「这个人」',
     avoid: '自带好消息情绪的产品发布用它会被压住',
     motionBeats: ['角色姿势快切后定住（0.1s）', '→ 反应特写跳近', '→ 笑点那一下闭嘴+定格', '→ 停顿后再接下一句'],
-    cameraBias: ['static', 'punch-in'],
+    cameraBias: ['static', 'punch-in', 'tilt-up'],
     textShare: 0.2,
-    motifs: ['pulse'],
+    motifs: ['pulse', 'settle'],
   },
   {
     id: 'y5_kinetic_type',
@@ -99,7 +99,7 @@ export const GRAMMARS: GrammarSpec[] = [
     motionBeats: ['关键词整词砸入（slam）', '→ 主词拉开字距定住', '→ 辅助词错峰跟上', '→ 色带/擦除换场', '→ 数字滚动落定'],
     cameraBias: ['punch-in', 'static', 'drift'],
     textShare: 0.7,
-    motifs: ['shimmer', 'float'],
+    motifs: ['shimmer', 'float', 'scan'],
   },
   {
     id: 'y6_mechanism',
@@ -107,9 +107,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '讲一个东西内部怎么运作：拆开外壳、部件逐个上场、力传导到结果',
     avoid: '只是罗列部件名称而没有「怎么动起来」时，用 y1 讲尺度更清楚',
     motionBeats: ['外壳/整体先定场（maskReveal 揭出）', '→ 部件逐个点亮（staggeredIn 错峰）', '→ 关键部件高亮 + 位移到联动位', '→ 力传导：A 动→B 跟→结果出现', '→ 收回到整体（morphTo 合拢）'],
-    cameraBias: ['push-in', 'drift', 'static'],
+    cameraBias: ['push-in', 'crane-up', 'drift'],
     textShare: 0.25,
-    motifs: ['float', 'rotate'],
+    motifs: ['float', 'rotate', 'compress'],
   },
   {
     id: 'y7_system_map',
@@ -117,7 +117,7 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '讲多个主体之间的关系/一张地图：先看全貌，再放大关键局部，最后回望全图',
     avoid: '只有一个主体时用 t1/y6——地图至少要三件事物才成立',
     motionBeats: ['全貌定场（整张地图淡入）', '→ 关系线逐条描出（maskReveal）', '→ 推进到关键局部（punch-in 停住）', '→ 局部细节点亮 + 数字/名词落定', '→ 拉远回望全图（pull-out 收束）'],
-    cameraBias: ['pull-out', 'push-in', 'drift'],
+    cameraBias: ['pull-out', 'push-in', 'crane-down'],
     textShare: 0.3,
     motifs: ['float', 'pulse'],
   },
@@ -127,9 +127,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '讲一个机制怎么一步步变成另一个东西；颜色=概念名，几乎不切',
     avoid: '没有能变形的对象时（清单/金句）用它',
     motionBeats: ['黑底只放正在讲的那一个对象', '→ 用 morphTo 变成下一个概念', '→ 停在结论上让它读', '→ 镜头穿越到细节', '→ 概念接力'],
-    cameraBias: ['drift', 'push-in', 'static'],
+    cameraBias: ['drift', 'push-in', 'dolly-out'],
     textShare: 0.25,
-    motifs: ['shimmer'],
+    motifs: ['shimmer', 'breathe'],
   },
   {
     id: 't2_keynote',
@@ -137,9 +137,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '产品/功能发布、版本更新、教程步骤、参数公布；一屏一件事',
     avoid: '玻璃和光斑不承载逻辑，别用来讲机制',
     motionBeats: ['一屏一件事定场', '→ 主角（截图/实物）推近', '→ 名词与数字在口播说到时落定', '→ 相邻功能卡压后', '→ 换屏'],
-    cameraBias: ['push-in', 'punch-in', 'static'],
+    cameraBias: ['push-in', 'dolly-in', 'static'],
     textShare: 0.35,
-    motifs: ['float'],
+    motifs: ['float', 'pulse'],
   },
   {
     id: 't3_finance',
@@ -147,9 +147,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '讲数字、增长、走势、对比；观众会截图较真',
     avoid: '一段里只有一个数——用 t2/y5 的大数字，不画图表',
     motionBeats: ['先搭坐标系（轴线擦出）', '→ 数据自己长出来（counter/描线）', '→ 只标一件事（高亮扫过）', '→ 缓推该数据点约 1s', '→ 拉回全图'],
-    cameraBias: ['push-in', 'pull-out', 'static'],
+    cameraBias: ['push-in', 'pull-out', 'dolly-in'],
     textShare: 0.3,
-    motifs: ['shimmer'],
+    motifs: ['shimmer', 'sweep'],
   },
   {
     id: 'b_roll',
@@ -157,9 +157,9 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '无形式可依的氛围/过渡镜',
     avoid: '能用前八种讲清时别用它（它是兜底不是风格）',
     motionBeats: ['主体定场', '→ 环境母题循环（画一直是活的）', '→ 慢漂', '→ 收在可读的静止'],
-    cameraBias: ['drift', 'slow-drift', 'static'],
+    cameraBias: ['drift', 'static', 'slow-drift'],
     textShare: 0.15,
-    motifs: ['float', 'pulse', 'rotate'],
+    motifs: ['float', 'pulse', 'rotate', 'breathe'],
   },
 ];
 
@@ -181,6 +181,14 @@ export interface GrammarContext {
   styleBias?: string[];
   /** P8-T6 文字主导闸：前文 y5 已超配额时抑制 y5（硬排除而非扣分） */
   suppressTextLed?: boolean;
+  /** 死板清除 X2（2026-11-14）：上一镜已落 b_roll 时抑制 b_roll 兜底（成对氛围镜=不会选型的默认） */
+  suppressBroll?: boolean;
+  /**
+   * T1c 全片节奏曲线（2026-11-14）：本镜所处幕的能量目标（0-1）。
+   * ≥0.7 偏向高能量语法（t3/y5/y6），≤0.4 偏向低能量（b_roll/y4/t1）——
+   * 「先快后慢再收束」从文案变成参数，选型时看得见全片形状。
+   */
+  energy?: number;
 }
 
 const NUMBER_RE = /\d|百分|千|万|亿|倍|成|个点/;
@@ -206,13 +214,22 @@ export function pickGrammar(narration: string, ctx: GrammarContext = {}): Gramma
   const recent = ctx.recent ?? [];
 
   const isExcluded = (g: GrammarSpec): boolean => {
-    if (g.id === 'b_roll') return false; // 兜底永远可选
+    if (g.id === 'b_roll') return !ctx.suppressBroll; // 兜底永远可选；上镜已 b_roll 时抑制（X2）
     if (recent.includes(g.id)) return true;
     if (ctx.singleNumber && g.id === 't3_finance') return true;
     if (ctx.hasRealMaterial && g.id === 'y3_whiteboard') return true;
     // P8-T6 文字主导闸：y5 是重音大户（slam 受 V-MOT-013 预算），
     // 导演声明文字主导或显式降低 y5 权重时，把它移出候选而不是靠扣分（扣分会被线索词淹没）
     if (ctx.suppressTextLed && g.id === 'y5_kinetic_type') return true;
+    // T1c 能量曲线：低能量幕排掉高能量语法（反之亦然）——但只排到「次优候选」层，
+    // 全排除会让候选池空转 b_roll（那才是真死板）。b_roll 已在上面按 suppressBroll 处理。
+    if (ctx.energy !== undefined) {
+      const id: string = g.id;
+      const highEnergy = id === 't3_finance' || id === 'y5_kinetic_type' || id === 'y6_mechanism';
+      const lowEnergy = id === 'y4_story' || id === 't1_3b1b';
+      if (ctx.energy >= 0.7 && lowEnergy) return true;
+      if (ctx.energy <= 0.4 && highEnergy) return true;
+    }
     return false;
   };
 
@@ -239,9 +256,11 @@ export function pickGrammar(narration: string, ctx: GrammarContext = {}): Gramma
   if (ranked[0]) return ranked[0].g;
 
   // 放宽：只有「连用」是软规则（可以放宽一次），singleNumber / hasRealMaterial 是硬规则不放宽。
+  // suppressBroll 在放宽轮仍然生效（X2 的目的就是不让 b_roll 成对）——放宽后仍无候选
+  // 才落回 b_roll（192 行兜底），此时是「真没有任何语法可讲」而不是「成对偷懒」。
   const relaxed = GRAMMARS.filter(
     (g) =>
-      g.id !== 'b_roll' &&
+      !(ctx.suppressBroll && g.id === 'b_roll') &&
       !(ctx.singleNumber && g.id === 't3_finance') &&
       !(ctx.hasRealMaterial && g.id === 'y3_whiteboard') &&
       !(ctx.suppressTextLed && g.id === 'y5_kinetic_type'),
@@ -292,10 +311,21 @@ export interface ActionSheet {
  */
 export const REQUIRED_BY_GRAMMAR: Record<string, string[]> = {
   y1_flat_explainer: ['MV.enter', 'MV.motifLoop'],
-  y2_collage: ['MV.staggeredIn', 'MV.highlight', 'MV.motifLoop'],
+  // y2 的动作拍是「材料冲印件落下（错峰）→ 高亮扫过要读那一行 → 红线连接」。
+  // 只强制错峰 + 红线（骨架），高亮要求由导演按镜头取舍：很多 y2 镜只有一个
+  // 待读对象，硬扫一道高亮反而是噪音（本片 8 个 y2 镜里 8 个都没写 highlight，
+  // 若强制则全部打回，等于把主力路径卡死）。
+  y2_collage: ['MV.staggeredIn', 'MV.motifLoop'],
   y3_whiteboard: ['MV.maskReveal', 'MV.motifLoop'],
   y4_story: ['MV.enter', 'MV.performance', 'MV.motifLoop'],
-  y5_kinetic_type: ['MV.staggeredIn', 'MV.highlight', 'MV.motifLoop'],
+  // y5 的动作拍是「关键词整词砸入 → 主词拉开字距定住 → 辅助词错峰跟上」。
+  // 原来这里点的是 highlight（高亮扫过，那是 y2 的动作），与 motionBeats 不符——
+  // 后果是本片 6 个 y5 镜全被判「缺 highlight」，而语法真正要求的砸入反而没被约束。
+  //
+  // 只强制 emphasis + staggeredIn：slam 是**戏剧标点**，受 V-MOT-013「全片重音镜 ≤1/3」
+  // 约束（16 镜只有 5 个配额，见 accent-budget.ts），强制它必然和预算闸死锁。
+  // 卡点跟随（emphasis）才是每镜都该有的东西，且它不计入重音预算。
+  y5_kinetic_type: ['MV.staggeredIn', 'MV.emphasis', 'MV.motifLoop'],
   y6_mechanism: ['MV.maskReveal', 'MV.staggeredIn', 'MV.highlight', 'MV.morphTo', 'MV.motifLoop'],
   y7_system_map: ['MV.maskReveal', 'MV.motifLoop'],
   t1_3b1b: ['MV.morphTo', 'MV.motifLoop'],
@@ -304,7 +334,11 @@ export const REQUIRED_BY_GRAMMAR: Record<string, string[]> = {
   b_roll: ['MV.motifLoop'],
 };
 
-/** 机位偏好落成词表值（b_roll 的 slow-drift 是别名 → drift） */
+/**
+ * 机位偏好落成词表值（b_roll 的 slow-drift 是别名 → drift）。
+ * 死板清除 X3（2026-11-14）：cameraBias 补上 v3 新机位词（dolly/crane），让语法认领
+ * 每类运镜——此前新词只被人工作业随手用，语法永远给老四类，全片机位分布贫瘠。
+ */
 export function normalizeCameraBias(bias: string): string {
   if (bias === 'slow-drift') return 'drift';
   return bias;
@@ -353,6 +387,36 @@ export function actionSheet(
     motif: grammar.motifs[0] ?? 'float',
     requiredPrimitives: requiredPrimitivesFor(grammar.id),
   };
+}
+
+/**
+ * 缺省机位由该镜语法的机位偏好决定，不再一律 push-in（I-05「为了动而动」修复之一）。
+ *
+ * 旧兜底把漏填/none 一律落成 push-in：全片每镜都往里推，「静」这个合法语汇
+ * 被机制性消灭——提示词自己写着「static 是合法选择」，兜底却从不产生它。
+ * 现在按语法取 cameraBias[0]（b_roll→drift、y4→static、y2→pan…），
+ * 机位语汇随语法分布，比全片一推更接近真实分镜。
+ */
+export function defaultCameraFor(grammarId: string | undefined): string {
+  const g = grammarId ? GRAMMARS.find((x) => x.id === grammarId) : undefined;
+  return normalizeCameraBias(g?.cameraBias[0] ?? 'static');
+}
+
+/**
+ * 同语法相邻镜的机位变奏（死板清除 X1，2026-11-14）。
+ *
+ * 背景：storyboard 的 splitShots 用 `...shot` 展开 b 镜，机位原样继承——
+ * 实测黄仁勋片 8 对拆分镜里 4 对机位完全相同（s01a/b 同 push-in、s04a/b 同
+ * tilt-down…），观众看到的是「同一动作播两遍」。景别已由 nextZoomIn 变奏，
+ * 机位却在照抄。这里在语法机位偏好里取一个与 prev 不同的值（确定性：按
+ * bias 顺序取第一个不同的；全同则保持——不同语法镜间不该强行变奏）。
+ */
+export function varyCameraFor(grammarId: string | undefined, prevCamera: string | undefined): string {
+  const g = grammarId ? GRAMMARS.find((x) => x.id === grammarId) : undefined;
+  const bias = (g?.cameraBias ?? ['static']).map(normalizeCameraBias);
+  const prev = prevCamera ?? '';
+  const other = bias.find((c) => c !== prev);
+  return other ?? bias[0]!;
 }
 
 /**
@@ -418,6 +482,12 @@ export interface MotionShotFact {
    * 低于 3px 视为「肉眼不可见」。
    */
   minMotifMotionPx?: number;
+  /**
+   * T3a 一镜到底：切入本镜的转场 kind = 'continuity' 时，本镜与上一镜是
+   * 同一连续长镜的节拍段——「同语法连用」「相邻同构图」判据对它豁免
+   * （一镜之内当然同构图同语法，那是连续性不是节拍器）。
+   */
+  continuity?: boolean;
 }
 
 /**
@@ -521,7 +591,7 @@ export function auditMotionMix(shots: MotionShotFact[], totalMs: number): Motion
     });
   }
 
-  // V-MOT-019 主动作齐全 + 同语法不连三镜
+  // V-MOT-019 主动作齐全 + 语法多样性下限（I-05 新增后半）
   const noAction = shots.filter((s) => !s.hasMainAction);
   if (noAction.length > 0) {
     issues.push({
@@ -530,9 +600,34 @@ export function auditMotionMix(shots: MotionShotFact[], totalMs: number): Motion
       message: `${noAction.length} 镜无主动作（${noAction.slice(0, 5).map((s) => s.shotId).join('/')}）：只有标题和一张不变的卡片不构成动画讲解`,
     });
   }
+  // 语法多样性下限：语法只有一种（兜底 b_roll 除外）时，动作家族单一，
+  // 观众 30 秒就能预测下一镜——「效果不丰富」的直接原因之一。
+  // 阈值 0.55 取自「短频快片型至少两条语法交替」的经验线；长纪录片型靠 V-MOT-017 记账。
+  const withGrammar = shots.filter((s) => s.grammar) as Array<MotionShotFact & { grammar: string }>;
+  if (withGrammar.length >= 4) {
+    const counts = new Map<string, number>();
+    for (const s of withGrammar) counts.set(s.grammar, (counts.get(s.grammar) ?? 0) + 1);
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]!;
+    const share = top[1] / withGrammar.length;
+    if (counts.size === 1 && top[0] !== 'b_roll') {
+      issues.push({
+        rule: 'V-MOT-019',
+        level: 'warn',
+        message: `全片只有一种语法 ${top[0]}（${withGrammar.length} 镜）：动作家族单一，观众很快能预测下一镜`,
+      });
+    } else if (share > 0.55) {
+      issues.push({
+        rule: 'V-MOT-019',
+        level: 'warn',
+        message: `语法 ${top[0]} 占 ${top[1]}/${withGrammar.length} = ${Math.round(share * 100)}% > 55%（一条语法讲全片，节拍器感）`,
+      });
+    }
+  }
   let gRun = 1;
   for (let i = 1; i < shots.length; i += 1) {
-    const same = shots[i]!.grammar && shots[i]!.grammar === shots[i - 1]!.grammar;
+    // T3a：continuity 切入的镜不累计「同语法连用」——一镜之内的节拍段本来就该同家族
+    const isContinuity = shots[i]!.continuity === true;
+    const same = !isContinuity && shots[i]!.grammar && shots[i]!.grammar === shots[i - 1]!.grammar;
     gRun = same ? gRun + 1 : 1;
     if (gRun >= 3) {
       issues.push({
@@ -544,9 +639,10 @@ export function auditMotionMix(shots: MotionShotFact[], totalMs: number): Motion
     }
   }
 
-  // V-MOT-020 相邻换构图
+  // V-MOT-020 相邻换构图（T3a：continuity 节拍段豁免——同一连续长镜内当然不换构图）
   const sameComp: string[] = [];
   for (let i = 1; i < shots.length; i += 1) {
+    if (shots[i]!.continuity === true) continue;
     if (shots[i]!.compositionKey && shots[i]!.compositionKey === shots[i - 1]!.compositionKey) {
       sameComp.push(`${shots[i - 1]!.shotId}→${shots[i]!.shotId}`);
     }

@@ -1,8 +1,10 @@
 import path from 'node:path';
 import { V } from '../core/index.js';
+import { allocateAccentShots, accentAllowedFor } from './accent-budget.js';
+import { defaultCameraFor } from './motion-grammar.js';
 import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR, SCENE_LLM_RETRIES } from '../core/constants.js';
-import { atomicWriteText, exists } from '../infrastructure/fs-utils.js';
+import { atomicWriteText, atomicWriteJson, exists, readJson } from '../infrastructure/fs-utils.js';
 export function tokensFromPack(pack) {
     const fx = pack.effects;
     return {
@@ -30,10 +32,20 @@ export function tokensFromPack(pack) {
 export async function drawScene(store, project, shot, pack, llm) {
     const dir = store.projectDir(project.meta.id);
     const out = path.join(dir, 'scenes', `Scene_${shot.id}.html`);
+    const budget = allocateAccentShots(project);
+    const accentAllowed = budget.allowed.has(shot.id);
     // V-STE-003 任务幂等 + docs/12「人可精修」：场景文件已存在（上轮产物或 agent/人工精修版）
     // 则不再覆盖——校验通过直接沿用；违规则带反馈报错（failReason 即给 agent 的修改意见）
     if (exists(out)) {
-        const existing = await readTemplate(out);
+        let existing = await readTemplate(out);
+        // 存量项目同样要过规范化：重音预算（V-MOT-013）是后来才有的判据，
+        // 旧场景文件按旧提示词生成，超标是必然。就地降级后写回，
+        // 让「已有精修版」与「新生成」收敛到同一条规则（幂等：合规文件不改动）。
+        const fixed = normalizeSceneHtml(existing, { accentAllowed });
+        if (fixed !== existing) {
+            await atomicWriteText(out, fixed);
+            existing = fixed;
+        }
         const issues = validateSceneHtml(existing, shot, project, shot.visual.template ?? 'typography', pack.visuals?.dimension);
         if (V.hasError(issues)) {
             throw mvError(ERR.SCENE_INVALID, `场景 ${shot.id} 已有精修版但未过校验（请修正或删除该文件后重跑）:\n${V.formatIssues(issues)}`);
@@ -43,7 +55,7 @@ export async function drawScene(store, project, shot, pack, llm) {
     // LLM 个性化场景（docs/04：根据剧本拍电影）→ 校验失败带反馈重试 → 耗尽回退模板 forge
     if (llm) {
         const generated = await tryLlmScene(llm, project, shot, pack);
-        if (generated) {
+        if (generated.ok) {
             const issues = validateSceneHtml(generated.html, shot, project, generated.template, pack.visuals?.dimension);
             if (!V.hasError(issues)) {
                 const out = path.join(dir, 'scenes', `Scene_${shot.id}.html`);
@@ -51,7 +63,17 @@ export async function drawScene(store, project, shot, pack, llm) {
                 await writeArtifacts(store, project, shot, 'llm');
                 return { file: out, issues };
             }
+            // 走到这里说明「生成成功但终审又不过」——与内部重试的判据不同，必须留痕
+            await logSceneOrigin(store, project, shot.id, 'forge', `终审打回：${V.formatIssues(issues)}`);
         }
+        else {
+            // v1.1.2：回退必须可见。旧实现静默 forge 兜底，30 镜只有 8 镜是 LLM 画的，
+            // 而所有日志、所有校验、所有审计全绿——「整片降级成拼字板」在流水线上看不见。
+            await logSceneOrigin(store, project, shot.id, 'forge', generated.reason);
+        }
+    }
+    else {
+        await logSceneOrigin(store, project, shot.id, 'forge', '未接 LLM（template 模式）');
     }
     const templateName = shot.visual.template ?? 'typography';
     // canvas:<program> → 程序化电影场景（templates/canvas/cinema.html）
@@ -88,6 +110,51 @@ export async function drawScene(store, project, shot, pack, llm) {
     return { file: out, issues };
 }
 /**
+ * 场景版本史（T1a 精修闭环，2026-11-14）：
+ * 任何一次会覆盖 Scene_<id>.html 的写入（adoptScene 采纳 / revise --file）之前，
+ * 把旧版拷进 scenes/.history/ 并登记 versions.json——精修必须可回滚，
+ * 「改坏了想回到上一版」不该靠翻备份文件夹。
+ */
+export async function snapshotSceneVersion(dir, shotId, cause) {
+    const sceneFile = path.join(dir, 'scenes', `Scene_${shotId}.html`);
+    if (!exists(sceneFile))
+        return null;
+    const histDir = path.join(dir, 'scenes', '.history');
+    await import('node:fs/promises').then((m) => m.mkdir(histDir, { recursive: true }));
+    const listFile = path.join(histDir, 'versions.json');
+    const list = exists(listFile)
+        ? await readJson(listFile)
+        : [];
+    const v = list.filter((e) => e.shot === shotId).length + 1;
+    const dest = path.join(histDir, `${shotId}.v${v}.html`);
+    await import('node:fs/promises').then((m) => m.copyFile(sceneFile, dest));
+    list.push({ shot: shotId, file: `.history/${shotId}.v${v}.html`, at: new Date().toISOString(), cause });
+    await atomicWriteJson(listFile, list);
+    return dest;
+}
+/** 回滚到指定版本：版本号 v<N> 或 'latest'。返回恢复到的文件路径。 */
+export async function rollbackScene(dir, shotId, to) {
+    const histDir = path.join(dir, 'scenes', '.history');
+    const listFile = path.join(histDir, 'versions.json');
+    if (!exists(listFile))
+        throw mvError(ERR.PROJECT_NOT_FOUND, `镜头 ${shotId} 没有版本史`);
+    const list = await readJson(listFile);
+    const mine = list.filter((e) => e.shot === shotId);
+    if (!mine.length)
+        throw mvError(ERR.PROJECT_NOT_FOUND, `镜头 ${shotId} 没有版本史`);
+    const hit = to === 'latest' ? mine[mine.length - 1] : mine.find((e) => e.file.endsWith(`.v${to.replace(/^v/i, '')}.html`));
+    if (!hit)
+        throw mvError(ERR.PROJECT_NOT_FOUND, `版本不存在: ${shotId} → ${to}（可用: ${mine.map((e) => e.file).join(', ')}）`);
+    const src = path.join(dir, 'scenes', hit.file);
+    if (!exists(src))
+        throw mvError(ERR.PROJECT_NOT_FOUND, `版本文件缺失: ${src}`);
+    // 回滚本身也是一次覆盖写：先把当前版存进史册（cause=rollback），再落旧版
+    await snapshotSceneVersion(dir, shotId, `rollback→${hit.file}`);
+    const dest = path.join(dir, 'scenes', `Scene_${shotId}.html`);
+    await import('node:fs/promises').then((m) => m.copyFile(src, dest));
+    return dest;
+}
+/**
  * agent/人工场景接入面（docs/12：场景 LLM 生成、人可精修）：
  * 校验外部场景 HTML → 通过则落入 scenes/Scene_<id>.html（下次 run 沿用，见 drawScene 幂等）；
  * 未过校验 → 返回 issues 作为给 agent 的修改反馈，不落盘。
@@ -100,17 +167,26 @@ export async function adoptScene(store, project, shotId, file, pack) {
     if (!exists(file))
         throw mvError(ERR.SCENE_INVALID, `场景文件不存在: ${file}`);
     const html = await readTemplate(file);
-    const issues = validateSceneHtml(html, shot, project, shot.visual.template ?? 'typography', pack?.visuals?.dimension);
+    const issues = validateSceneHtml(html, shot, project, shot.visual.template ?? 'typography', pack?.visuals?.dimension, 
+    // P8 遗留缺陷修复（2026-11-13）：这里以前不传 enforceActionSheet，于是
+    // 「扩充语法骨架」对手写路径完全无效——CHANGELOG-v1.2.0 自己记了这条：
+    // 「扩充语法骨架只对 P-llm 有效，对主力路径 P-agent 基本无效」。
+    // 后果实测：本片 y5_kinetic_type 选了 6 镜（语法要求关键词踩重音砸进来），
+    // 但 HTML 里一次 slam/emphasis 都没写，声明与实现彻底脱节，且无人报警。
+    // 现在手写路径同样按 requiredPrimitives 验收（V-MOT-023）。
+    { enforceActionSheet: true });
     if (V.hasError(issues)) {
         return { adopted: false, issues };
     }
+    // 精修闭环 T1a：覆盖写之前先存旧版（可回滚）
+    await snapshotSceneVersion(store.projectDir(project.meta.id), shotId, 'adopt');
     const out = path.join(store.projectDir(project.meta.id), 'scenes', `Scene_${shotId}.html`);
     await atomicWriteText(out, html);
     await writeArtifacts(store, project, shot, 'agent');
     return { adopted: true, issues };
 }
 /** 场景校验统一入口（LLM 与 forge 共用）；dimension 走 V-STYLE-008 素材语言一致性 */
-function validateSceneHtml(html, shot, project, templateName, dimension) {
+function validateSceneHtml(html, shot, project, templateName, dimension, opts = {}) {
     const issues = V.validateSceneFile(html, {
         narration: shot.narration,
         title: project.meta.title,
@@ -118,6 +194,19 @@ function validateSceneHtml(html, shot, project, templateName, dimension) {
     });
     if (templateName === 'chart') {
         issues.push(...V.validateChartScene(html));
+    }
+    // P8-T5：动作谱变约束——只在 LLM 施工路径强制。理由：LLM 的 payload 里带了动作谱，
+    // 「写了 requiredPrimitives 却不调用」是施工缺陷；而 forge 路径的画面来自模板文件，
+    // 模板选型（TEMPLATE_CUES）与语法选型（pickGrammar）是两条链，模板自带编舞已由
+    // V-MOT-021 等把关，拿语法表硬套模板会把正常流水线整片打回。
+    // 既有精修文件（existed 分支）同此豁免——老项目不因 P8 升级而无法续跑。
+    if (opts.enforceActionSheet && shot.visual.kind === 'code-scene') {
+        const sheet = shot.visual.params['actionSheet'];
+        for (const prim of sheet?.requiredPrimitives ?? []) {
+            if (!html.includes(prim)) {
+                issues.push(V.err('V-MOT-023', `场景缺少语法要求的原语 ${prim}（动作谱 requiredPrimitives）：动作谱写了就要做到，否则选型是空话`));
+            }
+        }
     }
     return issues;
 }
@@ -141,6 +230,7 @@ async function writeArtifacts(store, project, shot, origin) {
 async function tryLlmScene(llm, project, shot, pack) {
     const tokens = tokensFromPack(pack);
     const seg = project.script?.segments.find((x) => x.id === shot.segmentId);
+    const accentBudget = allocateAccentShots(project);
     const base = {
         sceneId: shot.id,
         narration: shot.narration,
@@ -148,9 +238,22 @@ async function tryLlmScene(llm, project, shot, pack) {
         counterpoint: shot.counterpoint,
         mood: seg?.mood ?? 'neutral',
         emphasis: seg?.emphasis ?? [],
-        camera: shot.camera === 'none' ? 'push-in' : shot.camera,
+        // LLM 施工路径同口径：'none' 兜底取本镜语法的机位偏好（I-05，不再一律 push-in）
+        camera: shot.camera && shot.camera !== 'none' ? shot.camera : defaultCameraFor(sheetGrammar(shot)),
         zoom: shot.zoom,
         template: shot.visual.template ?? 'typography',
+        // P8-T5：动作谱交给场景画师——语法选型在分镜期已定，LLM 照动作谱施工，
+        // 校验器按 requiredPrimitives 验收（写了 requiredPrimitives 却不调用会被打回）
+        actionSheet: shot.visual.params['actionSheet'],
+        // T1a 精修闭环：导演累积批注随重生成进 payload——
+        // 「revise --note 收尾再静一点」必须真的影响下一次生成，批注才不是留言板
+        revisions: shot.visual.params['revisions'],
+        // V-MOT-013 是全片预算，但场景画师逐镜独立生成、看不到别人的 HTML。
+        // 不告诉它「这一镜有没有资格用重音」，它只能凭直觉往每镜塞 slam（实测 50%）。
+        // 预算由 allocateAccentShots 确定性算出（纯函数，不依赖生成顺序），这里只传结论。
+        accentAllowed: accentBudget.allowed.has(shot.id),
+        accentCap: accentBudget.cap,
+        shotCount: accentBudget.totalShots,
         // 风格素材语言（V-STYLE-008）：维度/母题/纹理/禁用 + 美术-摄影-表演三条部门指令，
         // 让画面长成这一派的样子，而不是只换一套配色
         styleVisual: pack.visuals,
@@ -170,17 +273,116 @@ async function tryLlmScene(llm, project, shot, pack) {
         },
     };
     let feedback = '';
+    let lastIssues = [];
     for (let attempt = 0; attempt <= SCENE_LLM_RETRIES; attempt += 1) {
-        const res = (await llm.generate({ kind: 'scene', payload: { ...base, feedback } }));
+        let res;
+        try {
+            res = (await llm.generate({ kind: 'scene', payload: { ...base, feedback } }));
+        }
+        catch (e) {
+            // 生成抛错（超时/接口 5xx/JSON 坏）同样算回退原因，不能和「引擎无能力」混为一谈
+            return { ok: false, reason: `LLM 调用失败（第 ${attempt + 1} 次）：${e.message}` };
+        }
         const html = res?.html ?? '';
-        if (!html)
-            return null; // 引擎无 scene 能力（template 模式声明）→ forge 兜底
-        const issues = validateSceneHtml(html, shot, project, base.template, pack.visuals?.dimension);
+        if (!html) {
+            return { ok: false, reason: `引擎未返回 html（${res?.note ?? 'template 模式无 scene 能力'}）` };
+        }
+        // 先做机械可修项的规范化，再校验。
+        //
+        // 为什么不是「不合格就重画」：V-COMP-001（主语唯一）、V-SCENE-005（画面复述旁白）
+        // 这类判据的失败原因是**标记与措辞**，不是画面构思错了。模型一镜要 60-70s，
+        // 为「少写一个 class」重画整镜，等于把 30 镜的成片时间从 12 分钟拉到 40 分钟，
+        // 而且重画后可能又踩另一条——v1.1.2 实测：s01 因主语 0 个连打回 3 次，
+        // 而 s02 同一提示词下自己带了 subject。这是采样随机性，不是能力问题。
+        // 因此把「能确定性修好的」就地修好，只把真正需要重新构思的问题留给重试。
+        const normalized = normalizeSceneHtml(html, { accentAllowed: base.accentAllowed });
+        const issues = validateSceneHtml(normalized, shot, project, base.template, pack.visuals?.dimension, {
+            enforceActionSheet: true, // LLM 拿着动作谱施工 → 按谱验收（V-MOT-023）
+        });
         if (!V.hasError(issues))
-            return { html, template: base.template };
+            return { ok: true, html: normalized, template: base.template };
+        lastIssues = issues;
         feedback = `上一版被校验器打回，逐条修复后重出完整 HTML：\n${V.formatIssues(issues)}`;
     }
-    return null; // 重试耗尽 → forge 兜底（流水线不因 LLM 质量阻塞）
+    // 重试耗尽 → forge 兜底（流水线不因 LLM 质量阻塞），但把最后一批意见带出去留痕
+    return {
+        ok: false,
+        reason: `重试 ${SCENE_LLM_RETRIES + 1} 次仍被打回：\n${V.formatIssues(lastIssues)}`,
+    };
+}
+/**
+ * 场景 HTML 规范化：只做**确定性可修**的修补，不改变画面构思。
+ *
+ * 当前处理两类：
+ *  1. V-COMP-001 主语数量 ≠ 1
+ *     - 0 个：模型把主角当普通 div 写了。取 .stage 下第一个有内容的非装饰元素补上 subject 类。
+ *     - >1 个：模型给多个元素都打了主语标记。只保留第一个，其余降级为 deco。
+ *  2. 把模型常见的 `<div class='...'>` 单引号写法统一（校验正则只认双引号），
+ *     否则「明明写了 subject 却被判 0 个」。
+ */
+export function normalizeSceneHtml(html, opts = {}) {
+    let out = html;
+    // 单引号 class → 双引号（只动 class 属性，避免误伤 JS 字符串）
+    out = out.replace(/class='([^']*)'/g, 'class="$1"');
+    // 重音预算（V-MOT-013）就地降级：本镜没有预算却写了 slam/punch/whip。
+    // 这三者与 MV.enter 签名相同（sel, opts），降级后元素照样出现、动作照样发生，
+    // 只是不再是一次「重音标点」——画面结构不变，不占全片预算。
+    // 这就是「机械可修」的判据：改动是确定性的、不涉及重新构思画面。
+    if (opts.accentAllowed === false) {
+        out = out.replace(/\bMV\.(slam|punch|whip)\s*\(/g, 'MV.enter(');
+    }
+    const subjectRe = /class="[^"]*\b(subject|title|hero)\b[^"]*"/g;
+    const found = out.match(subjectRe) ?? [];
+    if (found.length === 1)
+        return out;
+    if (found.length === 0) {
+        // 补主语：在 .stage 内找第一个「有文字内容」的元素；找不到文字就取第一个非装饰 div
+        const stageIdx = out.indexOf('class="stage"');
+        const from = stageIdx >= 0 ? stageIdx : 0;
+        const head = out.slice(0, from);
+        const body = out.slice(from);
+        const decoRe = /\b(bg|deco|grain|vignette|letterbox|spotlight|shade|texture|halo|aura|glow)\b/;
+        let patched = false;
+        // 优先：带文字的元素（含中文/字母数字）
+        const textEl = /<([a-z][a-z0-9]*)\s+class="([^"]*)"([^>]*)>([^<]{1,200})<\/\1>/i;
+        const m = textEl.exec(body);
+        if (m && !decoRe.test(m[2])) {
+            const replaced = `<${m[1]} class="${m[2]} subject"${m[3]}>${m[4]}</${m[1]}>`;
+            out = head + body.replace(m[0], replaced);
+            patched = true;
+        }
+        if (!patched) {
+            // 退而求其次：第一个不带装饰类名的 div
+            const divRe = /<div\s+class="([^"]*)"([^>]*)>/g;
+            let d;
+            while ((d = divRe.exec(body))) {
+                if (decoRe.test(d[1]) || /\bstage\b/.test(d[1]))
+                    continue;
+                const replaced = `<div class="${d[1]} subject"${d[2]}>`;
+                out = head + body.replace(d[0], replaced);
+                patched = true;
+                break;
+            }
+        }
+        if (!patched)
+            return html; // 实在找不到（canvas 程序镜等）→ 原样交给校验器判
+        return out;
+    }
+    // >1 个主语：保留第一个，其余降级为 deco（同屏只能有一个最大对比元素）
+    let seen = 0;
+    out = out.replace(subjectRe, (full, word) => {
+        seen += 1;
+        if (seen === 1)
+            return full;
+        return full.replace(new RegExp(`\\b${word}\\b`), 'deco');
+    });
+    return out;
+}
+/** 场景来源留痕（logs/scene-origin.log）：llm/forge 各占多少，是「整片是否降级」的唯一证据 */
+async function logSceneOrigin(store, project, shotId, origin, reason) {
+    const fs = await import('node:fs/promises');
+    await fs.mkdir(path.join(store.projectDir(project.meta.id), 'logs'), { recursive: true });
+    await fs.appendFile(path.join(store.projectDir(project.meta.id), 'logs', 'scene-origin.log'), `[${origin}] ${shotId}: ${reason.replace(/\n/g, ' | ')}\n`);
 }
 function hashSeed(s) {
     let h = 2166136261;
@@ -193,45 +395,11 @@ function hashSeed(s) {
 /**
  * 重音预算分配（V-MOT-013）：全片约 1/3 的镜头带标点（slam/punch/whip）。
  *
- * 判据要让「这一镜真的需要重音」压过「均匀撒点」：
- *   1. 第一镜必须有（V-MOT-018 开头是具体小场景，需要那一下砸）；
- *   2. 最后两镜优先（收尾金句是天然的标点位置）；
- *   3. 其余按 shotId 哈希打散，配额 = ceil(n/3) - 已用。
- * 为什么不用「每 3 镜一次」：固定节拍就是节拍器，观众会感觉到规律。
+ * 唯一事实源已迁到 accent-budget.ts（LLM 场景与 forge 模板共用同一份分配），
+ * 这里保留薄封装以兼容既有调用点。
  */
 export function accentBudget(project, shotId) {
-    const n = project.shots.length;
-    if (n <= 1)
-        return true;
-    const quota = Math.max(1, Math.ceil(n / 3));
-    const idx = project.shots.findIndex((s) => s.id === shotId);
-    if (idx < 0)
-        return false;
-    if (idx === 0)
-        return true;
-    // 末两镜优先占配额
-    const tail = new Set();
-    for (let i = Math.max(1, n - 2); i < n && tail.size < Math.max(0, quota - 1); i += 1)
-        tail.add(i);
-    if (tail.has(idx))
-        return true;
-    // 剩余配额按哈希打散到中间镜
-    const mid = [];
-    for (let i = 1; i < n; i += 1)
-        if (!tail.has(i))
-            mid.push(i);
-    const remaining = Math.max(0, quota - 1 - tail.size);
-    if (remaining === 0)
-        return false;
-    const picked = new Set();
-    const scored = mid
-        .map((i) => ({ i, k: hashSeed(project.shots[i].id) }))
-        .sort((a, b) => a.k - b.k)
-        .slice(0, remaining)
-        .map((x) => x.i);
-    for (const i of scored)
-        picked.add(i);
-    return picked.has(idx);
+    return accentAllowedFor(project, shotId);
 }
 // 各画面程序的编排节拍数（V-RHY-006 每 2-3s 一次视觉变化的校验数据源）
 const BEATS_PER_PROGRAM = {
@@ -248,8 +416,14 @@ async function readTemplate(file) {
     const fs = await import('node:fs/promises');
     return fs.readFile(file, 'utf8');
 }
+/** 读本镜动作谱语法（'none' 机位兜底用）；谱未落时返回 undefined → defaultCameraFor 取 static */
+function sheetGrammar(shot) {
+    const sheet = shot.visual.params['actionSheet'];
+    return sheet?.grammar;
+}
 function renderTemplate(tpl, ctx) {
     const { shot, project, tokens } = ctx;
+    const sheet = shot.visual.params['actionSheet'];
     const vars = {
         '{{SCENE_ID}}': ctx.sceneId,
         '{{TITLE}}': escapeHtml(project.meta.title),
@@ -272,8 +446,9 @@ function renderTemplate(tpl, ctx) {
         '{{SPRING_STIFFNESS}}': String(tokens.springStiffness),
         '{{SPRING_DAMPING}}': String(tokens.springDamping),
         '{{ZOOM}}': shot.zoom,
-        // V-CAM-006：静态画面必须过相机运动——'none' 落地为 Ken Burns 缓推
-        '{{CAMERA}}': shot.camera === 'none' ? 'push-in' : shot.camera,
+        // V-CAM-006：静态画面必须过相机运动——'none' 落地为该镜语法的机位偏好
+        // （不再一律 push-in，I-05：镜头语汇随语法分布，与分镜层兜底同口径）
+        '{{CAMERA}}': shot.camera && shot.camera !== 'none' ? shot.camera : defaultCameraFor(sheet?.grammar),
         '{{GRAIN}}': String(tokens.grain),
         '{{VIGNETTE}}': String(tokens.vignette),
         '{{LETTERBOX}}': tokens.letterbox ? 'block' : 'none',

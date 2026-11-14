@@ -2,10 +2,11 @@ import path from 'node:path';
 import type { Project, Shot, StylePack } from '../core/schema.js';
 import { V } from '../core/index.js';
 import { allocateAccentShots, accentAllowedFor } from './accent-budget.js';
+import { defaultCameraFor } from './motion-grammar.js';
 import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR, SCENE_LLM_RETRIES } from '../core/constants.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
-import { atomicWriteText, exists, readJson } from '../infrastructure/fs-utils.js';
+import { atomicWriteText, atomicWriteJson, exists, readJson } from '../infrastructure/fs-utils.js';
 
 interface DesignTokens {
   primary: string;
@@ -160,6 +161,57 @@ export async function drawScene(
 }
 
 /**
+ * 场景版本史（T1a 精修闭环，2026-11-14）：
+ * 任何一次会覆盖 Scene_<id>.html 的写入（adoptScene 采纳 / revise --file）之前，
+ * 把旧版拷进 scenes/.history/ 并登记 versions.json——精修必须可回滚，
+ * 「改坏了想回到上一版」不该靠翻备份文件夹。
+ */
+export async function snapshotSceneVersion(
+  dir: string,
+  shotId: string,
+  cause: string,
+): Promise<string | null> {
+  const sceneFile = path.join(dir, 'scenes', `Scene_${shotId}.html`);
+  if (!exists(sceneFile)) return null;
+  const histDir = path.join(dir, 'scenes', '.history');
+  await import('node:fs/promises').then((m) => m.mkdir(histDir, { recursive: true }));
+  const listFile = path.join(histDir, 'versions.json');
+  const list = exists(listFile)
+    ? await readJson<Array<{ shot: string; file: string; at: string; cause: string }>>(listFile)
+    : [];
+  const v = list.filter((e) => e.shot === shotId).length + 1;
+  const dest = path.join(histDir, `${shotId}.v${v}.html`);
+  await import('node:fs/promises').then((m) => m.copyFile(sceneFile, dest));
+  list.push({ shot: shotId, file: `.history/${shotId}.v${v}.html`, at: new Date().toISOString(), cause });
+  await atomicWriteJson(listFile, list);
+  return dest;
+}
+
+/** 回滚到指定版本：版本号 v<N> 或 'latest'。返回恢复到的文件路径。 */
+export async function rollbackScene(
+  dir: string,
+  shotId: string,
+  to: string,
+): Promise<string> {
+  const histDir = path.join(dir, 'scenes', '.history');
+  const listFile = path.join(histDir, 'versions.json');
+  if (!exists(listFile)) throw mvError(ERR.PROJECT_NOT_FOUND, `镜头 ${shotId} 没有版本史`);
+  const list = await readJson<Array<{ shot: string; file: string; at: string; cause: string }>>(listFile);
+  const mine = list.filter((e) => e.shot === shotId);
+  if (!mine.length) throw mvError(ERR.PROJECT_NOT_FOUND, `镜头 ${shotId} 没有版本史`);
+  const hit =
+    to === 'latest' ? mine[mine.length - 1]! : mine.find((e) => e.file.endsWith(`.v${to.replace(/^v/i, '')}.html`));
+  if (!hit) throw mvError(ERR.PROJECT_NOT_FOUND, `版本不存在: ${shotId} → ${to}（可用: ${mine.map((e) => e.file).join(', ')}）`);
+  const src = path.join(dir, 'scenes', hit.file);
+  if (!exists(src)) throw mvError(ERR.PROJECT_NOT_FOUND, `版本文件缺失: ${src}`);
+  // 回滚本身也是一次覆盖写：先把当前版存进史册（cause=rollback），再落旧版
+  await snapshotSceneVersion(dir, shotId, `rollback→${hit.file}`);
+  const dest = path.join(dir, 'scenes', `Scene_${shotId}.html`);
+  await import('node:fs/promises').then((m) => m.copyFile(src, dest));
+  return dest;
+}
+
+/**
  * agent/人工场景接入面（docs/12：场景 LLM 生成、人可精修）：
  * 校验外部场景 HTML → 通过则落入 scenes/Scene_<id>.html（下次 run 沿用，见 drawScene 幂等）；
  * 未过校验 → 返回 issues 作为给 agent 的修改反馈，不落盘。
@@ -182,10 +234,19 @@ export async function adoptScene(
     project,
     shot.visual.template ?? 'typography',
     pack?.visuals?.dimension,
+    // P8 遗留缺陷修复（2026-11-13）：这里以前不传 enforceActionSheet，于是
+    // 「扩充语法骨架」对手写路径完全无效——CHANGELOG-v1.2.0 自己记了这条：
+    // 「扩充语法骨架只对 P-llm 有效，对主力路径 P-agent 基本无效」。
+    // 后果实测：本片 y5_kinetic_type 选了 6 镜（语法要求关键词踩重音砸进来），
+    // 但 HTML 里一次 slam/emphasis 都没写，声明与实现彻底脱节，且无人报警。
+    // 现在手写路径同样按 requiredPrimitives 验收（V-MOT-023）。
+    { enforceActionSheet: true },
   );
   if (V.hasError(issues)) {
     return { adopted: false, issues };
   }
+  // 精修闭环 T1a：覆盖写之前先存旧版（可回滚）
+  await snapshotSceneVersion(store.projectDir(project.meta.id), shotId, 'adopt');
   const out = path.join(store.projectDir(project.meta.id), 'scenes', `Scene_${shotId}.html`);
   await atomicWriteText(out, html);
   await writeArtifacts(store, project, shot, 'agent');
@@ -283,12 +344,16 @@ async function tryLlmScene(
     counterpoint: shot.counterpoint,
     mood: seg?.mood ?? 'neutral',
     emphasis: seg?.emphasis ?? [],
-    camera: shot.camera === 'none' ? 'push-in' : shot.camera,
+    // LLM 施工路径同口径：'none' 兜底取本镜语法的机位偏好（I-05，不再一律 push-in）
+    camera: shot.camera && shot.camera !== 'none' ? shot.camera : defaultCameraFor(sheetGrammar(shot)),
     zoom: shot.zoom,
     template: shot.visual.template ?? 'typography',
     // P8-T5：动作谱交给场景画师——语法选型在分镜期已定，LLM 照动作谱施工，
     // 校验器按 requiredPrimitives 验收（写了 requiredPrimitives 却不调用会被打回）
     actionSheet: shot.visual.params['actionSheet'],
+    // T1a 精修闭环：导演累积批注随重生成进 payload——
+    // 「revise --note 收尾再静一点」必须真的影响下一次生成，批注才不是留言板
+    revisions: shot.visual.params['revisions'],
     // V-MOT-013 是全片预算，但场景画师逐镜独立生成、看不到别人的 HTML。
     // 不告诉它「这一镜有没有资格用重音」，它只能凭直觉往每镜塞 slam（实测 50%）。
     // 预算由 allocateAccentShots 确定性算出（纯函数，不依赖生成顺序），这里只传结论。
@@ -481,8 +546,15 @@ interface TplCtx {
   sceneId: string;
 }
 
+/** 读本镜动作谱语法（'none' 机位兜底用）；谱未落时返回 undefined → defaultCameraFor 取 static */
+function sheetGrammar(shot: Shot): string | undefined {
+  const sheet = shot.visual.params['actionSheet'] as { grammar?: string } | undefined;
+  return sheet?.grammar;
+}
+
 function renderTemplate(tpl: string, ctx: TplCtx): string {
   const { shot, project, tokens } = ctx;
+  const sheet = shot.visual.params['actionSheet'] as { grammar?: string } | undefined;
   const vars: Record<string, string> = {
     '{{SCENE_ID}}': ctx.sceneId,
     '{{TITLE}}': escapeHtml(project.meta.title),
@@ -505,8 +577,9 @@ function renderTemplate(tpl: string, ctx: TplCtx): string {
     '{{SPRING_STIFFNESS}}': String(tokens.springStiffness),
     '{{SPRING_DAMPING}}': String(tokens.springDamping),
     '{{ZOOM}}': shot.zoom,
-    // V-CAM-006：静态画面必须过相机运动——'none' 落地为 Ken Burns 缓推
-    '{{CAMERA}}': shot.camera === 'none' ? 'push-in' : shot.camera,
+    // V-CAM-006：静态画面必须过相机运动——'none' 落地为该镜语法的机位偏好
+    // （不再一律 push-in，I-05：镜头语汇随语法分布，与分镜层兜底同口径）
+    '{{CAMERA}}': shot.camera && shot.camera !== 'none' ? shot.camera : defaultCameraFor(sheet?.grammar),
     '{{GRAIN}}': String(tokens.grain),
     '{{VIGNETTE}}': String(tokens.vignette),
     '{{LETTERBOX}}': tokens.letterbox ? 'block' : 'none',

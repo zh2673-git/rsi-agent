@@ -47,6 +47,13 @@ export const CAMERA_MOVES = [
   'pan-left',
   'tilt-up',
   'tilt-down',
+  // 2026-11-13 增补：原词表只有 push/pull/pan/tilt/drift 五类运动 + 两个标点，
+  // 16 镜分配下去必然成对重复（实测 v2 里 push-in×4、drift×4、pull-out×3、tilt-down×2），
+  // 观感就是用户说的「很刻意的同质化放大」。dolly 带纵深、crane 带升降，与上面四类可区分。
+  'dolly-in',
+  'dolly-out',
+  'crane-up',
+  'crane-down',
   'punch-in',
   'whip-pan',
   'drift',
@@ -71,6 +78,14 @@ const CAMERA_ALIASES: Record<string, CameraMove> = {
   tiltup: 'tilt-up',
   'tilt-down': 'tilt-down',
   tiltdown: 'tilt-down',
+  'dolly-in': 'dolly-in',
+  dollyin: 'dolly-in',
+  'dolly-out': 'dolly-out',
+  dollyout: 'dolly-out',
+  'crane-up': 'crane-up',
+  craneup: 'crane-up',
+  'crane-down': 'crane-down',
+  cranedown: 'crane-down',
   'punch-in': 'punch-in',
   punchin: 'punch-in',
   punch: 'punch-in',

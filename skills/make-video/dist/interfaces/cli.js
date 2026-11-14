@@ -10,8 +10,10 @@ import { createTtsClient } from '../infrastructure/tts-client.js';
 import { createLlmClientFromEnv } from '../infrastructure/llm-client.js';
 import { adoptSceneFile, createEngine, resynthesize, runProject, useRecording, } from '../application/pipeline.js';
 import { buildConfirmation } from '../domain/storyboard.js';
+import { buildCapability } from '../core/catalog.js';
 import { V } from '../core/index.js';
-import { mvError } from '../core/errors.js';
+import { mvError, ERR } from '../core/errors.js';
+import { exists, readJson } from '../infrastructure/fs-utils.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 function out(data) {
     process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
@@ -48,7 +50,58 @@ async function loadRegistry(registry) {
     await registry.load();
 }
 const program = new Command();
-program.name('make-video').description('代码绘制优先的视频编译器').version('0.1.0');
+program.name('make-video').description('代码绘制优先的视频编译器').version('1.3.0');
+program
+    .command('capability')
+    .description('能力清单：动效原语/语法/机位/风格包/模板/配方 的实际数量与名单（优化前先看这个）')
+    .option('--json', '输出完整 JSON（默认给摘要）')
+    .action(async (opts) => {
+    try {
+        const cap = buildCapability();
+        const registry = new StyleRegistry(ROOT);
+        await registry.load();
+        const styles = registry.listStyles().map((s) => ({
+            id: s.id,
+            name: s.userFacing?.name ?? s.id,
+            grade: s.grade,
+            dimension: s.visuals?.dimension ?? '2d',
+        }));
+        const recipes = registry.listRecipes().map((r) => r.id);
+        const report = {
+            ...cap,
+            styles,
+            recipes,
+            counts: {
+                ...cap.version,
+                styles: styles.length,
+                recipes: recipes.length,
+                templates: cap.grammars.length, // 模板数由 templates/scenes 读盘，摘要不给
+            },
+        };
+        if (opts.json) {
+            out(report);
+            return;
+        }
+        // 摘要给人看：一眼知道「现在有多少东西可以改」
+        out({
+            数量: {
+                动效原语: cap.version.primitives,
+                其中主动作: cap.version.mainActions,
+                其中重音: cap.version.accents,
+                镜头语法: cap.version.grammars,
+                机位词: cap.version.cameraMoves,
+                风格包: styles.length,
+                类型配方: recipes.length,
+            },
+            风格包: styles.map((s) => `${s.id}（${s.name} / ${s.grade} / ${s.dimension}）`),
+            语法: cap.grammars.map((g) => g.id),
+            提示: '加 --json 拿完整名单（原语/机位/语法骨架）',
+        });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
 program
     .command('doctor')
     .description('环境体检（P 前置）')
@@ -89,9 +142,11 @@ program
         const project = await store.initProject({
             topic,
             aspect: opts['aspect'] === '9:16' ? '9:16' : '16:9',
-            durationTier: opts['duration-tier'] ?? '0-5',
+            durationTier: opts['durationTier'] ?? '0-5',
             ...(genre ? { genre } : {}),
-            assetPolicy: opts['asset-policy'] ?? 'auto',
+            // commander 12 把 kebab 选项归一成 camelCase（opts.assetPolicy），
+            // 旧代码读 opts['asset-policy'] 恒为 undefined，导致 --asset-policy 静默失效退回 auto。
+            assetPolicy: (opts['assetPolicy'] ?? opts['asset-policy']) ?? 'auto',
         });
         if (opts['materials']) {
             const { indexMaterials } = await import('../domain/asset-sourcing.js');
@@ -357,6 +412,8 @@ program
                 ? { hint: '已停在确认点：审阅 confirmation 后，编辑 project.json 的 confirmed=true 或用 --yes 重跑 run' }
                 : {}),
         });
+        // P8-T0：run 收尾释放常驻 TTS worker（防止 CLI 退出后 worker 变僵尸占 GPU）
+        await engine.destroy();
     }
     catch (e) {
         fail(e);
@@ -376,13 +433,19 @@ program
         const id = await store.resolveProjectId(opts['project']);
         const project = await store.load(id);
         const tts = createTtsClient(ttsProvider());
-        if (opts['from'] && opts['shot']) {
-            await useRecording(store, project, opts['shot'], opts['from']);
-            out({ shot: opts['shot'], source: 'recording', durationMs: project.shots.find((s) => s.id === opts['shot'])?.voice?.durationMs });
-            return;
+        try {
+            if (opts['from'] && opts['shot']) {
+                await useRecording(store, project, opts['shot'], opts['from']);
+                out({ shot: opts['shot'], source: 'recording', durationMs: project.shots.find((s) => s.id === opts['shot'])?.voice?.durationMs });
+                return;
+            }
+            const n = await resynthesize(store, project, tts, opts['shot'], opts['voice']);
+            out({ synthesized: n });
         }
-        const n = await resynthesize(store, project, tts, opts['shot'], opts['voice']);
-        out({ synthesized: n });
+        finally {
+            // P8-T0：voice 收尾释放常驻 TTS worker（失败路径同样释放）
+            await tts.close?.();
+        }
     }
     catch (e) {
         fail(e);
@@ -407,6 +470,111 @@ program
             adopted: r.adopted,
             ...(!r.adopted ? { feedback: V.formatIssues(r.issues) } : {}),
         });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+program
+    .command('revise <shot>')
+    .description('单镜精修（T1a 精修闭环）：--note 导演批注 / --file 采纳场景 / --coverage 覆盖切 / --rollback 回滚')
+    .option('--project <id>', '项目 id')
+    .option('--note <text>', '导演批注：持久化进 shot.visual.params.revisions，重生成时拼进 payload')
+    .option('--file <file>', '精修后的场景 HTML：过校验后采纳（覆盖写之前自动存版本史）')
+    .option('--coverage <json>', '追加覆盖切点 JSON 数组（剪辑部修订），如 \'[{"at":0.18,"kind":"punch-in"}]\'')
+    .option('--clear-revisions', '清空该镜批注（默认保留累积）')
+    .option('--rollback <version>', '回滚场景到版本史条目（v<N> 或 latest；--file 之前的保险）')
+    .option('--list-versions', '只列版本史不改动')
+    .action(async (shotId, opts) => {
+    try {
+        const { store, registry } = makeEngine();
+        const id = await store.resolveProjectId(opts['project']);
+        const project = await store.load(id);
+        await registry.ensureLoaded();
+        const pack = project.style ? registry.resolveStyle(project.style) : undefined;
+        const dir = store.projectDir(id);
+        const shot = project.shots.find((s) => s.id === shotId);
+        if (!shot)
+            throw mvError(ERR.PROJECT_NOT_FOUND, `镜头不存在: ${shotId}`);
+        // 只读：列版本史
+        if (opts['listVersions']) {
+            const listFile = path.join(dir, 'scenes', '.history', 'versions.json');
+            const list = exists(listFile)
+                ? await readJson(listFile)
+                : [];
+            out({ shot: shotId, versions: list.filter((e) => e.shot === shotId) });
+            return;
+        }
+        // 回滚（自身也是一次覆盖写，先入史册）
+        if (opts['rollback']) {
+            const { rollbackScene } = await import('../domain/scene-forge.js');
+            const dest = await rollbackScene(dir, shotId, String(opts['rollback']));
+            out({ shot: shotId, rolledBackTo: dest });
+            return;
+        }
+        const revised = { shot: shotId };
+        // 导演批注：累积数组（追加，不覆盖历史——精修史也是决策史）
+        if (opts['note']) {
+            const params = { ...shot.visual.params };
+            const revisions = Array.isArray(params['revisions'])
+                ? params['revisions']
+                : [];
+            revisions.push({ at: new Date().toISOString(), note: String(opts['note']) });
+            params['revisions'] = opts['clearRevisions'] ? [] : revisions;
+            shot.visual.params = params;
+            revised.revisions = params['revisions'];
+        }
+        // 剪辑部修订：追加覆盖切点（schema 校验交给 zod，越界 at/kind 在 store.save 时报）
+        if (opts['coverage']) {
+            let extra = [];
+            try {
+                const parsed = JSON.parse(String(opts['coverage']));
+                if (!Array.isArray(parsed))
+                    throw new Error('coverage 必须是数组');
+                extra = parsed;
+            }
+            catch (e) {
+                throw mvError(ERR.VALIDATION, `--coverage 不是合法 JSON 数组: ${e.message}`);
+            }
+            const coverage = Array.isArray(shot.coverage) ? [...shot.coverage] : [];
+            for (const c of extra) {
+                coverage.push({
+                    at: Math.min(1, Math.max(0, Number(c['at'] ?? 0))),
+                    kind: c['kind'] === 'reframe' ? 'reframe' : 'punch-in',
+                    scale: Number(c['scale'] ?? 1.16),
+                    xPercent: Number(c['xPercent'] ?? 0),
+                    yPercent: Number(c['yPercent'] ?? 0),
+                    rotation: Number(c['rotation'] ?? 0),
+                    motivation: String(c['motivation'] ?? 'emphasis'),
+                });
+            }
+            if (coverage.length > 3)
+                throw mvError(ERR.VALIDATION, `覆盖切最多 3 条（当前 ${coverage.length}）`);
+            shot.coverage = coverage;
+            revised.coverage = coverage;
+        }
+        // 场景采纳：与 scene --from 同一条校验路径（覆盖写自动存版本史）
+        if (opts['file']) {
+            const { adoptScene } = await import('../domain/scene-forge.js');
+            const r = await adoptScene(store, project, shotId, String(opts['file']), pack);
+            if (!r.adopted) {
+                out({ shot: shotId, adopted: false, feedback: V.formatIssues(r.issues) });
+                return;
+            }
+            revised.adopted = true;
+        }
+        if (!opts['note'] && !opts['coverage'] && !opts['file'] && !opts['rollback'] && !opts['clearRevisions']) {
+            out({
+                shot: shotId,
+                hint: '给 --note（批注）/ --file（采纳场景）/ --coverage（覆盖切）/ --rollback <v> / --list-versions 之一',
+                revisions: shot.visual.params['revisions'] ?? [],
+                coverage: shot.coverage,
+            });
+            return;
+        }
+        project.timeline = undefined; // 分镜数据变更 → 时间线必须重算（V-CMP-001）
+        await store.save(project);
+        out({ ok: true, ...revised });
     }
     catch (e) {
         fail(e);
@@ -468,6 +636,60 @@ program
         }
         await store.save(project);
         out({ shot: opts['shot'], asset: asset.path });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+program
+    .command('gaps')
+    .description('镜内空窗探针（V-RHY-012）：ffmpeg silencedetect 扫旁白实测静音段（≥ 阈值即列出）')
+    .option('--project <id>', '项目 id')
+    .option('--min-ms <n>', '静音段最小长度（默认 300ms；1.2s 的真空窗在 TTS 连续朗读下极少）', '300')
+    .option('--shot <id>', '只查某镜')
+    .action(async (opts) => {
+    try {
+        const { store } = makeEngine();
+        const id = await store.resolveProjectId(opts['project']);
+        const project = await store.load(id);
+        const minMs = Number(opts['minMs'] ?? 300);
+        const { detectGaps } = await import('../domain/audiomix.js');
+        const all = [];
+        for (const shot of project.shots) {
+            if (opts['shot'] && shot.id !== opts['shot'])
+                continue;
+            if (!shot.voice || !exists(shot.voice.file))
+                continue;
+            const gaps = await detectGaps(shot.voice.file, minMs);
+            for (const g of gaps) {
+                all.push({ shot: shot.id, startMs: g.startMs, endMs: g.endMs, durMs: g.endMs - g.startMs });
+            }
+        }
+        out({
+            minMs,
+            total: all.length,
+            gaps: all,
+            hint: all.length
+                ? '检测到旁白静音段（视觉空窗需配合抽帧分析）：长静音处建议 revise --coverage 加覆盖切，或补环境音效'
+                : '旁白连续无长静音。注意：视觉空窗（画面停滞但旁白连续）要用抽帧分析看，静音探针只覆盖声音维度',
+        });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+program
+    .command('bench')
+    .description('精修工作台 v1（T3b 立项）：零依赖本地服务，读状态 / revise / 回滚')
+    .option('--project <id>', '项目 id')
+    .option('--port <n>', '监听端口（默认 8788）', '8788')
+    .action(async (opts) => {
+    try {
+        const { startBench } = await import('../interfaces/bench.js');
+        await startBench({
+            project: opts['project'],
+            port: Number(opts['port'] ?? 8788),
+        });
     }
     catch (e) {
         fail(e);

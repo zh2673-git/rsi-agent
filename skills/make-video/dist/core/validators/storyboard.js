@@ -1,4 +1,4 @@
-import { isCameraToken } from '../schema.js';
+import { isCameraToken, CAMERA_MOVES } from '../schema.js';
 import { err, warn } from './types.js';
 export function validateStoryboard(p) {
     const issues = [];
@@ -6,14 +6,24 @@ export function validateStoryboard(p) {
     if (p.script && shots.length > 0 && p.script.segments.length !== shots.length) {
         // V-RHY-007：镜头粒度=语义单元——一镜一单元，段数必须与镜数一致
         // （V-STE-003 属任务幂等条款，此处系历史借号）
-        issues.push(err('V-RHY-007', `旁白段数(${p.script.segments.length}) ≠ 镜头数(${shots.length})`));
+        // P8-T6 修订：超长镜切分（一镜装 >8s 旁白）会把一段合法地拆成 a/b 两镜——
+        // 拆分镜共享同一 segmentId 且旁白原文拼接 = 原段，这属于「一镜变两拍」不是丢段；
+        // 判据改为「每个 segmentId 至少有一镜覆盖」。
+        const segIds = new Set(p.script.segments.map((s) => s.id));
+        const covered = new Set(shots.map((s) => s.segmentId));
+        const missing = [...segIds].filter((id) => !covered.has(id));
+        if (missing.length > 0) {
+            issues.push(err('V-RHY-007', `旁白段数(${p.script.segments.length}) 与镜头数(${shots.length}) 不匹配：段 ${missing.join(', ')} 无镜头覆盖`));
+        }
     }
     for (const s of shots) {
         // V-CAM-002（修订）：词表合法即可——static/none 是导演的合法选择（静止构图 + 镜内表演，
         // 小津/北野武/死板喜剧都靠它），不再当"幻灯片"报错；全片画面是否够活由 V-RHY-010 统计，
         // 重音是否落到画面由 V-RHY-004 管。这里只拦没登记的词（拼错会静默退化成静止）。
         if (!isCameraToken(s.camera)) {
-            issues.push(err('V-CAM-002', `镜头 ${s.id} 运镜词「${s.camera}」不在词表（push-in/pull-out/pan/pan-left/tilt-up/tilt-down/static/none）`));
+            // 报错文案从词表常量派生，不手写枚举——手写的那份迟早和 schema.ts 漂移，
+            // 而漂移会骗人：「照报错写的词」反而不在词表里。
+            issues.push(err('V-CAM-002', `镜头 ${s.id} 运镜词「${s.camera}」不在词表（合法值：${[...CAMERA_MOVES, 'static', 'none'].join('/')}；别名如 panright/whip/punch 也会被归一化）`));
         }
         if (!s.counterpoint) {
             issues.push(err('V-CP-002', `镜头 ${s.id} 未选对位模式`));

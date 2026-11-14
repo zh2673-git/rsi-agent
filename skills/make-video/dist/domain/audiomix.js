@@ -2,7 +2,7 @@
 // V-SND-001 三层各司其职 / V-SND-003 落点对齐 / V-SND-005 ducking / V-CMP-004
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { runFfmpeg } from '../infrastructure/ffmpeg-utils.js';
+import { runFfmpeg, detectSilences } from '../infrastructure/ffmpeg-utils.js';
 import { ensureDir, exists } from '../infrastructure/fs-utils.js';
 import { DUCK_RATIO } from '../core/constants.js';
 import { mvError, ERR } from '../core/errors.js';
@@ -12,6 +12,13 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 const execFileP = promisify(execFile);
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+/**
+ * V-RHY-012 空窗探针（T1a）：单镜旁白音频的实测静音段。
+ * 命名 detectGaps 是给剪辑部的语义——「空窗」= 画面无事发生的候选区。
+ */
+export function detectGaps(audioFile, minMs = 1200) {
+    return detectSilences(audioFile, minMs);
+}
 // 旁白全轨：各镜按时间线起点延迟对齐后混音（时间真源 = timeline）
 export async function buildVoTrack(project, timeline, dir) {
     await ensureDir(dir);

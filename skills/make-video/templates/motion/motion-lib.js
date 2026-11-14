@@ -111,12 +111,40 @@
     return tl;
   };
 
+  /**
+   * 重音跟随：句子里哪个词被念重了，那个词就在那一刻跳一下。
+   *
+   * 两种用法，语义完全不同：
+   *   1) 卡点模式 `{ points: [ms, ...] }`——points 是**镜内绝对毫秒**（由字幕重音词
+   *      在句内的字位比例 × 句时长换算，compose 期注入 data-emphasis-points）。
+   *      每个点是一次「起跳 90ms → 回落 260ms」的短脉冲，做完即静。这就是阿杜那种
+   *      「画面跟着句子里的词跳动」——不是持续呼吸，是离散落点。
+   *   2) 呼吸模式（无 points，向后兼容）——低幅 yoyo，仅用于「画面别死」的兜底。
+   *
+   * 为什么不把卡点算作重音标点：ACCENT_PRIMITIVES 只有 slam/punch/whip，受
+   * V-MOT-013「重音镜 ≤1/3」约束（全篇都加粗等于没有重点）。卡点是**跟随口播的
+   * 节奏**，每镜都该有；标点是**戏剧重音**，全片只能几次。两者混算会让卡点被预算
+   * 闸限流掉——这正是此前 y5 镜 6 个只有 1 个真的砸下去的原因。
+   */
   MV.emphasis = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
     var tl = ensureTimeline();
     if (!tl) {
       finalize(nodes, 'scale(1.06)');
+      return tl;
+    }
+    var points = opts.points;
+    if (points && points.length) {
+      var peak = num(opts.peak, 1.14);
+      var lift = num(opts.lift, 90) / 1000;
+      var back = num(opts.back, 260) / 1000;
+      for (var i = 0; i < points.length; i++) {
+        var at = num(points[i], -1) / 1000;
+        if (at < 0) continue;
+        tl.to(nodes, { scale: peak, duration: lift, ease: 'power3.out' }, at);
+        tl.to(nodes, { scale: 1, duration: back, ease: 'power2.out' }, at + lift);
+      }
       return tl;
     }
     // repeat 必须有界：无限循环会让时间线时长无穷大，渲染器无法按时间寻址
@@ -130,44 +158,80 @@
     return tl;
   };
 
+  /**
+   * 镜内机位。**no-zoom（2026-11-15 起）**：所有分支只做位移，scale 恒为 opts.hold。
+   *
+   * 用户裁决：「放大缩小的运镜能否取消掉，感觉在各个视频里这种效果都不好看」，
+   * 并要求「使用移动视角的运镜」。此前 push-in/pull-out/dolly/crane/punch-in 六个分支
+   * 都在改 scale —— 那是变焦，不是机位；幅度再小观众也读作「画面在放大」。
+   *
+   * 现在：景别（zoom）只用来定一个**恒定**过扫值 hold（保证位移时不露边），
+   * 运动全交给 xPercent/yPercent。改 hold 就改全片过扫量；改分支只改移动方向。
+   */
   MV.camera = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
     var move = opts.move || 'none';
-    var zoom = opts.zoom || 'MS';
-    var scale = { ELS: 1.0, LS: 1.03, MLS: 1.06, MS: 1.1, MCU: 1.18, CU: 1.3, ECU: 1.5 }[zoom] || 1.1;
+    // 景别 → 恒定过扫（原为「放大到多少」）：近景视野窄，同样位移占比更大，
+    // 故略放大一点即可，最大 1.10 —— 再多就成了用户讨厌的「贴着放大」。
+    var hold = num(opts.hold, 1.06);
     var tl = ensureTimeline();
     if (!tl) {
-      finalize(nodes, 'scale(' + scale.toFixed(3) + ')');
+      finalize(nodes, 'scale(' + hold.toFixed(3) + ')');
       return tl;
     }
-    /* 机位运动必须从镜首开始覆盖整段：不写 position 会被 GSAP 追加到时间线末尾，
-     * 等于整镜都没推进（此前实测 camera 起点被排到 46s，实际镜头只有十几秒） */
+/* 机位运动必须从镜首开始覆盖整段：不写 position 会被 GSAP 追加到时间线末尾，
+     * 等于整镜都没推进（此前实测 camera 起点被排到 46s，实际镜头只有十几秒）。
+     *
+     * 教训（2026-11-13）：此前所有分支都是 ease:'none' 匀速 + duration 默认 12s，
+     * 而多数镜头只有 4-14s。结果 (a) 匀速运动被读成「机器在平移」，(b) 5-7s 的短镜
+     * 运动被半途截断，(c) 每镜都只有 3-6% 的推拉，看久了就是「同一种缓慢放大」。
+     * 现在：缓动走 inOut（有起有收，像人推轨），duration 缺省交给调用方按镜长给，
+     * 位移幅度按 16:9 的可见下限重定（<1.5% 等于没动，>4% 就成晃动）。 */
+    var dur = opts.duration || 8;
+    var e = opts.ease || 'power2.inOut';
+    // 所有分支：scale 恒为 hold（只 set 一次），运动只由 xPercent/yPercent 承担。
+    // 行程 2.2% 是 16:9 上「看得出来又没有晃动」的实测区间（<1.5% 等于没动，>4% 成抖）。
+    var T = num(opts.travel, 2.2);
+    tl.set(nodes, { scale: hold }, 0);
     if (move === 'push-in') {
-      // Ken Burns 式缓推：覆盖镜头大部分时长（V-CAM-006 静态画面必须过相机运动）
-      tl.fromTo(nodes, { scale: 1 }, { scale: scale, duration: opts.duration || 12, ease: 'none' }, 0);
+      // 「靠近」= 横向平移把主体带向中轴；不再放大
+      tl.fromTo(nodes, { xPercent: -T * 0.6 }, { xPercent: T * 0.6, duration: dur, ease: e }, 0);
     } else if (move === 'pull-out') {
-      tl.fromTo(nodes, { scale: scale + 0.06 }, { scale: 1, duration: opts.duration || 12, ease: 'none' }, 0);
+      tl.fromTo(nodes, { xPercent: T * 0.6 }, { xPercent: -T * 0.6, duration: dur, ease: e }, 0);
     } else if (move === 'pan') {
-      tl.fromTo(nodes, { xPercent: -3, scale: scale }, { xPercent: 3, duration: opts.duration || 12, ease: 'none' }, 0);
+      tl.fromTo(nodes, { xPercent: -T }, { xPercent: T, duration: dur, ease: e }, 0);
     } else if (move === 'pan-left') {
-      tl.fromTo(nodes, { xPercent: 3, scale: scale }, { xPercent: -3, duration: opts.duration || 12, ease: 'none' }, 0);
+      tl.fromTo(nodes, { xPercent: T }, { xPercent: -T, duration: dur, ease: e }, 0);
     } else if (move === 'tilt-up') {
-      tl.fromTo(nodes, { yPercent: 3, scale: scale }, { yPercent: -3, duration: opts.duration || 12, ease: 'none' }, 0);
+      // 俯仰只给 1.6%：±3% 在 1080p 上是 32px 的整屏位移，读起来就是「画面在抖」
+      tl.fromTo(nodes, { yPercent: 1.6 }, { yPercent: -1.6, duration: dur, ease: e }, 0);
     } else if (move === 'tilt-down') {
-      tl.fromTo(nodes, { yPercent: -3, scale: scale }, { yPercent: 3, duration: opts.duration || 12, ease: 'none' }, 0);
+      tl.fromTo(nodes, { yPercent: -1.6 }, { yPercent: 1.6, duration: dur, ease: e }, 0);
+    } else if (move === 'dolly-in') {
+      // 推轨带轻微纵向：与 push-in 区分开
+      tl.fromTo(nodes, { xPercent: -T * 0.7, yPercent: 0.4 }, { xPercent: T * 0.5, yPercent: -0.4, duration: dur, ease: e }, 0);
+    } else if (move === 'dolly-out') {
+      tl.fromTo(nodes, { xPercent: T * 0.5, yPercent: -0.4 }, { xPercent: -T * 0.7, yPercent: 0.4, duration: dur, ease: e }, 0);
+    } else if (move === 'crane-up') {
+      // 升降 = 纵向平移（原配反向缩放，现纯位移）
+      tl.fromTo(nodes, { yPercent: 1.8 }, { yPercent: -1.4, duration: dur, ease: e }, 0);
+    } else if (move === 'crane-down') {
+      tl.fromTo(nodes, { yPercent: -1.4 }, { yPercent: 1.8, duration: dur, ease: e }, 0);
     } else if (move === 'punch-in') {
-      // 急推收势是标点（全片 ≤2 次），走快起慢停而不是匀速
-      tl.fromTo(nodes, { scale: 1 }, { scale: scale + 0.12, duration: opts.duration || 1.2, ease: 'expo.out' }, 0);
+      // 急推标点 = 短促横移冲到位再停住（全片 ≤2 次）
+      tl.fromTo(nodes, { xPercent: 0 }, { xPercent: T * 0.9, duration: opts.duration || 1.2, ease: 'expo.out' }, 0);
     } else if (move === 'whip-pan') {
-      tl.fromTo(nodes, { xPercent: -14, scale: scale }, { xPercent: 0, duration: opts.duration || 0.5, ease: 'power4.out' }, 0);
+      tl.fromTo(nodes, { xPercent: -14 }, { xPercent: 0, duration: opts.duration || 0.5, ease: 'power4.out' }, 0);
     } else if (move === 'drift') {
-      tl.fromTo(nodes, { yPercent: 2, scale: scale }, { yPercent: -2, duration: opts.duration || 12, ease: 'sine.inOut' }, 0);
+      // 漂移 1.2%：再大就是「上下浮动」，和 idle 的呼吸叠在一起会变成抖动
+      tl.fromTo(nodes, { yPercent: 1.2 }, { yPercent: -1.2, duration: dur, ease: 'sine.inOut' }, 0);
     } else if (move === 'static' || move === 'none') {
       // 真静止：只落定景别，不做任何位移（镜内表演由别的原语负责）
-      tl.set(nodes, { scale: scale }, 0);
+      return tl;
     } else {
-      tl.set(nodes, { scale: scale }, 0);
+      // 未登记词：落在静态景别上，不静默退化成某个运镜
+      return tl;
     }
     return tl;
   };
@@ -220,12 +284,26 @@
     var nodes = $(sel);
     var tl = ensureTimeline();
     if (!tl) return tl;
-    // performance 组 idle-breath（V-ACT-005：>4s 长镜主体禁死寂）。
-    // repeat 有界：时间线时长必须有限，渲染器才能按时间寻址。
-    tl.to(
+    /* performance 组 idle-breath（V-ACT-005：>4s 长镜主体禁死寂）。
+     * repeat 有界：时间线时长必须有限，渲染器才能按时间寻址。
+     *
+     * 教训（2026-11-13）：此前固定 { scale:1.015, y:-4, duration:1.8, repeat:24, yoyo }
+     * 并逐镜调用。1.8s 一个完整上下循环 = 每分钟 33 次，肉眼读到的不是「呼吸」而是
+     * 「抖动」；再叠加 camera 的整屏位移，就是用户说的「很刻意的晃动」。而且 16 镜
+     * 全部同一个周期，节奏完全同质化。
+     * 现在：周期拉到 5.2s（真人静息呼吸约 4-6s），去掉 y 位移（位移是晃动的直接来源，
+     * 呼吸只该是极轻微的缩放），幅度降到 0.6%，并按调用序号错开相位，避免全片同频。 */
+    var period = num(opts.period, 5.2);
+    var amp = num(opts.amp, 0.006);
+    var delay = (opts.delay || 0) / 1000;
+    // 相位错开：同一镜内多个 idle 也不许同频同相
+    var phase = num(opts.phase, 0);
+    var reps = Math.max(1, Math.round(num(opts.span, 20) / period));
+    tl.fromTo(
       nodes,
-      { scale: 1.015, y: -4, duration: 1.8, ease: 'sine.inOut', repeat: 24, yoyo: true },
-      (opts.delay || 0) / 1000,
+      { scale: 1 },
+      { scale: 1 + amp, duration: period / 2, ease: 'sine.inOut', repeat: reps * 2, yoyo: true },
+      delay + phase,
     );
     return tl;
   };

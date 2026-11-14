@@ -20,12 +20,16 @@ export async function indexMaterials(store, project, paths) {
         const dest = path.join(matDir, base);
         await copyFile(src, dest);
         const probed = await probeMaterial(dest);
+        // 重复入库（如 add-material --shot 只做绑定）不得抹掉已有溯源：
+        // 旧实现用新 item 整条覆盖，未显式传 --url/--credit/--license 时 sourceUrl 等字段直接丢失，
+        // 成片报告里的素材出处会变成空值。这里对缺省字段回填上一次索引里的值。
+        const prev = index.items.find((i) => i.path === dest);
         const item = {
             ...probed,
-            tags: mergeTags(probed.tags, input.tags),
-            ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
-            ...(input.credit ? { credit: input.credit } : {}),
-            ...(input.license ? { license: input.license } : {}),
+            tags: mergeTags(probed.tags, input.tags ?? prev?.tags),
+            ...(input.sourceUrl ?? prev?.sourceUrl ? { sourceUrl: input.sourceUrl ?? prev?.sourceUrl } : {}),
+            ...(input.credit ?? prev?.credit ? { credit: input.credit ?? prev?.credit } : {}),
+            ...(input.license ?? prev?.license ? { license: input.license ?? prev?.license } : {}),
         };
         index.items = index.items.filter((i) => i.path !== dest);
         index.items.push(item);

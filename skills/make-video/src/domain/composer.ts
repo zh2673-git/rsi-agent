@@ -28,6 +28,7 @@ import {
   motivationTransition,
   type TransitionPlan,
 } from './transitions.js';
+import { auditContinuity, parseEnergyCurve, auditEnergyCurve } from './continuity.js';
 import { extractFrameSequence } from '../infrastructure/ffmpeg-utils.js';
 import {
   buildRigScript,
@@ -114,6 +115,8 @@ function toMotionFact(
     ...(grammar ? { grammar } : {}),
     motifKinds: motif.kinds,
     minMotifMotionPx: motif.minMotionPx,
+    // T3a：切入转场是 continuity → 与上一镜为同一连续长镜的节拍段
+    ...(t.transition === 'continuity' ? { continuity: true } : {}),
   };
 }
 
@@ -258,16 +261,20 @@ export function adjudicateCuts(
   project: Project,
   timeline: Timeline,
   pack: StylePack,
+  opts: { strict?: boolean } = {},
 ): Array<CutDecision | null> {
-  return timeline.shots.map((t, i) => {
+  // 词表外声明一律硬报错（P10 取消静默退化）。聚合后一次抛：不让用户改一处跑一次。
+  const failures: string[] = [];
+  const decisions: Array<CutDecision | null> = timeline.shots.map((t, i) => {
     if (i === 0) return null;
     const prev = project.shots[i - 1];
     const cur = project.shots[i];
-    const prevT = timeline.shots[i - 1]!;
     const anchor =
       prev?.exitAnchor && cur?.enterAnchor ? `${prev.exitAnchor}→${cur.enterAnchor}` : '';
     if (prev?.exitAnchor && cur?.enterAnchor && prev.exitAnchor === cur.enterAnchor) {
-      prevT.motivation = 'match-cut';
+      // 只写当前镜：motivation 的语义是「切入本镜的动机」，上一镜的动机由它自己那个切点决定。
+      // 曾在这里连 prevT 一起改写，导致上一镜的 V-RHY-011 被静默「补上动机」而不报警——
+      // 校验器读的就是这个字段，于是「切点无动机」被一条锚点规则掩盖。
       t.motivation = 'match-cut';
       return {
         plan: { kind: 'hard-cut', durationMs: 0, overlapMs: 0 },
@@ -278,6 +285,19 @@ export function adjudicateCuts(
       };
     }
     const textMotive = cutMotivation(cur?.motivation);
+    // T3a 一镜到底：continuity 声明直接生效——无操作转场 + motivation=oneshot，
+    // 不走动机反推（「为什么切」的问题对连续镜不成立：它没有切）
+    const requestedEarly = (t.transition ?? '').trim();
+    if (requestedEarly === 'continuity' || requestedEarly === 'oneshot') {
+      t.motivation = 'oneshot';
+      return {
+        plan: { kind: 'continuity', durationMs: 0, overlapMs: 0 },
+        motivation: 'oneshot',
+        motiveSource: 'text',
+        anchors: anchor,
+        note: '',
+      };
+    }
     const relationMotive = textMotive
       ? ''
       : deriveRelationMotivation(
@@ -292,7 +312,13 @@ export function adjudicateCuts(
         : 'none';
     const requested = (t.transition ?? '').trim();
     const auto = requested === '' || requested === 'auto';
-    const plan = planTransition(auto ? motivationTransition(motive) : requested, pack.transitions);
+    let plan: TransitionPlan;
+    try {
+      plan = planTransition(auto ? motivationTransition(motive) : requested, pack.transitions, opts);
+    } catch (e) {
+      failures.push(`  ${prev?.id}→${cur?.id}: ${(e as Error).message}`);
+      plan = { kind: 'hard-cut', durationMs: 0, overlapMs: 0 };
+    }
     // 情绪切却声明了硬切：先按导演声明执行，把不一致留在审计里（不擅自改片）
     const note =
       !auto && motive === 'emotion' && plan.kind === 'hard-cut'
@@ -301,6 +327,13 @@ export function adjudicateCuts(
     t.motivation = motive;
     return { plan, motivation: t.motivation, motiveSource, anchors: anchor, note };
   });
+  if (failures.length > 0) {
+    throw mvError(
+      ERR.ILLEGAL_TRANSITION,
+      `转场声明无法落地（${failures.length} 个切点）：\n${failures.join('\n')}`,
+    );
+  }
+  return decisions;
 }
 
 function shotFacts(shot: Project['shots'][number] | undefined) {
@@ -334,6 +367,18 @@ export function applyAudioShifts(
     if (t.startMs + t.durationMs + shift > totalMs) shift = totalMs - (t.startMs + t.durationMs);
     t.audioShiftMs = Math.round(Math.max(-200, Math.min(200, shift)));
   });
+  // 词级卡点同步（I-05）：字幕 cue 的时间轴是「按镜内顺序排」的，J/L-cut 把旁白音频
+  // 挪了 ±shift 之后，卡点若仍按原 cue.startMs 落点，就会和声音错开——实测黄仁勋片
+  // s06b 卡点 12467ms 出现在旁白说完之后 340ms（「卡点晚到」的来源）。
+  // 卡点跟着声音走：cue 与卡点同步平移同一 shift。转场 no-op（shift=0）时无影响。
+  timeline.subtitles.forEach((cue) => {
+    const t = timeline.shots.find((x) => x.shotId === cue.shotId);
+    if (!t || t.audioShiftMs === 0) return;
+    const minStart = t.startMs;
+    const maxEnd = t.startMs + t.durationMs;
+    cue.startMs = Math.min(maxEnd, Math.max(minStart, cue.startMs + t.audioShiftMs));
+    cue.endMs = Math.min(maxEnd, Math.max(cue.startMs + 400, cue.endMs + t.audioShiftMs));
+  });
 }
 
 export async function compose(
@@ -351,7 +396,9 @@ export async function compose(
   const hasViolation = report.items.some((i) => i.status === 'violation');
   const timeline = computeTimeline(project);
   // 剪辑部裁决（docs/08 ④）：先定切点动机，再由动机/显式声明裁决转场（仍受风格包词表约束）
-  const cutDecisions = adjudicateCuts(project, timeline, pack);
+  // strict：已确认项目一律严格（词表外声明 → 报错，不静默回退）；
+  // 未确认的历史项目（作者已不在场，报错无人可改）走兼容回退，避免老片突然跑不动。
+  const cutDecisions = adjudicateCuts(project, timeline, pack, { strict: project.confirmed !== false });
   const transitionPlans = cutDecisions.map((d) => d?.plan ?? null);
   applyAudioShifts(project, timeline, cutDecisions);
 
@@ -421,10 +468,27 @@ export async function compose(
     JSON.stringify(audit, null, 2),
   );
 
+  // T1b 跨镜连续性审计（死板清除 X6 + 出入画矢量）：纯函数，输入来自已裁决的时间线
+  const continuity = auditContinuity(
+    timeline.shots.map((t, i) => ({
+      shotId: t.shotId,
+      camera: t.camera,
+      transition: i === 0 ? '' : (cutDecisions[i]?.plan.kind ?? 'hard-cut'),
+    })),
+  );
+  await atomicWriteText(
+    path.join(dir, 'logs', 'continuity-audit.json'),
+    JSON.stringify(continuity, null, 2),
+  );
+
   // 剪辑节奏 + 声音部 error 级校验
   const sceneDir = path.join(dir, 'scenes');
   const scenePulse = new Map<string, boolean>();
   const sceneBeats = new Map<string, number>();
+  // P10：超预算重音镜的记账（不回写场景文件，见下）
+  const accentOverflow: Array<{ shotId: string; downgraded: number }> = [];
+  // 规范化后的场景 HTML（内存）：装配用它，磁盘上的 scenes/ 保持作者原样
+  const sceneNorm = new Map<string, string>();
   const sceneFacts = new Map<string, { accents: string[]; hasMain: boolean; textLed: boolean; html?: string }>();
   for (const shot of project.shots) {
     const file = path.join(sceneDir, `Scene_${shot.id}.html`);
@@ -433,12 +497,19 @@ export async function compose(
     // 合成前对存量场景过一次规范化：重音预算（V-MOT-013）是全片判据，
     // 单镜生成期看不见别人。旧项目/旧提示词产出的场景超标是必然，
     // 而 compose 是直接读盘的——不在这里收口，v1.1.2 之前生成的项目永远卡在合成。
-    // 合规文件不变（幂等），只有真正超标的镜会被降级重写。
+    //
+    // P10：规范化只作用于**本次装配的内存副本**，不再回写 scenes/Scene_<id>.html。
+    // 理由：场景文件是用户/agent 的精修资产，装配器无权改盘。旧实现会在这里
+    // atomicWriteText 覆盖用户手写的内容，且覆盖完只在磁盘上留痕——下次打开文件
+    // 看到的是「引擎改过的版本」，人不知道自己的 slam 去哪了。
+    // 超预算的镜改为记账（logs/accent-overflow.log）+ 由 V-MOT-013（error）拦。
     const fixed = normalizeSceneHtml(html, { accentAllowed: accentAllowedFor(project, shot.id) });
     if (fixed !== html) {
-      await atomicWriteText(file, fixed);
+      const downgraded = (html.match(/\bMV\.(slam|punch|whip)\s*\(/g) ?? []).length;
+      accentOverflow.push({ shotId: shot.id, downgraded });
       html = fixed;
     }
+    sceneNorm.set(shot.id, html);
     scenePulse.set(shot.id, /MV\.idle|MV\.performance|MV\.emphasis|pulse/.test(html));
     const beats = html.match(/data-beats="(\d+)"/);
     if (beats) {
@@ -507,6 +578,16 @@ export async function compose(
     path.join(dir, 'logs', 'motion-audit.json'),
     JSON.stringify({ generatedAt: new Date().toISOString(), issues: motionIssues, grammarByShot: [...grammarByShot] }, null, 2),
   );
+  // P10：超预算重音镜的记账。不回写场景文件，但降级这件事必须留痕——
+  // 「改了画面又不说」正是本轮取消的机制；说清楚 = 作者知道自己的 slam 在装配期被当成了 enter。
+  if (accentOverflow.length > 0) {
+    await atomicWriteText(
+      path.join(dir, 'logs', 'accent-overflow.log'),
+      accentOverflow
+        .map((a) => `[downgraded] ${a.shotId}: ${a.downgraded} 处 slam/punch/whip → MV.enter（本镜无重音预算；场景文件未改动，请自行调整或接受降级）`)
+        .join('\n'),
+    );
+  }
 
   const gateIssues = [
     ...V.validateCutCandidates(project.shots, timeline),
@@ -522,15 +603,19 @@ export async function compose(
   }
   const warnIssues = [
     ...V.validateCutPoints(project.shots, timeline),
-    ...V.validateDensity(timeline, pack.pacing.shotLenMs[0], pack.pacing.shotLenMs[1]),
+    ...V.validateDensity(timeline, pack.pacing.shotLenMs[0], pack.pacing.shotLenMs[1], project.shots),
     ...V.validateBreath(timeline, pack.pacing.breathEvery),
     ...V.validateVisualChange(timeline, sceneBeats),
     ...V.validateIntraShotMotion(timeline),
     ...V.validateCutMotivation(timeline),
+    // V-CON-003 出入画矢量 / V-CON-004 软转场节奏（T1b）——已经格式化为 "[warn] V-CON-xxx: …"
+    ...continuity.warns.map((message) => ({ id: message.split(':')[0]!, message })),
+    // V-CON-002 节奏曲线偏离（T1c）：语法能量均值 vs 声明的 pacing.curve
+    ...auditEnergyCurve(
+      [...grammarByShot.values()],
+      parseEnergyCurve(pack.pacing?.curve),
+    ).map((message) => ({ id: 'V-CON-002', message })),
   ];
-  const transitionWarnings = transitionPlans
-    .filter((p): p is TransitionPlan => Boolean(p?.warning))
-    .map((p) => `[warn] TRANSITION: ${p.warning}`);
   const cutNotes = cutDecisions
     .filter((d): d is CutDecision => Boolean(d?.note))
     .map((d) => `[warn] CUT-MOTIVATION: ${d.note}`);
@@ -538,7 +623,7 @@ export async function compose(
     store,
     project,
     'validation.log',
-    [...warnIssues.map((i) => `[warn] ${i.id}: ${i.message}`), ...transitionWarnings, ...cutNotes].join('\n'),
+    [...warnIssues.map((i) => `[warn] ${i.id}: ${i.message}`), ...cutNotes].join('\n'),
   );
 
   project.timeline = timeline;
@@ -555,7 +640,7 @@ export async function compose(
   const outDir = path.join(dir, 'out');
   await ensureDir(outDir);
   await exportSrt(timeline, path.join(outDir, 'subtitles.srt'));
-  await emitHyperframesProject(store, project, pack, timeline, transitionPlans);
+  await emitHyperframesProject(store, project, pack, timeline, transitionPlans, sceneNorm);
   await store.save(project);
   return timeline;
 }
@@ -566,6 +651,8 @@ async function emitHyperframesProject(
   pack: StylePack,
   timeline: Timeline,
   transitionPlans: Array<TransitionPlan | null>,
+  /** P10：compose 期规范化后的场景 HTML（内存副本）。磁盘上的 scenes/ 保持作者原样。 */
+  sceneNorm: Map<string, string> = new Map(),
 ): Promise<void> {
   const dir = store.projectDir(project.meta.id);
   const hfDir = path.join(dir, 'remotion');
@@ -599,6 +686,8 @@ async function emitHyperframesProject(
   const sideByShot = new Map<string, 'top' | 'bottom'>();
   // 机位轨审计：每镜外层机位（分段/覆盖切）落成工件，便于逐镜核验"画面真的在动"
   const rigAudit: Array<Record<string, unknown>> = [];
+  // 词级卡点审计：每镜把哪些重音词换成了哪些毫秒落点（logs/emphasis-points.json）
+  const emphasisAudit: Array<{ shotId: string; pointsMs: number[] }> = [];
   for (const shot of project.shots) {
     const src = path.join(dir, 'scenes', `Scene_${shot.id}.html`);
     const t = timeline.shots.find((x) => x.shotId === shot.id);
@@ -658,7 +747,8 @@ async function emitHyperframesProject(
       throw mvError(ERR.VALIDATION, `镜头 ${shot.id} 场景文件缺失（请先 draw）`);
     }
     const fs = await import('node:fs/promises');
-    const sceneHtml = await fs.readFile(src, 'utf8');
+    // P10：优先用 compose 期规范化后的内存副本（不回写磁盘），无则读盘
+    const sceneHtml = sceneNorm.get(shot.id) ?? (await fs.readFile(src, 'utf8'));
     sideByShot.set(shot.id, pickCaptionSide(sceneHtml));
     // 摄影部：主语做机位锚点 + 三段式外层机位 + 覆盖切（同一场景换机位）
     const rig = planCameraRig({
@@ -671,6 +761,16 @@ async function emitHyperframesProject(
       options: parseCameraOptions(shot.visual.params),
     });
     rigAudit.push(rigSummary(rig));
+    // 词级卡点：把本镜字幕里的重音词换算成镜内毫秒，注入场景（见 emphasisRig）。
+    // 场景自己写了 MV.emphasis 的不再注入——两道一起上会把 scale 乘成 1.30（读作抖动）。
+    const stressPoints = sceneHtml.includes('MV.emphasis')
+      ? []
+      : emphasisPointsFor(project, timeline, shot.id, durMs);
+    // 死板清除 X7：卡点峰值按景别自适应（近景收窄、全景放大），导演 emphasisPeak 一票覆写
+    const emphasisPeak = {
+      element: emphasisPeakFor(shot, true),
+      stage: emphasisPeakFor(shot, false),
+    };
     const wrapped = wrapComposition(
       sceneHtml,
       shot.id,
@@ -679,12 +779,21 @@ async function emitHyperframesProject(
       buildRigScript(rig),
       presenter,
       project.shots.findIndex((s) => s.id === shot.id),
+      stressPoints,
+      emphasisPeak,
     );
+    if (stressPoints.length) {
+      emphasisAudit.push({ shotId: shot.id, pointsMs: stressPoints });
+    }
     await atomicWriteText(path.join(compDir, `Scene_${shot.id}.html`), wrapped);
   }
   await atomicWriteText(
     path.join(dir, 'logs', 'camera-rig.json'),
     JSON.stringify(rigAudit, null, 2),
+  );
+  await atomicWriteText(
+    path.join(dir, 'logs', 'emphasis-points.json'),
+    JSON.stringify(emphasisAudit, null, 2),
   );
 
   const captions = timeline.subtitles.map((c) => ({
@@ -1226,6 +1335,10 @@ function wrapComposition(
   rigScript = '',
   presenter: PresenterSpec | null = null,
   shotIndex = -1,
+  /** 词级卡点脉冲（合成期按字幕注入）；空数组 = 本镜不卡点 */
+  stressPoints: number[] = [],
+  /** 卡点峰值（死板清除 X7：按景别自适应 + 导演 emphasisPeak 覆写；缺省整屏 1.06/元素 1.14） */
+  emphasisPeak: { element: number; stage: number } = { element: 1.14, stage: 1.06 },
 ): string {
   let out = sceneHtml;
   // HyperFrames 契约：GSAP 必须先于 motion-lib 加载；时间线注册到 window.__timelines[compositionId]
@@ -1261,6 +1374,13 @@ function wrapComposition(
       window.__shotDurationS = ${durationS.toFixed(3)};
       MV.use('scene-${shotId}');`,
   );
+  // 词级卡点：放在机位轨之前，保证它在 rAF 队列里先跑（先有卡点，再有机位覆盖）
+  if (stressPoints.length) {
+    const cue = emphasisRig(stressPoints, shotId, emphasisPeak);
+    if (cue && !out.includes('data-mv-cue')) {
+      out = out.replace('</body>', `${cue.replace('<script>', '<script data-mv-cue="1">')}\n</body>`);
+    }
+  }
   // 外层机位轨：放在所有场景脚本之后，确保它的 DOMContentLoaded 监听最后注册、rAF 最后执行
   if (rigScript && !out.includes('data-mv-rig')) {
     out = out.replace(
@@ -1284,6 +1404,125 @@ function wrapComposition(
     }
   }
   return out;
+}
+
+/**
+ * 词级卡点时间点：本镜字幕里的重音词 → 镜内绝对毫秒。
+ *
+ * 三段来源，都靠「字位比例 × 句时长」换算（没有词级时间戳，见 docs 里的取舍）：
+ *   1) 编剧在 script.segments[i].emphasis 声明的重音词（最可信，人工/LLM 都写过）；
+ *   2) 字幕 cue 的 emphasis（audiomix 从上面继承下来）；
+ *   3) 都没有时退回 cue.keywords 的第一个——机械切分词也能给出节拍，只是弱一些。
+ *
+ * 为什么不用 deriveCoverage 那条自动派生：那条加的是**覆盖切点**（硬换机位），
+ * 一次切就是一次跳；卡点要的是元素级脉冲，两者视觉语义不同，混用会让「每镜都在硬跳」。
+ * 也因此本函数不受 V-MOT-013 重音预算约束——它不是戏剧标点。
+ */
+function emphasisPointsFor(
+  project: Project,
+  timeline: Timeline,
+  shotId: string,
+  durationMs: number,
+): number[] {
+  const shot = project.shots.find((s) => s.id === shotId);
+  if (!shot) return [];
+  // 关闸：导演显式关掉（视觉上不要跳）时一个都不产生
+  if (shot.visual.params['emphasisCue'] === false) return [];
+
+  const shotStart = timeline.shots.find((x) => x.shotId === shotId)?.startMs ?? 0;
+  const cues = (timeline.subtitles ?? []).filter((c) => c.shotId === shotId);
+  const seg = project.script?.segments.find((s) => s.id === shot.segmentId);
+  const declared = seg?.emphasis ?? [];
+
+  const points: number[] = [];
+  for (const cue of cues) {
+    const text = cue.text ?? '';
+    if (!text) continue;
+    const words = (cue.emphasis?.length ? cue.emphasis : declared).filter((w) =>
+      text.includes(w),
+    );
+    if (!words.length) {
+      const kw = (cue.keywords ?? [])[0];
+      if (kw && text.includes(kw)) words.push(kw);
+    }
+    for (const w of words) {
+      const idx = text.indexOf(w);
+      if (idx <= 0) continue; // 句首重音词没有「跳过去」的意义
+      // 字位比例：词首到词心的相对位置，落在整句时间轴上
+      const ratio = (idx + w.length * 0.5) / Math.max(1, text.length);
+      const atMs =
+        (cue.startMs - shotStart) + Math.round(ratio * Math.max(1, cue.endMs - cue.startMs));
+      if (atMs < 380 || atMs > durationMs - 320) continue;
+      if (points.some((p) => Math.abs(p - atMs) < 420)) continue; // 别敲成连击
+      points.push(atMs);
+    }
+  }
+  // 一镜最多 3 次：再多就是抖动，不是卡点
+  return points.sort((a, b) => a - b).slice(0, 3);
+}
+
+/**
+ * 卡点脉冲脚本：在指定毫秒上给画面打点。
+ *
+ * 目标选择分两档，幅度完全不同——这不是细节，是「卡点」与「抖动」的分界：
+ *   - 有 `[data-stress]` 元素：打在**那个元素**上，peak 1.14 也只占画面一小块；
+ *   - 没有（整块 .stage）：整屏缩放 1.14 是 230px 的位移，读起来是机器在抖，
+ *     所以整屏只给 1.06，且时长更短——它是一个「顿」，不是一次「放大」。
+ *
+ * 为什么不用场景里写死的 MV.emphasis 就够：手写版式每镜不同，哪个元素是
+ * 「当前这个词」只有合成期知道（它来自字幕时间轴），写死会与旁白脱同步。
+ * 这里在合成期注入，改字幕就自动跟着改——单一真源仍是 project.json。
+ */
+/**
+ * 卡点峰值按景别自适应（死板清除 X7，2026-11-14）+ 导演可覆写。
+ *
+ * 旧实现 elementLevel 1.14 / 整屏 1.06 写死——ECU 大特写上 1.06 已是晃动，
+ * ELS 全景上 1.06 又几乎看不见。恒定的是「观众感知到的位移量」，不是缩放比：
+ * 景别越近、同一缩放对应的像素位移越大，所以峰值要随景别收窄。
+ * 导演仍可用 shot.visual.params.emphasisPeak 一票定夺（相机是导演的）。
+ */
+function emphasisPeakFor(shot: Project['shots'][number] | undefined, elementLevel: boolean): number {
+  const override = Number(shot?.visual.params['emphasisPeak']);
+  if (Number.isFinite(override) && override > 1 && override <= 1.3) return override;
+  // ELS/LS 全景要更明显、CU/ECU 特写要更克制；覆盖切里的元素级脉冲比整屏恒定大一号
+  const byZoom: Record<string, number> = {
+    ELS: 1.1, LS: 1.09, MLS: 1.08, MS: 1.06, MCU: 1.05, CU: 1.04, ECU: 1.03,
+  };
+  const base = byZoom[shot?.zoom ?? 'MS'] ?? 1.06;
+  return elementLevel ? Math.min(1.14, base + 0.04) : base;
+}
+
+function emphasisRig(pointsMs: number[], shotId: string, peak: { element: number; stage: number }): string {
+  if (!pointsMs.length) return '';
+  return `<script data-mv-cue="1">
+(function () {
+  function apply() {
+    var tl = window.__timelines && window.__timelines['scene-${shotId}'];
+    if (!tl || !window.gsap) return;
+    var host = document.querySelector('[data-composition-id="scene-${shotId}"]');
+    if (!host) return;
+    var marks = host.querySelectorAll('[data-stress]');
+    var elementLevel = marks.length > 0;
+    var targets = elementLevel ? Array.prototype.slice.call(marks) : [host.querySelector('.stage') || host];
+    var peak = elementLevel ? ${peak.element} : ${peak.stage};
+    var lift = elementLevel ? 0.09 : 0.07;
+    var back = elementLevel ? 0.26 : 0.2;
+    targets.forEach(function (node) {
+      if (!node) return;
+      ${JSON.stringify(pointsMs)}.forEach(function (ms) {
+        var at = ms / 1000;
+        tl.to(node, { scale: peak, duration: lift, ease: 'power3.out' }, at);
+        tl.to(node, { scale: 1, duration: back, ease: 'power2.out' }, at + lift);
+      });
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { requestAnimationFrame(apply); });
+  } else {
+    requestAnimationFrame(apply);
+  }
+})();
+</script>`;
 }
 
 // 机位审计摘要（logs/camera-rig.json）：分段首尾构图足够定位问题，不必存整份 plan

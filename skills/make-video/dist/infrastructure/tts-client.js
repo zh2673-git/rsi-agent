@@ -332,6 +332,26 @@ export class Qwen3TtsClient {
             throw mvError(ERR.TTS, `Qwen3-TTS 输出不可解码: ${outFile}`);
         return { file: outFile, durationMs: ms };
     }
+    /** 释放常驻 worker（P8-T0）：关 stdin → worker 读到 EOF 自然退出；兜底 kill 防挂死 */
+    async close() {
+        const proc = this.proc;
+        this.proc = null;
+        this.ready = null;
+        if (!proc)
+            return;
+        await new Promise((resolve) => {
+            const done = () => resolve();
+            proc.once('exit', done);
+            // 给 3s 优雅退出窗口；模型卸载慢的机器走 kill 兜底
+            const killTimer = setTimeout(() => {
+                proc.kill();
+                resolve();
+            }, 3000);
+            proc.once('exit', () => clearTimeout(killTimer));
+            proc.stdin?.end();
+            void done;
+        });
+    }
 }
 export function createTtsClient(provider) {
     if (provider === 'qwen3')

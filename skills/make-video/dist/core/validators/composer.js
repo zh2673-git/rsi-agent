@@ -93,11 +93,43 @@ export function validateCutMotivation(timeline) {
     }
     return issues;
 }
-export function validateDensity(timeline, minMs, maxMs) {
+/**
+ * V-RHY-003 密度校验（I-05 重写）：告警指向真正的因，而不是 compose 无权修改的量。
+ *
+ * 旧判据：durationMs 偏离风格包档位 [minMs, maxMs] 就 warn。但镜长=配音实测时长
+ * （V-CMP-001 钉死，compose 期不可改）——16 镜全偏档时 warn 刷了 16 条，
+ * 没有一条可执行：要么改旁白、要么改配音，档位本身帮不上忙。
+ *
+ * 新判据：按语速评估。中文口播舒适区 ≈ 3.5-5.5 字/秒（Broadcast Council 经验值）：
+ * - > 5.5 字/秒：旁白塞太满，观众读不完画面 → 建议删句或拆镜（**这是生硬感的真正来源**：
+ *   每镜都在赶词，动效再好也只是「快速的模板」）；
+ * - 档位偏移仍记，但降为聚合一条（数量+极值），并注明「镜长随配音实测」，
+ *   不再逐镜刷屏——它是风格表态的记账，不是每镜的过错。
+ */
+export function validateDensity(timeline, minMs, maxMs, shots) {
     const issues = [];
-    for (const t of timeline.shots) {
-        if (t.durationMs < minMs - 300 || t.durationMs > maxMs + 1500) {
-            issues.push(warn('V-RHY-003', `镜头 ${t.shotId} 时长 ${t.durationMs}ms 偏离档位区间 [${minMs}, ${maxMs}]`));
+    // 语速过载（唯一可执行的逐镜告警）
+    if (shots) {
+        const rushed = [];
+        for (const t of timeline.shots) {
+            const shot = shots.find((s) => s.id === t.shotId);
+            const chars = shot?.narration.replace(/\s/g, '').length ?? 0;
+            const cps = chars / (t.durationMs / 1000);
+            if (cps > 5.5)
+                rushed.push(`${t.shotId}:${cps.toFixed(1)}字/s`);
+        }
+        if (rushed.length > 0) {
+            issues.push(warn('V-RHY-003', `${rushed.length} 镜旁白超语速（>5.5 字/秒：${rushed.slice(0, 4).join(' ')}）——删句或拆镜，镜长随配音实测不由 compose 改`));
+        }
+    }
+    // 档位偏移：聚合记账（风格表态，不是逐镜过错）
+    const off = timeline.shots.filter((t) => t.durationMs < minMs - 300 || t.durationMs > maxMs + 1500);
+    if (off.length > 2) {
+        issues.push(warn('V-RHY-003', `档位 [${minMs},${maxMs}] 偏移 ${off.length}/${timeline.shots.length} 镜（${off[0].shotId}:${(off[0].durationMs / 1000).toFixed(1)}s…）——镜长随配音实测，整片偏档是节奏风格表态，非逐镜过错`));
+    }
+    else {
+        for (const t of off) {
+            issues.push(warn('V-RHY-003', `镜头 ${t.shotId} 时长 ${(t.durationMs / 1000).toFixed(1)}s 偏离档位区间 [${minMs}, ${maxMs}]`));
         }
     }
     return issues;

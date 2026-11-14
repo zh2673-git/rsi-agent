@@ -50,6 +50,12 @@ export const CAMERA_MOVES: readonly string[] = [
   'pan-left',
   'tilt-up',
   'tilt-down',
+  // 2026-11-13 增补：全片只有 push/pull/drift/tilt 四类时，16 镜必然成对重复，
+  // 观感是「同一种缓慢放大」。补三种带纵深/升降的机位，给运镜留出可区分的词。
+  'dolly-in',
+  'dolly-out',
+  'crane-up',
+  'crane-down',
   'punch-in',
   'whip-pan',
   'drift',

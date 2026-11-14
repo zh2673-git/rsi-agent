@@ -6,6 +6,8 @@ import {
   actionSheet,
   auditMotionMix,
   auditOpening,
+  defaultCameraFor,
+  varyCameraFor,
   type MotionShotFact,
 } from '../src/domain/motion-grammar.js';
 
@@ -215,7 +217,11 @@ describe('动效语法层（P7 吸收阿杜 + 花叔）', () => {
       const g = getGrammar('y2_collage');
       const sheet = actionSheet({ id: 's03', narration: '证据摆在这里。' }, g);
       expect(sheet.requiredPrimitives).toContain('MV.motifLoop');
-      expect(sheet.requiredPrimitives).toContain('MV.highlight');
+      // y2 的动作拍是「材料落下（错峰）→ 红线连接」，高亮是导演按镜头取舍的可选项。
+      // 源码 REQUIRED_BY_GRAMMAR 已明确去掉 highlight（本片 8 个 y2 镜 8 个都没写 highlight，
+      // 若强制则全部打回，等于把主力路径卡死）；此处断言的是**骨架**而非可选项。
+      expect(sheet.requiredPrimitives).toContain('MV.staggeredIn');
+      expect(sheet.requiredPrimitives).not.toContain('MV.highlight');
       for (const gr of GRAMMARS) {
         const s = actionSheet({ id: 'x', narration: 'n' }, gr);
         expect(s.requiredPrimitives.length).toBeGreaterThan(0);
@@ -264,6 +270,65 @@ describe('动效语法层（P7 吸收阿杜 + 花叔）', () => {
       );
       const issues = auditMotionMix(shots, 9000);
       expect(issues.some((i) => i.rule === 'V-MOT-019' && i.message.includes('无主动作'))).toBe(false);
+    });
+  });
+
+  // 死板清除 X1/X2/X3 + T1c/T3a（2026-11-14）：机位变奏 / b_roll 成对抑制 / 能量曲线 / oneshot 豁免
+  describe('死板清除与新语法（2026-11-14）', () => {
+    it('X1 varyCameraFor：同语法相邻镜机位变奏，取偏好里与 prev 不同的第一个', () => {
+      expect(varyCameraFor('b_roll', 'drift')).toBe('static');
+      expect(varyCameraFor('y2_collage', 'pan')).toBe('pan-left');
+      expect(varyCameraFor('y5_kinetic_type', 'static')).toBe('punch-in');
+      // 全同偏好（单值语法）保持不变
+      expect(varyCameraFor('y4_story', 'static')).toBe('punch-in');
+      expect(defaultCameraFor('b_roll')).toBe('drift');
+    });
+
+    it('X2 suppressBroll：上镜已 b_roll 时无线索句不再成对落 b_roll（有可行替代时）', () => {
+      const line = '为什么结果翻车了。'; // y4 线索词
+      expect(pickGrammar(line, { suppressBroll: true }).id).not.toBe('b_roll');
+      // 真无线索词 + 抑制 b_roll：放宽轮后仍无候选才落回（不硬塞语法）
+      expect(pickGrammar('嗯。', { suppressBroll: true }).id).toBe('b_roll');
+      expect(pickGrammar('嗯。').id).toBe('b_roll');
+    });
+
+    it('X3 cameraBias 认领 v3 新机位词（dolly/crane）', () => {
+      const bias = new Set(GRAMMARS.flatMap((g) => g.cameraBias));
+      expect(bias.has('dolly-in')).toBe(true);
+      expect(bias.has('dolly-out')).toBe(true);
+      expect(bias.has('crane-up')).toBe(true);
+      expect(bias.has('crane-down')).toBe(true);
+    });
+
+    it('X4 motifs 认领更多 MOTIF kind（不再 shimmer/float 两家独大）', () => {
+      const kinds = new Set(GRAMMARS.flatMap((g) => g.motifs));
+      expect(kinds.size).toBeGreaterThanOrEqual(8);
+      expect(kinds.has('sweep')).toBe(true);
+      expect(kinds.has('compress')).toBe(true);
+    });
+
+    it('T1c 能量曲线：低能量幕排除高能量语法，高能量幕反之', () => {
+      expect(pickGrammar('营收增长了百分之四十，成本却翻了一倍。', { energy: 0.3 }).id).not.toBe('t3_finance');
+      expect(pickGrammar('营收增长了百分之四十，成本却翻了一倍。', { energy: 0.85 }).id).toBe('t3_finance');
+    });
+
+    it('T3a oneshot：continuity 节拍段豁免「同语法连 3 镜」与「相邻同构图」', () => {
+      const shots = ['s01', 's02', 's03'].map((id, i) =>
+        fact({
+          shotId: id,
+          grammar: 'y1_flat_explainer',
+          compositionKey: 'MS:center', // 三镜同构图
+          accents: [],
+          continuity: i > 0, // s02/s03 由 continuity 切入
+        }),
+      );
+      const issues = auditMotionMix(shots, 9000);
+      expect(issues.some((i) => i.rule === 'V-MOT-019' && i.message.includes('连续'))).toBe(false);
+      expect(issues.some((i) => i.rule === 'V-MOT-020')).toBe(false);
+      // 无豁免时同样输入必须报警（判据本身还活着）
+      const noExempt = shots.map((s, i) => ({ ...s, continuity: false }));
+      const issues2 = auditMotionMix(noExempt, 9000);
+      expect(issues2.some((i) => i.rule === 'V-MOT-019' && i.message.includes('连续'))).toBe(true);
     });
   });
 });
