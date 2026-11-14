@@ -1,0 +1,8 @@
+{
+ "id": "Q7B-HALTED-BREAK",
+ "description": "q-session.js drain：队首 halted 即 break，停止后不自动续跑下一条（否则「停止无效」）",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/q7-b-anchor.txt",
+ "patch_file": "blocks/q7-b.txt",
+ "order": -20
+}

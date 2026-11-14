@@ -284,8 +284,13 @@ async function send(presetText, presetAtts) {
   touchSession(session);
   autoName(session, text); // 标题为空时按首条消息自动命名
   const s = qState(session);
+  // Q7：用户又发新消息 = 明确要「继续干活」，解除上一轮停止留下的暂留标记，
+  // 队列按原序恢复（新消息排在最后）。不解除的话 send 之后队列还是停着，
+  // 用户看到「我发了新指令却什么都没发生」。
+  s.queue.forEach((it) => { it.halted = false; });
   s.queue.push({ text, atts });
   queueOpen = true; renderQueue();
+  saveQueue(session);            // Q7：入队即落盘，刷新/关标签页不丢这条
   if (!s.draining) drain(session);
 }
 sendBtn.onclick = () => send();

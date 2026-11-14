@@ -1,0 +1,8 @@
+{
+ "id": "Q7H-RUNQUEUE-UNHALT",
+ "description": "q-session.js runQueueNow：点 ⏭ 时解除 halted，否则条目移到队首仍会被 break 挡住",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/q7-h-anchor.txt",
+ "patch_file": "blocks/q7-h.txt",
+ "order": -15
+}

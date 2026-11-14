@@ -1,0 +1,6 @@
+  // Q7：用户点 ⏭ = 明确要「现在跑这条」，同时解除整个队列的暂留标记
+  // （否则条目虽被移到队首，drain 仍会在 halted 处 break，点了没反应）。
+  s.queue.forEach((it) => { it.halted = false; });
+  s.queue.splice(i, 1);
+  const at = s.draining ? 1 : 0;
+  s.queue.splice(at, 0, item);

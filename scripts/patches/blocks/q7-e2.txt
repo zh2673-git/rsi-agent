@@ -1,0 +1,19 @@
+    const running = st.draining && i === 0;
+    // Q7：被「停止」留下的待发项——原地保留，标 halted 可一键重发。
+    if (item.halted && !running) {
+      row.classList.add("halted");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "‖ 已暂留";
+      tag.title = "点 ⏭ 重新执行这条；点 × 丢掉";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
+    // Q7：刷新后从 sessionStorage 还原的条目——附件没跟着回来，显式提示。
+    if (item.restored && !running) {
+      row.classList.add("restored");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "↺ 已还原";
+      tag.title = item.lostAtts
+        ? `页面刷新后还原；原有 ${item.lostAtts} 个附件需重新挂载`
+        : "页面刷新后从本地存储还原";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }

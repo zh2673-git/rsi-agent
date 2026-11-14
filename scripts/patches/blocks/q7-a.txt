@@ -1,0 +1,52 @@
+const runState = new Map();
+// ── Q7 待发队列不丢（I-20261114-03）──────────────────────────────────────────
+// 事故：插队或按「停止 / Esc」之后，待发队列整批消失。三个独立成因，逐条修：
+//
+// ① 队列只活在标签页内存（runState），刷新或重开标签页即归零。
+//    → 落 sessionStorage，按会话分键（ra.queue#<sid>），进页面时还原。
+//      只存文本与附件**计数**：附件 base64 动辄数 MB，塞 sessionStorage 会撞 5MB
+//      配额并拖垮启动；还原条目标 restored，提示「原有 N 个附件需重新挂载」。
+//
+// ② returnQueueToInput() 用 `s.queue.length = draining ? 1 : 0` 就地**删除**待发项，
+//    再把文字拼进输入框。于是用户接着打新指令时，send() 的 input.value = "" 把它们
+//    一起清掉 —— 队列与草稿同时消失，这就是用户看到的「排队的全没了」。
+//    → 改为原地标 halted：条目留在待发面板（可 ⏭ 重发 / × 删除 / ⧉ 复制），
+//      不再往输入框里灌文字（避免「输入框一份 + 队列一份」被重复执行）。
+//
+// ③ 停止后若队列仍有条目，drain 的 `while (s.queue.length)` 会立刻续跑下一条，
+//    等于「停止无效」。→ drain 遇 halted 队首即 break，等用户显式恢复。
+//    恢复时机：用户点该条 ⏭，或直接发新消息（send 会把 halted 一并解除，保持原序）。
+const QKEY = (sid) => "ra.queue#" + sid;
+function saveQueue(sid) {
+  try {
+    const st = runState.get(sid);
+    if (!st) return;
+    // 执行中那条（draining 时 queue[0]）不存：它已经进了服务端 chat，刷新后由
+    // trace 重放；存下来会让用户看到「同一条发两遍」。
+    const rest = st.draining ? st.queue.slice(1) : st.queue.slice();
+    const slim = rest.map((it) => ({ text: it.text, nAtts: (it.atts || []).length, halted: !!it.halted }));
+    if (slim.length) sessionStorage.setItem(QKEY(sid), JSON.stringify(slim));
+    else sessionStorage.removeItem(QKEY(sid));
+  } catch { /* 配额满 / 隐私模式：退回纯内存，不阻断发送 */ }
+}
+function loadQueue(sid) {
+  try {
+    const raw = sessionStorage.getItem(QKEY(sid));
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    // 一律以 halted 还原：刷新时不知道上一条执行到哪，静默自动续跑比「等用户确认」更危险。
+    return arr
+      .filter((it) => it && typeof it.text === "string" && it.text.trim())
+      .map((it) => ({ text: it.text, atts: [], restored: true, lostAtts: it.nAtts || 0, halted: true }));
+  } catch { return []; }
+}
+function qState(sid) {
+  let s = runState.get(sid);
+  if (!s) {
+    s = { running: false, abort: null, queue: [], draining: false };
+    s.queue = loadQueue(sid);          // Q7：刷新后把上次没跑的还回来（暂留态）
+    runState.set(sid, s);
+  }
+  return s;
+}

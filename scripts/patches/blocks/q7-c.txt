@@ -1,0 +1,6 @@
+  } finally {
+    s.draining = false; s.running = false; s.abort = null;
+    saveQueue(sid);                      // Q7：出 drain 落盘，待发项跨刷新存活
+    if (session === sid) { syncRunUI(); setStatus(""); input.focus(); }
+  }
+}

@@ -1,0 +1,8 @@
+  s.draining = true; s.running = true; syncRunUI();
+  try {
+    while (s.queue.length) {
+      const item = s.queue[0];
+      // Q7：队首是「停止时暂留」的条目 → 不再自动续跑，等用户显式恢复
+      // （点该条 ⏭，或直接发新消息解除暂留）。否则停止之后队列会立刻接着跑下一条，
+      // 用户看到的就是「按了停止，任务还在继续」，等于停止无效。
+      if (item.halted) break;

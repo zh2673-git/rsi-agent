@@ -1,0 +1,8 @@
+{
+ "id": "Q7F-SEND-UNHALT",
+ "description": "app-events.js send：新消息解除 halted 暂留 + 入队即落盘（否则停止后发新消息毫无反应）",
+ "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+ "anchor_file": "blocks/q7-f-anchor.txt",
+ "patch_file": "blocks/q7-f.txt",
+ "order": -16
+}

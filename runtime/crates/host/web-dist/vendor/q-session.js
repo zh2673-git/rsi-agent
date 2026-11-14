@@ -6,9 +6,55 @@
 // 当前标签页内存（服务端持久队列见 Phase 3），刷新/多标签页不共享，语义显式。
 // 本文件先于 app-core/app-events 载入：只声明函数，所有跨文件全局在调用时才解析。
 const runState = new Map();
+// ── Q7 待发队列不丢（I-20261114-03）──────────────────────────────────────────
+// 事故：插队或按「停止 / Esc」之后，待发队列整批消失。三个独立成因，逐条修：
+//
+// ① 队列只活在标签页内存（runState），刷新或重开标签页即归零。
+//    → 落 sessionStorage，按会话分键（ra.queue#<sid>），进页面时还原。
+//      只存文本与附件**计数**：附件 base64 动辄数 MB，塞 sessionStorage 会撞 5MB
+//      配额并拖垮启动；还原条目标 restored，提示「原有 N 个附件需重新挂载」。
+//
+// ② returnQueueToInput() 用 `s.queue.length = draining ? 1 : 0` 就地**删除**待发项，
+//    再把文字拼进输入框。于是用户接着打新指令时，send() 的 input.value = "" 把它们
+//    一起清掉 —— 队列与草稿同时消失，这就是用户看到的「排队的全没了」。
+//    → 改为原地标 halted：条目留在待发面板（可 ⏭ 重发 / × 删除 / ⧉ 复制），
+//      不再往输入框里灌文字（避免「输入框一份 + 队列一份」被重复执行）。
+//
+// ③ 停止后若队列仍有条目，drain 的 `while (s.queue.length)` 会立刻续跑下一条，
+//    等于「停止无效」。→ drain 遇 halted 队首即 break，等用户显式恢复。
+//    恢复时机：用户点该条 ⏭，或直接发新消息（send 会把 halted 一并解除，保持原序）。
+const QKEY = (sid) => "ra.queue#" + sid;
+function saveQueue(sid) {
+  try {
+    const st = runState.get(sid);
+    if (!st) return;
+    // 执行中那条（draining 时 queue[0]）不存：它已经进了服务端 chat，刷新后由
+    // trace 重放；存下来会让用户看到「同一条发两遍」。
+    const rest = st.draining ? st.queue.slice(1) : st.queue.slice();
+    const slim = rest.map((it) => ({ text: it.text, nAtts: (it.atts || []).length, halted: !!it.halted }));
+    if (slim.length) sessionStorage.setItem(QKEY(sid), JSON.stringify(slim));
+    else sessionStorage.removeItem(QKEY(sid));
+  } catch { /* 配额满 / 隐私模式：退回纯内存，不阻断发送 */ }
+}
+function loadQueue(sid) {
+  try {
+    const raw = sessionStorage.getItem(QKEY(sid));
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    // 一律以 halted 还原：刷新时不知道上一条执行到哪，静默自动续跑比「等用户确认」更危险。
+    return arr
+      .filter((it) => it && typeof it.text === "string" && it.text.trim())
+      .map((it) => ({ text: it.text, atts: [], restored: true, lostAtts: it.nAtts || 0, halted: true }));
+  } catch { return []; }
+}
 function qState(sid) {
   let s = runState.get(sid);
-  if (!s) { s = { running: false, abort: null, queue: [], draining: false }; runState.set(sid, s); }
+  if (!s) {
+    s = { running: false, abort: null, queue: [], draining: false };
+    s.queue = loadQueue(sid);          // Q7：刷新后把上次没跑的还回来（暂留态）
+    runState.set(sid, s);
+  }
   return s;
 }
 
@@ -90,6 +136,24 @@ function renderQueue() {
   q.forEach((item, i) => {
     // Q5：第 0 条即「正在执行」的那条（drain 驻留到它跑完）；其余才是真待发。
     const running = st.draining && i === 0;
+    // Q7：被「停止」留下的待发项——原地保留，标 halted 可一键重发。
+    if (item.halted && !running) {
+      row.classList.add("halted");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "‖ 已暂留";
+      tag.title = "点 ⏭ 重新执行这条；点 × 丢掉";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
+    // Q7：刷新后从 sessionStorage 还原的条目——附件没跟着回来，显式提示。
+    if (item.restored && !running) {
+      row.classList.add("restored");
+      const tag = document.createElement("span");
+      tag.className = "qrun"; tag.textContent = "↺ 已还原";
+      tag.title = item.lostAtts
+        ? `页面刷新后还原；原有 ${item.lostAtts} 个附件需重新挂载`
+        : "页面刷新后从本地存储还原";
+      row.insertBefore(tag, row.querySelector(".qexec"));
+    }
     const row = el(`<div class="qitem"><span class="qtext"></span><button class="qexec">⏭</button><button class="qup">↑</button><button class="qedit">✎</button><button class="qcp">⧉</button><button class="qrm">×</button></div>`);
     if (running) {
       row.classList.add("running");
@@ -295,6 +359,10 @@ async function drain(sid) {
   try {
     while (s.queue.length) {
       const item = s.queue[0];
+      // Q7：队首是「停止时暂留」的条目 → 不再自动续跑，等用户显式恢复
+      // （点该条 ⏭，或直接发新消息解除暂留）。否则停止之后队列会立刻接着跑下一条，
+      // 用户看到的就是「按了停止，任务还在继续」，等于停止无效。
+      if (item.halted) break;
       // Q5：队列本地驻留——第 0 条即「执行中」。postChatDirect 的 Promise 覆盖整段执行，
       // 跑完才出队；待发面板因此在整轮执行期间都可见，行内 ⏭/↑/× 才有操作窗口。
       item.pendingResume = false;         // Q6：轮到它了，不再是「待续跑」
@@ -335,6 +403,7 @@ async function drain(sid) {
     }
   } finally {
     s.draining = false; s.running = false; s.abort = null;
+    saveQueue(sid);                      // Q7：出 drain 落盘，待发项跨刷新存活
     if (session === sid) { syncRunUI(); setStatus(""); input.focus(); }
   }
 }
@@ -371,6 +440,9 @@ async function runQueueNow(i) {
   if (!item) return;
   // Q5：队列驻留后第 0 条是「执行中」，目标是让它插到执行中那条之后（index 1），
   // 再打断当前任务——drain 的 await 一返回就出队第 0 条，随即轮到它。
+  // Q7：用户点 ⏭ = 明确要「现在跑这条」，同时解除整个队列的暂留标记
+  // （否则条目虽被移到队首，drain 仍会在 halted 处 break，点了没反应）。
+  s.queue.forEach((it) => { it.halted = false; });
   s.queue.splice(i, 1);
   const at = s.draining ? 1 : 0;
   s.queue.splice(at, 0, item);
@@ -387,14 +459,16 @@ async function runQueueNow(i) {
 }
 function returnQueueToInput() {
   const s = qState(session);
-  // 正在发送的第 0 项留给 drain 收尾（finally 后 shift），只把「待发」项退回输入框。
-  const pending = s.draining ? s.queue.slice(1) : s.queue.slice();
-  s.queue.length = s.draining ? 1 : 0;
-  if (pending.length) {
-    input.value = pending.map((p) => p.text).join("\n");
-    const atts = pending.find((p) => p.atts && p.atts.length);
-    if (atts) pendingAtts = atts.atts.slice();
-  }
+  // Q7（I-20261114-03）：原实现把待发项 `s.queue.length = draining ? 1 : 0` 就地
+  // **销毁**，再把文字拼进输入框。两处致命：
+  //   ① 用户接着打新指令时 send() 里 input.value = "" 把这批文字一起清掉；
+  //   ② 待发面板立刻清空，用户看到的就是「排队的全没了」（事实也确实没了）。
+  // 改为：条目原地保留并标 halted——面板上看得见、可 ⏭ 重发 / × 删除 / ⧉ 复制；
+  // 不往输入框灌文字（否则「输入框一份 + 队列一份」会被重复执行）。
+  // 点「停止」的语义随之变成「停下当前，队列暂留等我决定」，而不是「顺带清队」。
+  const rest = s.draining ? s.queue.slice(1) : s.queue.slice();
+  rest.forEach((p) => { p.halted = true; });
+  saveQueue(session);
   renderAtts(); renderQueue();
 }
 function bindQueueUI() {

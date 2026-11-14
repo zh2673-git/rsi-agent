@@ -1,0 +1,8 @@
+{
+ "id": "Q7J-HALTED-CSS",
+ "description": "style.css 待发队列：halted（已暂留）/ restored（刷新还原）样式",
+ "file": "runtime/crates/host/web-dist/style.css",
+ "anchor_file": "blocks/q7-j-anchor.txt",
+ "patch_file": "blocks/q7-j.txt",
+ "order": -14
+}

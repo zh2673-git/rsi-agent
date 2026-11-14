@@ -1,0 +1,14 @@
+function returnQueueToInput() {
+  const s = qState(session);
+  // Q7（I-20261114-03）：原实现把待发项 `s.queue.length = draining ? 1 : 0` 就地
+  // **销毁**，再把文字拼进输入框。两处致命：
+  //   ① 用户接着打新指令时 send() 里 input.value = "" 把这批文字一起清掉；
+  //   ② 待发面板立刻清空，用户看到的就是「排队的全没了」（事实也确实没了）。
+  // 改为：条目原地保留并标 halted——面板上看得见、可 ⏭ 重发 / × 删除 / ⧉ 复制；
+  // 不往输入框灌文字（否则「输入框一份 + 队列一份」会被重复执行）。
+  // 点「停止」的语义随之变成「停下当前，队列暂留等我决定」，而不是「顺带清队」。
+  const rest = s.draining ? s.queue.slice(1) : s.queue.slice();
+  rest.forEach((p) => { p.halted = true; });
+  saveQueue(session);
+  renderAtts(); renderQueue();
+}

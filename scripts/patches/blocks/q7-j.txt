@@ -1,0 +1,6 @@
+  #queue-list .qitem.offline .qrun { color: var(--warn, #c9a227); }
+  /* Q7（I-20261114-03）：停止/刷新后保留下来的待发项——虚线暖色边，可重发可删除。
+     与「待续跑」（灰虚线，会自动跑）区分：这两种都不会自己动，等用户决定。 */
+  #queue-list .qitem.halted { outline: 1px dashed var(--warn, #c9a227); }
+  #queue-list .qitem.halted .qrun { color: var(--warn, #c9a227); }
+  #queue-list .qitem.restored .qrun { opacity: .8; }

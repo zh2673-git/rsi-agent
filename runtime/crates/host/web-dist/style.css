@@ -692,6 +692,11 @@
   /* K1：断线未发出的条目——用警示色边框，和「待续跑」（虚线灰）区分开。 */
   #queue-list .qitem.offline { outline: 1px solid var(--warn, #c9a227); }
   #queue-list .qitem.offline .qrun { color: var(--warn, #c9a227); }
+  /* Q7（I-20261114-03）：停止/刷新后保留下来的待发项——虚线暖色边，可重发可删除。
+     与「待续跑」（灰虚线，会自动跑）区分：这两种都不会自己动，等用户决定。 */
+  #queue-list .qitem.halted { outline: 1px dashed var(--warn, #c9a227); }
+  #queue-list .qitem.halted .qrun { color: var(--warn, #c9a227); }
+  #queue-list .qitem.restored .qrun { opacity: .8; }
   #queue-list button:disabled { opacity: .35; cursor: default; }
 /* ── F1：折叠与视觉层次 ──────────────────────────────────────────────────────
    问题（用户原话）：「现在 UI 给人一种非常单调又很混乱的感觉」。

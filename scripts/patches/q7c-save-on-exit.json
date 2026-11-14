@@ -1,0 +1,8 @@
+{
+ "id": "Q7C-SAVE-ON-EXIT",
+ "description": "q-session.js drain finally：出 drain 落盘待发队列（跨刷新存活）",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/q7-c-anchor.txt",
+ "patch_file": "blocks/q7-c.txt",
+ "order": -19
+}

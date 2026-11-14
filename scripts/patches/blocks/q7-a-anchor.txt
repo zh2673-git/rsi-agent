@@ -1,0 +1,6 @@
+const runState = new Map();
+function qState(sid) {
+  let s = runState.get(sid);
+  if (!s) { s = { running: false, abort: null, queue: [], draining: false }; runState.set(sid, s); }
+  return s;
+}

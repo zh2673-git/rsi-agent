@@ -249,6 +249,7 @@ class BoardLock:
         p = _lock_path()
         p.parent.mkdir(parents=True, exist_ok=True)
         deadline = time.time() + self.timeout
+        reclaimed = 0
         while True:
             try:
                 self.fh = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -265,6 +266,18 @@ class BoardLock:
                         p.unlink()
                     except OSError:
                         pass  # 别人刚好也删了：让下一轮重试处理
+                    # 必须有 sleep：锁文件被另一个存活进程打开时 unlink 会一直失败
+                    # （Windows 上删除打开中的文件直接 OSError），而残锁年龄仍 > stale，
+                    # 于是「删不掉 → continue」变成无 sleep 的死循环——实测把一个 eval
+                    # 进程烧到 213s CPU 且永不退出，还占着锁让后续所有写命令一起卡死。
+                    reclaimed += 1
+                    if reclaimed > 3:
+                        raise BoardError(
+                            "看板锁无法回收（.rsi/board.lock 被其他进程持有且已超龄）："
+                            "按 PID 结束该进程后删除该文件再重试",
+                            code="LOCKED", field="board",
+                        ) from None
+                    time.sleep(0.05)
                     continue
                 if time.time() >= deadline:
                     raise BoardError(

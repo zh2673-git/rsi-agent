@@ -1,0 +1,4 @@
+  s.draining = true; s.running = true; syncRunUI();
+  try {
+    while (s.queue.length) {
+      const item = s.queue[0];

@@ -1,0 +1,8 @@
+{
+ "id": "Q7D-RETURN-NOT-DESTROY",
+ "description": "q-session.js returnQueueToInput：停止时待发项标 halted 原地保留，不再销毁也不灌进输入框（队列/草稿被一起清掉的真因）",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/q7-d-anchor.txt",
+ "patch_file": "blocks/q7-d.txt",
+ "order": -18
+}

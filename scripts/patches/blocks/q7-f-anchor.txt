@@ -1,0 +1,4 @@
+  const s = qState(session);
+  s.queue.push({ text, atts });
+  queueOpen = true; renderQueue();
+  if (!s.draining) drain(session);

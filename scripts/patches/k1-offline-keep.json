@@ -3,5 +3,6 @@
   "description": "drain：区分连接层失败（offline）与执行失败，断线不再逐条吞掉待发队列；postChatDirect 连接失败返回 offline",
   "file": "runtime/crates/host/web-dist/vendor/q-session.js",
   "anchor_file": "blocks/k1-drain-anchor.txt",
-  "patch_file": "blocks/k1-drain-patch.txt"
+  "patch_file": "blocks/k1-drain-patch.txt",
+  "applied_marker": "if (outcome === \"offline\") {"
 }

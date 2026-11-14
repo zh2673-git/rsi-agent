@@ -1,0 +1,8 @@
+{
+ "id": "Q7E-HALTED-TAGS",
+ "description": "q-session.js renderQueue：halted（已暂留）/ restored（刷新还原）行内标记",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/q7-e2-anchor.txt",
+ "patch_file": "blocks/q7-e2.txt",
+ "order": -17
+}

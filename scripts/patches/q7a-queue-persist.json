@@ -1,0 +1,8 @@
+{
+ "id": "Q7A-QUEUE-PERSIST",
+ "description": "q-session.js qState：待发队列落 sessionStorage（按会话分键）+ 还原为暂留态（I-20261114-03 队列丢失）",
+ "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+ "anchor_file": "blocks/q7-a-anchor.txt",
+ "patch_file": "blocks/q7-a.txt",
+ "order": -30
+}
