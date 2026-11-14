@@ -1,0 +1,21 @@
+        let Ok(v) = self.call(src, CAP_ASSETS, json!({"op": "skills.list"}), ASSETS_DEADLINE).await else {
+            return String::new();
+        };
+        let Some(skills) = v.get("skills").and_then(Value::as_array) else {
+            return String::new();
+        };
+        let root = v.get("root").and_then(Value::as_str).unwrap_or("");
+        let mut lines = vec![String::new()];
+        if !skills.is_empty() {
+            lines.push("## Available skills".into());
+            lines.push(
+                "To use a skill, call the reserved tool load_skill with {\"name\": \"...\"} to load its full instructions."
+                    .into(),
+            );
+            for s in skills {
+                let name = s.get("name").and_then(Value::as_str).unwrap_or("");
+                let desc = s.get("description").and_then(Value::as_str).unwrap_or("");
+                if !name.is_empty() {
+                    lines.push(format!("- {name}: {desc}"));
+                }
+            }

@@ -1,0 +1,7 @@
+{
+  "id": "NW7c",
+  "description": "assets._scan_prompts 同样捕获 UnicodeDecodeError（同类缺陷，一并收口）",
+  "file": "runtime/plugins/assets/assets_plugin.py",
+  "anchor_file": "blocks/nw7-assets-prompt-anchor.txt",
+  "patch_file": "blocks/nw7-assets-prompt-patch.txt"
+}

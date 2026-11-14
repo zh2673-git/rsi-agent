@@ -1,0 +1,5 @@
+            try:
+                content = entry["path"].read_text(encoding="utf-8")[:_MAX_LOAD_BYTES]
+            except (OSError, UnicodeDecodeError) as exc:
+                # 同 _scan_skills：编码坏要给出可读错误，而不是让 KernelError 冒到前端
+                return _err(f"skill 读取失败（编码/IO）: {exc}", code="ASSET_ENCODING")

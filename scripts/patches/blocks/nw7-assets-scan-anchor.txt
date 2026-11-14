@@ -1,0 +1,5 @@
+        try:
+            meta = _parse_frontmatter(skill_md.read_text(encoding="utf-8")[:65536])
+        except OSError as exc:
+            print(f"[assets] 读取失败，跳过 {d.name}: {exc}", file=sys.stderr)
+            continue

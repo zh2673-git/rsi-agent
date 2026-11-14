@@ -1,0 +1,7 @@
+{
+  "id": "NW7d",
+  "description": "agent-loop skills_appendix：skills.list 失败只降级技能段，不连坐看板/分解/并行/三档/产物段（I-20261114-05 根因）",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/nw7d-skills-nolink-anchor.txt",
+  "patch_file": "blocks/nw7d-skills-nolink-patch.txt"
+}

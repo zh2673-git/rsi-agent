@@ -1,0 +1,7 @@
+{
+  "id": "NW7b",
+  "description": "assets.skills.load 捕获 UnicodeDecodeError：坏编码技能给出可读错误而非 500",
+  "file": "runtime/plugins/assets/assets_plugin.py",
+  "anchor_file": "blocks/nw7-assets-load-anchor.txt",
+  "patch_file": "blocks/nw7-assets-load-patch.txt"
+}

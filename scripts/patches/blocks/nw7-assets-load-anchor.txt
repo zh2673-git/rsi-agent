@@ -1,0 +1,4 @@
+            try:
+                content = entry["path"].read_text(encoding="utf-8")[:_MAX_LOAD_BYTES]
+            except OSError as exc:
+                return _err(f"skill 读取失败: {exc}")

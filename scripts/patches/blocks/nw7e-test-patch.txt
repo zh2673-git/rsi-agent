@@ -1,0 +1,59 @@
+    /// I-20261114-05：技能注册表失败**不得连坐**看板通道段。
+    ///
+    /// 实测故障链（2026-11-14）：`skills/project-dev/SKILL.md` 尾部混入 GBK 字节 →
+    /// assets 插件 `read_text(encoding="utf-8")` 抛 UnicodeDecodeError（**不是**
+    /// OSError，旧代码没捕）→ `skills.list` 整条 K500 → `skills_appendix` 首行
+    /// `return String::new()` → 看板纪律段 / @引用说明 / 分解 / 并行 / 三档 全部消失。
+    /// 用户能观察到的唯一症状是「新窗口的会话不把活登记进看板」，报错一个字都看不到。
+    ///
+    /// 本用例守的是「降级边界」：技能段可以整段不注入，看板段必须在。
+    /// 为什么不用 mock 去造 assets 失败：`skills_appendix` 需要 Envelope + kernel
+    /// handle（集成态才有），单测里造不出来。故把不变量拆成可纯函数验证的两半：
+    ///   ① `task_board_section` 与技能列表**无数据依赖**（技能为空也照样产出）；
+    ///   ② 失败路径上不得再出现 `return String::new()` 提前返回（源码级断言，
+    ///      与 tests 里既有的「锚点/契约」测法同款）。
+    #[test]
+    fn board_section_survives_skills_list_failure() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (old_ws, old_home) = (
+            std::env::var_os("WORKSPACE_ROOT"),
+            std::env::var_os("RSI_HOME"),
+        );
+        let dir = std::env::temp_dir().join(format!("ra-bctx-nolink-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("scripts")).expect("mkdir");
+        std::fs::write(dir.join("scripts").join("board.py"), "print('x')\n").expect("write");
+        std::env::set_var("RSI_HOME", &dir);
+        std::env::set_var("WORKSPACE_ROOT", dir.join("user-project"));
+
+        // ① 看板段不依赖技能注册表：技能为空/失败时仍必须产出。
+        assert!(!AgentLoopPlugin::task_board_section(false).is_empty());
+        assert!(!AgentLoopPlugin::task_board_section(true).is_empty());
+        assert!(super::board_ctx::board_ops_hint(false, super::board_ctx::has_board_cli())
+            .contains("auto-loaded"));
+        assert!(!super::board_ctx::decompose_hint().is_empty());
+        assert!(!super::board_ctx::parallel_hint().is_empty());
+        assert!(!super::board_ctx::routing_hint().is_empty());
+
+        // ② 源码级：skills.list 失败分支只降级技能段，不得再提前返回整段。
+        let src = include_str!("skills.rs");
+        let fail_branch = src
+            .split("Err(e) => {")
+            .find(|chunk| chunk.contains("skills.list 失败"))
+            .expect("失败分支必须存在且带可读日志");
+        let upto = &fail_branch[..fail_branch.len().min(600)];
+        assert!(
+            !upto.contains("return String::new()"),
+            "skills.list 失败时不得 return 整段空串（那会连看板段一起吞掉）: {upto}"
+        );
+
+        match old_ws {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+        match old_home {
+            Some(v) => std::env::set_var("RSI_HOME", v),
+            None => std::env::remove_var("RSI_HOME"),
+        }
+    }
+
+    /// 任务看板触发词判定：交代成规模的事才注入完整规范，闲聊不触发。

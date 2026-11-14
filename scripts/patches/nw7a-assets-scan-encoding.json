@@ -1,0 +1,7 @@
+{
+  "id": "NW7a",
+  "description": "assets._scan_skills 捕获 UnicodeDecodeError：单个技能编码坏不得让 skills.list 整体 K500",
+  "file": "runtime/plugins/assets/assets_plugin.py",
+  "anchor_file": "blocks/nw7-assets-scan-anchor.txt",
+  "patch_file": "blocks/nw7-assets-scan-patch.txt"
+}

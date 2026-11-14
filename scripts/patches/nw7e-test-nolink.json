@@ -1,0 +1,7 @@
+{
+  "id": "NW7e",
+  "description": "补 Rust 用例：skills.list 失败不得连坐看板/分解/并行/三档段（I-20261114-05 回归）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/nw7e-test-anchor.txt",
+  "patch_file": "blocks/nw7e-test-patch.txt"
+}

@@ -1,7 +1,8 @@
 {
  "id": "B4b",
- "description": "skills.rs：skills_appendix 末尾追加任务看板段（brief 常驻 / full 按需）",
+ "description": "skills.rs：skills_appendix 末尾追加任务看板段（brief 常驻 / full 按需）。NW7d（I-20261114-05）把 self_extension_section 的入参改为 &skills_root（技能段降级时root 为空串），本补丁的锚点/替换文本因此不再逐字命中——但意图（看板段紧跟技能段之后注入）仍由产物兑现，故以终态串判定幂等。",
  "file": "runtime/crates/agent-loop/src/skills.rs",
  "anchor_file": "blocks/b4b-anchor.txt",
- "patch_file": "blocks/b4b-patch.txt"
+ "patch_file": "blocks/b4b-patch.txt",
+ "applied_marker": "let board = Self::task_board_section(want_task_plan);"
 }

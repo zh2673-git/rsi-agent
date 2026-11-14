@@ -1,0 +1,5 @@
+        try:
+            text = f.read_text(encoding="utf-8")[:65536]
+        except (OSError, UnicodeDecodeError) as exc:
+            print(f"[assets] 读取失败，跳过 {f.name}: {exc}", file=sys.stderr)
+            continue

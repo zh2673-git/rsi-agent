@@ -61,7 +61,13 @@ def _scan_skills(root: Path) -> dict:
             continue
         try:
             meta = _parse_frontmatter(skill_md.read_text(encoding="utf-8")[:65536])
-        except OSError as exc:
+        except (OSError, UnicodeDecodeError) as exc:
+            # 编码坏 ≠ 读不了（I-20261114-05 的真实根因）：UnicodeDecodeError **不是**
+            # OSError，原先只捕 OSError，于是单个 SKILL.md 里的 GBK 脏字节一路穿透
+            # on_event → skills.list 整条 K500。而 agent-loop 的 skills_appendix 在
+            # 调用失败时**提前 return**，连后面的看板/分解/并行/三档段一起吞掉——
+            # 用户看到的现象是「新窗口会话不登记任务」，与编码毫无可见关联。
+            # 一个技能坏掉只该少那一个技能，不该少整段提示词。
             print(f"[assets] 读取失败，跳过 {d.name}: {exc}", file=sys.stderr)
             continue
         if meta is None:
@@ -91,7 +97,7 @@ def _scan_prompts(root: Path) -> dict:
     for f in sorted(root.glob("*.md")):
         try:
             text = f.read_text(encoding="utf-8")[:65536]
-        except OSError as exc:
+        except (OSError, UnicodeDecodeError) as exc:
             print(f"[assets] 读取失败，跳过 {f.name}: {exc}", file=sys.stderr)
             continue
         lines = [ln.strip() for ln in text.splitlines()]
@@ -144,8 +150,9 @@ class AssetsPlugin:
                 return _err(f"unknown skill: {name}（可用: {avail}）", code="UNKNOWN_SKILL")
             try:
                 content = entry["path"].read_text(encoding="utf-8")[:_MAX_LOAD_BYTES]
-            except OSError as exc:
-                return _err(f"skill 读取失败: {exc}")
+            except (OSError, UnicodeDecodeError) as exc:
+                # 同 _scan_skills：编码坏要给出可读错误，而不是让 KernelError 冒到前端
+                return _err(f"skill 读取失败（编码/IO）: {exc}", code="ASSET_ENCODING")
             resp = {"ok": True, "content": content, "origin": entry["origin"],
                     "status": entry.get("status", "draft"), "verification": entry.get("verification", "unverified")}
             # origin 随 load 回传（tools.install 据此自动启用出厂技能工具；缺省消费方忽略即兼容）

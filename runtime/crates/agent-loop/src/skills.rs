@@ -62,13 +62,38 @@ impl AgentLoopPlugin {
         if cfg.system_prompt_override.is_some() {
             return String::new();
         }
-        let Ok(v) = self.call(src, CAP_ASSETS, json!({"op": "skills.list"}), ASSETS_DEADLINE).await else {
-            return String::new();
+        // G 段（I-20261114-05）：技能注册表拿不到 **≠** 整段提示词都别要了。
+        //
+        // 原先这两处 `return String::new()` 会把**后面所有段**一起扔掉——看板纪律、
+        // `@T-/@I-` 自动装载说明、分解/并行/三档判据、产物约定。于是技能插件因为
+        // 一个 SKILL.md 的编码坏掉而 K500 时，模型连「有看板这回事」都不知道：
+        // 用户看到的症状是「新窗口的会话不把活登记到看板」，与本文件毫无可见关联
+        // （实测 2026-11-14：project-dev/SKILL.md 尾部混入 GBK 字节 → skills.list
+        // 整条 500 → 该窗口整轮提示词缩水，且没有任何报错冒到界面）。
+        //
+        // 判据：技能段的失败只该让**技能段**退化（不注入 Available skills），其余
+        // 能力照旧。看板是用户唯一的进度视图，它的可用性不能挂在技能注册表上。
+        let (skills_root, skills): (String, Vec<Value>) = match self
+            .call(src, CAP_ASSETS, json!({"op": "skills.list"}), ASSETS_DEADLINE)
+            .await
+        {
+            Ok(v) => {
+                let list = v
+                    .get("skills")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                let root = v.get("root").and_then(Value::as_str).unwrap_or("").to_string();
+                (root, list)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: ID,
+                    "skills.list 失败，技能段降级（看板/画像/记忆段照旧）: {e}"
+                );
+                (String::new(), Vec::new())
+            }
         };
-        let Some(skills) = v.get("skills").and_then(Value::as_array) else {
-            return String::new();
-        };
-        let root = v.get("root").and_then(Value::as_str).unwrap_or("");
         let mut lines = vec![String::new()];
         if !skills.is_empty() {
             lines.push("## Available skills".into());
@@ -76,7 +101,7 @@ impl AgentLoopPlugin {
                 "To use a skill, call the reserved tool load_skill with {\"name\": \"...\"} to load its full instructions."
                     .into(),
             );
-            for s in skills {
+            for s in &skills {
                 let name = s.get("name").and_then(Value::as_str).unwrap_or("");
                 let desc = s.get("description").and_then(Value::as_str).unwrap_or("");
                 if !name.is_empty() {
@@ -84,7 +109,7 @@ impl AgentLoopPlugin {
                 }
             }
         }
-        if let Some(section) = Self::self_extension_section(root, want_skill_build) {
+        if let Some(section) = Self::self_extension_section(&skills_root, want_skill_build) {
             lines.push(section);
         }
         // 任务看板（单会话形态）：把「人的思维模式」落成可执行纪律——先想清怎么做（plan）、
