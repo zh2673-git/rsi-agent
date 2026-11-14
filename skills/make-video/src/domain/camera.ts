@@ -389,7 +389,8 @@ function waypointsFor(
  * none（匀速滑到切点，剪在运动中）。旧「切前收住眼位」的 Murch 式处理保留为
  * 导演显式 punchOut（急推标点，V-CAM-005 全片≤2次约束不变）。
  * 静止镜（static/none 且无覆盖切）返回空分段——是真的定帧，交给场景内表演。
- * 覆盖切点会把曲线打断成若干段：切点前收在当前构图，切点后从新构图继续漂移。
+ * 覆盖切点（X10）：切点前后两段构图不同，渲染为 0.24s 快速 reframe（expo.out）
+ * 衔接——帧间连续的「换机位」，不再是一次零帧硬跳（那会被读成机位抖动）。
  */
 export function planCameraRig(args: {
   shotId: string;
@@ -461,13 +462,38 @@ export function planCameraRig(args: {
     .sort((a, b) => a - b);
 
   // 分段：切点前一段收在"切前构图"，后一段从"切后构图"起步继续漂移——
-  // 同一帧上后一段的 set 覆盖前一段的收尾值，就是一次换机位硬切。
+  // （X10）两段由 0.24s expo.out reframe 连续衔接，不再是同帧换机位硬切。
   const segments: RigSegment[] = [];
+  // 覆盖切渲染语义（X10，2026-11-15）：切点不再是零帧 set 硬跳。LLM 分镜把
+  // motivation=emphasis 的 reframe 当「标点」密集下发（vibe 首条 15 镜有 4 镜，
+  // 一次瞬移 4-6% 位移 + 最高 1.5° 旋转），观众读作「机位突然抖一下」（用户复盘）。
+  // 现在切点渲染成 0.24s 快速 reframe（expo.out）：像摄影师快速调整构图——
+  // 帧间连续、两三帧完成主体，保留换机位语义但去掉「碰了一下」的错帧感。
+  // 保守保护：切点离段尾不足 0.24s 时保持原瞬跳（段太短容不下过渡）。
+  const REFRAME_S = 0.24;
   for (let i = 1; i < bounds.length; i += 1) {
     const a = bounds[i - 1]!;
     const b = bounds[i]!;
     const durS = +(b - a).toFixed(3);
     if (durS <= 0) continue;
+    const cutHere = cuts.find((c) => Math.abs(c.atMs / 1000 - a) < 1e-6);
+    if (cutHere && durS > REFRAME_S) {
+      segments.push({
+        atS: +a.toFixed(3),
+        durationS: REFRAME_S,
+        from: stateAt(waypoints, cuts, a, false),
+        to: stateAt(waypoints, cuts, a, true),
+        ease: 'expo.out',
+      });
+      segments.push({
+        atS: +(a + REFRAME_S).toFixed(3),
+        durationS: +(durS - REFRAME_S).toFixed(3),
+        from: stateAt(waypoints, cuts, a, true),
+        to: stateAt(waypoints, cuts, b, false),
+        ease: 'none',
+      });
+      continue;
+    }
     const isFirst = i === 1;
     const isLast = i === bounds.length - 1;
     // X9 ease 变奏：进场在 [power2.out / sine.out / cubic.out] 间按镜轮换；

@@ -1666,12 +1666,14 @@ function emphasisRig(pointsMs: number[], shotId: string, peak: { element: number
           tl.to(node, { scale: peak, duration: lift, ease: 'power3.out' }, at);
           tl.to(node, { scale: 1, duration: back, ease: 'power2.out' }, at + lift);
         } else {
-          // 整屏档（X9，2026-11-15）：不再做 scale 脉冲——全画幅缩放 1.03-1.10
-          // 是持续 0.27s 的「呼吸」，观众读成机器在抖，且与 no-zoom 裁决精神冲突。
-          // 改为一次 70ms 的横向顿挫（左右交替），是剪辑重音踩点，不是心跳。
+          // 整屏档（X9→X11，2026-11-15）：scale 脉冲（X8 及以前）读成机器呼吸，已废；
+          // X9 的 70ms 横向顿挫仍太急——0.07s 的启动在人眼运动感知里是 saccade 级
+          // 突兀，叠加在覆盖切点附近时读作「撞了一下」（用户复盘 X10 后仍报抖动）。
+          // X11 降级为「挪」：幅度 0.6%→0.35%（1080p 下 ≈3.8px），出 0.10s 回 0.30s，
+          // 保留剪辑重音的踩点节奏，去掉撞击感。element 档（data-stress）不受影响。
           var dir = k % 2 === 0 ? 1 : -1;
-          tl.to(node, { xPercent: dir * 0.6, duration: 0.07, ease: 'power2.out' }, at);
-          tl.to(node, { xPercent: 0, duration: 0.22, ease: 'power2.out' }, at + 0.07);
+          tl.to(node, { xPercent: dir * 0.35, duration: 0.1, ease: 'power2.out' }, at);
+          tl.to(node, { xPercent: 0, duration: 0.3, ease: 'power2.out' }, at + 0.1);
         }
       });
     });

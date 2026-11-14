@@ -240,7 +240,7 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
     expect(gentle.segments.at(-1)!.to.scale).toBe(full.segments.at(-1)!.to.scale);
   });
 
-  it('覆盖切在切点造成构图跳变（同场景换机位，而非平滑推镜）', () => {
+  it('覆盖切渲染为 0.24s 快速 reframe：帧间连续换机位，不再是零帧硬跳（X10）', () => {
     const plan = planCameraRig({
       shotId: 's02',
       durationMs: 4000,
@@ -248,15 +248,18 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
       camera: 'push-in',
       focus: { x: 60, y: 45 },
       coverage: [
-        { atMs: 2000, kind: 'punch-in', scale: 1.16, xPercent: 0, yPercent: 0, rotation: 0, motivation: 'emphasis' },
+        { atMs: 2000, kind: 'reframe', scale: 1.16, xPercent: 6, yPercent: 0, rotation: 0.6, motivation: 'emphasis' },
       ],
     });
-    const before = plan.segments.find((s) => s.atS + s.durationS <= 2.001)!;
-    const after = plan.segments.find((s) => s.atS >= 1.999)!;
-    // 2026-11-15 no-zoom：换机位不再靠放大，改由位移/旋转表达（scale 全片恒定）。
-    expect(after.from.scale).toBe(before.to.scale);
-    expect(after.from.scale).toBe(1.06);
-    expect(buildRigScript(plan)).toContain('tl.set(SEL');
+    const jump = plan.segments.find(
+      (s) => s.ease === 'expo.out' && s.atS <= 2.0 && s.atS + s.durationS > 2.0,
+    );
+    expect(jump, '切点处必须存在 expo.out reframe 段').toBeTruthy();
+    expect(jump!.atS).toBe(2.0);
+    expect(jump!.durationS).toBe(0.24);
+    // 跨越切点：from 是切前构图（inclusive=false），to 是切后构图（inclusive=true）
+    expect(jump!.from.xPercent).not.toBe(jump!.to.xPercent);
+    expect(buildRigScript(plan)).toContain('expo.out');
   });
 
   it('主语焦点读 .subject 定位，缺省回落画面中部', () => {
