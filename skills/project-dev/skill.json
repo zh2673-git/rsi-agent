@@ -1,12 +1,13 @@
 {
   "name": "project-dev",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "status": "draft",
-  "description": "项目级方法论编排层：判模式、路由阶段、守收敛；正向先契约后代码，逆向走六步审计，优化走 PLAN 纪律。",
+  "description": "项目级方法论编排层：判模式、路由阶段、守收敛；正向先契约后代码，逆向走六步审计，优化走 PLAN 纪律。含 agent 时代调用面约定（主要消费者判定 + CLI-for-agent 契约 + 逆向可调用面审计）。",
   "triggers": [
     "从零开发项目",
     "解读分析项目",
-    "重构优化存量项目"
+    "重构优化存量项目",
+    "把软件做成 CLI 给 agent 调用"
   ],
   "inputs": [
     "用户目标与项目现状"
@@ -31,6 +32,16 @@
       "id": "a3",
       "criterion": "验证阶段按 P/Q/I 收敛，测试未全绿不得宣称完成",
       "check": "rubric"
+    },
+    {
+      "id": "a4",
+      "criterion": "正向模式确认主要消费者（人/agent/两者）；判为 agent 时 interfaces 层按调用面契约设计（CLI 优先 / --json / 退出码表 / 无 TTY 依赖）",
+      "check": "assert"
+    },
+    {
+      "id": "a5",
+      "criterion": "逆向审计在数据接口层含可调用面检查（有无 CLI/API 入口、agent 能否非交互驱动），结论写入解读报告",
+      "check": "assert"
     }
   ],
   "requires": [
