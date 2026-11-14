@@ -1660,10 +1660,19 @@ function emphasisRig(pointsMs: number[], shotId: string, peak: { element: number
     var back = elementLevel ? 0.26 : 0.2;
     targets.forEach(function (node) {
       if (!node) return;
-      ${JSON.stringify(pointsMs)}.forEach(function (ms) {
+      ${JSON.stringify(pointsMs)}.forEach(function (ms, k) {
         var at = ms / 1000;
-        tl.to(node, { scale: peak, duration: lift, ease: 'power3.out' }, at);
-        tl.to(node, { scale: 1, duration: back, ease: 'power2.out' }, at + lift);
+        if (elementLevel) {
+          tl.to(node, { scale: peak, duration: lift, ease: 'power3.out' }, at);
+          tl.to(node, { scale: 1, duration: back, ease: 'power2.out' }, at + lift);
+        } else {
+          // 整屏档（X9，2026-11-15）：不再做 scale 脉冲——全画幅缩放 1.03-1.10
+          // 是持续 0.27s 的「呼吸」，观众读成机器在抖，且与 no-zoom 裁决精神冲突。
+          // 改为一次 70ms 的横向顿挫（左右交替），是剪辑重音踩点，不是心跳。
+          var dir = k % 2 === 0 ? 1 : -1;
+          tl.to(node, { xPercent: dir * 0.6, duration: 0.07, ease: 'power2.out' }, at);
+          tl.to(node, { xPercent: 0, duration: 0.22, ease: 'power2.out' }, at + 0.07);
+        }
       });
     });
   }

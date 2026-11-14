@@ -300,10 +300,13 @@ function waypointsFor(move, amp, durS, enterS, midS, sign) {
     }
 }
 /**
- * 三段式机位：进入（settle）→ 主体漂移（linear，像真的推轨）→ **落定**。
- * 末段默认减速（power2.out）：切点前把运动收住，观众的眼位是稳的，剪辑才藏得住
- * （Murch《眨眼之间》：切在视线静止处最不刺眼）。加速收势是"急推标点"，
- * 只在导演显式 punchOut 时启用，并受 V-CAM-005「全片急推≤2次」约束。
+ * 三段式机位：进入（settle）→ 主体漂移（linear，像真的推轨）→ 滑入切点。
+ * 2026-11-15 用户裁决（v1.4.1 去同质化 X9）：「动效不流畅协调，像历史默认设置」。
+ * 旧默认首段一律 power2.out、末段一律 power2.out，实测 15 镜里 14 镜走同一条
+ * [settle→匀速→刹车] 曲线，第三镜起观众就能摸到节拍器——机械感的直接来源。
+ * 现在：进场 ease 与拐点时值按镜 seed 变奏；末段默认不再刹车，与中段同为
+ * none（匀速滑到切点，剪在运动中）。旧「切前收住眼位」的 Murch 式处理保留为
+ * 导演显式 punchOut（急推标点，V-CAM-005 全片≤2次约束不变）。
  * 静止镜（static/none 且无覆盖切）返回空分段——是真的定帧，交给场景内表演。
  * 覆盖切点会把曲线打断成若干段：切点前收在当前构图，切点后从新构图继续漂移。
  */
@@ -316,8 +319,14 @@ export function planCameraRig(args) {
     const move = normalizeMove(args.camera);
     const sign = options.dir ? (options.dir === 'left' ? -1 : 1) : focusSign(args.focus, args.shotId);
     const cuts = args.coverage.filter((c) => c.atMs >= 760 && c.atMs <= args.durationMs - 320);
-    const enterS = Math.min(0.5, Math.max(0.24, durationS * 0.16));
-    const midS = Math.max(enterS + 0.12, durationS - Math.min(0.45, Math.max(0.22, durationS * 0.14)));
+    // 镜间变奏（X9）：所有镜共用同一组拐点 = 全片同一个「步频」，也是节拍器。
+    // 进场时长 ±0.1s、收尾余量 ±0.09s 按镜 seed 抖动，边界仍受原上下限约束。
+    const seed = hashSeed(args.shotId);
+    const enterBase = Math.min(0.5, Math.max(0.24, durationS * 0.16));
+    const enterS = clamp(enterBase + ((seed % 9) - 4) * 0.025, 0.18, 0.55);
+    const tailBase = Math.min(0.45, Math.max(0.22, durationS * 0.14));
+    const tailS = clamp(tailBase + (((seed >> 4) % 7) - 3) * 0.03, 0.15, 0.5);
+    const midS = Math.max(enterS + 0.12, durationS - tailS);
     const base = {
         shotId: args.shotId,
         durationS: +durationS.toFixed(3),
@@ -368,15 +377,16 @@ export function planCameraRig(args) {
             continue;
         const isFirst = i === 1;
         const isLast = i === bounds.length - 1;
-        // 标点段用「冲进去」的缓动（expo.out），冲完之后的段落才减速落定；
-        // 常规镜维持 进入 settle(power2.out) → 漂移(none) → 落定(power2.out)。
+        // X9 ease 变奏：进场在 [power2.out / sine.out / cubic.out] 间按镜轮换；
+        // 末段默认 none（匀速滑到切点），punchOut 急收保留；中段维持匀速漂移。
         const isPunct = punctS !== null && Math.abs(b - punctS) < 1e-6;
+        const enterEases = ['power2.out', 'sine.out', 'cubic.out'];
         const ease = isPunct
             ? (move === 'whip-pan' ? 'expo.out' : 'power3.out')
             : isFirst
-                ? 'power2.out'
+                ? enterEases[seed % enterEases.length]
                 : isLast
-                    ? (options.punchOut ? 'power2.in' : 'power2.out')
+                    ? (options.punchOut ? 'power2.in' : 'none')
                     : 'none';
         segments.push({
             atS: +a.toFixed(3),

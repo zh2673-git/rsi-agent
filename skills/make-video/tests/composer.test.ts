@@ -187,7 +187,9 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
       expect(seg.from.scale).toBe(1.06);
       expect(seg.to.scale).toBe(1.06);
     }
-    expect(wide.segments.at(-1)!.ease).toBe('power2.out');
+    // X9（2026-11-15）：末段不再默认刹车——匀速滑到切点（剪在运动中）；
+    // 急收只剩导演显式 punchOut 这一条路径。
+    expect(wide.segments.at(-1)!.ease).toBe('none');
     const punch = planCameraRig({
       shotId: 's01',
       durationMs: 4000,
@@ -289,6 +291,39 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
     const afterCut = plan.segments.find((s) => s.atS >= 4.999)!;
     expect(afterCut.from.yPercent).toBeGreaterThan(1);
     expect(afterCut.from.rotation).toBeCloseTo(1, 5);
+  });
+
+  it('X9 去同质化：同运镜不同镜 ease/拐点变奏，默认末段不再刹车', () => {
+    const mk = (shotId: string) =>
+      planCameraRig({
+        shotId,
+        durationMs: 4200,
+        zoom: 'MS',
+        camera: 'push-in',
+        focus: { x: 50, y: 50 },
+        coverage: [],
+      });
+    const a = mk('s01');
+    const b = mk('s02');
+    const c = mk('s04');
+    // 三个不同镜至少走出两种不同的进场 ease（旧实现恒为 power2.out = 节拍器）
+    const firstEases = new Set([a.segments[0]!.ease, b.segments[0]!.ease, c.segments[0]!.ease]);
+    expect(firstEases.size).toBeGreaterThan(1);
+    // 末段默认匀速（剪在运动中），punchOut 才允许急收
+    expect(a.segments.at(-1)!.ease).toBe('none');
+    const punch = planCameraRig({
+      shotId: 'shot-a',
+      durationMs: 4200,
+      zoom: 'MS',
+      camera: 'push-in',
+      focus: { x: 50, y: 50 },
+      coverage: [],
+      options: { punchOut: true },
+    });
+    expect(punch.segments.at(-1)!.ease).toBe('power2.in');
+    // 拐点时值也随镜变奏（旧实现全片同一组 enter/tail）
+    const enter = (p: typeof a) => p.segments[1]!.atS;
+    expect(new Set([enter(a), enter(b), enter(c)]).size).toBeGreaterThan(1);
   });
 
   it('match-cut 锚点相同即硬切；auto 转场按动机裁决；软转场声音先入 90ms', () => {
