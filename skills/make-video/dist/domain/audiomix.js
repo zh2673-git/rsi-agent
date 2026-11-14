@@ -48,13 +48,18 @@ export async function buildVoTrack(project, timeline, dir) {
 // 笔记本/手机扬声器放不出这段低频，只露出谐波与拍频，听感就是"刺啦"。
 // 现实现骨架 Am7→Fmaj7→Cmaj7→G6（84BPM），拨弦琶音 + 暖 pad + 贝斯 + 轻节奏，
 // 并带循环渐进的情绪弧线；中高频有音乐性内容，人声区 150–500Hz 交给 duckBgm 让位。
-export async function buildBgm(totalMs, dir) {
+export async function buildBgm(totalMs, dir, opts) {
     await ensureDir(dir);
     const out = path.join(dir, 'bgm-raw.wav');
     const script = path.join(ROOT_DIR, 'scripts', 'bgm_synth.py');
     const py = process.env['MV_PYTHON'] ?? 'python';
+    const args = [script, '--ms', String(Math.round(totalMs)), '--out', out];
+    if (opts?.bpm && opts.bpm > 0)
+        args.push('--bpm', String(opts.bpm));
+    if (opts?.gridOut)
+        args.push('--grid-out', opts.gridOut);
     try {
-        await execFileP(py, [script, '--ms', String(Math.round(totalMs)), '--out', out], {
+        await execFileP(py, args, {
             maxBuffer: 32 * 1024 * 1024,
         });
     }

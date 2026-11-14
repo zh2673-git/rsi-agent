@@ -30,3 +30,4 @@ export {
   validateIntraShotMotion,
   validateCutMotivation,
 } from './composer.js';
+export { validateBeatGrid, type BgmGrid } from './beat-grid.js';

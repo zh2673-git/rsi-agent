@@ -4,11 +4,14 @@ import { MS_PER_CHAR_CN } from '../core/constants.js';
 import { V } from '../core/index.js';
 import { mvError, ERR } from '../core/errors.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
+import path from 'node:path';
 
 // V-RHY-003 密度曲线：镜长=旁白段时长，0-5min 档要求 1.5-3s 级剪切密度。
 // 中文旁白一语义单元约 12-28 字 ≈ 3-6s，按档位时长中点推导目标段数（段长≈5s）。
-const TARGET_SEGMENTS: Record<string, number> = { '0-5': 30, '5-10': 90, '10+': 144 };
-const TIER_MINUTES: Record<string, number> = { '0-5': 2.5, '5-10': 7.5, '10+': 12 };
+// 段数按档位时长中点推导（段长≈5s；V-RHY-003 语速铁律是真正的约束，段数只是给 LLM 的脚手架）。
+// short-60：60-90s 竖屏知识片（vibe 知识大赏档），12-18 镜（镜长≈4-6s，含 0-2s 钩子镜）。
+const TARGET_SEGMENTS: Record<string, number> = { 'short-60': 15, '0-5': 30, '5-10': 90, '10+': 144 };
+const TIER_MINUTES: Record<string, number> = { 'short-60': 1.125, '0-5': 2.5, '5-10': 7.5, '10+': 12 };
 
 export async function writeScript(
   store: ProjectStore,
@@ -39,6 +42,19 @@ export async function writeScript(
     ...V.validateScriptContent(script, topic ?? project.meta.topic),
   ];
   if (V.hasError(issues)) {
+    // 拒稿留痕：把被拒讲稿写进 logs/script-rejected.json，否则无法归因「模型这次写了什么」
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    const logDir = path.join(store.projectDir(project.meta.id), 'logs');
+    try {
+      mkdirSync(logDir, { recursive: true });
+      writeFileSync(
+        path.join(logDir, 'script-rejected.json'),
+        JSON.stringify({ at: new Date().toISOString(), topic, issues: V.formatIssues(issues), script }, null, 2),
+        'utf8',
+      );
+    } catch {
+      // 留痕失败不改变主错误
+    }
     throw mvError(ERR.SCRIPT_FUNCTION, `讲稿校验失败:\n${V.formatIssues(issues)}`);
   }
   // warn 级问题落盘留痕，避免「静默通过」

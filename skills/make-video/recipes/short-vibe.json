@@ -1,0 +1,103 @@
+{
+  "id": "short-vibe",
+  "name": "vibe 知识大赏（60s 竖屏）",
+  "beats": [
+    {
+      "id": "hook",
+      "name": "钩子",
+      "note": "0-2s 反直觉事实或问题砸脸，第一帧不黑屏",
+      "function": "emotion"
+    },
+    {
+      "id": "concept",
+      "name": "立概念",
+      "note": "一个可视觉化的定义，只此一个知识点",
+      "function": "inform"
+    },
+    {
+      "id": "twist",
+      "name": "转折",
+      "note": "但/然而：认知反转，全片情绪峰值",
+      "function": "inform"
+    },
+    {
+      "id": "payoff",
+      "name": "收束",
+      "note": "把转折接回生活，给出确定性",
+      "function": "inform"
+    },
+    {
+      "id": "open",
+      "name": "开放问题",
+      "note": "留一个可讨论的问题收尾（评论区钩子）",
+      "function": "emotion"
+    }
+  ],
+  "directorialNotes": [
+    {
+      "beatId": "hook",
+      "visualIntent": "大字排版 + 粒子聚字占满屏，第一帧就有形体，禁止黑场渐入",
+      "emotionGoal": "好奇",
+      "counterpoint": "emotion"
+    },
+    {
+      "beatId": "concept",
+      "visualIntent": "一个视觉隐喻承载概念，金线延伸引出结构",
+      "emotionGoal": "清晰",
+      "counterpoint": "metaphor"
+    },
+    {
+      "beatId": "twist",
+      "visualIntent": "对比/翻转构图，转折词落点=覆盖切点=BGM 小节线",
+      "emotionGoal": "惊讶",
+      "counterpoint": "emotion"
+    },
+    {
+      "beatId": "payoff",
+      "visualIntent": "知识卡片定格，数字逐个点亮",
+      "emotionGoal": "确信",
+      "counterpoint": "evidence"
+    },
+    {
+      "beatId": "open",
+      "visualIntent": "回到钩子画面变体，开放问题句悬停不答题",
+      "emotionGoal": "回味",
+      "counterpoint": "emotion"
+    }
+  ],
+  "style": {
+    "recommended": ["vibe-cosmos", "keynote-minimal"],
+    "rationale": "深底金线粒子聚字是赛道签名；keynote-minimal 作无风格化退路"
+  },
+  "pacing": {
+    "curve": "beat-grid",
+    "shotLenMs": [2600, 5600],
+    "breathEvery": 6,
+    "comedyBeat": false
+  },
+  "density": "medium",
+  "subtitles": "逐词卡拉OK，词点亮节奏跟随重音词",
+  "headTail": {
+    "head": "反直觉事实直入",
+    "tail": "开放问题 + 轻行动号召"
+  },
+  "sound": {
+    "bgmArc": "钩子即律动（无前奏）→ 转折抬升 → 尾段回落留白",
+    "sfxSet": ["whoosh", "hit"]
+  },
+  "templates": [
+    "canvas:s09",
+    "canvas:s10",
+    "canvas:s11",
+    "canvas:s12",
+    "canvas:s01",
+    "canvas:s03",
+    "kinetic-type",
+    "deep-stage",
+    "typography"
+  ],
+  "durationTiers": {
+    "short-60": { "wordsPerMin": 273, "structure": "五拍 60-90s 竖屏", "chapters": 0 },
+    "0-5": { "wordsPerMin": 130, "structure": "五拍扩展", "chapters": 2 }
+  }
+}

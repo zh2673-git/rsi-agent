@@ -127,7 +127,7 @@ program
     .command('init <topic>')
     .description('创建项目（制片人工件 A1）')
     .option('--aspect <ratio>', '画幅 16:9|9:16', '16:9')
-    .option('--duration-tier <tier>', '时长档位 0-5|5-10|10+', '0-5')
+    .option('--duration-tier <tier>', '时长档位 short-60|0-5|5-10|10+', '0-5')
     .option('--genre <id>', '类型配方 id')
     .option('--style <id>', '指定风格包 id')
     .option('--script <file>', '直接提供讲稿文件（跳过编剧）')

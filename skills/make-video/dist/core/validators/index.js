@@ -4,3 +4,4 @@ export { validateSceneFile, validateChartScene, extractKeywords, uses3d, MOTION_
 export { validateStoryboard } from './storyboard.js';
 export { validateStyleDecision, validateCombination, validateProvenance, validateStyleGate, validateStyleVisual, } from './style.js';
 export { validateTimelineSync, validateCutPoints, validateDensity, validateBreath, validateContinuity, validateSfxLanding, validateCutCandidates, validateEmphasisTriangle, validateVisualChange, validateMixPlan, validateIntraShotMotion, validateCutMotivation, } from './composer.js';
+export { validateBeatGrid } from './beat-grid.js';

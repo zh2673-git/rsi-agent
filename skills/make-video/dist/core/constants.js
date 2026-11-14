@@ -4,7 +4,7 @@ export const TEMPLATES_DIR = 'templates';
 export const STYLES_DIR = 'styles';
 export const RECIPES_DIR = 'recipes';
 export const ASPECTS = ['16:9', '9:16'];
-export const DURATION_TIERS = ['0-5', '5-10', '10+'];
+export const DURATION_TIERS = ['short-60', '0-5', '5-10', '10+'];
 export const ASPECT_SIZE = {
     '16:9': { width: 1920, height: 1080 },
     '9:16': { width: 1080, height: 1920 },
@@ -40,6 +40,7 @@ export const GENRES = [
     'documentary-mood',
     'kids-education',
     'cosmos-cinematic',
+    'short-vibe',
 ];
 export const ANATOMY_KEYS = [
     'script',

@@ -354,6 +354,28 @@ describe('V-SCP-013 主题落地：实体级判据（v1.1.2 校准回归）', ()
     );
     expect(issues.find((i) => i.id === 'V-SCP-013')?.level).toBe('error');
   });
+
+  it('问句式主题：长块切出头部名词做第二实体（vibe 首条「时间」误杀回归）', async () => {
+    const { topicEntities, validateScriptContent } = await import('../src/core/validators/content.js');
+    const q = '为什么时间会越感觉越快';
+    // 回归背景：整串「时间会越感觉越快」是唯一实体时，好稿写「时间」「记忆」
+    // 而不复述整句 → 零命中 → V-SCP-013 error 误杀，writeScript 连续拒稿。
+    const ents = topicEntities(q);
+    expect(ents).toContain('时间会越感觉越快');
+    expect(ents).toContain('时间');
+    // 贴题好稿（不复述整句）必须零 error
+    const lines = [
+      '你有没有发现，刚过去的这一年，好像比小时候一整年短得多。',
+      '这不是错觉，心理学管它叫时间压缩。',
+      '大脑并不记录时长，它记录的是新鲜事件的密度。',
+      '同一段路，第一次走觉得长，走熟了就变短。',
+      '想让一年变长，靠的不是休假，是制造第一次。',
+      '你上一次觉得一天很长，是在做什么？',
+    ];
+    const segments = lines.map((text, i) => ({ id: `seg-${i + 1}`, text, function: 'advance' as const }));
+    const issues = validateScriptContent({ fullText: lines.join(''), segments } as never, q);
+    expect(issues.filter((i) => i.level === 'error')).toEqual([]);
+  });
 });
 
 describe('重音预算：全片资源不能由逐镜独立判断（V-MOT-013 合成卡死回归）', () => {

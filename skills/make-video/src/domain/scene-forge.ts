@@ -144,6 +144,9 @@ export async function drawScene(
     .replace('{{KICKER}}', isCanvas ? escapeHtml(String(shot.visual.params?.['kicker'] ?? '')) : '')
     .replace('{{BEATS}}', isCanvas ? String(BEATS_PER_PROGRAM[templateName.slice('canvas:'.length)] ?? 6) : '')
     .replace('{{ACCENT_FLAG}}', accentOn ? '1' : '0')
+    // 画幅注入（v1.4 竖屏）：canvas 程序坐标系跟随项目画幅
+    .replace(/\{\{CANVAS_W\}\}/g, String(project.meta.aspect === '9:16' ? 1080 : 1920))
+    .replace(/\{\{CANVAS_H\}\}/g, String(project.meta.aspect === '9:16' ? 1920 : 1080))
     .replace(/\{\{STAR_SEED\}\}/g, String(hashSeed(shot.id)));
   const issues = validateSceneHtml(
     html,

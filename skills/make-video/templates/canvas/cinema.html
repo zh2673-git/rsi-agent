@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var cv = document.querySelector('canvas');
   var ctx = cv.getContext('2d');
   var prog = window.CinemaPrograms['{{SCENE_PROGRAM}}'];
-  var stars = CV.makeStars({{STAR_SEED}}, 260, 1920, 1080);
+  var stars = CV.makeStars({{STAR_SEED}}, 260, {{CANVAS_W}}, {{CANVAS_H}});
   var disk = CV.makeDisk({{STAR_SEED}} + 5, 420);
   var opts = { stars: stars, disk: disk };
   var st = prog.state();

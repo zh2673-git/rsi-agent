@@ -209,8 +209,9 @@ export const SubtitleCueSchema = z.object({
     emphasis: z.array(z.string()).default([]),
 });
 // 字幕策略（docs/07）：full=整句条（关键词内联高亮）；keyword=关键词梗卡（感知画面排版避让主体）；
+// word=逐词卡拉OK（词按字位比例换算的时间戳逐词点亮，vibe 知识大赏签名形式）；
 // off=不出画面字幕（srt 工件仍全量导出）。风格包声明默认，project 顶层可覆写。
-export const SubtitlePolicySchema = z.enum(['full', 'keyword', 'off']);
+export const SubtitlePolicySchema = z.enum(['full', 'keyword', 'word', 'off']);
 export const TimelineSchema = z.object({
     shots: z.array(z.object({
         shotId: z.string(),

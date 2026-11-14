@@ -8,7 +8,7 @@ export const RECIPES_DIR = 'recipes';
 export const ASPECTS = ['16:9', '9:16'] as const;
 export type Aspect = (typeof ASPECTS)[number];
 
-export const DURATION_TIERS = ['0-5', '5-10', '10+'] as const;
+export const DURATION_TIERS = ['short-60', '0-5', '5-10', '10+'] as const;
 export type DurationTier = (typeof DURATION_TIERS)[number];
 
 export const ASPECT_SIZE: Record<Aspect, { width: number; height: number }> = {
@@ -53,6 +53,7 @@ export const GENRES = [
   'documentary-mood',
   'kids-education',
   'cosmos-cinematic',
+  'short-vibe',
 ] as const;
 export type Genre = (typeof GENRES)[number];
 

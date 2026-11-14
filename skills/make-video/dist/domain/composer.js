@@ -324,11 +324,19 @@ export async function compose(store, project, pack) {
     if (V.hasError(syncIssues)) {
         throw mvError(ERR.VALIDATION, `音画同步校验失败:\n${V.formatIssues(syncIssues)}`);
     }
+    // V-RHY-012 BGM 卡点吸附（v1.4）：网格 sidecar 在下方 buildBgm 时落盘；
+    // 此处先用旧网格（若有）审计，warn 级不拦片——吸附责任在音效计划与覆盖切声明
+    const beatIssues = V.validateBeatGrid(timeline, path.join(store.projectDir(project.meta.id), 'logs', 'bgm-grid.json'));
+    if (beatIssues.length > 0) {
+        console.warn(`[compose] BGM 卡点审计:\n${V.formatIssues(beatIssues)}`);
+    }
     // 声音部混音执行（docs/07）：三层声音 + ducking + 音效落点
     const dir = store.projectDir(project.meta.id);
     const audioDir = path.join(dir, 'audio', 'mix');
     const voTrack = await buildVoTrack(project, timeline, audioDir);
-    const bgmRaw = await buildBgm(timeline.shots.at(-1).startMs + timeline.shots.at(-1).durationMs, audioDir);
+    // BGM 网格 sidecar（v1.4 V-RHY-012 卡点）：拍/小节时间表落 logs/，剪辑吸附与审计共用
+    const gridPath = path.join(dir, 'logs', 'bgm-grid.json');
+    const bgmRaw = await buildBgm(timeline.shots.at(-1).startMs + timeline.shots.at(-1).durationMs, audioDir, { gridOut: gridPath });
     const bgm = await duckBgm(bgmRaw, voTrack, audioDir);
     const sfxFiles = await buildSfx(path.join(audioDir, 'sfx'));
     timeline.bgm = path.relative(dir, bgm).split(path.sep).join('/');
@@ -632,8 +640,12 @@ sceneNorm = new Map()) {
         duration: +((c.endMs - c.startMs) / 1000).toFixed(3),
         text: c.text,
         keywords: c.keywords,
+        // word 档卡拉OK需要重音词字位（词点亮时间按字位比例换算，见 wordKaraokeScript）
+        ...(policy === 'word' ? { emphasis: c.emphasis } : {}),
         shotId: c.shotId,
     }));
+    // word 档卡拉OK数据：逐 cue 的词元（词/点亮时刻/是否重音），在 index.html 注入 root 时间线脚本
+    const wordCues = [];
     const tracks = [];
     timeline.shots.forEach((t, i) => {
         const start = (t.startMs / 1000).toFixed(3);
@@ -657,8 +669,8 @@ sceneNorm = new Map()) {
             const aStart = (Math.max(0, t.startMs + (t.audioShiftMs ?? 0)) / 1000).toFixed(3);
             tracks.push(`  <audio class="clip" id="aud-${t.shotId}" data-track-index="1" data-start="${aStart}" data-duration="${dur}" src="${rel}"></audio>`);
         }
-        // 字幕策略落地（V-CAP-001/002）：off 不出画面字幕；keyword 出关键词梗卡（避让主体+错位摆动）；
-        // full 出整句条（关键词内联高亮，不再叠加独立黄词条）。srt 工件三种策略下都全量导出（无障碍）。
+        // 字幕策略落地（V-CAP-001/002/004）：off 不出画面字幕；keyword 出关键词梗卡（避让主体+错位摆动）；
+        // word 出逐词卡拉OK；full 出整句条（关键词内联高亮）。srt 工件全部策略下都全量导出（无障碍）。
         const side = sideByShot.get(t.shotId) ?? 'bottom';
         if (policy !== 'off') {
             for (const cue of timeline.subtitles.filter((c) => c.shotId === t.shotId)) {
@@ -675,6 +687,13 @@ sceneNorm = new Map()) {
                     const tilt = ((j % 7) - 3) * 0.8;
                     const inner = kws.map((k) => `<em>${escapeHtml(k)}</em>`).join('');
                     tracks.push(`  <div class="clip kwcard cap-${side} ${h}" data-track-index="2" data-start="${cs}" data-duration="${cd}"><span class="kw-stack" style="--tilt:${tilt.toFixed(1)}deg">${inner}</span></div>`);
+                }
+                else if (policy === 'word') {
+                    // V-CAP-004 word 档：每 cue 一整句，逐词点亮由 root 时间线脚本驱动；
+                    // 无 JS/无 gsap 时 wline 直接整句显示（.w 未拆分 = 全亮度），不空屏
+                    const tokens = tokenizeForKaraoke(cue.text, cue.emphasis ?? [], Math.max(1, cue.endMs - cue.startMs));
+                    wordCues.push({ sid: `${cue.shotId}:${cue.startMs}`, baseMs: cue.startMs, tokens });
+                    tracks.push(`  <div class="clip cap-word cap-${side}" data-track-index="2" data-start="${cs}" data-duration="${cd}"><span class="wline" data-word-cue="${cue.shotId}:${cue.startMs}">${escapeHtml(cue.text)}</span></div>`);
                 }
                 else {
                     tracks.push(`  <div class="clip caption cap-${side}" data-track-index="2" data-start="${cs}" data-duration="${cd}"><span class="caption-text">${highlightSentence(cue.text, cue.keywords)}</span></div>`);
@@ -731,6 +750,11 @@ sceneNorm = new Map()) {
   /* 电影风字幕：细黑衬底 + 白字，关键词内联高亮（不再叠加独立黄词条） */
   .caption-text { font-size: ${Math.round(pack.type.scale.body * size.h * 0.9)}px; color: ${captionStyle.text}; background: ${captionStyle.plate}; padding: 0.25em 0.9em; border-radius: 0.18em; letter-spacing: 0.04em; text-shadow: 0 1px 6px rgba(0,0,0,0.35); }
   .caption-text em { font-style: normal; color: ${captionStyle.accent}; font-weight: 700; }
+  /* V-CAP-004 word 档卡拉OK字幕：整句栅格排布，逐词点亮（待亮 0.32 → 点亮 → 落定） */
+  .clip.cap-word { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 7%; }
+  .cap-word.cap-top { align-items: flex-start; padding-top: 6%; padding-bottom: 0; }
+  .cap-word .wline { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.05em 0.34em; line-height: 1.5; padding: 0.22em 0.8em; background: ${captionStyle.plate}; border-radius: 0.2em; max-width: 86%; color: ${captionStyle.text}; font-size: ${Math.round(pack.type.scale.body * size.h * 1.05)}px; font-weight: 700; letter-spacing: 0.05em; text-shadow: 0 1px 6px rgba(0,0,0,0.4); }
+  .cap-word .w { opacity: 0.32; }
   /* V-CAP-002 关键词梗卡：贴纸式卡片，微倾角+水平错位，避让主体，只落关键词 */
   .clip.kwcard { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 9%; }
   .kwcard.cap-top { align-items: flex-start; padding-top: 6.5%; padding-bottom: 0; }
@@ -753,6 +777,7 @@ ${tracks.join('\n')}
 window.__timelines = window.__timelines || {};
 window.__timelines['root'] = window.gsap ? gsap.timeline({ paused: true }) : null;
 ${transitionsScript}
+${policy === 'word' ? wordKaraokeScript(wordCues) : ''}
 </script>
 </body>
 </html>
@@ -1042,6 +1067,119 @@ function hashJitter(seed) {
     for (let i = 0; i < seed.length; i += 1)
         h = (h * 31 + seed.charCodeAt(i)) | 0;
     return Math.abs(h);
+}
+/**
+ * word 档词元化（V-CAP-004）：把一句旁白拆成词序列 + 逐词点亮时刻。
+ *
+ * 与 emphasisPointsFor 同一口径：没有词级时间戳（TTS 只给句级），按「字位比例 × 句时长」
+ * 换算每个词的落点——同一时刻永远算出同一结果（时间纯函数）。词边界：
+ *   1) 编剧声明的重音词优先整词保留（hl=true，点亮时加金色脉冲）；
+ *   2) 其余按 2 字/词切分（中文信息密度实测 2 字词占比最高，1 字词视觉太碎）；
+ *   3) 保留句尾标点挂在前一词上，避免句读悬空。
+ */
+export function tokenizeForKaraoke(text, emphasis, cueMs) {
+    const toks = [];
+    let rest = text;
+    // 重音词整词保留：在剩余串里逐个找出声明词（按出现顺序）
+    const declared = emphasis.filter((w) => w && w.length >= 2 && text.includes(w));
+    const pos = [];
+    for (const w of declared) {
+        const i = rest.indexOf(w);
+        if (i >= 0)
+            pos.push({ w, i });
+    }
+    pos.sort((a, b) => a.i - b.i);
+    let cursor = 0;
+    const pieces = [];
+    for (const { w, i } of pos) {
+        if (i < cursor)
+            continue; // 重叠声明词跳过
+        if (i > cursor)
+            pushPlain(pieces, rest.slice(cursor, i));
+        pieces.push({ t: w, hl: true });
+        cursor = i + w.length;
+    }
+    if (cursor < rest.length)
+        pushPlain(pieces, rest.slice(cursor));
+    // 字位比例 → 点亮时刻（词心位置；句首词从 0 起）
+    let charAcc = 0;
+    const total = Math.max(1, text.length);
+    for (const p of pieces) {
+        const ratio = (charAcc + p.t.replace(/[，。！？；、：""''…—]/g, '').length * 0.5) / total;
+        toks.push({ t: p.t, atMs: Math.round(Math.min(0.96, ratio) * cueMs), hl: p.hl });
+        charAcc += p.t.length;
+    }
+    return toks;
+}
+// word 档辅助：2 字/词切分，标点跟随前词（死代码防线：纯标点段不产出空词元）
+function pushPlain(pieces, seg) {
+    if (!seg)
+        return;
+    const m = seg.match(/([\u4e00-\u9fffA-Za-z0-9]+[^\u4e00-\u9fffA-Za-z0-9]*)?/g) ?? [];
+    for (const raw of m) {
+        if (!raw)
+            continue;
+        let chunk = raw;
+        while (chunk.length > 2) {
+            pieces.push({ t: chunk.slice(0, 2), hl: false });
+            chunk = chunk.slice(2);
+        }
+        if (chunk)
+            pieces.push({ t: chunk, hl: false });
+    }
+}
+/**
+ * word 档 root 时间线脚本：每个 cue 的 wline 内逐词 span，按 atMs 点亮。
+ *
+ * 为什么挂 root 时间线：字幕 div 是 HyperFrames 轨道元素（data-start/duration 控制显隐），
+ * 词级点亮必须与轨道显隐同一时钟源，否则 seek 截帧时词亮与句显错位。
+ * 无 gsap（降级路径）时该脚本整体跳过，wline 保持未拆分整句全亮——不空屏。
+ */
+function wordKaraokeScript(cues) {
+    if (cues.length === 0)
+        return '';
+    const data = JSON.stringify(cues);
+    return `
+(function () {
+  function apply() {
+    var tl = window.__timelines && window.__timelines['root'];
+    if (!tl || !window.gsap) return;
+    var CUES = ${data};
+    CUES.forEach(function (cue) {
+      var line = document.querySelector('[data-word-cue="' + cue.sid + '"]');
+      if (!line) return;
+      var text = line.textContent || '';
+      var html = '';
+      var ci = 0;
+      cue.tokens.forEach(function (tok) {
+        var idx = text.indexOf(tok.t, ci);
+        if (idx < 0) return;
+        // 词元之间的空隙（切分损耗）并回前词，保证逐字覆盖整句
+        if (idx > ci) html += esc(text.slice(ci, idx));
+        html += '<span class="w" data-at="' + tok.atMs + '"' + (tok.hl ? ' data-hl="1"' : '') + '>' + esc(tok.t) + '</span>';
+        ci = idx + tok.t.length;
+      });
+      if (ci < text.length) html += esc(text.slice(ci));
+      line.innerHTML = html;
+      line.querySelectorAll('.w').forEach(function (w) {
+        var at = (cue.baseMs + (+(w.getAttribute('data-at') || 0))) / 1000;
+        var isHl = w.getAttribute('data-hl') === '1';
+        tl.to(w, { opacity: 1, duration: 0.16, ease: 'power1.out' }, at);
+        if (isHl) {
+          tl.fromTo(w, { color: '#FFD75E' }, { color: '#F2EFE6', duration: 0.5, ease: 'power1.out' }, at);
+          tl.fromTo(w, { scale: 1.22 }, { scale: 1, duration: 0.42, ease: 'power2.out', transformOrigin: '50% 80%' }, at);
+        }
+      });
+    });
+  }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { requestAnimationFrame(apply); });
+  } else {
+    requestAnimationFrame(apply);
+  }
+})();
+`;
 }
 // 转场生成：每个词对应一种真正的画面处理，不再"一律淡到黑再亮起"。
 // 时长/重叠来自 transitions.ts（V-MOT-008：300-600ms）；硬切不产生任何动画。

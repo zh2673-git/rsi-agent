@@ -3,7 +3,9 @@
 (function (global) {
   'use strict';
   var CV = global.CV;
-  var W = 1920, H = 1080, CX = 960, CY = 540;
+  // 画幅自适应（v1.4 竖屏）：W/H 由 cinema.html 在加载本文件前注入（window.__canvasW/H），
+  // 缺省回落 16:9。所有程序只用 W/H/CX/CY 相对量绘制，禁止再写死像素。
+  var W = global.__canvasW || 1920, H = global.__canvasH || 1080, CX = W / 2, CY = H / 2;
   var BG = '#04060f';
 
   function backdrop(ctx, stars, t, opts) {
@@ -484,6 +486,209 @@
   };
 
   function lerpEx(a, b, t) { return a + (b - a) * t; }
+
+  // ── vibe 知识大赏四程序（v1.4）────────────────────────────────────
+  // 与 cosmos 系同一铁律：state(参数) + tweens(时间线) + draw(逐帧)，时间纯函数，
+  // 无 Math.random（用 CV.mulberry32(seed)），全部坐标用 W/H/CX/CY 相对量（竖屏安全）。
+
+  // s09 粒子聚字：星尘从四散到汇聚成中心光团（构图上留出字幕位，主体上移）
+  Programs.s09 = {
+    state: function () {
+      return { gather: 0, glow: 0 };
+    },
+    tweens: function (tl, st) {
+      tl.to(st, { gather: 1, duration: 12, ease: 'power2.inOut' }, 1);
+      tl.to(st, { glow: 1, duration: 4, ease: 'sine.inOut' }, 10);
+    },
+    draw: function (ctx, st, opts, t) {
+      backdrop(ctx, opts.stars, t, {});
+      var g = CV.smooth(st.gather);
+      var rnd = CV.mulberry32(909);
+      // 主体上移给字幕让位：竖屏下低区字幕（下 22%）不压粒子团
+      var cx = CX;
+      var cy = CY - H * 0.09;
+      for (var i = 0; i < 150; i++) {
+        var a0 = rnd() * 6.2832;
+        var r0 = (0.35 + rnd() * 0.75) * Math.min(W, H) * 0.62;
+        var a = a0 + g * (2.2 + rnd() * 1.6);
+        var r = r0 * (1 - g * 0.86);
+        var x = cx + Math.cos(a) * r;
+        var y = cy + Math.sin(a) * r * 0.62;
+        var sz = 0.7 + rnd() * 1.9;
+        ctx.globalAlpha = (0.28 + 0.62 * g) * (0.55 + 0.45 * Math.sin(t * 2 + i));
+        ctx.fillStyle = i % 7 === 0 ? '#FFD75E' : i % 3 === 0 ? '#BFB2FF' : '#E8E8F0';
+        ctx.beginPath();
+        ctx.arc(x, y, sz, 0, 6.2832);
+        ctx.fill();
+      }
+      // 汇聚核心：金光小太阳
+      ctx.globalAlpha = g;
+      CV.glow(ctx, cx, cy, 26 + g * 60, 'rgba(255,215,94,0.55)', 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 1;
+      CV.vignette(ctx, W, H, 0.45);
+      CV.letterbox(ctx, W, H, 0.055);
+    },
+  };
+
+  // s10 金线生长：一条金色路径从下往上生长并分岔（成长/路径/脉络叙事）
+  Programs.s10 = {
+    state: function () {
+      return { grow: 0, branch: 0 };
+    },
+    tweens: function (tl, st) {
+      tl.to(st, { grow: 1, duration: 11, ease: 'sine.inOut' }, 1);
+      tl.to(st, { branch: 1, duration: 6, ease: 'sine.out' }, 9);
+    },
+    draw: function (ctx, st, opts, t) {
+      backdrop(ctx, opts.stars, t, { alpha: 0.8 });
+      var gr = CV.smooth(st.grow);
+      var br = CV.smooth(st.branch);
+      var baseY = H * 0.86;
+      var topY = H * 0.16;
+      var h = (baseY - topY) * gr;
+      ctx.globalAlpha = 0.95;
+      ctx.strokeStyle = '#FFD75E';
+      ctx.lineWidth = 3.2;
+      ctx.shadowColor = 'rgba(255,215,94,0.7)';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.moveTo(CX, baseY);
+      // 主干：轻微 S 弯（确定性相位）
+      var midX = CX + Math.sin(t * 0.6) * W * 0.012;
+      ctx.quadraticCurveTo(CX + W * 0.045, baseY - h * 0.5, midX, baseY - h);
+      ctx.stroke();
+      // 分岔枝（grow 过 0.55 后展开）
+      if (br > 0.01) {
+        ctx.globalAlpha = br * 0.8;
+        ctx.lineWidth = 1.8;
+        for (var k = 0; k < 4; k++) {
+          var at = 0.3 + k * 0.16;
+          var by = baseY - h * at;
+          var dir = k % 2 === 0 ? 1 : -1;
+          ctx.beginPath();
+          ctx.moveTo(CX, by);
+          ctx.quadraticCurveTo(
+            CX + dir * W * 0.06, by - H * 0.03,
+            CX + dir * W * (0.1 + 0.05 * br), by - H * 0.075 * br,
+          );
+          ctx.stroke();
+        }
+      }
+      ctx.shadowBlur = 0;
+      // 节点星：生长线上按进度点亮
+      var rnd = CV.mulberry32(910);
+      for (var i = 0; i < 7; i++) {
+        var at = 0.12 + i * 0.13;
+        if (gr < at) continue;
+        ctx.globalAlpha = 0.5 + 0.4 * Math.sin(t * 2.2 + i);
+        ctx.fillStyle = '#FFE9A8';
+        ctx.beginPath();
+        ctx.arc(CX + (i % 2 ? 1 : -1) * W * 0.02, baseY - h * at, 2.4, 0, 6.2832);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      CV.vignette(ctx, W, H, 0.5);
+      CV.letterbox(ctx, W, H, 0.055);
+    },
+  };
+
+  // s11 光晕大字镜（lower-third 大字承担信息，canvas 只做氛围）：
+  // 中央金色脉冲光环，刻意低调——信息在 HTML 大字层，画布不抢戏
+  Programs.s11 = {
+    state: function () {
+      return { ring: 0 };
+    },
+    tweens: function (tl, st) {
+      tl.to(st, { ring: 1, duration: 14, ease: 'sine.inOut' }, 2);
+    },
+    draw: function (ctx, st, opts, t) {
+      backdrop(ctx, opts.stars, t, { alpha: 0.7 });
+      var r = CV.smooth(st.ring);
+      var pulse = 0.5 + 0.5 * Math.sin(t * 1.4);
+      var rad = Math.min(W, H) * (0.16 + r * 0.1) + pulse * 14;
+      ctx.globalAlpha = 0.5 + 0.3 * r;
+      CV.glow(ctx, CX, CY, rad * 2.1, 'rgba(255,215,94,0.32)', 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.75;
+      ctx.strokeStyle = 'rgba(255,215,94,0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(CX, CY - H * 0.06, rad, 0, 6.2832);
+      ctx.stroke();
+      // 内环反向慢旋的细环（紫），与金环形成层次
+      ctx.globalAlpha = 0.4;
+      ctx.strokeStyle = 'rgba(124,108,255,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(CX, CY - H * 0.06, rad * 1.28, t * 0.35, t * 0.35 + 4.4);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      CV.vignette(ctx, W, H, 0.55);
+      CV.letterbox(ctx, W, H, 0.055);
+    },
+  };
+
+  // s12 知识卡片：两块金色描边卡片对峙/递进（数字/对比/证据），进度条点数递增
+  Programs.s12 = {
+    state: function () {
+      return { show: 0, flip: 0 };
+    },
+    tweens: function (tl, st) {
+      tl.to(st, { show: 1, duration: 6, ease: 'power2.out' }, 1);
+      tl.to(st, { flip: 1, duration: 8, ease: 'sine.inOut' }, 7);
+    },
+    draw: function (ctx, st, opts, t) {
+      backdrop(ctx, opts.stars, t, { alpha: 0.85 });
+      var sh = CV.smooth(st.show);
+      var fl = CV.smooth(st.flip);
+      var cw = Math.min(W, H) * 0.3;
+      var ch = Math.min(W, H) * 0.21;
+      var gap = W * 0.035;
+      var cy = CY - H * 0.08;
+      var x1 = CX - gap / 2 - cw;
+      var x2 = CX + gap / 2;
+      var y = cy - ch / 2;
+      function card(x, alpha, lift) {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = 'rgba(16,16,26,0.85)';
+        ctx.strokeStyle = 'rgba(255,215,94,0.85)';
+        ctx.lineWidth = 2;
+        var r = 14;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y - lift);
+        ctx.arcTo(x + cw, y - lift, x + cw, y - lift + ch, r);
+        ctx.arcTo(x + cw, y - lift + ch, x, y - lift + ch, r);
+        ctx.arcTo(x, y - lift + ch, x, y - lift, r);
+        ctx.arcTo(x, y - lift, x + cw, y - lift, r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      card(x1, sh, 0);
+      card(x2, sh * fl, fl * H * 0.03);
+      // 卡内进度点数：随 flip 递增点亮（数字感的确定性节拍）
+      var rnd = CV.mulberry32(912);
+      for (var i = 0; i < 5; i++) {
+        var on = fl > (i + 1) / 6;
+        ctx.globalAlpha = on ? 0.9 : 0.18;
+        ctx.fillStyle = on ? '#FFD75E' : '#5A5A72';
+        ctx.beginPath();
+        ctx.arc(x1 + 24 + i * ((cw - 48) / 4), y + ch - 26, 3.4, 0, 6.2832);
+        ctx.fill();
+      }
+      for (var j = 0; j < 5; j++) {
+        var on2 = fl > (j + 1) / 6;
+        ctx.globalAlpha = on2 ? 0.9 : 0.18;
+        ctx.fillStyle = on2 ? '#7C6CFF' : '#5A5A72';
+        ctx.beginPath();
+        ctx.arc(x2 + 24 + j * ((cw - 48) / 4), y - fl * H * 0.03 + ch - 26, 3.4, 0, 6.2832);
+        ctx.fill();
+      }
+      rnd();
+      ctx.globalAlpha = 1;
+      CV.vignette(ctx, W, H, 0.5);
+      CV.letterbox(ctx, W, H, 0.055);
+    },
+  };
 
   // 时间轴缩放代理：把程序的 20s 编排等比压缩到镜头实际时长（节拍密度不降，V-RHY-006）
   global.scaleCinemaTl = function (tl, K) {

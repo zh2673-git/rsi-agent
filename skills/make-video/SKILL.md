@@ -50,10 +50,11 @@ cd skills/make-video && npm test && git add -A && git commit -m "fix: ..." && gi
 3. **风格三层**：规范笼子（10，不许做什么）/ 风格包（11，参数+部门指令集）/
    类型配方（11，八类场景组装）。**registered 风格按登记指令执行，禁止逐镜
    重新解释**（V-STYLE-007）。
-4. **字幕策略**（V-CAP-001/002）：风格包可声明 `subtitlePolicy`——
-   `full`=整句条（关键词句内高亮，不再叠加独立黄词条）；`keyword`=关键词梗卡
-   （贴纸式卡片、微倾角+水平错位、按场景主语位置放对侧避让主体）；`off`=无画面
-   字幕（srt 仍全量导出）。project.json 顶层 `"subtitlePolicy"` 可覆写。
+4. **字幕策略**（V-CAP-001/002/004）：风格包可声明 `subtitlePolicy`——
+`full`=整句条（关键词句内高亮，不再叠加独立黄词条）；`keyword`=关键词梗卡
+（贴纸式卡片、微倾角+水平错位、按场景主语位置放对侧避让主体）；`word`=逐词
+卡拉OK（词点亮节奏按字位比例换算，重音词整词金色脉冲，vibe 知识大赏签名形式）；
+`off`=无画面字幕（srt 仍全量导出）。project.json 顶层 `"subtitlePolicy"` 可覆写。
 5. **转场按词表裁决，不默认设置**（docs/08 ④ + V-MOT-008）：`hard-cut` /
    `smash-cut` / `dissolve` / `whip-pan` / `wipe` / `slide` / `fade-black` 七类；
    除硬切外均为 300-600ms，溶解/擦除/横推通过**视觉轨重叠**实现（两镜同框交叠），
@@ -109,11 +110,13 @@ cd skills/make-video && npm test && git add -A && git commit -m "fix: ..." && gi
 
 用户说不出参数，只会说名字和感觉。命中即用；未命中走沉淀（见下）。
 
-**下表是唯一可选项**（`styles/` 里真实存在的 style 包，共 9 个，全部 grade A / registered）。
+**下表是唯一可选项**（`styles/` 里真实存在的 style 包，共 10 个：9 个 grade A / registered，
+vibe-cosmos 为 grade B 试产包——产出首条对拍成片并过 V-STYLE-005 后升 A）。
 菜单里没有的风格就是没有——不要照记忆或旧版本文档点名，`getStyle` 会以 `STYLE_UNKNOWN` 拦下。
 
 | 用户可能说 | style id | 一句话气质 | 适合 | 维度 |
 |---|---|---|---|---|
+| vibe/知识大赏/粒子聚字/金色线条/知识短视频 | `vibe-cosmos` | 深黑底金线粒子聚字，逐词卡拉OK字幕 | short-vibe/科普快讲 | 2d |
 | 苹果发布会/极简/高级感 | `keynote-minimal` | 纯黑舞台，一屏一事，大字留白 | promo/tutorial | 2d |
 | Kurzgesagt/科普/扁平插画 | `kurzgesagt-explainer` | 鲜艳矢量，复杂系统可视化 | science-explainer | 2d |
 | 片头风/图形字/Saul Bass | `bass-graphic` | 网格化字体运动，高对比 | news/opinion | 2d |

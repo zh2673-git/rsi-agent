@@ -78,6 +78,14 @@ export function topicEntities(topic) {
         for (const p of parts)
             if (p.length >= 2)
                 out.add(p);
+        // 问句式长块（>6 字）再切出头部名词做第二实体：
+        // 「时间会越感觉越快」整串逐字复述才算扣题会误杀贴题好稿
+        // （好稿写「时间」「记忆」而不复述整句），追加「时间」即可两边都认。
+        if (c.length > 6) {
+            const head = c.slice(0, 2);
+            if (/[\u4e00-\u9fff]{2}/.test(head) && !CN_STOPWORDS.includes(head))
+                out.add(head);
+        }
     }
     for (const t of topicTerms(topic)) {
         if (/^[A-Za-z0-9]+$/.test(t))

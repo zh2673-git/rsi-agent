@@ -146,7 +146,18 @@ def main():
     ap.add_argument("--ms", type=int, required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--bpm", type=float, default=0.0,
+                    help="覆盖内置 BPM（0=用内置 84）；网格 sidecar 同步使用该值")
+    ap.add_argument("--grid-out", default="",
+                    help="BPM 网格 sidecar 输出路径（json：bpm/beatMs/barMs/beats/bars）；缺省不写")
     a = ap.parse_args()
+
+    bpm = a.bpm if a.bpm > 0 else BPM
+    beat = 60000.0 / bpm  # ms
+    if abs(bpm - BPM) > 1e-9:
+        # 覆盖 BPM 时同步全局节拍常量（合成与网格共用一个时钟源）
+        global BEAT
+        BEAT = beat / 1000.0
 
     total = a.ms / 1000.0
     n = int((total + 2.0) * SR)  # 尾部留混响衰减
@@ -249,6 +260,32 @@ def main():
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes(pcm.tobytes())
+    # BPM 网格 sidecar（v1.4 卡点）：拍/小节时间表，剪辑部切点吸附用（V-RHY-012）
+    if a.grid_out:
+        import json
+        import os
+        from datetime import datetime
+
+        beat_ms = 60000.0 / bpm
+        bar_ms = 4 * beat_ms
+        beats = []
+        t_b = 0.0
+        while t_b < total:
+            beats.append(round(t_b * 1000))
+            t_b += beat_ms / 1000.0
+        bars = list(range(0, int(total * 1000) + int(bar_ms), int(bar_ms)))
+        grid = {
+            "bpm": bpm,
+            "beatMs": round(beat_ms, 3),
+            "barMs": round(bar_ms, 3),
+            "beats": beats,
+            "bars": bars,
+            "generatedAt": datetime.now().isoformat(timespec="seconds"),
+        }
+        os.makedirs(os.path.dirname(os.path.abspath(a.grid_out)), exist_ok=True)
+        with open(a.grid_out, "w", encoding="utf-8") as f:
+            json.dump(grid, f, ensure_ascii=False, indent=2)
+        print("wrote grid", a.grid_out, "bpm", bpm)
     print("wrote", a.out, "dur", round(len(outL) / SR, 2), "s")
 
 
