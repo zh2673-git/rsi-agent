@@ -188,34 +188,23 @@ export function deriveCoverage(
 }
 
 /**
- * 覆盖偏移：位移/旋转累加，各有上限，避免叠加成"构图飘走"。
+ * 覆盖切偏移（X12 已退出机位轨）：X9 曾把 coverage 的位移/旋转累加进镜头状态、
+ * scale 连乘（2026-11-13 事故，16 镜被推到 1.2-1.28 满幅放大）。no-zoom 先废掉
+ * scale（2026-11-15），X12 再废掉位移/旋转——用户最终裁决「任何片子里都不需要
+ * 镜头抖动」：构图差不驱动任何镜头运动，机位轨只表达分镜声明的慢速运镜。
  *
- * 历史（2026-11-13）这里曾按 scale 连乘并夹到 1.28，导致 16 镜全被推到 1.2-1.28
- * 满幅放大，成片读起来就是「每镜都在刻意放大 + 段间硬阶跃」。2026-11-15 用户进一步
- * 裁决「放大缩小的动效不要，改用移动视角」——于是 scale 彻底退出机位轨：
- * coverage 只剩位移（±6）与旋转（±1.5）两种构图手段，不再产生任何缩放。
- *
- * 保留函数签名与 clamp 边界：位移/旋转是构图选择，不是放大，自由度照留。
+ * 切点只留在 plan.coverage 里（审计、转场裁决、V-RHY-004 载体判定），
+ * 本函数恒返回零偏移——保留签名让 rigStateAt 审计口径不破。
  */
-function accumulate(cuts: CoverageCut[], tS: number, inclusive: boolean): RigKeyframe {
-  let x = 0;
-  let y = 0;
-  let rotation = 0;
-  for (const c of cuts) {
-    const at = c.atMs / 1000;
-    if (inclusive ? at > tS + 1e-6 : at >= tS - 1e-6) break;
-    x += c.xPercent;
-    y += c.yPercent;
-    rotation += c.rotation;
-  }
+function accumulate(_cuts: CoverageCut[], tS: number, _inclusive: boolean): RigKeyframe {
   return {
     atS: tS,
-    // no-zoom：coverage 的 scale 恒为 1（全片不允许「换机位 = 放大」）。
-    // 位移与旋转仍是构图手段，保留 —— 用户要的是「移动视角」，不是「画面不动」。
+    // no-zoom：scale 恒为 1（全片不允许「换机位 = 放大」）；X12：位移/旋转恒为 0
+    // （镜头不因重音/覆盖切而动）。强调由画面内元素动效与剪辑点承担。
     scale: 1,
-    xPercent: clamp(x, -6, 6),
-    yPercent: clamp(y, -6, 6),
-    rotation: clamp(rotation, -1.5, 1.5),
+    xPercent: 0,
+    yPercent: 0,
+    rotation: 0,
   };
 }
 
@@ -388,9 +377,10 @@ function waypointsFor(
  * 现在：进场 ease 与拐点时值按镜 seed 变奏；末段默认不再刹车，与中段同为
  * none（匀速滑到切点，剪在运动中）。旧「切前收住眼位」的 Murch 式处理保留为
  * 导演显式 punchOut（急推标点，V-CAM-005 全片≤2次约束不变）。
- * 静止镜（static/none 且无覆盖切）返回空分段——是真的定帧，交给场景内表演。
- * 覆盖切点（X10）：切点前后两段构图不同，渲染为 0.24s 快速 reframe（expo.out）
- * 衔接——帧间连续的「换机位」，不再是一次零帧硬跳（那会被读成机位抖动）。
+ * 静止镜（static）返回空分段——是真的定帧，交给场景内表演。
+ * 覆盖切（X12）不进机位轨：构图差不驱动任何镜头运动，切点只留审计与转场裁决
+ * （X9 零帧硬跳 → X10 0.24s 快速 reframe，用户复盘仍读作「镜头突然抽动」，最终裁决
+ * 「任何片子里都不需要镜头抖动」——机位只做慢速连贯漂移）。
  */
 export function planCameraRig(args: {
   shotId: string;
@@ -432,13 +422,12 @@ export function planCameraRig(args: {
   if (move === 'static' && cuts.length === 0) {
     return { ...base, coverage: [], segments: [], keyframes: [] };
   }
-  const waypoints =
-    move === 'static'
-      ? [
-          { t: 0, scale: SCALE_HOLD, x: 0, y: 0 },
-          { t: durationS, scale: SCALE_HOLD, x: 0, y: 0 },
-        ]
-      : waypointsFor(move, amp, durationS, enterS, midS, sign);
+  // 真静止：X12 起切点不再产生镜头事件，static 镜没有运镜就是一段都不生成
+  // （旧「static + coverage 仍生成零运动分段」的行为随覆盖切一起退出机位轨）
+  if (move === 'static') {
+    return { ...base, coverage: cuts, segments: [], keyframes: [] };
+  }
+  const waypoints = waypointsFor(move, amp, durationS, enterS, midS, sign);
 
   // 标点运镜（punch-in / whip-pan）的「打中点」必须成为分段边界，
   // 否则缓动会把 0.28s 的冲击摊到整段三秒里——那就退化成慢推了。
@@ -447,13 +436,12 @@ export function planCameraRig(args: {
     : move === 'whip-pan' ? Math.min(durationS * 0.3, 0.28)
     : null;
 
-  // 分段边界：三段 + 标点打中点 + 每个覆盖切点（切点把整条曲线切成"切前/切后"两段）
+  // 分段边界：三段 + 标点打中点（X12：覆盖切点不再是分段边界——它不进机位轨）
   const bounds = [
     ...new Set([
       0,
       enterS,
       ...(punctS === null ? [] : [punctS]),
-      ...cuts.map((c) => c.atMs / 1000),
       midS,
       durationS,
     ]),
@@ -461,39 +449,18 @@ export function planCameraRig(args: {
     .filter((b) => b >= 0 && b <= durationS)
     .sort((a, b) => a - b);
 
-  // 分段：切点前一段收在"切前构图"，后一段从"切后构图"起步继续漂移——
-  // （X10）两段由 0.24s expo.out reframe 连续衔接，不再是同帧换机位硬切。
+  // 分段：机位轨只表达本镜运镜的慢速漂移（X12）。
   const segments: RigSegment[] = [];
-  // 覆盖切渲染语义（X10，2026-11-15）：切点不再是零帧 set 硬跳。LLM 分镜把
-  // motivation=emphasis 的 reframe 当「标点」密集下发（vibe 首条 15 镜有 4 镜，
-  // 一次瞬移 4-6% 位移 + 最高 1.5° 旋转），观众读作「机位突然抖一下」（用户复盘）。
-  // 现在切点渲染成 0.24s 快速 reframe（expo.out）：像摄影师快速调整构图——
-  // 帧间连续、两三帧完成主体，保留换机位语义但去掉「碰了一下」的错帧感。
-  // 保守保护：切点离段尾不足 0.24s 时保持原瞬跳（段太短容不下过渡）。
-  const REFRAME_S = 0.24;
+  // 覆盖切不再进机位轨（X12，2026-11-15）：LLM 分镜把 motivation=emphasis 的
+  // reframe 当「标点」密集下发（vibe 首条 15 镜有 4 镜，一次瞬移 4-6% 位移 +
+  // 最高 1.5° 旋转）。X9 渲染为零帧硬跳、X10 降为 0.24s 快速 reframe，用户复盘
+  // 仍读作「镜头突然抽动」，最终裁决：任何片子里都不需要镜头抖动——构图差不再
+  // 驱动任何镜头位移，切点仅保留在 coverage 里供审计与转场裁决。
   for (let i = 1; i < bounds.length; i += 1) {
     const a = bounds[i - 1]!;
     const b = bounds[i]!;
     const durS = +(b - a).toFixed(3);
     if (durS <= 0) continue;
-    const cutHere = cuts.find((c) => Math.abs(c.atMs / 1000 - a) < 1e-6);
-    if (cutHere && durS > REFRAME_S) {
-      segments.push({
-        atS: +a.toFixed(3),
-        durationS: REFRAME_S,
-        from: stateAt(waypoints, cuts, a, false),
-        to: stateAt(waypoints, cuts, a, true),
-        ease: 'expo.out',
-      });
-      segments.push({
-        atS: +(a + REFRAME_S).toFixed(3),
-        durationS: +(durS - REFRAME_S).toFixed(3),
-        from: stateAt(waypoints, cuts, a, true),
-        to: stateAt(waypoints, cuts, b, false),
-        ease: 'none',
-      });
-      continue;
-    }
     const isFirst = i === 1;
     const isLast = i === bounds.length - 1;
     // X9 ease 变奏：进场在 [power2.out / sine.out / cubic.out] 间按镜轮换；

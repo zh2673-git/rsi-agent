@@ -15,6 +15,7 @@ import {
   deriveCoverage,
   pickSubjectFocus,
   planCameraRig,
+  rigStateAt,
 } from '../src/domain/camera.js';
 import { V } from '../src/core/index.js';
 import { deriveRelationMotivation } from '../src/domain/transitions.js';
@@ -240,7 +241,7 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
     expect(gentle.segments.at(-1)!.to.scale).toBe(full.segments.at(-1)!.to.scale);
   });
 
-  it('覆盖切渲染为 0.24s 快速 reframe：帧间连续换机位，不再是零帧硬跳（X10）', () => {
+  it('覆盖切不进机位轨：镜头不因切点位移/旋转（X12，任何片子里都不需要镜头抖动）', () => {
     const plan = planCameraRig({
       shotId: 's02',
       durationMs: 4000,
@@ -251,15 +252,17 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
         { atMs: 2000, kind: 'reframe', scale: 1.16, xPercent: 6, yPercent: 0, rotation: 0.6, motivation: 'emphasis' },
       ],
     });
-    const jump = plan.segments.find(
-      (s) => s.ease === 'expo.out' && s.atS <= 2.0 && s.atS + s.durationS > 2.0,
-    );
-    expect(jump, '切点处必须存在 expo.out reframe 段').toBeTruthy();
-    expect(jump!.atS).toBe(2.0);
-    expect(jump!.durationS).toBe(0.24);
-    // 跨越切点：from 是切前构图（inclusive=false），to 是切后构图（inclusive=true）
-    expect(jump!.from.xPercent).not.toBe(jump!.to.xPercent);
-    expect(buildRigScript(plan)).toContain('expo.out');
+    // 切点前后机位状态完全一致：构图差不驱动任何镜头运动（X9 硬跳/X10 快速 reframe 均废）
+    const before = rigStateAt(plan, 2.0, false);
+    const after = rigStateAt(plan, 2.0, true);
+    expect(after.xPercent).toBe(before.xPercent);
+    expect(after.yPercent).toBe(before.yPercent);
+    expect(after.rotation).toBe(before.rotation);
+    expect(after.scale).toBe(before.scale);
+    // 分段里也不允许出现切点驱动的快速跳变段（X10 的 expo.out reframe 已废）
+    expect(plan.segments.some((s) => s.ease === 'expo.out')).toBe(false);
+    // 慢速运镜轨仍然存在（push-in 慢推不丢）
+    expect(plan.segments.length).toBeGreaterThan(0);
   });
 
   it('主语焦点读 .subject 定位，缺省回落画面中部', () => {
@@ -268,11 +271,12 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
     expect(pickSubjectFocus('<div>无主语</div>')).toEqual({ x: 50, y: 48 });
   });
 
-  it('单镜多条覆盖切不叠成变焦：coverage 的 scale 一律折成 1（no-zoom）', () => {
+  it('单镜多条覆盖切全部不进机位轨：无缩放、无位移/旋转跳变（no-zoom + X12）', () => {
     // 真实事故（2026-11-13）：分镜期每镜给两条 punch-in/reframe（1.12 × 1.30），
     // 连乘顶到 1.456 被夹在 1.28，16 镜全部被推到满幅放大，成片读作「每镜都在
-    // 刻意放大 + 段间硬阶跃」。2026-11-15 用户进一步裁决「放大缩小的动效不要」，
-    // 于是 coverage 的 scale 不再参与机位轨——位移该继续累加（换构图），放大彻底退出。
+    // 刻意放大 + 段间硬阶跃」。裁决演进：no-zoom 废 scale（2026-11-15）→
+    // X12 废位移/旋转——用户最终裁决「任何片子里都不需要镜头抖动」，
+    // coverage 不再驱动任何镜头运动，强调由元素动效与剪辑点承担。
     const plan = planCameraRig({
       shotId: 's03a',
       durationMs: 8000,
@@ -287,13 +291,16 @@ describe('机位轨与覆盖切（docs/05 摄影 / docs/08 剪辑）', () => {
     for (const s of plan.segments) {
       expect(s.to.scale, `${s.atS}s 段尾出现了缩放（no-zoom 违规）`).toBe(1.06);
       expect(s.from.scale, `${s.atS}s 段首出现了缩放（no-zoom 违规）`).toBe(1.06);
+      expect(s.from.xPercent, `${s.atS}s 段首出现了覆盖切位移（X12 违规）`).toBe(0);
+      expect(s.from.yPercent, `${s.atS}s 段首出现了覆盖切位移（X12 违规）`).toBe(0);
+      expect(s.from.rotation, `${s.atS}s 段首出现了覆盖切旋转（X12 违规）`).toBe(0);
+      expect(s.to.xPercent, `${s.atS}s 段尾出现了覆盖切位移（X12 违规）`).toBe(0);
+      expect(s.to.yPercent, `${s.atS}s 段尾出现了覆盖切位移（X12 违规）`).toBe(0);
+      expect(s.to.rotation, `${s.atS}s 段尾出现了覆盖切旋转（X12 违规）`).toBe(0);
     }
-    // 第二条切点仍要换到新构图：位移照常累加，不被缩放规则牵连。
-    // 判据取「切点后的第一段起点」（xPercent 从 +5 叠 -5 归零是位移本身的结果，
-    // 真正要钉的是 yPercent 与 rotation 这类构图量仍在累加）。
-    const afterCut = plan.segments.find((s) => s.atS >= 4.999)!;
-    expect(afterCut.from.yPercent).toBeGreaterThan(1);
-    expect(afterCut.from.rotation).toBeCloseTo(1, 5);
+    // static 镜零分段：切点不再产生任何镜头事件（X10 的 reframe 段已废）
+    expect(plan.segments.length).toBe(0);
+    expect(buildRigScript(plan)).toBe('');
   });
 
   it('X9 去同质化：同运镜不同镜 ease/拐点变奏，默认末段不再刹车', () => {

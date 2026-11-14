@@ -619,14 +619,14 @@ sceneNorm = new Map()) {
         rigAudit.push(rigSummary(rig));
         // 词级卡点：把本镜字幕里的重音词换算成镜内毫秒，注入场景（见 emphasisRig）。
         // 场景自己写了 MV.emphasis 的不再注入——两道一起上会把 scale 乘成 1.30（读作抖动）。
-        const stressPoints = sceneHtml.includes('MV.emphasis')
+        // X12：整屏档已废，卡点只落在 data-stress 元素上——场景没有标点元素就不注入
+        // （否则产物里只有一个空转脚本，重音由字幕高亮与剪辑点承担）。
+        const stressPoints = sceneHtml.includes('MV.emphasis') || !sceneHtml.includes('data-stress')
             ? []
             : emphasisPointsFor(project, timeline, shot.id, durMs);
-        // 死板清除 X7：卡点峰值按景别自适应（近景收窄、全景放大），导演 emphasisPeak 一票覆写
-        const emphasisPeak = {
-            element: emphasisPeakFor(shot, true),
-            stage: emphasisPeakFor(shot, false),
-        };
+        // 卡点峰值按景别自适应（近景收窄、全景放大）+ 导演 emphasisPeak 一票覆写；
+        // X12 起只作用于 data-stress 元素的缩放脉冲（整屏档已废）。
+        const emphasisPeak = emphasisPeakFor(shot);
         const wrapped = wrapComposition(sceneHtml, shot.id, size, durMs / 1000, buildRigScript(rig), presenter, project.shots.findIndex((s) => s.id === shot.id), stressPoints, emphasisPeak);
         if (stressPoints.length) {
             emphasisAudit.push({ shotId: shot.id, pointsMs: stressPoints });
@@ -1241,8 +1241,8 @@ ${lines.join('\n')}
 function wrapComposition(sceneHtml, shotId, size, durationS, rigScript = '', presenter = null, shotIndex = -1, 
 /** 词级卡点脉冲（合成期按字幕注入）；空数组 = 本镜不卡点 */
 stressPoints = [], 
-/** 卡点峰值（死板清除 X7：按景别自适应 + 导演 emphasisPeak 覆写；缺省整屏 1.06/元素 1.14） */
-emphasisPeak = { element: 1.14, stage: 1.06 }) {
+/** 卡点峰值（死板清除 X7：按景别自适应 + 导演 emphasisPeak 覆写；只作用于 data-stress 元素脉冲） */
+emphasisPeak = 1.14) {
     let out = sceneHtml;
     // HyperFrames 契约：GSAP 必须先于 motion-lib 加载；时间线注册到 window.__timelines[compositionId]
     if (!out.includes('gsap.min.js')) {
@@ -1358,21 +1358,20 @@ function emphasisPointsFor(project, timeline, shotId, durationMs) {
 /**
  * 卡点峰值按景别自适应（死板清除 X7，2026-11-14）+ 导演可覆写。
  *
- * 旧实现 elementLevel 1.14 / 整屏 1.06 写死——ECU 大特写上 1.06 已是晃动，
- * ELS 全景上 1.06 又几乎看不见。恒定的是「观众感知到的位移量」，不是缩放比：
- * 景别越近、同一缩放对应的像素位移越大，所以峰值要随景别收窄。
- * 导演仍可用 shot.visual.params.emphasisPeak 一票定夺（相机是导演的）。
+ * 恒定的是「观众感知到的位移量」，不是缩放比：景别越近、同一缩放对应的像素位移
+ * 越大，所以峰值要随景别收窄。X12（2026-11-15）起整屏档卡点已废——峰值只作用于
+ * data-stress 元素的缩放脉冲（是「元素在动」，不是镜头在动），
+ * 导演仍可用 shot.visual.params.emphasisPeak 一票定夺。
  */
-function emphasisPeakFor(shot, elementLevel) {
+function emphasisPeakFor(shot) {
     const override = Number(shot?.visual.params['emphasisPeak']);
     if (Number.isFinite(override) && override > 1 && override <= 1.3)
         return override;
-    // ELS/LS 全景要更明显、CU/ECU 特写要更克制；覆盖切里的元素级脉冲比整屏恒定大一号
+    // ELS/LS 全景要更明显、CU/ECU 特写要更克制
     const byZoom = {
         ELS: 1.1, LS: 1.09, MLS: 1.08, MS: 1.06, MCU: 1.05, CU: 1.04, ECU: 1.03,
     };
-    const base = byZoom[shot?.zoom ?? 'MS'] ?? 1.06;
-    return elementLevel ? Math.min(1.14, base + 0.04) : base;
+    return Math.min(1.14, (byZoom[shot?.zoom ?? 'MS'] ?? 1.06) + 0.04);
 }
 function emphasisRig(pointsMs, shotId, peak) {
     if (!pointsMs.length)
@@ -1384,29 +1383,19 @@ function emphasisRig(pointsMs, shotId, peak) {
     if (!tl || !window.gsap) return;
     var host = document.querySelector('[data-composition-id="scene-${shotId}"]');
     if (!host) return;
+    // X12（2026-11-15）整屏档彻底移除：X9 横向顿挫 → X11 慢挪，用户复盘仍读作
+    // 「镜头突然抽动」，裁决「任何片子里都不需要镜头抖动」。卡点只落在元素级
+    // data-stress 的缩放脉冲上（是「元素在动」，不是镜头在动）；无标点元素则不注入。
     var marks = host.querySelectorAll('[data-stress]');
-    var elementLevel = marks.length > 0;
-    var targets = elementLevel ? Array.prototype.slice.call(marks) : [host.querySelector('.stage') || host];
-    var peak = elementLevel ? ${peak.element} : ${peak.stage};
-    var lift = elementLevel ? 0.09 : 0.07;
-    var back = elementLevel ? 0.26 : 0.2;
-    targets.forEach(function (node) {
-      if (!node) return;
-      ${JSON.stringify(pointsMs)}.forEach(function (ms, k) {
+    if (!marks.length) return;
+    var peak = ${peak};
+    var lift = 0.09;
+    var back = 0.26;
+    Array.prototype.forEach.call(marks, function (node) {
+      ${JSON.stringify(pointsMs)}.forEach(function (ms) {
         var at = ms / 1000;
-        if (elementLevel) {
-          tl.to(node, { scale: peak, duration: lift, ease: 'power3.out' }, at);
-          tl.to(node, { scale: 1, duration: back, ease: 'power2.out' }, at + lift);
-        } else {
-          // 整屏档（X9→X11，2026-11-15）：scale 脉冲（X8 及以前）读成机器呼吸，已废；
-          // X9 的 70ms 横向顿挫仍太急——0.07s 的启动在人眼运动感知里是 saccade 级
-          // 突兀，叠加在覆盖切点附近时读作「撞了一下」（用户复盘 X10 后仍报抖动）。
-          // X11 降级为「挪」：幅度 0.6%→0.35%（1080p 下 ≈3.8px），出 0.10s 回 0.30s，
-          // 保留剪辑重音的踩点节奏，去掉撞击感。element 档（data-stress）不受影响。
-          var dir = k % 2 === 0 ? 1 : -1;
-          tl.to(node, { xPercent: dir * 0.35, duration: 0.1, ease: 'power2.out' }, at);
-          tl.to(node, { xPercent: 0, duration: 0.3, ease: 'power2.out' }, at + 0.1);
-        }
+        tl.to(node, { scale: peak, duration: lift, ease: 'power3.out' }, at);
+        tl.to(node, { scale: 1, duration: back, ease: 'power2.out' }, at + lift);
       });
     });
   }

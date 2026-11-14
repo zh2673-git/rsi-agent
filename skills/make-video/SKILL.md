@@ -72,7 +72,8 @@ cd skills/make-video && npm test && git add -A && git commit -m "fix: ..." && gi
    「进入 settle → 主体漂移 → **减速落定**」；急推收势（`cameraPunchOut`）是标点，
    全片 ≤2 次。逐镜可用 `cameraAmp`（0-2.5）调行程、`cameraDir` 定方向。
    长镜可用 `coverage` 声明镜内换机位点（重音词自动派生默认关闭，需 `autoCoverage: true`），
-   切点硬跳不插值——同场景换机位是「覆盖」，整场换画布才是「转场」。
+   X12 起切点不进机位轨（任何片子里都没有镜头抖动）——只留审计与转场裁决；
+   强调用画面内元素动效与字幕高亮表达。同场景换机位是「覆盖」，整场换画布才是「转场」。
    轨迹落 `logs/camera-rig.json`。软转场默认 J-cut：旁白提前 90ms 入（`audioShiftMs`），
    只移音频 clip 落点，不动时间线时长（V-CMP-001 不破）。
 7. **素材三档：默认全画 → 用户点名才找 → 生图必须先问**（P5）。
