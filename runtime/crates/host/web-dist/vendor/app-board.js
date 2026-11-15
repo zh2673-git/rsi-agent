@@ -257,13 +257,51 @@ function sectionHead(sec, countText, withRefresh) {
   return head;
 }
 
+// V14（I-20261115-03）：状态筛选条抽成共用函数（侧栏 + 看板弹窗两处都用）。
+//
+// 为什么抽出来：**原来的筛选条是纯装饰**。侧栏 renderTasksSection 渲染它、
+// 点它也会改 boardFilter 高亮，但过滤那一步传的是 `sec.filter`（章节配置，
+// 本来就是 "all"）而不是用户点的 boardFilter——于是「点未完成 → 按钮变亮 →
+// 列表一条没少」。用户原话：「全部、已完成、未完成的标签相当于是没用的」。
+//
+// 抽成函数是为了让弹窗也能挂同一套——弹窗是「摊开细看」的宽面，用户在这里
+// 最可能问「哪些还没做完」，两处各写一份迟早又分叉。
+function filterBar() {
+  const bar = el("div", "sec-filter");
+  for (const [f, label] of [["all", "全部"], ["open", "未完成"], ["done", "已完成"]]) {
+    const b = el("button", f === boardFilter ? "on" : "");
+    b.dataset.f = f;
+    b.textContent = label;
+    b.title = f === "all" ? "全部任务"
+      : f === "open" ? "未完成（计划 / 进行 / 验收 / 阻塞）"
+      : "已落定（完成 / 取消）";
+    b.onclick = () => {
+      boardFilter = f;
+      refreshSections();          // 侧栏重建
+      renderBoardWin();           // 弹窗同步（同一份 boardFilter）
+    };
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
+// V14（I-20261115-03）：侧栏任务章节的过滤改用用户点的 boardFilter。
+//
+// 原代码传的是 `sec.filter`——那是**章节配置**里的静态值（布局里写死 "all"），
+// 与用户点的按钮无关。按钮只切高亮，数据不动，这就是「标签相当于是没用的」。
+// 章节自己指定 filter=open/done 时仍以章节为准（那是有意的预筛）。
+function taskVisibleInSection(t, sec) {
+  if (!sec.filter || sec.filter === "all") return taskVisible(t, boardFilter ?? "all");
+  return taskVisible(t, sec.filter);
+}
+
 // ── tasks 章节 ───────────────────────────────────────────────────────────────
 function renderTasksSection(sec) {
   const wrap = el("section", "board-sec");
   wrap.dataset.kind = "tasks";
   wrap.dataset.sec = sec.id;
   const tasksAll = (boardData?.board?.tasks ?? [])
-    .filter((t) => taskVisible(t, sec.filter))
+    .filter((t) => taskVisibleInSection(t, sec))
     .filter(scopeVisible);
   const sum = boardData?.summary?.tasks;
   const bs = sum?.by_status ?? {};
@@ -276,21 +314,7 @@ function renderTasksSection(sec) {
 
   // 筛选只在「该章节不限 filter」时提供（章节自己指定 filter=open 时不再给开关）
   const showFilter = !sec.filter || sec.filter === "all";
-  if (showFilter) {
-    const bar = el("div", "sec-filter");
-    for (const [f, label] of [["all", "全部"], ["open", "未完成"], ["done", "已完成"]]) {
-      const b = el("button", f === boardFilter ? "on" : "");
-      b.dataset.f = f;
-      b.textContent = label;
-      b.onclick = () => {
-        boardFilter = f;
-        for (const x of bar.querySelectorAll("button")) x.classList.toggle("on", x === b);
-        refreshSections();
-      };
-      bar.appendChild(b);
-    }
-    wrap.appendChild(bar);
-  }
+  if (showFilter) wrap.appendChild(filterBar());
 
   const body = el("div", "sec-body");
   body.id = `sec-${sec.id}-body`;
@@ -1090,24 +1114,30 @@ function renderWinTasks(sec, root) {
     return;
   }
   const groupBy = sec.group_by ?? "status";
-  const grouped = groupTasks(all.filter((t) => taskVisible(t, sec.filter)), groupBy);
-  const limit = Number(sec.limit ?? 30);
-  let shown = 0;
+  // V14（I-20261115-03）：弹窗里的过滤也走用户点的 boardFilter（原来传 sec.filter，
+  // 与侧栏同一个 bug：点「未完成」只换高亮、列表不变）。
+  const grouped = groupTasks(all.filter((t) => taskVisible(t, boardFilter ?? "all")), groupBy);
+  // V14（I-20261115-03）：**弹窗不受 layout.limit 截断**。
+  //
+  // 用户原话：「至少在专门点进看板的标签中，它能点了之后它能显示所有任务」。
+  // 侧栏是窄栏、limit=30 是合理的省空间手段；弹窗是「摊开细看」的宽面，
+  // 截断在这里没有任何收益——只有「翻不到底」的坏处。侧栏的 limit 仍然生效，
+  // 两边职责不同：侧栏一眼看进度，弹窗看全部。
   for (const [g, arr] of grouped) {
-    if (shown >= limit) break;
     const label = groupBy === "status" ? (BOARD_LABEL[g] ?? g) : g;
-    const head = el("div", "bw-group");
-    head.innerHTML = `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
+    const settled = groupBy === "status" && (g === "done" || g === "cancelled");
+    const shut = folded("win", g, settled);
+    const head = el("div", "bw-group" + (shut ? " shut" : ""));
+    head.title = shut ? `展开「${label}」（${arr.length} 条）` : `收起「${label}」`;
+    head.innerHTML = `<span class="tchev">${shut ? "▸" : "▾"}</span>` +
+      `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
       `<span class="tcnt">${arr.length}</span>`;
+    head.onclick = () => { setFold("win", g, !shut); renderBoardWin(); };
     body.appendChild(head);
+    if (shut) continue;             // 折叠 = 不渲染这一组的卡片，条数仍在组头上
     for (const t of arr) {
-      if (shown >= limit) break;
       body.appendChild(winTaskCard(t));
-      shown += 1;
     }
-  }
-  if (all.length > shown) {
-    body.appendChild(el("div", "empty", `…还有 ${all.length - shown} 个任务（调高该章节的 limit 可全部显示）`));
   }
   root.appendChild(body);
 }
@@ -1202,6 +1232,14 @@ function renderBoardWin() {
   const bar = scopeBar();
   bar.classList.add("bw-scope");
   root.appendChild(bar);
+  // V14（I-20261115-03）：弹窗也挂状态筛选条（全部 / 未完成 / 已完成）。
+  // 弹窗是「摊开细看」的宽面，用户在这里最可能问「哪些还没做完」——侧栏有、
+  // 弹窗没有，观感像两个不同系统。同一个 boardFilter，两处同步。
+  if (sec.kind === "tasks") {
+    const fb = filterBar();
+    fb.classList.add("bw-filter");
+    root.appendChild(fb);
+  }
   const renderers = { tasks: renderWinTasks, metrics: renderWinMetrics, inspirations: renderWinInsp };
   const fn = renderers[sec.kind];
   if (fn) fn(sec, root);
