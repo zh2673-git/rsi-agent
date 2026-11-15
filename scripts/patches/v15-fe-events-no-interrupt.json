@@ -1,0 +1,9 @@
+{
+  "id": "V15-FE-EVENTS-NO-INTERRUPT",
+  "description": "app-events.js：撤掉 composer「插队」键的 onclick 绑定（插队入口统一收回待发队列行内 ⏭；Alt+Enter 硬插队语义保留）",
+  "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+  "anchor_file": "blocks/v15-events-anchor.txt",
+  "patch_file": "blocks/v15-events-patch.txt",
+  "repair": true,
+  "order": 10
+}

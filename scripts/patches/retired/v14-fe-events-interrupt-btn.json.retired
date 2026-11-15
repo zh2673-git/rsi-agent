@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-EVENTS-INTERRUPT-BTN",
+  "description": "app-events.js：给 composer「插队」键绑定点击事件（走 interruptAndSend，与 Alt+Enter 同一条硬插队路径）；同时把 Alt+Enter 注释改成「硬插队」以免再被误读成软注入",
+  "file": "runtime/crates/host/web-dist/vendor/app-events.js",
+  "anchor_file": "blocks/v14-keydown-anchor.txt",
+  "patch_file": "blocks/v14-keydown-patch.txt",
+  "applied_marker": "if (interruptBtn) {"
+}

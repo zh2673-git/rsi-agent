@@ -1,0 +1,9 @@
+{
+  "id": "V15-FE-CORE-NO-INTERRUPT",
+  "description": "app-core.js：撤掉 interruptBtn 声明（composer 已无插队键）",
+  "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+  "anchor_file": "blocks/v15-core-anchor.txt",
+  "patch_file": "blocks/v15-core-patch.txt",
+  "repair": true,
+  "order": 10
+}

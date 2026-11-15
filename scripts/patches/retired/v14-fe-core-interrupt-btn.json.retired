@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-CORE-INTERRUPT-BTN",
+  "description": "app-core.js：声明 interruptBtn（composer 的「插队」键元素引用）",
+  "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+  "anchor_file": "blocks/v14-core-anchor.txt",
+  "patch_file": "blocks/v14-core-patch.txt",
+  "applied_marker": "interruptBtn = $(\"interrupt\")"
+}

@@ -1,0 +1,20 @@
+// V14（I-20261115-03）：显式「插队」键——与 Alt+Enter 同一条路径（interruptAndSend）。
+// Q5 当初把 composer 恢复成纯「停止」，插队能力只留在待发队列行内 ⏭；但行内 ⏭
+// 只能插队给**已经在队列里**的条目，插不了「刚打出来的这条」，于是 composer 侧
+// 缺一个真正能用的插队入口。
+//
+// 显隐放在这里而不是 syncRunUI：syncRunUI 的函数体是 G3-SEND-QUEUE 补丁的
+// 幂等判据（整段原文必须逐字在位），往里插一行就会让那条补丁永远「锚点未命中」。
+// 插队键恒显（不藏）——插队是常用动作，藏起来等于没有；没任务在跑时点了会
+// 明确提示「当前没有任务在跑」，而不是静默无反应。
+if (interruptBtn) {
+  interruptBtn.onclick = () => {
+    if (!input.value.trim()) { setStatus("插队：先写下要插队的内容"); input.focus(); return; }
+    if (!qState(session).running) {
+      setStatus("当前没有任务在跑，这条按普通发送执行");
+      send();
+      return;
+    }
+    interruptAndSend();
+  };
+}

@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-COMPOSER-INTERRUPT",
+  "description": "index.html composer：新增显式「插队」键（与 Alt+Enter 同一条 interruptAndSend 路径；Q5 把插队能力只下放到待发队列行内 ⏭，composer 侧缺一个能插「刚打出的这条」的入口）",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/v14-composer-anchor.txt",
+  "patch_file": "blocks/v14-composer-patch.txt",
+  "applied_marker": "<button id=\"interrupt\" hidden"
+}

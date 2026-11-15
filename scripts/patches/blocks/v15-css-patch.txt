@@ -1,0 +1,2 @@
+.bw-group:hover { color: var(--muted); }
+.bw-filter { margin-bottom: 6px; }

@@ -1,0 +1,9 @@
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (e.altKey) interruptAndSend();  // Alt+Enter：停止当前 + 插队
+    else send();                        // Enter：排队（follow-up）
+  } else if (e.key === "Escape" && qState(session).running) {
+    e.preventDefault(); stopBtn.onclick(); // Esc：硬中断并退回队列
+  }
+});

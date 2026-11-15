@@ -1,0 +1,11 @@
+      <!-- Q5：⏭ 插队键已移除（composer 恢复为纯「停止」）；拦截能力下放到待发队列行内，Alt+Enter 仍可插队 -->
+      <button id="stop" hidden style="background: var(--card-2); color: var(--text);">停止</button>
+      <!-- V14（I-20261115-03）：显式「插队」键。
+           Q5 当初把 composer 恢复成纯「停止」，把插队能力下放到待发队列行内 ⏭。
+           但那要求用户先「排队」再「点 ⏭」——而用户此刻正想让**现在这条**插到
+           正在跑的那条前面。行内 ⏭ 只能插队给**已在队列里**的条目，插不了
+           「刚打出来的这条」。于是「插队」在 composer 侧就缺一个入口。
+           语义与 Alt+Enter 完全一致（同一个 interruptAndSend）：打断当前 → 本条
+           立刻跑 → 被打断那条挂起，等本条跑完自动回头续跑。恒显不藏。 -->
+      <button id="interrupt" title="插队：打断当前任务，本条立刻跑；被打断的那条等本条跑完自动续跑">插队</button>
+      <button id="send">发送</button>

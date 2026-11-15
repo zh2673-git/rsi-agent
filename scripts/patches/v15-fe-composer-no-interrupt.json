@@ -1,0 +1,9 @@
+{
+  "id": "V15-FE-COMPOSER-NO-INTERRUPT",
+  "description": "index.html composer：撤掉 V14 加的独立「插队」键（用户要求插队入口只留在待发队列行内 ⏭）；composer 恢复为「停止 / 发送」两个键",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/v15-composer-anchor.txt",
+  "patch_file": "blocks/v15-composer-patch.txt",
+  "repair": true,
+  "order": 10
+}

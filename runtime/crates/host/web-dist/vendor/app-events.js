@@ -345,12 +345,18 @@ stopBtn.onclick = async () => {
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    if (e.altKey) interruptAndSend();  // Alt+Enter：停止当前 + 插队
+    if (e.altKey) interruptAndSend();  // Alt+Enter：硬插队（打断当前，本条先跑，原条回头续跑）
     else send();                        // Enter：排队（follow-up）
   } else if (e.key === "Escape" && qState(session).running) {
     e.preventDefault(); stopBtn.onclick(); // Esc：硬中断并退回队列
   }
 });
+// V15（I-20261115-04）：撤掉 composer 旁的独立「插队」键。
+// 用户原话：「不需要单独在发送旁边显示插队按钮，就是有了新任务后它会自动排队，
+// 然后在排队的哪里有插队的选项发送过去就好了。」
+// 故插队入口**统一收回到待发队列行内 ⏭**（runQueueNow → 硬插队 → 被打断者回头续跑），
+// composer 只保留「停止 / 发送」。Alt+Enter 的硬插队语义保留（同一套 interruptAndSend），
+// 但不再有独立的可见按钮。
 input.addEventListener("input", () => {
   input.style.height = "48px";
   input.style.height = Math.min(input.scrollHeight, 180) + "px";

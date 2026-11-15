@@ -1,0 +1,9 @@
+{
+  "id": "V15-FE-CSS-NO-INTERRUPT",
+  "description": "style.css：撤掉 composer 插队键样式（.composer button#interrupt 常态 + hover）",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/v15-css-anchor.txt",
+  "patch_file": "blocks/v15-css-patch.txt",
+  "repair": true,
+  "order": 10
+}
