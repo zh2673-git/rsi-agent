@@ -1,0 +1,17 @@
+/* 运行中（后台车道）：左侧脉动圆点。用户要先知道「那边还在干活」才敢切走。 */
+.lane.busy::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 5px; vertical-align: 1px; animation: lanePulse 1.2s ease-in-out infinite; }
+@keyframes lanePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+/* V14（I-20261115-03）：看板弹窗的组级折叠 + 状态筛选条。
+   折叠沿用侧栏 .tgroup 的视觉语言（tchev 三角 + shut 淡出），但用 .bw-group
+   自己的类名——弹窗组头字号更小、字距更宽，不必强行与侧栏同款。 */
+.bw-group { cursor: pointer; user-select: none; }
+.bw-group .tchev { font-size: 9px; opacity: .8; width: 9px; flex: 0 0 auto; }
+.bw-group.shut { opacity: .72; }
+.bw-group:hover { color: var(--muted); }
+.bw-filter { margin-bottom: 6px; }
+/* V14（I-20261115-03）：composer 的「插队」键。用暖色描边标出它是
+   「会打断当前」的那一类动作——误点的代价比停止大。 */
+.composer button#interrupt { background: var(--card-2); color: var(--warn);
+  border: 1px solid var(--warn); padding: 0 16px; }
+.composer button#interrupt:hover { background: var(--warn); color: #fff; }

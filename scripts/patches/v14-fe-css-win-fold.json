@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-CSS-WIN-FOLD",
+  "description": "style.css：看板弹窗组级折叠（tchev/shut）与筛选条样式",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/v14-css-anchor.txt",
+  "patch_file": "blocks/v14-css-patch.txt",
+  "applied_marker": ".bw-group .tchev { font-size: 9px;"
+}

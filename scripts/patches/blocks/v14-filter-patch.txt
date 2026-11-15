@@ -1,0 +1,3 @@
+  const tasksAll = (boardData?.board?.tasks ?? [])
+    .filter((t) => taskVisibleInSection(t, sec))
+    .filter(scopeVisible);

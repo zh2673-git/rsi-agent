@@ -1,0 +1,10 @@
+  // Q 轮 Phase 3：steer = 轮次边界软注入（不杀当前任务）。服务端 queue/enqueue
+  // 在有在途 chat 时把文本放进 steer 缓冲；chat_run 下一轮开头注入工作集。
+  try {
+    const r = await fetch("/api/queue", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ session_id: session, message: text, target: "steer", ...(atts.length ? { attachments: atts } : {}) }),
+    });
+    const v = await r.json();
+    if (v && v.ok) { setStatus(v.position === 0 ? "已加入轮次边界注入" : "已排队"); return; }
+  } catch { /* 旧版 host：回退「取消+重启」近似 */ }

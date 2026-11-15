@@ -1,0 +1,28 @@
+  const groupBy = sec.group_by ?? "status";
+  // V14（I-20261115-03）：弹窗里的过滤也走用户点的 boardFilter（原来传 sec.filter，
+  // 与侧栏同一个 bug：点「未完成」只换高亮、列表不变）。
+  const grouped = groupTasks(all.filter((t) => taskVisible(t, boardFilter ?? "all")), groupBy);
+  // V14（I-20261115-03）：**弹窗不受 layout.limit 截断**。
+  //
+  // 用户原话：「至少在专门点进看板的标签中，它能点了之后它能显示所有任务」。
+  // 侧栏是窄栏、limit=30 是合理的省空间手段；弹窗是「摊开细看」的宽面，
+  // 截断在这里没有任何收益——只有「翻不到底」的坏处。侧栏的 limit 仍然生效，
+  // 两边职责不同：侧栏一眼看进度，弹窗看全部。
+  for (const [g, arr] of grouped) {
+    const label = groupBy === "status" ? (BOARD_LABEL[g] ?? g) : g;
+    const settled = groupBy === "status" && (g === "done" || g === "cancelled");
+    const shut = folded("win", g, settled);
+    const head = el("div", "bw-group" + (shut ? " shut" : ""));
+    head.title = shut ? `展开「${label}」（${arr.length} 条）` : `收起「${label}」`;
+    head.innerHTML = `<span class="tchev">${shut ? "▸" : "▾"}</span>` +
+      `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
+      `<span class="tcnt">${arr.length}</span>`;
+    head.onclick = () => { setFold("win", g, !shut); renderBoardWin(); };
+    body.appendChild(head);
+    if (shut) continue;             // 折叠 = 不渲染这一组的卡片，条数仍在组头上
+    for (const t of arr) {
+      body.appendChild(winTaskCard(t));
+    }
+  }
+  root.appendChild(body);
+}

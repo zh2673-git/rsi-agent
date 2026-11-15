@@ -1,0 +1,17 @@
+  // 筛选只在「该章节不限 filter」时提供（章节自己指定 filter=open 时不再给开关）
+  const showFilter = !sec.filter || sec.filter === "all";
+  if (showFilter) {
+    const bar = el("div", "sec-filter");
+    for (const [f, label] of [["all", "全部"], ["open", "未完成"], ["done", "已完成"]]) {
+      const b = el("button", f === boardFilter ? "on" : "");
+      b.dataset.f = f;
+      b.textContent = label;
+      b.onclick = () => {
+        boardFilter = f;
+        for (const x of bar.querySelectorAll("button")) x.classList.toggle("on", x === b);
+        refreshSections();
+      };
+      bar.appendChild(b);
+    }
+    wrap.appendChild(bar);
+  }

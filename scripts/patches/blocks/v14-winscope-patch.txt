@@ -1,0 +1,11 @@
+  const bar = scopeBar();
+  bar.classList.add("bw-scope");
+  root.appendChild(bar);
+  // V14（I-20261115-03）：弹窗也挂状态筛选条（全部 / 未完成 / 已完成）。
+  // 弹窗是「摊开细看」的宽面，用户在这里最可能问「哪些还没做完」——侧栏有、
+  // 弹窗没有，观感像两个不同系统。同一个 boardFilter，两处同步。
+  if (sec.kind === "tasks") {
+    const fb = filterBar();
+    fb.classList.add("bw-filter");
+    root.appendChild(fb);
+  }

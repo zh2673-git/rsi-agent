@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-FILTER-BAR",
+  "description": "app-board.js：状态筛选条（全部/未完成/已完成）抽成共用 filterBar() 并修真 bug——原来过滤传的是章节配置 sec.filter 而非用户点的 boardFilter，点按钮只换高亮、列表不变（用户：这些标签相当于是没用的）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v14-fn-anchor.txt",
+  "patch_file": "blocks/v14-fn-patch.txt",
+  "applied_marker": "// V14（I-20261115-03）：状态筛选条抽成共用函数"
+}

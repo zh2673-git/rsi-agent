@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-FILTERBAR-USE",
+  "description": "app-board.js 侧栏：筛选条改用共用 filterBar()（原来内联写死一份，只切高亮不同步弹窗）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v14-filterbar2-anchor.txt",
+  "patch_file": "blocks/v14-filterbar2-patch.txt",
+  "applied_marker": "if (showFilter) wrap.appendChild(filterBar());"
+}

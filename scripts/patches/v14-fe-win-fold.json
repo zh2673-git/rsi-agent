@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-WIN-FOLD",
+  "description": "app-board.js 看板弹窗任务区：组级折叠（与侧栏同一套 folded/setFold，落定组默认收起）+ 不再受 layout.limit 截断（弹窗是宽面，显示全部任务）+ 过滤走 boardFilter",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v14-wintasks-anchor.txt",
+  "patch_file": "blocks/v14-wintasks-patch.txt",
+  "applied_marker": "// V14（I-20261115-03）：**弹窗不受 layout.limit 截断**"
+}

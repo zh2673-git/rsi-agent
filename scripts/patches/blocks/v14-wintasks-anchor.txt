@@ -1,0 +1,22 @@
+  const groupBy = sec.group_by ?? "status";
+  const grouped = groupTasks(all.filter((t) => taskVisible(t, sec.filter)), groupBy);
+  const limit = Number(sec.limit ?? 30);
+  let shown = 0;
+  for (const [g, arr] of grouped) {
+    if (shown >= limit) break;
+    const label = groupBy === "status" ? (BOARD_LABEL[g] ?? g) : g;
+    const head = el("div", "bw-group");
+    head.innerHTML = `<span class="tdot ${boardEsc(g)}"></span><span>${boardEsc(label)}</span>` +
+      `<span class="tcnt">${arr.length}</span>`;
+    body.appendChild(head);
+    for (const t of arr) {
+      if (shown >= limit) break;
+      body.appendChild(winTaskCard(t));
+      shown += 1;
+    }
+  }
+  if (all.length > shown) {
+    body.appendChild(el("div", "empty", `…还有 ${all.length - shown} 个任务（调高该章节的 limit 可全部显示）`));
+  }
+  root.appendChild(body);
+}

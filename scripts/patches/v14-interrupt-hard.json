@@ -1,0 +1,8 @@
+{
+  "id": "V14-INTERRUPT-HARD",
+  "description": "q-session.js interruptAndSend：Alt+Enter 改走硬插队（cancel+abort+被打断者挂起续跑），删去 steer 软注入早退分支（Q 轮 Phase 3 把 Alt+Enter 改道到 steer，导致「插队键不插队」）",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/v14-interrupt-anchor.txt",
+  "patch_file": "blocks/v14-interrupt-hard.txt",
+  "applied_marker": "// V14（I-20261115-03）：**Alt+Enter = 硬插队**"
+}

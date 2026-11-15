@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-WIN-SCOPE",
+  "description": "app-board.js 看板弹窗：任务标签页挂状态筛选条（全部/未完成/已完成，与侧栏共用 boardFilter）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v14-winscope-anchor.txt",
+  "patch_file": "blocks/v14-winscope-patch.txt",
+  "applied_marker": "fb.classList.add(\"bw-filter\");"
+}

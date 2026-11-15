@@ -1,0 +1,3 @@
+  const bar = scopeBar();
+  bar.classList.add("bw-scope");
+  root.appendChild(bar);

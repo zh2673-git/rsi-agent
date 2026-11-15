@@ -1,0 +1,40 @@
+// V14（I-20261115-03）：状态筛选条抽成共用函数（侧栏 + 看板弹窗两处都用）。
+//
+// 为什么抽出来：**原来的筛选条是纯装饰**。侧栏 renderTasksSection 渲染它、
+// 点它也会改 boardFilter 高亮，但过滤那一步传的是 `sec.filter`（章节配置，
+// 本来就是 "all"）而不是用户点的 boardFilter——于是「点未完成 → 按钮变亮 →
+// 列表一条没少」。用户原话：「全部、已完成、未完成的标签相当于是没用的」。
+//
+// 抽成函数是为了让弹窗也能挂同一套——弹窗是「摊开细看」的宽面，用户在这里
+// 最可能问「哪些还没做完」，两处各写一份迟早又分叉。
+function filterBar() {
+  const bar = el("div", "sec-filter");
+  for (const [f, label] of [["all", "全部"], ["open", "未完成"], ["done", "已完成"]]) {
+    const b = el("button", f === boardFilter ? "on" : "");
+    b.dataset.f = f;
+    b.textContent = label;
+    b.title = f === "all" ? "全部任务"
+      : f === "open" ? "未完成（计划 / 进行 / 验收 / 阻塞）"
+      : "已落定（完成 / 取消）";
+    b.onclick = () => {
+      boardFilter = f;
+      refreshSections();          // 侧栏重建
+      renderBoardWin();           // 弹窗同步（同一份 boardFilter）
+    };
+    bar.appendChild(b);
+  }
+  return bar;
+}
+
+// V14（I-20261115-03）：侧栏任务章节的过滤改用用户点的 boardFilter。
+//
+// 原代码传的是 `sec.filter`——那是**章节配置**里的静态值（布局里写死 "all"），
+// 与用户点的按钮无关。按钮只切高亮，数据不动，这就是「标签相当于是没用的」。
+// 章节自己指定 filter=open/done 时仍以章节为准（那是有意的预筛）。
+function taskVisibleInSection(t, sec) {
+  if (!sec.filter || sec.filter === "all") return taskVisible(t, boardFilter ?? "all");
+  return taskVisible(t, sec.filter);
+}
+
+// ── tasks 章节 ───────────────────────────────────────────────────────────────
+function renderTasksSection(sec) {

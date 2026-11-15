@@ -1,0 +1,8 @@
+{
+  "id": "V14-FE-FILTER-APPLY",
+  "description": "app-board.js 侧栏任务章节：过滤改用 taskVisibleInSection(t, sec)（用户点的 boardFilter 优先，章节自身 filter 仍作预筛）",
+  "file": "runtime/crates/host/web-dist/vendor/app-board.js",
+  "anchor_file": "blocks/v14-filter-anchor.txt",
+  "patch_file": "blocks/v14-filter-patch.txt",
+  "applied_marker": ".filter((t) => taskVisibleInSection(t, sec))"
+}
