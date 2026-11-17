@@ -42,6 +42,53 @@ def _norm(text: str) -> str:
     return "\n".join(l.strip() for l in text.splitlines() if l.strip())
 
 
+def _dup_patch_blocks(specs, read_src):
+    """判据本体：哪些补丁的**替换全文**在产物里出现了不止一次。
+
+    抽成纯函数是为了让它能被反向用例直接喂假数据——判据写在测试方法体里时，
+    只能证明「当前仓库是干净的」，证明不了「脏了会报」。
+
+    Args:
+        specs: `(spec_path, spec_dict, patch_text, anchor_text)` 序列。
+        read_src: `target_rel_path -> str | None`，None 表示读不到（跳过）。
+
+    Returns:
+        诊断字符串列表，空列表 = 干净。
+    """
+    bad = []
+    for f, d, patch, anchor in specs:
+        if _is_repair(d):
+            continue
+        target = d.get("file")
+        if not target:
+            continue
+        src = read_src(target)
+        if src is None:
+            continue
+        a = _norm(anchor)
+        # 太短的补丁（一两行通用代码）没有诊断价值，会全是噪声
+        p = _norm(patch)
+        if len(p) < 24:
+            continue
+        # 白名单仍然要查：判据换了，但「这个文件里这段重复是合法的」这条事实没变。
+        if a and (target, a.splitlines()[0].strip()) in KNOWN_LEGIT_REPEATS:
+            continue
+        # CSS 章节末行的合法重复（见 KNOWN_LEGIT_RULE_REPEATS 的说明），
+        # 同一份事实在两张表里各查一次：这里按「目标文件+行首」判，上面按选择器判。
+        if target.endswith("style.css") and a and any(
+            a.strip().startswith(sel + " {") and body in a
+            for sel, body in KNOWN_LEGIT_RULE_REPEATS
+        ):
+            continue
+        n = _norm(src).count(p)
+        if n > 1:
+            bad.append(
+                f"{target}: 补丁 {f} 的替换全文在产物里出现 {n} 次"
+                f"（应 ≤1）→ 补丁被重复应用\n    {p.splitlines()[0][:70]!r}"
+            )
+    return bad
+
+
 def _iter_specs():
     for sub in PATCH_DIRS:
         d0 = PATCHES / sub if sub else PATCHES
@@ -119,44 +166,78 @@ class PatchSourceNotDuplicated(unittest.TestCase):
 
 
 class ArtifactNotPolluted(unittest.TestCase):
-    """B. 产物：锚点块在目标文件里的出现次数，不得超过替换文本里的次数。"""
+    """B. 产物：补丁的**替换全文**在目标文件里最多出现一次。
+
+    判据为什么不是「锚点在产物里出现的次数 > 在补丁文本里的次数」（旧写法）：
+
+    `apply-tool-patches.py` 用的是 `src.replace(anchor, patch, 1)`，而 patch 文本
+    里本身就含一份 anchor。于是替换完成后，**anchor 在文件里的计数恒等于替换前**——
+    这个量对「补丁被应用了几次」完全不敏感。它唯一能触发的情形是「基线里本来就有
+    多份 anchor」，那是基线的事实，不是污染。旧写法因此既抓不到真污染（历史上
+    style.css 整段 5705 字节被写两遍那次，anchor 计数同样没变），又会稳定误报
+    那些「一个片段服务两处」的合法重复——旧表 KNOWN_LEGIT_REPEATS 就是为压这些
+    误报而长的，越压越长，说明判据选错了。
+
+    真判据：**patch 全文在产物里出现几次 = 补丁被应用了几次**。>1 就是重复块。
+
+    这条判据自己也有反向用例（见下方 GuardHasTeeth），否则「换判据」和「关告警」
+    从测试结果上分不出来。
+    """
 
     def test_target_has_no_duplicate_patch_block(self):
-        bad = []
-        for f, d, patch, anchor in _iter_specs():
-            if _is_repair(d):
-                continue
-            target = d.get("file")
-            if not target:
-                continue
+        def _read(target: str):
             tp = ROOT / target
             if not tp.is_file():
-                continue
+                return None
             try:
-                src = tp.read_text(encoding="utf-8")
+                return tp.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
-                continue
-            a = _norm(anchor)
-            # 太短的锚点（一两行通用代码）没有诊断价值，会全是噪声
-            if len(a) < 24 or len(a.splitlines()) < 1:
-                continue
-            if (target, a.splitlines()[0].strip()) in KNOWN_LEGIT_REPEATS:
-                continue
-            # CSS 章节末行的合法重复（见 KNOWN_LEGIT_RULE_REPEATS 的说明），
-            # 同一份事实在两张表里各查一次：这里按「目标文件+行首」判，上面按选择器判。
-            if target.endswith("style.css") and any(
-                a.strip().startswith(sel + " {") and body in a
-                for sel, body in KNOWN_LEGIT_RULE_REPEATS
-            ):
-                continue
-            in_patch = _norm(patch).count(a)
-            in_src = _norm(src).count(a)
-            if in_patch and in_src > in_patch:
-                bad.append(
-                    f"{target}: {a.splitlines()[0][:70]!r}… 在产物里出现 {in_src} 次，"
-                    f"但补丁文本只提供 {in_patch} 次 → 产物有重复块"
-                )
+                return None
+
+        bad = _dup_patch_blocks(
+            ((f.name, d, patch, anchor) for f, d, patch, anchor in _iter_specs()),
+            _read,
+        )
         self.assertEqual(bad, [], "产物被写成重复块（补丁重复插入的残留）:\n" + "\n".join(bad))
+
+
+class GuardHasTeeth(unittest.TestCase):
+    """B'. 判据自身的反向用例——证明它抓得到真污染、且不误报合法重复。
+
+    没有这一组，「把判据改松」与「把告警关掉」在测试结果上是同一件事。
+    三条情形对应历史上真实发生过的三类事件：
+
+    1. 补丁应用一次  → 不得报（否则天天误报，人会开始无视它）；
+    2. 同一段写两遍  → **必须**报（style.css 5705 字节被写两遍那次）；
+    3. 基线本来就有多份 anchor，补丁只应用一次 → 不得报（NW18 的情形：
+       两个测试函数各自 `set_var("AGENT_STREAM_DIR", ...)`，是天经地义的重复）。
+    """
+
+    PATCH = "let a = 1;\n// 新增的三行说明\nlet b = 2;\nlet c = 3;"
+    ANCHOR = "let a = 1;"
+    SPEC = {"file": "tgt/x.rs", "patch_file": "blocks/p.txt", "anchor_file": "blocks/a.txt"}
+
+    def _run(self, src: str) -> list[str]:
+        return _dup_patch_blocks([("probe.json", self.SPEC, self.PATCH, self.ANCHOR)], lambda _t: src)
+
+    def test_applied_once_is_clean(self) -> None:
+        src = "fn f() {\n    let a = 1;\n    // 新增的三行说明\n    let b = 2;\n    let c = 3;\n}\n"
+        self.assertEqual(self._run(src), [])
+
+    def test_written_twice_is_caught(self) -> None:
+        body = "    let a = 1;\n    // 新增的三行说明\n    let b = 2;\n    let c = 3;\n"
+        src = f"fn f() {{\n{body}}}\n\nfn g() {{\n{body}}}\n"
+        bad = self._run(src)
+        self.assertTrue(bad, "补丁被应用两次必须报出——否则这条守卫是摆设")
+        self.assertIn("出现 2 次", bad[0])
+
+    def test_baseline_multi_anchor_is_not_flagged(self) -> None:
+        # 旧判据在这里必然误报（anchor 2 处 vs patch 1 份），新判据不该报。
+        src = (
+            "fn f() {\n    let a = 1;\n    // 新增的三行说明\n    let b = 2;\n    let c = 3;\n}\n\n"
+            "fn g() {\n    let a = 1;\n}\n"
+        )
+        self.assertEqual(self._run(src), [])
 
 
 class DistStyleRulesNotDuplicated(unittest.TestCase):

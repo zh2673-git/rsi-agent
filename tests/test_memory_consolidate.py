@@ -17,7 +17,9 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 RSI_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RSI_ROOT / "scripts"))
@@ -33,9 +35,24 @@ def _write_trace(root: Path, sid: str, events: list[dict]) -> None:
             fh.write(json.dumps(e, ensure_ascii=False) + "\n")
 
 
-# 固定时间戳（2026-11-10 与 2026-11-11 UTC）：不读时钟，测试才可复现。
+# 固定时间戳（2026-11-11 与 2026-11-10 UTC）：不读时钟，测试才可复现。
 T1 = 1794358109000  # 2026-11-11 前后
 T0 = T1 - 86_400_000
+
+
+def _freeze_today(day: str):
+    """把 `now_utc()` 钉到 `day`（`YYYYMMDD`）当天的 00:00 UTC。
+
+    为什么要这个：`recall(days=N)` 的窗口是相对**运行时的今天**算的
+    （`now_utc()` → `days_ago`）。夹具日期是硬编码的，若不钉时钟，用例的结论就
+    取决于「今天几号」——写就那天绿、一周后红。这类用例比没有更糟：它会把
+    「时间过去了」伪装成「代码坏了」，让人去修不该修的东西。
+
+    只包 `now_utc`，不碰 `build()`：`build` 里的 `generated_at` 只是元数据，
+    `recall` 不读它，包进去反而扩大了改动面。
+    """
+    fixed = datetime.strptime(day, "%Y%m%d").replace(tzinfo=timezone.utc)
+    return mock.patch.object(MC, "now_utc", lambda: fixed)
 
 
 def _events(ts: int) -> list[dict]:
@@ -126,7 +143,8 @@ class RecallReadsTimestampOnlyTest(_Sandbox):
     def test_recall_reads_only_index(self) -> None:
         _write_trace(self.traces, "s1", _events(T1))
         MC.build()
-        r = MC.recall(days=30)
+        with _freeze_today(MC.day_of(T1)):
+            r = MC.recall(days=30)
         self.assertTrue(r["ok"], r)
         idx = self.mem / "L3" / "index.json"
         self.assertEqual(r["bytes_read"], idx.stat().st_size,
@@ -134,15 +152,31 @@ class RecallReadsTimestampOnlyTest(_Sandbox):
 
     def test_recall_without_index_is_an_error_not_empty(self) -> None:
         """没建索引 ≠ 最近没活。静默返回空会让模型把「没建」说成「没做过」。"""
-        r = MC.recall(days=7)
+        # 这条不依赖时钟（NO_INDEX 在算窗口之前就返回了），仍钉住：本类里
+        # 「哪些 recall 需要钉时钟」不该由读者逐条判断，统一钉住才不会漏。
+        with _freeze_today(MC.day_of(T1)):
+            r = MC.recall(days=7)
         self.assertFalse(r["ok"])
         self.assertEqual(r["error"]["code"], "NO_INDEX")
 
     def test_recall_window_filters_by_days(self) -> None:
+        # 夹具用的是硬编码日期（T0/T1 在 2026-11-10/11），而 recall 按 `now_utc()`
+        # 算 days_ago。两者必须对齐，否则这条用例的结论会随「今天几号」漂移：
+        # 写成 recall(days=0)（= 只要今天）时，跑在 2026-11-17 就必然红，跑在
+        # 2026-11-11 则必然绿——一条只在自己写就那天成立的用例，等于没有覆盖。
+        #
+        # 修法是把「今天」也钉死成夹具日期，而不是把窗口放宽到 30 天：放宽后
+        # T0 也落进窗口，"窗口外的天不该出现" 这条断言就永远为真，用例变成
+        # 空跑。这里用 days_ago 的反面来构造窗口——只让 T1 那天在窗口内。
+        today = MC.day_of(T1)
+        self.assertEqual(MC.days_ago(MC.day_of(T1), today), 0)
+        self.assertEqual(MC.days_ago(MC.day_of(T0), today), 1)
         _write_trace(self.traces, "s1", _events(T0))
         _write_trace(self.traces, "s2", _events(T1))
         MC.build()
-        r = MC.recall(days=0)  # 只要今天
+        # days=0 相对「T1 那天」= 只要 T1，把时钟钉到 T1 才谈得上「今天」。
+        with _freeze_today(today):
+            r = MC.recall(days=0)
         days = [h["day"] for h in r["hits"]]
         self.assertIn(MC.day_of(T1), days)
         self.assertNotIn(MC.day_of(T0), days, "窗口外的天不该出现")
@@ -152,11 +186,45 @@ class RecallReadsTimestampOnlyTest(_Sandbox):
         self.assertEqual(MC.days_ago("20260101", "20260108"), 7)
         self.assertEqual(MC.days_ago("20260108", "20260108"), 0)
 
+    def test_every_recall_call_freezes_the_clock(self) -> None:
+        """本文件里每个 `MC.recall(...)` 都必须在 `_freeze_today` 里调用。
+
+        这条守的是**上一条用例的可复现性**，而不是某个具体行为：`recall(days=N)`
+        的窗口是相对运行时今天算的，夹具日期却是硬编码的。任何一条忘了钉时钟的
+        recall 用例，都会在某个特定日期突然变红，而那时看起来像代码坏了。
+
+        （先前我试过「把时钟推 40 天，结果必须相同」——那是错的：`days=1` 相对
+        不同的今天本来就该给不同答案。能被钉住的只有「有没有读真实时钟」这件事
+        本身，而它只能从调用形态上查。）
+        """
+        src = Path(__file__).resolve().read_text(encoding="utf-8")
+        # 按 def 切块：够用且不引入 ast 依赖；本文件的用例都是扁平的方法定义。
+        blocks, cur = {}, None
+        for line in src.splitlines():
+            if line.strip().startswith("def "):
+                cur = line.strip()[4:].split("(")[0]
+                blocks[cur] = []
+            if cur:
+                blocks[cur].append(line)
+        offenders = [
+            name for name, body in blocks.items()
+            if any("MC.recall(" in l for l in body)
+            and not any("_freeze_today" in l for l in body)
+        ]
+        self.assertEqual(
+            offenders, [],
+            f"这些用例调了 MC.recall 却没钉时钟，会随运行日期漂移: {offenders}",
+        )
+
     def test_recall_hit_points_at_l2_path(self) -> None:
         """给指针不给正文：要细节按 l2_path 精确打开一天。"""
         _write_trace(self.traces, "s1", _events(T1))
         MC.build()
-        r = MC.recall(days=30)
+        # 原先这里是 recall(days=30)，而夹具 T1 固定在 2026-11-11：今天一旦离
+        # 夹具超过 30 天（2026-12-11 之后），窗口就空了，这条用例会在某个与代码
+        # 无关的日子突然红。钉时钟后与运行日期彻底无关。
+        with _freeze_today(MC.day_of(T1)):
+            r = MC.recall(days=30)
         self.assertTrue(r["hits"])
         p = Path(r["hits"][0]["l2_path"])
         self.assertTrue(p.is_file(), f"l2_path 指错了: {p}")
