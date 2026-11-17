@@ -334,6 +334,14 @@ def _run_bash(args: dict) -> dict:
             code="MULTILINE_UNSUPPORTED",
             field="command",
         )
+    # cd 前缀容错（实测：提示词与工具描述都已明写「cwd 已是工作区根，禁止 cd 前缀」，
+    # 但今日 7711 次 bash 调用里仍有 7196 次（93%）以 `cd` 开头——指令在长提示词里
+    # 权重不足，靠「服从」不可靠）。故在执行层**静默剥掉**前导 cd：
+    #   cd /d "D:\...\repo" && cmd   →   cmd
+    # 只处理**前导** cd（不碰命令中间的 cd），剥完若为空则保持原样（不静默执行空命令）。
+    # helper 定义在文件末尾——插在 `_run_bash` 之前会打断内置 P1 补丁的锚点连续性，
+    # 造成两条补丁来回震荡（apply 两次即重复插入）。
+    command = _strip_leading_cd(command)
     timeout_ms = optional_int(args, "timeout_ms", 30_000, 1_000, _MAX_TIMEOUT_MS)
     before = _scan_zone() if _trace_enabled() else None  # 执行前快照（pre-copy 内容缓存）
     result = _run_sandboxed(command, timeout_ms) if _sandboxed() else _run_direct(command, timeout_ms)
@@ -400,3 +408,44 @@ TOOLS = {
         "run": _run_bash,
     },
 }
+
+
+def _strip_leading_cd(command: str) -> str:
+    """剥掉命令的**前导** `cd <dir> &&` / `cd <dir> &`（cwd 已是工作区根，这段是冗余）。
+
+    只动开头的一层 cd：命令中间的 `cd`（如 `cd sub && ls`）不动——那是在切子目录，
+    语义上确实需要。剥完若命令为空则原样返回（由调用方报错，不静默执行空命令）。
+
+    实测依据：今日 bash 调用 7711 次中 7196 次（93%）以 cd 开头，每次多带 ~30–50 token，
+    且在长会话里被反复重发（放大进 cache_read）。
+    """
+    s = command.strip()
+    for _ in range(2):  # 允许 `cd a && cd b && cmd`（最多剥两层）
+        if not s.lower().startswith("cd "):
+            break
+        rest = s[3:].lstrip()
+        if rest.startswith("/d "):
+            rest = rest[3:].lstrip()
+        if rest.startswith('"'):
+            end = rest.find('"', 1)
+            if end < 0:
+                break
+            after = rest[end + 1:].lstrip()
+        elif rest.startswith("'"):
+            end = rest.find("'", 1)
+            if end < 0:
+                break
+            after = rest[end + 1:].lstrip()
+        else:
+            idx = rest.find(" ")
+            if idx < 0:
+                after = ""
+            else:
+                after = rest[idx:].lstrip()
+        if after.startswith("&&"):
+            s = after[2:].lstrip()
+        elif after.startswith("&"):
+            s = after[1:].lstrip()
+        else:
+            break
+    return s or command

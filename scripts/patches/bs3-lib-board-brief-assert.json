@@ -1,0 +1,8 @@
+{
+  "id": "BS3-LIB-BOARD-BRIEF-ASSERT",
+  "description": "lib.rs：brief/full 的分档判据从字面串（resourcing.model）换成行为标记（### How to register a task）——BS1 让 brief 合法带 schema 后，旧代理判据误报",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/bs3-lib-board-brief-assert-anchor.txt",
+  "patch_file": "blocks/bs3-lib-board-brief-assert-patch.txt",
+  "applied_marker": "brief 不得含 full 档的完整写作教程"
+}

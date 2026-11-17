@@ -1,0 +1,24 @@
+messages.extend(round_msgs);
+            // 轮内压缩闸（P0-B）：历史此前**只在 chat 开头判一次**（chat.rs:464），
+            // 于是长会话中途历史只增不减、每轮全量重发——成本 O(N²) 涨
+            // （实测单会话 371 轮累计 cache_read 47.3M，当日 77.1% 的 credits
+            // 来自 cache_read）。这里在轮末按 token 闸再判一次：超工作集预算就
+            // 把旧史摘要掉（keep 最近若干条），让下一轮的上下文回到有界大小。
+            //
+            // 为什么放在轮末而不是轮首：轮末的 messages 已含本轮全部工具结果，
+            // 此刻的估算最接近下一轮真正要发的规模；压缩后下一轮直接用新工作集。
+            // 压缩是**软动作**（失败则保持原样，不中止），且幂等——未超预算时不触发。
+            if cfg.workset_budget() > 0 && context::estimate_messages(&messages) > cfg.workset_budget() {
+                let compacted = self.maybe_compact_with_keep(env, &req.session_id, messages.clone(), &cfg, 8).await;
+                if compacted.len() < messages.len() {
+                    messages = compacted;
+                }
+            }
+            // 工作集尾部按 token 裁剪（P0-C）：压缩路径已把尾巴压到 8 条，但**未触发
+            // 压缩**的轮次里工作集仍可能带着一整批旧消息（每条工具结果可达 8K 字符）。
+            // 这里再按 token 预算裁一次尾部，让每轮发出去的上下文有界。
+            if cfg.workset_budget() > 0 && context::estimate_messages(&messages) > cfg.workset_budget() {
+                let tail = std::mem::take(&mut messages);
+                messages = trim_workset_by_tokens(tail, cfg.workset_budget());
+            }
+            // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）

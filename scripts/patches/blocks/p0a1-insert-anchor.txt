@@ -1,0 +1,2 @@
+impl UsageAcc {
+    pub(super) fn add(&mut self, u: Option<&Value>) {

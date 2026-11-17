@@ -1,0 +1,7 @@
+{
+  "id": "P0D-BASH-CD-HELPER-2",
+  "description": "P0-D 第二段：新增 _strip_leading_cd()（剥前导 cd；不动命令中间的 cd；剥空保持原样）。放在文件末尾而非 _run_bash 之前，避免打断内置 P1 补丁的锚点连续性。",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor_file": "blocks/p0d2-helper-anchor.txt",
+  "patch_file": "blocks/p0d2-helper-patch.txt"
+}

@@ -1,0 +1,6 @@
+pub(super) fn apply_history_limit(history_limit: usize, mut msgs: Vec<MemoryMsg>) -> Vec<MemoryMsg> {
+    if history_limit > 0 && msgs.len() > history_limit {
+        msgs = msgs.split_off(msgs.len() - history_limit);
+    }
+    msgs
+}

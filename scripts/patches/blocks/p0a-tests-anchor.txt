@@ -1,0 +1,9 @@
+if let Some(dl) = budget.deadline {
+            if Instant::now() >= dl {
+                tracing::info!(target: ID, "budget reached: wall clock (soft, converge)");
+                return Some(StopReason::Deadline);
+            }
+        }
+        None
+    }
+}

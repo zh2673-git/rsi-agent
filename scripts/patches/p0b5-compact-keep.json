@@ -1,0 +1,7 @@
+{
+  "id": "P0B-COMPACT-KEEP-5",
+  "description": "P0-B：maybe_compact 拆为薄封装 + maybe_compact_with_keep（显式保留条数）。轮内压缩保留 8 条（把下一轮上下文压回有界），chat 开头压缩仍用 COMPACT_KEEP（默认 30，给用户回看的一段）。两种场景诉求不同，用显式参数分开而非靠调用点猜。",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor_file": "blocks/p0b6-keep-anchor.txt",
+  "patch_file": "blocks/p0b6-keep-patch.txt"
+}

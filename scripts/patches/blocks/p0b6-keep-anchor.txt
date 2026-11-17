@@ -1,0 +1,9 @@
+pub(super) async fn maybe_compact(
+        &self,
+        src: &Envelope,
+        session_id: &str,
+        history: Vec<MemoryMsg>,
+        cfg: &AgentLoopConfig,
+    ) -> Vec<MemoryMsg> {
+        let trigger = cfg.compact_trigger;
+        let keep = cfg.compact_keep.min(history.len());

@@ -1,0 +1,34 @@
+/// 计费权重：cache_read 相对 input 的单价比（env `CACHE_CREDIT_WEIGHT`，缺省 0.32）。
+///
+/// 实测口径（2026-11-16 `~/.config/magpie/usage.jsonl`，最小二乘拟合，误差 0.1%）：
+/// `credits ≈ 1.020e-05×in + 3.260e-06×cache_read + 1.223e-04×out + 0.0267`
+/// → cache_read 单价 = input 的 **32.0%**，output = input 的 **12.0 倍**。
+///
+/// 缺省 0.32 对齐实测；置 0 即刻退回旧口径（不计 cache_read）。
+/// 非法值 warn 后回退缺省（与 E3 的「消灭静默回退」纪律一致）。
+pub(super) fn cache_credit_weight() -> f64 {
+    const DEFAULT: f64 = 0.32;
+    match std::env::var("CACHE_CREDIT_WEIGHT") {
+        Ok(raw) => {
+            let v = raw.trim();
+            if v.is_empty() {
+                return DEFAULT;
+            }
+            match v.parse::<f64>() {
+                Ok(n) if n >= 0.0 => n,
+                Ok(_) => {
+                    tracing::warn!(target: crate::ID, "CACHE_CREDIT_WEIGHT={raw:?} 非法（应为非负数），回退缺省 {DEFAULT}");
+                    DEFAULT
+                }
+                Err(_) => {
+                    tracing::warn!(target: crate::ID, "CACHE_CREDIT_WEIGHT={raw:?} 非法（应为非负数），回退缺省 {DEFAULT}");
+                    DEFAULT
+                }
+            }
+        }
+        Err(_) => DEFAULT,
+    }
+}
+
+impl UsageAcc {
+    pub(super) fn add(&mut self, u: Option<&Value>) {

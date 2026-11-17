@@ -78,6 +78,56 @@ pub(super) fn apply_history_limit(history_limit: usize, mut msgs: Vec<MemoryMsg>
     msgs
 }
 
+/// 工作集尾部裁剪（P0-C）：按 **token 预算**保留最近若干条消息，裁掉更早的。
+///
+/// 为什么需要（实测依据）：压缩后持久层留 `COMPACT_KEEP`（配置里 30）条，
+/// 而这 30 条**每轮都原样发给模型**——每条工具结果可达 8K 字符，合计约
+/// 120K tokens。于是每个请求的 cache_read 平台值高达 170–200K，而当日
+/// **77.1%** 的 credits 来自 cache_read（单价是 input 的 32%）。
+///
+/// 与 `apply_history_limit`（按条数）的区别：条数与 token 量不同步——一条
+/// 8K 字符的工具结果顶得上一百条短消息，故这里按 token 裁。
+///
+/// 纪律（与既有裁剪一致）：
+/// - 只裁**发给 LLM 的工作集**，不动持久层（memory 仍留全量，可回看/回滚）；
+/// - 保留 `msgs[0]`（system 头）；
+/// - 裁剪后前缘的**孤儿 tool 消息**必须丢弃（其配对的 assistant.tool_calls
+///   已被裁掉，孤儿回喂会被 provider 拒收）——同 `halve_window` 的处置。
+pub(super) fn trim_workset_by_tokens(msgs: Vec<MemoryMsg>, budget: usize) -> Vec<MemoryMsg> {
+    if budget == 0 || msgs.len() <= 1 {
+        return msgs;
+    }
+    if super::context::estimate_messages(&msgs) <= budget {
+        return msgs;
+    }
+    // 从尾部往前留，累计到预算为止；system 头（第 0 条）始终保留。
+    // 单条超预算时**跳过**它继续看更小的（不 break）——否则一条巨型工具结果
+    // 会把后面所有小消息一起挤掉（实测每条工具结果可达 8K 字符，而 user 消息
+    // 只有几十字符；break 会让模型连「用户在问什么」都看不到）。
+    let mut kept: Vec<MemoryMsg> = Vec::new();
+    let mut used = super::context::estimate_tokens(msgs[0].content.as_deref().unwrap_or("")) + 4;
+    for m in msgs[1..].iter().rev() {
+        let est = super::context::estimate_tokens(m.content.as_deref().unwrap_or("")) + 4;
+        if used + est > budget {
+            continue;
+        }
+        used += est;
+        kept.push(m.clone());
+    }
+    kept.reverse();
+    let mut out = vec![msgs[0].clone()];
+    out.extend(kept);
+    // 前缘孤儿 tool 消息：其 assistant(tool_calls) 载体已被裁掉 → 丢弃。
+    if let Some(first_real) = out.iter().enumerate().skip(1).find(|(_, m)| m.role != "tool").map(|(i, _)| i) {
+        if first_real > 1 {
+            out.drain(1..first_real);
+        }
+    } else if out.len() > 1 {
+        out.truncate(1); // 病态：全剩 tool 消息 → 只留 system 头
+    }
+    out
+}
+
 impl AgentLoopPlugin {
     /// 感知：拉取会话**全量**历史（不做窗口裁剪）。
     /// 窗口与压缩的顺序见 `apply_history_limit`（PLAN R3：先压缩判断，后窗口裁剪）。
@@ -457,12 +507,46 @@ impl AgentLoopPlugin {
             tool_call_id: None,
             attachments: None,
         }];
+        // 同波次多工具调用纪律（P1-D）：实测今日 3518 次工具调用 / 2397 轮 = **1.47 调用/轮**，
+        // 而内核的波次并发上限是 4（chat.rs 的 wave，`join_all` 真并发）——**内核不缺能力，
+        // 缺的是提示**：此前整条提示词从未告诉模型「一次回复可以发多个 tool_call」，
+        // 模型于是习惯性一次只发一个，每轮多烧一次 LLM 请求（每请求固定成本
+        // ≈ 170K tokens 的 cache_read，占当日 credits 的 77.1%）。
+        //
+        // 为什么放在系统提示词**末尾**：recency 位置注意力更近（同 deferred 工具摘要
+        // 的处置——追加而不重排构造顺序）。
+        //
+        // 两条纪律缺一不可：
+        // ① 「独立的调用合并进同一波次」——给模型可执行的判据；
+        // ② 「同波次结果按提交顺序回喂」——消解「并行会乱序」的误判（pi 的做法：
+        //    并行执行 + 按源顺序持久化；本仓库已有 tool_call_id 对齐，机制齐备）。
+        if let Some(sys) = messages.first_mut().and_then(|m| m.content.as_mut()) {
+            sys.push_str(
+                "\n### Tool-call batching (this is how you stay cheap)\n\
+Your next reply may contain **multiple tool calls at once** — they run concurrently (up to 4 per wave).\n\
+Merge independent calls into one reply: different files, different directories, different reads that\n\
+do not depend on each other, different searches. Only serialize when one call's result is another\n\
+call's input (same file written twice, a path discovered by a previous call).\n\
+Results of one wave come back **in the order you submitted them**, so parallel calls never garble\n\
+each other — there is no reason to send one call per reply.\n\
+Sending one call per reply costs one extra model request every time (each request re-sends the\n\
+whole context), so a batch of 4 independent calls is ~4x cheaper than 4 sequential replies.\n",
+            );
+        }
         match self.perceive(env, &req.session_id).await {
             Ok(h) => {
                 // 双闸顺序（PLAN R3）：先对全量历史做压缩判断（超 TRIGGER 则摘要落盘），
                 // 再对（可能已压缩的）工作集应用 HISTORY_LIMIT 窗口。
                 let compacted = self.maybe_compact(env, &req.session_id, h, &cfg).await;
                 messages.extend(apply_history_limit(cfg.history_limit, compacted));
+                // 工作集尾部按 token 裁剪（P0-C）：压缩后持久层留 COMPACT_KEEP（30）条，
+                // 这 30 条每轮原样发给模型 ≈ 120K tokens——每个请求的 cache_read 平台值
+                // 因此高达 170–200K，而当日 77.1% 的 credits 来自 cache_read。
+                // 这里只裁**发给模型的工作集**，不动持久层（memory 仍留全量，可回看/回滚）。
+                if cfg.workset_budget() > 0 {
+                    let tail = std::mem::take(&mut messages);
+                    messages = trim_workset_by_tokens(tail, cfg.workset_budget());
+                }
             }
             Err(e) => {
                 self.trace(env, &req.session_id, json!({"type": "error", "where": "memory.get", "message": e.to_string()})).await;
@@ -967,6 +1051,28 @@ impl AgentLoopPlugin {
             return json!({"ok": false, "error": {"code": "K503", "message": "memory.append 连续失败 3 次，熔断本轮（防工作集与持久层静默分叉）"}});
         }
         messages.extend(round_msgs);
+            // 轮内压缩闸（P0-B）：历史此前**只在 chat 开头判一次**（chat.rs:464），
+            // 于是长会话中途历史只增不减、每轮全量重发——成本 O(N²) 涨
+            // （实测单会话 371 轮累计 cache_read 47.3M，当日 77.1% 的 credits
+            // 来自 cache_read）。这里在轮末按 token 闸再判一次：超工作集预算就
+            // 把旧史摘要掉（keep 最近若干条），让下一轮的上下文回到有界大小。
+            //
+            // 为什么放在轮末而不是轮首：轮末的 messages 已含本轮全部工具结果，
+            // 此刻的估算最接近下一轮真正要发的规模；压缩后下一轮直接用新工作集。
+            // 压缩是**软动作**（失败则保持原样，不中止），且幂等——未超预算时不触发。
+            if cfg.workset_budget() > 0 && context::estimate_messages(&messages) > cfg.workset_budget() {
+                let compacted = self.maybe_compact_with_keep(env, &req.session_id, messages.clone(), &cfg, 8).await;
+                if compacted.len() < messages.len() {
+                    messages = compacted;
+                }
+            }
+            // 工作集尾部按 token 裁剪（P0-C）：压缩路径已把尾巴压到 8 条，但**未触发
+            // 压缩**的轮次里工作集仍可能带着一整批旧消息（每条工具结果可达 8K 字符）。
+            // 这里再按 token 预算裁一次尾部，让每轮发出去的上下文有界。
+            if cfg.workset_budget() > 0 && context::estimate_messages(&messages) > cfg.workset_budget() {
+                let tail = std::mem::take(&mut messages);
+                messages = trim_workset_by_tokens(tail, cfg.workset_budget());
+            }
             // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）
             if let Some(reason) = self.check_budget(&budget, &usage) {
                 if reason.is_hard() {

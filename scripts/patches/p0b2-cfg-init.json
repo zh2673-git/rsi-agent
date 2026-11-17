@@ -1,0 +1,7 @@
+{
+  "id": "P0B-CFG-INIT-2",
+  "description": "P0-B 配置项：from_env 解析 CTX_BUDGET_TOKENS（缺省 131072），非法值 warn 后回退缺省。",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/p0b2-cfg-init-anchor.txt",
+  "patch_file": "blocks/p0b2-cfg-init-patch.txt"
+}

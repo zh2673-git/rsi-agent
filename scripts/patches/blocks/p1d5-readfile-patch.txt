@@ -1,0 +1,7 @@
+raise ToolError(
+            f"文件不存在: '{_display(real)}'——先用 list_dir 确认路径（父目录是否存在），"
+            "再决定是拼错路径还是文件确实不存在；不要用 bash 反复 dir/findstr 盲试。",
+            code="NOT_FOUND",
+            field="path",
+        )
+    raw = real.read_bytes()

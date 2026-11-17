@@ -1,0 +1,12 @@
+/// 计费口径（T4 预算）：input+output+cache_read×权重。
+    ///
+    /// 为什么必须计入 cache_read：实测 provider 对 cache_read 的计费单价是 input 的
+    /// **32%**，而当日消耗的 **77.1%** 来自 cache_read——只算 input+output 等于
+    /// 只看见 1/9.4 的真实账单，token 预算闸在真实消耗面前完全失真。
+    ///
+    /// 权重可配（env `CACHE_CREDIT_WEIGHT`，缺省 0.32 = 实测单价比）：
+    /// 置 0 即刻退回旧口径（provider 若改变 cache 定价而不影响别的语义时用）。
+    pub(super) fn total(&self) -> u64 {
+        let weight = cache_credit_weight();
+        self.input + self.output + (self.cache_read as f64 * weight) as u64
+    }

@@ -1,0 +1,4 @@
+    let _env_restore = EnvGuard(vec![
+        ("LLM_PROVIDER", std::env::var("LLM_PROVIDER").ok()),
+        ("LLM_CONTEXT_TOKENS", std::env::var("LLM_CONTEXT_TOKENS").ok()),
+    ]);

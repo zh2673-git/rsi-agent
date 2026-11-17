@@ -1,0 +1,16 @@
+    // 系统提示词必须钉死成短串：本用例把窗口压到 4096（发送预算 = 4096×0.7 = 2867），
+    // 而默认提示词链会去读 `WORKSPACE_ROOT/SYSTEM.md`——本仓库的 SYSTEM.md 实测约 3.2K
+    // tokens，单这一条就超预算 → `tighten_for_context` 直接返回 CONTEXT_OVERFLOW（请求
+    // 不发出），于是 q2 的 plan() 从未被调用，`captured.last()` 还是 q1 的 payload
+    //（q1 本来就没有 num_ctx），断言拿到 Null。
+    //
+    // 这不是 num_ctx 透传的问题，是「测试夹具隐式依赖了仓库里某个文件的体积」：同一份
+    // 代码在 checkout 里 SYSTEM.md 更短时全绿，在 SYSTEM.md 变长后变红，且红的断言指向
+    // 一个与提示词长度毫无关系的字段。钉死 SYS 后本用例只验证它自称要验证的东西
+    //（同文件其它 token 闸用例——compaction/tighten/degrade 那组——早已是这种做法）。
+    let _env_restore = EnvGuard(vec![
+        ("LLM_PROVIDER", std::env::var("LLM_PROVIDER").ok()),
+        ("LLM_CONTEXT_TOKENS", std::env::var("LLM_CONTEXT_TOKENS").ok()),
+        ("AGENT_SYSTEM_PROMPT", std::env::var("AGENT_SYSTEM_PROMPT").ok()),
+    ]);
+    std::env::set_var("AGENT_SYSTEM_PROMPT", "SYS");

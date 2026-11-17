@@ -1,0 +1,72 @@
+assert!(!has_acceptance_marker("已完成，结果如下"));
+    }
+
+    /// P0-C 核心断言：工作集尾部按 token 预算裁剪后，规模有界且保留 system 头。
+    ///
+    /// 实测背景：压缩后持久层留 30 条，每条工具结果可达 8K 字符 → 每轮原样发给
+    /// 模型 ≈ 120K tokens；每请求 cache_read 平台值 170–200K，而当日 77.1% 的
+    /// credits 来自 cache_read。裁剪只作用于工作集，持久层不受影响。
+    #[test]
+    fn trim_workset_bounds_tokens_and_keeps_system_head() {
+        use crate::chat::trim_workset_by_tokens;
+        let m = |role: &str, body: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(body.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        // system 头 + 20 条 8K 字符的消息（远超预算）
+        let big = "x".repeat(8000);
+        let mut msgs = vec![m("system", "SYS")];
+        for _ in 0..20 {
+            msgs.push(m("tool", &big));
+        }
+        let out = trim_workset_by_tokens(msgs.clone(), 10_000);
+        assert_eq!(out[0].content.as_deref(), Some("SYS"), "system 头必须保留");
+        assert!(out.len() < msgs.len(), "超预算时必须裁剪：{} vs {}", out.len(), msgs.len());
+        assert!(
+            crate::context::estimate_messages(&out) <= 10_000 + 8_000,
+            "裁剪后规模应回到预算附近：{:}",
+            crate::context::estimate_messages(&out)
+        );
+    }
+
+    /// 未超预算时不动（幂等）：裁剪不能改变正常规模的工作集。
+    #[test]
+    fn trim_workset_is_noop_when_within_budget() {
+        use crate::chat::trim_workset_by_tokens;
+        let m = |role: &str, body: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(body.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        let msgs = vec![m("system", "SYS"), m("user", "hello"), m("assistant", "hi")];
+        let out = trim_workset_by_tokens(msgs.clone(), 100_000);
+        assert_eq!(out.len(), msgs.len());
+        assert_eq!(out[0].content.as_deref(), Some("SYS"));
+    }
+
+    /// 前缘孤儿 tool 消息必须丢弃：其配对的 assistant(tool_calls) 已被裁掉，
+    /// 孤儿回喂会被 provider 拒收。
+    #[test]
+    fn trim_workset_drops_orphan_tool_messages() {
+        use crate::chat::trim_workset_by_tokens;
+        let m = |role: &str, body: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(body.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        let big = "y".repeat(8000);
+        // [sys, tool(孤儿), tool(孤儿), user(小)] —— 预算只够留 user
+        let msgs = vec![m("system", "SYS"), m("tool", &big), m("tool", &big), m("user", "ok")];
+        let out = trim_workset_by_tokens(msgs, 20);
+        assert_eq!(out.len(), 2, "只留 system + user：{:?}", out.iter().map(|x| x.role.clone()).collect::<Vec<_>>());
+        assert_eq!(out[0].role, "system");
+        assert_eq!(out[1].role, "user");
+    }
+}

@@ -1,0 +1,3 @@
+assert!(!has_acceptance_marker("已完成，结果如下"));
+    }
+}

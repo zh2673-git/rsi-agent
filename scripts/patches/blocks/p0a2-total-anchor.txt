@@ -1,0 +1,4 @@
+/// 计费口径（T4 预算）：input+output（cache_read 是折扣而非独立产出，不计入）。
+    pub(super) fn total(&self) -> u64 {
+        self.input + self.output
+    }

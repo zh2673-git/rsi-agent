@@ -1,0 +1,7 @@
+let mut messages: Vec<MemoryMsg> = vec![MemoryMsg {
+            role: "system".into(),
+            content: Some(system),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        }];

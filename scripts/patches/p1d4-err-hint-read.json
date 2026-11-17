@@ -1,0 +1,7 @@
+{
+  "id": "P0D-ERROR-HINT-READ-4",
+  "description": "P1-D：read_file 的 NOT_FOUND 错误带纠偏建议（先用 list_dir 确认路径，不要用 bash 反复盲试）。实测今日工具失败 161/3519，每次失败至少多烧一轮 LLM 请求（每请求固定 ~170K cache_read）。",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor_file": "blocks/p1d5-readfile-anchor.txt",
+  "patch_file": "blocks/p1d5-readfile-patch.txt"
+}

@@ -1,0 +1,2 @@
+/// 模型上下文窗口 token（LLM_CONTEXT_TOKENS，仅本地窗口型 provider 生效，0=禁用）。
+    pub context_window: usize,

@@ -1,0 +1,2 @@
+        assert!(!brief.contains("resourcing.model"), "brief 不得含完整规范");
+        assert!(full.contains("resourcing.model"), "full 必须讲人财物");

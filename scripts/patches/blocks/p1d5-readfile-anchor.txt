@@ -1,0 +1,2 @@
+raise ToolError(f"文件不存在: '{_display(real)}'", code="NOT_FOUND", field="path")
+    raw = real.read_bytes()

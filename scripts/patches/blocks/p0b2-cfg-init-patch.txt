@@ -1,0 +1,3 @@
+context_window,
+            ctx_budget_tokens: env_num("CTX_BUDGET_TOKENS", 65536usize, "工作集 token 闸"),
+            stream_dir: std::env::var_os("AGENT_STREAM_DIR")

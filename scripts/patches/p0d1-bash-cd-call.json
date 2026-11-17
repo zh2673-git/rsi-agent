@@ -1,0 +1,7 @@
+{
+  "id": "P0D-BASH-CD-CALL-1",
+  "description": "P0-D 第一段：_run_bash 内加 _strip_leading_cd 调用（剥掉前导 cd）。helper 定义拆到独立补丁（放在文件末尾）——插在 _run_bash 之前会打断内置 P1 补丁的锚点连续性，造成两条补丁 apply 两次即重复插入。",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor_file": "blocks/p0d1-bash-anchor.txt",
+  "patch_file": "blocks/p0d1-bash-patch.txt"
+}

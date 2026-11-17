@@ -1,0 +1,2 @@
+messages.extend(round_msgs);
+            // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）

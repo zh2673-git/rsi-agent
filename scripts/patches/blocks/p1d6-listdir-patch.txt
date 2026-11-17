@@ -1,0 +1,7 @@
+raise ToolError(
+            f"目录不存在: '{_display(real)}'——用 list_dir 列当前目录（path='.'）确认实际结构；"
+            "不要用 bash 反复 dir/where/findstr 盲试（每次盲试都多烧一轮模型调用）。",
+            code="NOT_FOUND",
+            field="path",
+        )
+    if not real.is_dir():

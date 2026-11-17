@@ -1,0 +1,7 @@
+{
+  "id": "P0B-ROUND-COMPACT-6",
+  "description": "P0-B 核心：主循环轮末（messages.extend(round_msgs) 之后）按工作集 token 闸调用压缩，把下一轮要发的上下文压回有界。此前压缩只在 chat 开头判一次（chat.rs:464），长会话中途历史只增不减、每轮全量重发 → 成本 O(N²)（实测单会话 371 轮累计 cache_read 47.3M，当日 77.1% 的 credits 来自 cache_read）。压缩是软动作（失败保持原样），幂等（未超预算不触发）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p0b5-round-anchor.txt",
+  "patch_file": "blocks/p0b5-round-patch.txt"
+}

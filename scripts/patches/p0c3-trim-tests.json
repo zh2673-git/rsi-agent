@@ -1,0 +1,7 @@
+{
+  "id": "P0C-TRIM-TESTS-3",
+  "description": "P0-C 单测：trim_workset_by_tokens 的三条性质——① 超预算时规模有界且保留 system 头；② 未超预算时不动（幂等）；③ 前缘孤儿 tool 消息被丢弃（否则 provider 拒收）。",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/p0c3-tests-anchor.txt",
+  "patch_file": "blocks/p0c3-tests-patch.txt"
+}

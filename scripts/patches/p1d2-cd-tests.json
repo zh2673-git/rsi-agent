@@ -1,0 +1,8 @@
+{
+  "id": "P0D-CD-TESTS-2",
+  "description": "P1-D 单测：新增 tests/test_bash_cd_strip.py——前导 cd 剥离的契约（带引号/无引号//d/&&/&/两层；命令中间的 cd 不动；剥空保持原样）。",
+  "file": "tests/test_bash_cd_strip.py",
+  "create": true,
+  "content_file": "blocks/p1d3-cd-tests.py.txt",
+  "create_marker": "class StripLeadingCdTest(unittest.TestCase):"
+}

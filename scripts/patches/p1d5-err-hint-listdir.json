@@ -1,0 +1,7 @@
+{
+  "id": "P0D-ERROR-HINT-LISTDIR-5",
+  "description": "P1-D：list_dir 的 NOT_FOUND 错误带纠偏建议（用 list_dir 列 '.' 确认实际结构，不要用 bash 反复 dir/where/findstr 盲试——每次盲试多烧一轮模型调用）。",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor_file": "blocks/p1d6-listdir-anchor.txt",
+  "patch_file": "blocks/p1d6-listdir-patch.txt"
+}

@@ -1,0 +1,87 @@
+        assert!(AgentLoopPlugin::task_board_section(true).is_empty(), "无 CLI 时不得注入");
+
+        match old_ws {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+        match old_home {
+            Some(v) => std::env::set_var("RSI_HOME", v),
+            None => std::env::remove_var("RSI_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// BS1（I-20261116）：brief 档必须**自带 task-upsert 的最小 schema**。
+    ///
+    /// 故障（2026-11-16 实测，用户原话「新建窗口似乎又不能自动将会话中的任务做进看板了」）：
+    /// 子窗口的 agent 连撞 4 次 `task-upsert` 的 BAD_ARG（status: 'in_progress' /
+    /// id: 'T-blind-full' / acceptance 传字符串），第 4 次才对；make-video 子窗口
+    /// 则一次都没登记成功（查了 --help 就放弃）。
+    ///
+    /// 根因不是通道（CLI 绝对路径可达、数据是一本账），而是**规格不在调用点同框**：
+    /// brief 档只给命令名，schema 只在 full 档（靠关键词命中才注入）。于是
+    /// 「用户的话没命中关键词」的那一轮，模型手里只有命令名——只能猜，猜错就重试，
+    /// 重试到放弃时用户看到的就是「任务没进看板」。
+    ///
+    /// 不变量：**brief 档（每轮都在）必须含规格**，且规格里的两套状态枚举必须
+    /// 与 CLI 的真值一致——枚举漂移会把「写对」变成「写错」，比不给规格更糟。
+    #[test]
+    fn brief_board_section_carries_task_upsert_schema() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (old_ws, old_home) = (
+            std::env::var_os("WORKSPACE_ROOT"),
+            std::env::var_os("RSI_HOME"),
+        );
+        let dir = std::env::temp_dir().join(format!("ra-board-schema-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("scripts")).expect("mkdir");
+        std::fs::write(dir.join("scripts").join("board.py"), "print('x')\n").expect("write");
+        std::env::set_var("RSI_HOME", &dir);
+        let proj = dir.join("user-project");
+        std::fs::create_dir_all(&proj).expect("mkdir project");
+        std::env::set_var("WORKSPACE_ROOT", &proj);
+
+        let brief = AgentLoopPlugin::task_board_section(false);
+
+        // ① brief 档必须带 schema 段（不是只有命令名）
+        assert!(
+            brief.contains("task-upsert JSON schema"),
+            "brief 档必须带 task-upsert schema（这是子窗口撞墙的根因）: {brief}"
+        );
+        // ② 两套状态枚举都必须在，且**分清层级**——in_progress 只属 plan 步
+        for token in [
+            "planning|doing|verifying|done|blocked|cancelled",
+            "pending|in_progress|completed|cancelled",
+        ] {
+            assert!(brief.contains(token), "brief 缺枚举 {token}: {brief}");
+        }
+        // ③ 三个高频拒因必须点名（status 层级 / id 形状 / acceptance 是数组）
+        assert!(
+            brief.contains("in_progress` is NOT a task"),
+            "brief 必须点明 in_progress 不是 task 级状态: {brief}"
+        );
+        assert!(
+            brief.contains("T-YYYYMMDD-NN"),
+            "brief 必须点明 id 形状与「省略即自动分配」: {brief}"
+        );
+        assert!(
+            brief.contains("acceptance`: an **ARRAY**"),
+            "brief 必须点明 acceptance 必须是数组: {brief}"
+        );
+
+        // ④ full 档也必须带 task 级枚举（brief 是子集，full 不得反而没有）
+        let full = AgentLoopPlugin::task_board_section(true);
+        assert!(
+            full.contains("planning|doing|verifying|done|blocked|cancelled"),
+            "full 档也必须带 task 级枚举"
+        );
+
+        match old_ws {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+        match old_home {
+            Some(v) => std::env::set_var("RSI_HOME", v),
+            None => std::env::remove_var("RSI_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }

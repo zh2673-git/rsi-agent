@@ -1,0 +1,2 @@
+let compacted = self.maybe_compact(env, &req.session_id, h, &cfg).await;
+                messages.extend(apply_history_limit(cfg.history_limit, compacted));

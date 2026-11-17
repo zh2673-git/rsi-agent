@@ -1,0 +1,7 @@
+{
+  "id": "P0A-BUDGET-CACHE-WEIGHT-1",
+  "description": "P0-A 计费口径修复（第一步）：新增模块级 cache_credit_weight()——cache_read 相对 input 的计费单价比（env CACHE_CREDIT_WEIGHT，缺省 0.32 = 实测单价比；置 0 退回旧口径；非法值 warn 后回退缺省）。实测 cache_read 占当日 credits 77.1%，旧口径（只算 input+output）漏 9.4 倍真实消耗，token 预算闸因此失真。",
+  "file": "runtime/crates/agent-loop/src/budget.rs",
+  "anchor_file": "blocks/p0a1-insert-anchor.txt",
+  "patch_file": "blocks/p0a1-insert-patch.txt"
+}

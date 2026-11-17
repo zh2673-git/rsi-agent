@@ -935,7 +935,17 @@ mod tests {
         assert!(brief.contains("board.py"), "brief 必须点明 CLI 通道");
         assert!(brief.contains(&dir.to_string_lossy().replace('\\', "/")),
                 "提示词必须给绝对路径（子窗口 cwd 里没有 scripts/board.py）: {brief}");
-        assert!(!brief.contains("resourcing.model"), "brief 不得含完整规范");
+        // brief 不得含 full 档独有的「四个问题」教学（BS1 修判据）：
+        // 原判据是 `!brief.contains("resourcing.model")`——用**字段名**当代理，
+        // 于是 BS1 在 brief 里合法写出 schema（`resourcing.model` 是 schema 的一部分）
+        // 就被误判成「brief 含了完整规范」。
+        //
+        // 代理判据换成**行为性**的：full 档那段教学有唯一开头标记
+        // （"### How to register a task"），brief 里不得出现它。
+        // 这才是判据本来的意思——「brief 是指针，full 是教程」。
+        assert!(!brief.contains("### How to register a task"),
+                "brief 不得含 full 档的完整写作教程（BS1：schema 可在 brief，但教程不行）");
+        assert!(full.contains("### How to register a task"), "full 必须讲人财物");
         assert!(full.contains("resourcing.model"), "full 必须讲人财物");
         assert!(full.contains("acceptance"), "full 必须讲验收标准");
         assert!(full.len() > brief.len(), "full 应比 brief 长");
@@ -945,6 +955,81 @@ mod tests {
         std::fs::create_dir_all(&empty).expect("mkdir");
         std::env::set_var("RSI_HOME", &empty);
         assert!(AgentLoopPlugin::task_board_section(true).is_empty(), "无 CLI 时不得注入");
+
+        match old_ws {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+        match old_home {
+            Some(v) => std::env::set_var("RSI_HOME", v),
+            None => std::env::remove_var("RSI_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// BS1（I-20261116）：brief 档必须**自带 task-upsert 的最小 schema**。
+    ///
+    /// 故障（2026-11-16 实测，用户原话「新建窗口似乎又不能自动将会话中的任务做进看板了」）：
+    /// 子窗口的 agent 连撞 4 次 `task-upsert` 的 BAD_ARG（status: 'in_progress' /
+    /// id: 'T-blind-full' / acceptance 传字符串），第 4 次才对；make-video 子窗口
+    /// 则一次都没登记成功（查了 --help 就放弃）。
+    ///
+    /// 根因不是通道（CLI 绝对路径可达、数据是一本账），而是**规格不在调用点同框**：
+    /// brief 档只给命令名，schema 只在 full 档（靠关键词命中才注入）。于是
+    /// 「用户的话没命中关键词」的那一轮，模型手里只有命令名——只能猜，猜错就重试，
+    /// 重试到放弃时用户看到的就是「任务没进看板」。
+    ///
+    /// 不变量：**brief 档（每轮都在）必须含规格**，且规格里的两套状态枚举必须
+    /// 与 CLI 的真值一致——枚举漂移会把「写对」变成「写错」，比不给规格更糟。
+    #[test]
+    fn brief_board_section_carries_task_upsert_schema() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (old_ws, old_home) = (
+            std::env::var_os("WORKSPACE_ROOT"),
+            std::env::var_os("RSI_HOME"),
+        );
+        let dir = std::env::temp_dir().join(format!("ra-board-schema-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("scripts")).expect("mkdir");
+        std::fs::write(dir.join("scripts").join("board.py"), "print('x')\n").expect("write");
+        std::env::set_var("RSI_HOME", &dir);
+        let proj = dir.join("user-project");
+        std::fs::create_dir_all(&proj).expect("mkdir project");
+        std::env::set_var("WORKSPACE_ROOT", &proj);
+
+        let brief = AgentLoopPlugin::task_board_section(false);
+
+        // ① brief 档必须带 schema 段（不是只有命令名）
+        assert!(
+            brief.contains("task-upsert JSON schema"),
+            "brief 档必须带 task-upsert schema（这是子窗口撞墙的根因）: {brief}"
+        );
+        // ② 两套状态枚举都必须在，且**分清层级**——in_progress 只属 plan 步
+        for token in [
+            "planning|doing|verifying|done|blocked|cancelled",
+            "pending|in_progress|completed|cancelled",
+        ] {
+            assert!(brief.contains(token), "brief 缺枚举 {token}: {brief}");
+        }
+        // ③ 三个高频拒因必须点名（status 层级 / id 形状 / acceptance 是数组）
+        assert!(
+            brief.contains("in_progress` is NOT a task"),
+            "brief 必须点明 in_progress 不是 task 级状态: {brief}"
+        );
+        assert!(
+            brief.contains("T-YYYYMMDD-NN"),
+            "brief 必须点明 id 形状与「省略即自动分配」: {brief}"
+        );
+        assert!(
+            brief.contains("acceptance`: an **ARRAY**"),
+            "brief 必须点明 acceptance 必须是数组: {brief}"
+        );
+
+        // ④ full 档也必须带 task 级枚举（brief 是子集，full 不得反而没有）
+        let full = AgentLoopPlugin::task_board_section(true);
+        assert!(
+            full.contains("planning|doing|verifying|done|blocked|cancelled"),
+            "full 档也必须带 task 级枚举"
+        );
 
         match old_ws {
             Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
@@ -1072,5 +1157,74 @@ mod tests {
         assert!(has_acceptance_marker("Acceptance criteria checked"));
         assert!(has_acceptance_marker("todo checklist"));
         assert!(!has_acceptance_marker("已完成，结果如下"));
+    }
+
+    /// P0-C 核心断言：工作集尾部按 token 预算裁剪后，规模有界且保留 system 头。
+    ///
+    /// 实测背景：压缩后持久层留 30 条，每条工具结果可达 8K 字符 → 每轮原样发给
+    /// 模型 ≈ 120K tokens；每请求 cache_read 平台值 170–200K，而当日 77.1% 的
+    /// credits 来自 cache_read。裁剪只作用于工作集，持久层不受影响。
+    #[test]
+    fn trim_workset_bounds_tokens_and_keeps_system_head() {
+        use crate::chat::trim_workset_by_tokens;
+        let m = |role: &str, body: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(body.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        // system 头 + 20 条 8K 字符的消息（远超预算）
+        let big = "x".repeat(8000);
+        let mut msgs = vec![m("system", "SYS")];
+        for _ in 0..20 {
+            msgs.push(m("tool", &big));
+        }
+        let out = trim_workset_by_tokens(msgs.clone(), 10_000);
+        assert_eq!(out[0].content.as_deref(), Some("SYS"), "system 头必须保留");
+        assert!(out.len() < msgs.len(), "超预算时必须裁剪：{} vs {}", out.len(), msgs.len());
+        assert!(
+            crate::context::estimate_messages(&out) <= 10_000 + 8_000,
+            "裁剪后规模应回到预算附近：{:}",
+            crate::context::estimate_messages(&out)
+        );
+    }
+
+    /// 未超预算时不动（幂等）：裁剪不能改变正常规模的工作集。
+    #[test]
+    fn trim_workset_is_noop_when_within_budget() {
+        use crate::chat::trim_workset_by_tokens;
+        let m = |role: &str, body: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(body.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        let msgs = vec![m("system", "SYS"), m("user", "hello"), m("assistant", "hi")];
+        let out = trim_workset_by_tokens(msgs.clone(), 100_000);
+        assert_eq!(out.len(), msgs.len());
+        assert_eq!(out[0].content.as_deref(), Some("SYS"));
+    }
+
+    /// 前缘孤儿 tool 消息必须丢弃：其配对的 assistant(tool_calls) 已被裁掉，
+    /// 孤儿回喂会被 provider 拒收。
+    #[test]
+    fn trim_workset_drops_orphan_tool_messages() {
+        use crate::chat::trim_workset_by_tokens;
+        let m = |role: &str, body: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(body.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        let big = "y".repeat(8000);
+        // [sys, tool(孤儿), tool(孤儿), user(小)] —— 预算只够留 user
+        let msgs = vec![m("system", "SYS"), m("tool", &big), m("tool", &big), m("user", "ok")];
+        let out = trim_workset_by_tokens(msgs, 20);
+        assert_eq!(out.len(), 2, "只留 system + user：{:?}", out.iter().map(|x| x.role.clone()).collect::<Vec<_>>());
+        assert_eq!(out[0].role, "system");
+        assert_eq!(out[1].role, "user");
     }
 }

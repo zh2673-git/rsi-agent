@@ -1,0 +1,7 @@
+raise ToolError(
+            f"文件不存在: '{_display(real)}'（新建文件请用 write_file）——"
+            "若路径是猜的，先用 list_dir 确认；不要用 bash 反复盲试。",
+            code="NOT_FOUND",
+            field="path",
+        )
+    text, _, enc = _read_text(real)

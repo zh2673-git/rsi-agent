@@ -1,0 +1,8 @@
+/// 发送预算：窗口 × 0.7（预留输出与工具 schema）；窗口 0 → 预算 0（闸禁用）。
+    pub fn ctx_budget(&self) -> usize {
+        if self.context_window == 0 {
+            0
+        } else {
+            (self.context_window as f64 * 0.7) as usize
+        }
+    }

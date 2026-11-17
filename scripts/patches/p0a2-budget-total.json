@@ -1,0 +1,7 @@
+{
+  "id": "P0A-BUDGET-TOTAL-2",
+  "description": "P0-A 计费口径修复（第二步）：UsageAcc::total() 从 input+output 改为 input+output+cache_read×权重。与 P0A-BUDGET-CACHE-WEIGHT-1 配套（按文件名序先落地权重函数）。",
+  "file": "runtime/crates/agent-loop/src/budget.rs",
+  "anchor_file": "blocks/p0a2-total-anchor.txt",
+  "patch_file": "blocks/p0a2-total-patch.txt"
+}

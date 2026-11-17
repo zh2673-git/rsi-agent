@@ -1,0 +1,26 @@
+pub(super) async fn maybe_compact(
+        &self,
+        src: &Envelope,
+        session_id: &str,
+        history: Vec<MemoryMsg>,
+        cfg: &AgentLoopConfig,
+    ) -> Vec<MemoryMsg> {
+        self.maybe_compact_with_keep(src, session_id, history, cfg, cfg.compact_keep).await
+    }
+
+    /// 压缩（显式保留条数）。`keep_override` = 保留最近多少条；`None` 用配置缺省。
+    ///
+    /// 为什么要显式参数：chat 开头的压缩按 `COMPACT_KEEP`（默认 30）保留——那是
+    /// 「给用户回看的一段」；轮内压缩（P0-B）的目的是把**下一轮要发的上下文**
+    /// 压回有界，尾巴太大省不下多少（每条工具结果可达 8K 字符）。两种场景
+    /// 对「保留多少」的诉求不同，用同一入口 + 显式参数分开，不靠调用点猜。
+    pub(super) async fn maybe_compact_with_keep(
+        &self,
+        src: &Envelope,
+        session_id: &str,
+        history: Vec<MemoryMsg>,
+        cfg: &AgentLoopConfig,
+        keep_override: usize,
+    ) -> Vec<MemoryMsg> {
+        let trigger = cfg.compact_trigger;
+        let keep = keep_override.min(history.len());

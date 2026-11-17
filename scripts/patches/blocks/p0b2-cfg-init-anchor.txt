@@ -1,0 +1,2 @@
+context_window,
+            stream_dir: std::env::var_os("AGENT_STREAM_DIR")

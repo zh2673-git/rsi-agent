@@ -97,6 +97,19 @@ pub(crate) struct AgentLoopConfig {
     pub retry_base_ms: u64,
     /// 模型上下文窗口 token（LLM_CONTEXT_TOKENS，仅本地窗口型 provider 生效，0=禁用）。
     pub context_window: usize,
+    /// 云端 provider 的**工作集 token 闸**（CTX_BUDGET_TOKENS，0=禁用）。
+    ///
+    /// 为什么需要它（与 LLM_CONTEXT_TOKENS 是两件事）：后者是「模型真实窗口」，
+    /// 只对本地窗口型 provider（ollama）有意义——云端 API 的窗口由服务端管，
+    /// 本地填一个数反而会误压历史。但**工作集上限**是我们自己的策略，与 provider 无关：
+    /// 长会话里历史每轮全量重发，成本按 O(N²) 涨（实测单会话 371 轮累计
+    /// cache_read 47.3M）。没有这个闸，压缩只能靠 COMPACT_TRIGGER 的**条数**
+    /// （且只在 chat 开头判一次），条数与 token 量不同步——一条 8K 字符的工具结果
+    /// 顶得上一百条短消息。
+    ///
+    /// 缺省 64K：实测压缩后持久层留 30 条 ≈ 120–150K tokens，每轮原样发给模型；
+    /// 64K 意味着「尾巴被裁到还能看清最近在干什么，但不至于吃掉预算」。
+    pub ctx_budget_tokens: usize,
     /// 流式旁路目录（AGENT_STREAM_DIR；None=无流式）。
     pub stream_dir: Option<std::path::PathBuf>,
     /// 产物输出目录（AGENT_OUTPUT_DIR，工作区内相对路径）。
@@ -159,6 +172,7 @@ impl AgentLoopConfig {
             retry_attempts: env_num("LLM_RETRY_ATTEMPTS", 2u32, "瞬态重试次数").min(6),
             retry_base_ms: env_num("LLM_RETRY_BASE_MS", 500u64, "重试退避基数毫秒"),
             context_window,
+            ctx_budget_tokens: env_num("CTX_BUDGET_TOKENS", 65536usize, "工作集 token 闸"),
             stream_dir: std::env::var_os("AGENT_STREAM_DIR")
                 .map(std::path::PathBuf::from)
                 .filter(|p| !p.as_os_str().is_empty()),
@@ -175,6 +189,24 @@ impl AgentLoopConfig {
         } else {
             (self.context_window as f64 * 0.7) as usize
         }
+    }
+
+    /// **工作集 token 闸**（压缩用）：本地窗口型 provider 用「窗口 × 0.7」；
+    /// 云端 provider 用 `CTX_BUDGET_TOKENS`（缺省 64K，0=禁用）。
+    ///
+    /// 与 `ctx_budget()` 分开是刻意的：后者驱动 `tighten_for_context`——超了就
+    /// **减半窗口并可能直接报错中止**（发送前的硬收紧），对云端放开风险太大。
+    /// 本函数只驱动 `maybe_compact` 的 token 闸（超了就摘要旧史，不中止）。
+    ///
+    /// 为什么云端也需要闸（实测依据）：长会话里历史每轮全量重发，成本 O(N²) 涨——
+    /// 实测单会话 371 轮累计 cache_read 47.3M，而当日 **77.1%** 的 credits 来自
+    /// cache_read。没有这个闸，压缩只能靠 COMPACT_TRIGGER 的条数（40）且只在 chat
+    /// 开头判一次；条数与 token 量不同步（一条 8K 字符工具结果 ≈ 一百条短消息）。
+    pub fn workset_budget(&self) -> usize {
+        if self.context_window > 0 {
+            return (self.context_window as f64 * 0.7) as usize;
+        }
+        self.ctx_budget_tokens
     }
 }
 

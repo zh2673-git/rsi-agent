@@ -1,0 +1,8 @@
+{
+  "id": "BS1-SKILLS-BOARD-SCHEMA",
+  "description": "skills.rs：brief 档补 task-upsert 的最小 JSON schema——不依赖关键词命中就带规格，修子窗口 agent 撞 BAD_ARG 重试墙甚至干脆不登记（I-20261116 新窗口任务不入看板）",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/bs1-skills-board-schema-anchor.txt",
+  "patch_file": "blocks/bs1-skills-board-schema-patch.txt",
+  "applied_marker": "### task-upsert JSON schema (the only write path"
+}

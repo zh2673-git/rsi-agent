@@ -1,0 +1,12 @@
+        assert!(AgentLoopPlugin::task_board_section(true).is_empty(), "无 CLI 时不得注入");
+
+        match old_ws {
+            Some(v) => std::env::set_var("WORKSPACE_ROOT", v),
+            None => std::env::remove_var("WORKSPACE_ROOT"),
+        }
+        match old_home {
+            Some(v) => std::env::set_var("RSI_HOME", v),
+            None => std::env::remove_var("RSI_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }

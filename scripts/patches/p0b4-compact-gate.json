@@ -1,0 +1,7 @@
+{
+  "id": "P0B-COMPACT-TOKEN-GATE-4",
+  "description": "P0-B：压缩的 token 闸改用 workset_budget()（此前用 ctx_budget()，对云端 provider 恒为 0 → token 闸完全禁用，长会话历史只增不减）。",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor_file": "blocks/p0b4-compact-anchor.txt",
+  "patch_file": "blocks/p0b4-compact-patch.txt"
+}

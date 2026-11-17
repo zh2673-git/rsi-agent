@@ -1,0 +1,3 @@
+let count_gate = trigger > 0 && history.len() > trigger;
+        let budget = cfg.ctx_budget();
+        let token_gate = budget > 0 && context::estimate_messages(&history) > budget;

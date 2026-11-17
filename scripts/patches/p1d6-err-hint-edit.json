@@ -1,0 +1,7 @@
+{
+  "id": "P0D-ERROR-HINT-EDIT-6",
+  "description": "P1-D：edit_file 的 NOT_FOUND 错误带纠偏建议（新建用 write_file；路径是猜的先用 list_dir 确认，不要用 bash 盲试）。",
+  "file": "runtime/plugins/tools/tools/files.py",
+  "anchor_file": "blocks/p1d7-editfile-anchor.txt",
+  "patch_file": "blocks/p1d7-editfile-patch.txt"
+}

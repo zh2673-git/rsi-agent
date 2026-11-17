@@ -1,0 +1,33 @@
+let mut messages: Vec<MemoryMsg> = vec![MemoryMsg {
+            role: "system".into(),
+            content: Some(system),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        }];
+        // 同波次多工具调用纪律（P1-D）：实测今日 3518 次工具调用 / 2397 轮 = **1.47 调用/轮**，
+        // 而内核的波次并发上限是 4（chat.rs 的 wave，`join_all` 真并发）——**内核不缺能力，
+        // 缺的是提示**：此前整条提示词从未告诉模型「一次回复可以发多个 tool_call」，
+        // 模型于是习惯性一次只发一个，每轮多烧一次 LLM 请求（每请求固定成本
+        // ≈ 170K tokens 的 cache_read，占当日 credits 的 77.1%）。
+        //
+        // 为什么放在系统提示词**末尾**：recency 位置注意力更近（同 deferred 工具摘要
+        // 的处置——追加而不重排构造顺序）。
+        //
+        // 两条纪律缺一不可：
+        // ① 「独立的调用合并进同一波次」——给模型可执行的判据；
+        // ② 「同波次结果按提交顺序回喂」——消解「并行会乱序」的误判（pi 的做法：
+        //    并行执行 + 按源顺序持久化；本仓库已有 tool_call_id 对齐，机制齐备）。
+        if let Some(sys) = messages.first_mut().and_then(|m| m.content.as_mut()) {
+            sys.push_str(
+                "\n### Tool-call batching (this is how you stay cheap)\n\
+Your next reply may contain **multiple tool calls at once** — they run concurrently (up to 4 per wave).\n\
+Merge independent calls into one reply: different files, different directories, different reads that\n\
+do not depend on each other, different searches. Only serialize when one call's result is another\n\
+call's input (same file written twice, a path discovered by a previous call).\n\
+Results of one wave come back **in the order you submitted them**, so parallel calls never garble\n\
+each other — there is no reason to send one call per reply.\n\
+Sending one call per reply costs one extra model request every time (each request re-sends the\n\
+whole context), so a batch of 4 independent calls is ~4x cheaper than 4 sequential replies.\n",
+            );
+        }

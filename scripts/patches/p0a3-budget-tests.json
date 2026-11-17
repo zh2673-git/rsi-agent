@@ -1,0 +1,7 @@
+{
+  "id": "P0A-BUDGET-TESTS-3",
+  "description": "P0-A 计费口径修复（第三步）：新增单测——total() 必须计入 cache_read；权重可配（置 0 退回旧口径）；非法值 warn 后回退缺省 0.32。",
+  "file": "runtime/crates/agent-loop/src/budget.rs",
+  "anchor_file": "blocks/p0a-tests-anchor.txt",
+  "patch_file": "blocks/p0a-tests-patch.txt"
+}

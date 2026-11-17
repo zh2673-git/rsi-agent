@@ -1,0 +1,26 @@
+/// 发送预算：窗口 × 0.7（预留输出与工具 schema）；窗口 0 → 预算 0（闸禁用）。
+    pub fn ctx_budget(&self) -> usize {
+        if self.context_window == 0 {
+            0
+        } else {
+            (self.context_window as f64 * 0.7) as usize
+        }
+    }
+
+    /// **工作集 token 闸**（压缩用）：本地窗口型 provider 用「窗口 × 0.7」；
+    /// 云端 provider 用 `CTX_BUDGET_TOKENS`（缺省 64K，0=禁用）。
+    ///
+    /// 与 `ctx_budget()` 分开是刻意的：后者驱动 `tighten_for_context`——超了就
+    /// **减半窗口并可能直接报错中止**（发送前的硬收紧），对云端放开风险太大。
+    /// 本函数只驱动 `maybe_compact` 的 token 闸（超了就摘要旧史，不中止）。
+    ///
+    /// 为什么云端也需要闸（实测依据）：长会话里历史每轮全量重发，成本 O(N²) 涨——
+    /// 实测单会话 371 轮累计 cache_read 47.3M，而当日 **77.1%** 的 credits 来自
+    /// cache_read。没有这个闸，压缩只能靠 COMPACT_TRIGGER 的条数（40）且只在 chat
+    /// 开头判一次；条数与 token 量不同步（一条 8K 字符工具结果 ≈ 一百条短消息）。
+    pub fn workset_budget(&self) -> usize {
+        if self.context_window > 0 {
+            return (self.context_window as f64 * 0.7) as usize;
+        }
+        self.ctx_budget_tokens
+    }

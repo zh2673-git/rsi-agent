@@ -1,0 +1,33 @@
+        let brief = "\n## Task board (single-conversation UI)\n\
+             The left panel is a TASK BOARD, not a session list: the user talks to you in one \
+             continuous conversation and never manages project categories — you do that. When a \
+             request becomes real work (not a one-liner), register it with \
+             `python scripts/board.py` (bash is enabled by default; skill tools are not). \
+             Board ops: `task-upsert --file <json|->`, `task-status <ID> <status> [--note ..]`, \
+             `task-progress <ID> <done>/<total>`, `list`, `show <ID>`, `stats`. \
+             The board lives in `.rsi/board.json`; do not put its content into every reply.\n\
+             \n\
+             ### task-upsert JSON schema (the only write path — get the shape right the first time)\n\
+             `task-upsert --file plan.json` reads ONE JSON object. Minimal valid shape:\n\
+             ```json\n\
+             {\"title\": \"一句话标题\", \"status\": \"planning\", \"priority\": \"P1\",\n\
+              \"plan\": [{\"step\": \"第一步\", \"status\": \"pending\", \"owner\": \"self\"}],\n\
+              \"acceptance\": [\"可核对的验收项\"], \"resourcing\": {\"model\": \"current\", \"effort\": \"medium\"}}\n\
+             ```\n\
+             Field rules (these are enforced — a wrong value is REJECTED, not coerced):\n\
+             - `id`: **omit it** and the CLI allocates one. If you set it, it must match \
+             `T-YYYYMMDD-NN` (NN = 2~3 digits). Inventing an id like `T-foo-bar` is rejected.\n\
+             - `status` (task level): exactly one of \
+             `planning|doing|verifying|done|blocked|cancelled`. **`in_progress` is NOT a task \
+             status** — it belongs to a plan step. Using it gets the whole upsert rejected.\n\
+             - `plan[].status`: exactly one of `pending|in_progress|completed|cancelled`.\n\
+             - `plan[].owner`: exactly one of `self|subagent|skill`.\n\
+             - `acceptance`: an **ARRAY** of strings. A bare string is rejected.\n\
+             - `priority`: `P0|P1|P2|P3`. `resourcing.model`: `current|cheap|strong`. \
+             `resourcing.effort`: `small|medium|large`.\n\
+             - `checks`: array of `{id, kind, name, target, timeout_secs}`; `kind` is \
+             `cmd|file|grep|manual`.\n\
+             - `outcomes`: `{brief, pro}` — both short strings; write them when moving to `done`.\n\
+             The same schema is printed by `board.py task-upsert --help`; run it if unsure.\n\
+             A rejected upsert means the task is NOT on the board — the user sees nothing, so \
+             fix the shape and retry immediately.\n";

@@ -1,0 +1,7 @@
+{
+  "id": "P0B-WORKSET-BUDGET-3",
+  "description": "P0-B：新增 workset_budget()——工作集 token 闸。本地窗口型 provider 用「窗口×0.7」，云端用 CTX_BUDGET_TOKENS（缺省 128K）。与 ctx_budget() 分开是刻意的：后者驱动 tighten_for_context 的硬收紧（超了会减半窗口甚至报错中止），对云端放开风险太大；本函数只驱动压缩这类软动作。",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/p0b3-budget-anchor.txt",
+  "patch_file": "blocks/p0b3-budget-patch.txt"
+}

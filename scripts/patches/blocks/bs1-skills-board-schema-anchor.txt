@@ -1,0 +1,8 @@
+        let brief = "\n## Task board (single-conversation UI)\n\
+             The left panel is a TASK BOARD, not a session list: the user talks to you in one \
+             continuous conversation and never manages project categories — you do that. When a \
+             request becomes real work (not a one-liner), register it with \
+             `python scripts/board.py` (bash is enabled by default; skill tools are not). \
+             Board ops: `task-upsert --file <json|->`, `task-status <ID> <status> [--note ..]`, \
+             `task-progress <ID> <done>/<total>`, `list`, `show <ID>`, `stats`. \
+             The board lives in `.rsi/board.json`; do not put its content into every reply.\n";

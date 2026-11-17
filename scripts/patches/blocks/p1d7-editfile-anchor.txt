@@ -1,0 +1,2 @@
+raise ToolError(f"文件不存在: '{_display(real)}'（新建文件请用 write_file）", code="NOT_FOUND", field="path")
+    text, _, enc = _read_text(real)

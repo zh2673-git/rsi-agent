@@ -1,0 +1,7 @@
+{
+  "id": "P0D-BATCH-HINT-3",
+  "description": "P1-D：系统提示词末尾（recency 位置）加「同波次多工具调用纪律」——告诉模型一次回复可发多个 tool_call（内核 wave=4 并发齐备），且同波次结果按提交顺序回喂（消解「并行会乱序」误判）。实测今日工具调用/轮仅 1.47，每轮多烧一次请求（每请求固定 ~170K cache_read，占当日 credits 77.1%）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p1d4-sys-anchor.txt",
+  "patch_file": "blocks/p1d4-sys-patch.txt"
+}

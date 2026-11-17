@@ -1,0 +1,8 @@
+{
+  "id": "BS2-LIB-BOARD-SCHEMA-TEST",
+  "description": "lib.rs：新增 brief_board_section_carries_task_upsert_schema——brief 档必须自带 task-upsert 规格（子窗口撞 schema 墙的回归点，I-20261116）",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/bs2-lib-board-schema-test-anchor.txt",
+  "patch_file": "blocks/bs2-lib-board-schema-test-patch.txt",
+  "applied_marker": "fn brief_board_section_carries_task_upsert_schema()"
+}

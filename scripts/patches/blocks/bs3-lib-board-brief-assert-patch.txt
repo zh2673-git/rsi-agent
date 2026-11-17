@@ -1,0 +1,12 @@
+        // brief 不得含 full 档独有的「四个问题」教学（BS1 修判据）：
+        // 原判据是 `!brief.contains("resourcing.model")`——用**字段名**当代理，
+        // 于是 BS1 在 brief 里合法写出 schema（`resourcing.model` 是 schema 的一部分）
+        // 就被误判成「brief 含了完整规范」。
+        //
+        // 代理判据换成**行为性**的：full 档那段教学有唯一开头标记
+        // （"### How to register a task"），brief 里不得出现它。
+        // 这才是判据本来的意思——「brief 是指针，full 是教程」。
+        assert!(!brief.contains("### How to register a task"),
+                "brief 不得含 full 档的完整写作教程（BS1：schema 可在 brief，但教程不行）");
+        assert!(full.contains("### How to register a task"), "full 必须讲人财物");
+        assert!(full.contains("resourcing.model"), "full 必须讲人财物");

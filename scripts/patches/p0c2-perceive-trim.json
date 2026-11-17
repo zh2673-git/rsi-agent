@@ -1,0 +1,7 @@
+{
+  "id": "P0C-PERCEIVE-TRIM-2",
+  "description": "P0-C：chat 开头 perceive 之后按 token 预算裁剪工作集尾部（此前只按条数 HISTORY_LIMIT，缺省 0=不限，30 条压缩保留每轮全量发给模型）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p0c2-perceive-anchor.txt",
+  "patch_file": "blocks/p0c2-perceive-patch.txt"
+}

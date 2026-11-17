@@ -33,12 +33,35 @@ impl AgentLoopPlugin {
         history: Vec<MemoryMsg>,
         cfg: &AgentLoopConfig,
     ) -> Vec<MemoryMsg> {
+        self.maybe_compact_with_keep(src, session_id, history, cfg, cfg.compact_keep).await
+    }
+
+    /// 压缩（显式保留条数）。`keep_override` = 保留最近多少条；`None` 用配置缺省。
+    ///
+    /// 为什么要显式参数：chat 开头的压缩按 `COMPACT_KEEP`（默认 30）保留——那是
+    /// 「给用户回看的一段」；轮内压缩（P0-B）的目的是把**下一轮要发的上下文**
+    /// 压回有界，尾巴太大省不下多少（每条工具结果可达 8K 字符）。两种场景
+    /// 对「保留多少」的诉求不同，用同一入口 + 显式参数分开，不靠调用点猜。
+    pub(super) async fn maybe_compact_with_keep(
+        &self,
+        src: &Envelope,
+        session_id: &str,
+        history: Vec<MemoryMsg>,
+        cfg: &AgentLoopConfig,
+        keep_override: usize,
+    ) -> Vec<MemoryMsg> {
         let trigger = cfg.compact_trigger;
-        let keep = cfg.compact_keep.min(history.len());
+        let keep = keep_override.min(history.len());
         // 双闸（PLAN P7/R6）：条数闸 **或** token 闸任一命中即压缩——
         // 单条大结果在条数闸（40 条）之前就能撑爆 LLM 窗口。
         let count_gate = trigger > 0 && history.len() > trigger;
-        let budget = cfg.ctx_budget();
+        // token 闸用**工作集预算**（workset_budget）：云端 provider 的 token 闸此前
+        // 完全禁用（ctx_budget 只对本地窗口型 provider 生效），于是长会话里历史
+        // 每轮全量重发、成本 O(N²) 涨（实测单会话 371 轮累计 cache_read 47.3M，
+        // 而当日 77.1% 的 credits 来自 cache_read）。
+        // 压缩是**软动作**（摘要旧史，不中止），故用独立预算而非 ctx_budget——
+        // 后者驱动 tighten_for_context 的硬收紧（超了会减半窗口甚至报错中止）。
+        let budget = cfg.workset_budget();
         let token_gate = budget > 0 && context::estimate_messages(&history) > budget;
         if !count_gate && !token_gate {
             return history;

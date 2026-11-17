@@ -1,0 +1,7 @@
+{
+  "id": "P0B-CFG-FIELD-1",
+  "description": "P0-B 配置项：新增 ctx_budget_tokens 字段（env CTX_BUDGET_TOKENS，缺省 128K=0）——云端 provider 的工作集 token 闸。与 LLM_CONTEXT_TOKENS 是两件事：后者是模型真实窗口（只对 ollama 生效），本项是我们自己的策略上限（长会话历史每轮全量重发导致 O(N²) 成本，实测单会话 371 轮累计 cache_read 47.3M）。",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/p0b1-cfg-field-anchor.txt",
+  "patch_file": "blocks/p0b1-cfg-field-patch.txt"
+}
