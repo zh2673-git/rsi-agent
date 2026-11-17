@@ -1,0 +1,6 @@
+    let stream_dir = std::env::temp_dir().join("agent-loop-contract-stream");
+    std::fs::create_dir_all(&stream_dir).unwrap();
+    std::env::set_var("AGENT_STREAM_DIR", &stream_dir);
+
+    let trace_events: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(vec![]));
+    let store: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(vec![]));

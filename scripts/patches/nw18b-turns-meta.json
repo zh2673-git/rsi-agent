@@ -1,0 +1,9 @@
+{
+ "id": "NW18B-TURNS-META",
+ "description": "contract_conformance.rs：第二个测试 metadata_declared_tools_register_without_legacy_names 也设了 AGENT_STREAM_DIR 但没设 RSI_TURNS_DIR（NW18 的锚点只命中第一处，count=1）→ turns_root() 落到 WORKSPACE_ROOT/.rsi/turns，测试往用户真账本里写 turn。本补丁单独隔离第二处。",
+ "file": "runtime/crates/agent-loop/tests/contract_conformance.rs",
+ "anchor_file": "blocks/nw18b-turns-meta-anchor.txt",
+ "patch_file": "blocks/nw18b-turns-meta-patch.txt",
+ "applied_marker": "agent-loop-meta-turns-",
+ "order": 65
+}

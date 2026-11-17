@@ -1,21 +1,23 @@
 # rsi-agent v0.0.21
 
-本版覆盖 `v0.0.20..v0.0.21` 区间的**全部 6 笔提交**，262 个文件，+19,076 / −385。
+本版覆盖 `v0.0.20..v0.0.21` 区间的**全部 8 笔提交**，263 个文件，+19,298 / −385。
 
 主题：**模型目录不再是手工维护的静态表**。本版把「模型从哪来、为什么少了几个、
 路由组怎么管、哪些登录渠道真的可用」这四件事从「靠人记」变成「由 `/v1/models`
-单一事实源推导」，并顺手把测试套件从 413 passed / 2 failed 推到 **419 passed / 0 failed**。
+单一事实源推导」，并顺手把测试套件从 413 passed / 2 failed 推到 **428 passed / 0 failed**。
 
-区间构成（6 笔）：
+区间构成（8 笔，`git log --oneline v0.0.20..v0.0.21`）：
 
 | 类别 | 提交 | 说明 |
 |---|---|---|
-| 运行时内核 | `bf007b4` | token 预算 / 压缩 / 工作集裁剪 / 并行提示 + 看板 schema 契约（80 文件） |
+| 发行说明勘误 | `0162db4` | 修正 v0.0.20 说明：覆盖完整 12 笔区间，去掉「无 Rust 侧改动」错误说法 |
+| 运行时内核 | `bf007b4` | token 预算 / 压缩 / 工作集裁剪 / 并行提示 + 看板 schema 契约（79 文件） |
 | 宿主与前端 | `469412f` | 模型目录自动同步 + 路由组管理 + 动态登录签到（P1/P2/P3）（77 文件） |
 | make-video | `886b5e3` | P11/P12 四层分类与模板契约 + 动效语法修复（86 文件） |
 | 文档 | `923fc6f` | 本轮实现报告与既有调研笔记归档（10 个 .md） |
 | 调用点规格 | `a103bad` | `task-upsert --help` 印出字段规格 |
 | 测试修复 | `9d2674e` | 修两条 HEAD 既有失败：判据选错 + 用例读真实时钟 |
+| 发行说明归档 | `8a0d4cd` | 本文件（v0.0.21 发行说明） |
 
 ---
 
@@ -83,8 +85,22 @@
 - 无可用 method → 按钮灰显，`title` 给出终端命令（点了不动的按钮比没有按钮更糟）；
 - 不再用「有没有 `checkin` 键」判断签到能力——那个键存在与否和能不能签到不是一回事。
 
-实测 `:8711/api/upstream/providers` = **9**（8 usable + `qwenwork-enterprise`
-`usable=false`）。
+实测（本轮用 `scripts/verify-login-buttons.py --build` 现场 `cargo build` 到 `.scratch/target` 再拉起，随机空闲端口，
+不占用用户正在用的 `:8710`）`GET /api/upstream/providers` = **9** 个渠道
+（8 个 `usable=true` + `qwenwork-enterprise` `usable=false`）：
+
+```
+workbuddy-ai / workbuddy / trae-cn / trae-global / kiro / qoder / qoder-cn / qwenwork   → usable
+qwenwork-enterprise                                                                     → 灰显（需终端）
+```
+
+浏览器端逐项比对过：`#upstream-login-btns` 里 9 个按钮的**数量、顺序、文案、`disabled`
+状态**与 API 返回逐一相同；`qwenwork-enterprise` 的按钮带 `title` 指向终端命令。
+
+> 一个容易误判的坑，如实记下：如果你机器上跑着的 `react-agent-host.exe` 是这次改动**之前**
+> 编译的，`/api/upstream/providers` 会返回 **404**，看起来像「P3 没实现」。实际是旧二进制
+> 里根本没有这条路由（`strings` 比对：旧 exe 无 `/api/upstream/providers` 字面量，新 exe 有）。
+> 重启 Host 即可，不是代码问题。
 
 ---
 
@@ -151,7 +167,7 @@ BS1 只做了 brief 那半；CLI 那半从未实现——`task-upsert --help` �
 
 ---
 
-## 8. 测试：413 passed / 2 failed → **419 passed / 0 failed**
+## 8. 测试：413 passed / 2 failed → **428 passed / 0 failed**
 
 区间结束时还有两条失败。它们是本轮之前就存在的（用 stash 反证过：把本轮全部改动
 移走后照样红），但**不是「已知问题」，是测试自身的缺陷**，会持续制造噪声——
@@ -198,14 +214,32 @@ BS1 只做了 brief 那半；CLI 那半从未实现——`task-upsert --help` �
 
 | 项 | 结果 |
 |---|---|
-| `python -m pytest tests -q` | **419 passed / 0 failed** |
+| `python -m pytest tests -q` | **428 passed / 0 failed**（原 419，本版新增 9 条登录按钮契约） |
 | `cargo test -p react-agent-agent-loop` | **127 passed**（76 lib + 1 conformance + 2 contract + 48 react_mocks） |
 | `cargo test -p react-agent-host --lib` | **99 passed** |
 | `scripts/verify-model-sync.py --gw 3425 --rsi 8710` | exit 0，**96/96**，含 8 个 `auto/*` |
-| 补丁链 `--dry-run` | **280 行 / 280 OK / 0 FAIL**（全部 `applied_marker` 命中，幂等跳过） |
+| `scripts/verify-login-buttons.py --build` | exit 0，API **9** 渠道 ↔ UI **9** 按钮逐一相同 |
+| 补丁链 `--dry-run` | **281 行 / 281 OK / 0 FAIL**（全部 `applied_marker` 命中，幂等跳过） |
+| `GET /api/upstream/providers` ↔ UI 按钮 | **9 / 9**，顺序 + 文案 + `disabled` 逐一相同 |
 | 浏览器端到端 | 27 pass / 0 fail |
 
 判据与用例的改动都做了**变异验证**：把被测逻辑改坏，确认新判据会红；改回，确认复原。
+
+### 本版范围内的一个遗留缺口（已在 tag 之后修复）
+
+`contract_conformance.rs` 有两个测试函数各自设 `AGENT_STREAM_DIR`，但只有第一个
+（`scripted_chat_fulfills_all_wire_contracts`）补了 `RSI_TURNS_DIR`。第二个
+（`metadata_declared_tools_register_without_legacy_names`）没补，于是
+`turns_root()` 沿 `RSI_HOME` → `WORKSPACE_ROOT` → `cwd` 回落，**把回合账写进仓库
+真实的 `.rsi/turns`**——而 `.rsi/` 在 `.gitignore` 里，脏了也看不见。
+
+`NW18` 补丁的 description 当时写「锚点全文出现 2 次，replace 会一次改完两处」，
+这句话是错的：`apply-tool-patches.py` 用的是 `src.replace(anchor, patch, 1)`，
+`count=1`，只改第一处。实测文件里 `RSI_TURNS_DIR` 只出现 1 次。
+
+实测证据（本轮）：单跑该测试一次，`.rsi/turns` 从 112 个文件变 113，新增文件的
+`session_id` 是 `r16`（正是该测试的会话 id）。补 `NW18B-TURNS-META` 后再跑，文件数
+保持 112 不变。
 
 ---
 

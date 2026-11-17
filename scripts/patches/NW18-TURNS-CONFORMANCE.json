@@ -1,6 +1,6 @@
 {
  "id": "NW18-TURNS-CONFORMANCE",
- "description": "contract_conformance.rs：两处 set_var(AGENT_STREAM_DIR) 之后同时钉 RSI_TURNS_DIR（锚点全文出现 2 次，replace 会一次改完两处）",
+ "description": "contract_conformance.rs：第一个测试 scripted_chat_fulfills_all_wire_contracts 的 set_var(AGENT_STREAM_DIR) 之后钉 RSI_TURNS_DIR。注意本锚点只命中**一处**（apply-tool-patches.py 用 replace(anchor, patch, 1)）——第二个测试的同类缺失由 nw18b-turns-meta.json 单独补，别指望这条覆盖两处。",
  "file": "runtime/crates/agent-loop/tests/contract_conformance.rs",
  "anchor_file": "blocks/nw18-turns-conf-anchor.txt",
  "patch_file": "blocks/nw18-turns-conf-patch.txt",

@@ -334,6 +334,12 @@ async fn metadata_declared_tools_register_without_legacy_names() {
     let stream_dir = std::env::temp_dir().join("agent-loop-contract-stream");
     std::fs::create_dir_all(&stream_dir).unwrap();
     std::env::set_var("AGENT_STREAM_DIR", &stream_dir);
+    // 回合目录同样隔离（NW18 只覆盖了第一个测试函数）：本进程里 WORKSPACE_ROOT 通常已
+    // 指向仓库根，turns_root() 会解析成仓库真实的 `.rsi/turns` —— 用例于是往用户的真账本
+    // 里写 turn，且因为 `.rsi/` 在 .gitignore 里，脏了也看不见。前缀刻意避开 NW18 的
+    // marker（`agent-loop-contract-turns-`），否则两条补丁的幂等判据会互相冒充。
+    let turns_dir = std::env::temp_dir().join(format!("agent-loop-meta-turns-{}", std::process::id()));
+    std::env::set_var("RSI_TURNS_DIR", &turns_dir);
 
     let trace_events: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(vec![]));
     let store: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(vec![]));
