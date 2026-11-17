@@ -68,9 +68,9 @@
   "style": {
     "recommended": [
       "bass-graphic",
-      "cyber-neon"
+      "neon-tech-cinematic"
     ],
-    "rationale": "新闻需要高密度卡片与快节奏，图形/霓虹的硬切节奏最适配"
+    "rationale": "新闻需要高密度卡片与快节奏，图形/霓虹的硬切节奏最适配：bass-graphic 给大色块与粗字，neon-tech-cinematic 给冷色数据光与硬边转场"
   },
   "pacing": {
     "curve": "rapid",

@@ -9,7 +9,7 @@
     background: linear-gradient(160deg, {{NEUTRAL_4}} 0%, {{NEUTRAL_3}} 100%);
     display: flex; align-items: center; justify-content: center;
   }
-  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8%; box-sizing: border-box; }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--pad) * 1%); box-sizing: border-box; }
   .kicker { font-size: {{BODY_SIZE}}px; color: {{ACCENT}}; letter-spacing: 0.3em; margin-bottom: 2em; text-transform: uppercase; }
   .subject { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; text-align: center; line-height: 1.25; max-width: 80%; }
   .hint { margin-top: 3em; font-size: {{BODY_SIZE}}px; color: {{NEUTRAL_2}}; text-align: center; max-width: 70%; line-height: 1.6; }
@@ -21,8 +21,9 @@
 <body data-scene-id="{{SCENE_ID}}">
   <div class="stage">
     <div class="deco"></div>
-    <div class="kicker">{{PROMPT}}</div>
-    <div class="subject">{{TITLE}}</div>
+    <div class="kicker">{{KICKER}}</div>
+    <div class="subject">{{HERO_WORD}}</div>
+    <div class="hint">{{SUB_LINE}}</div>
   </div>
   <div class="letterbox"></div>
   <div class="grain" style="opacity:{{GRAIN}}"></div>
@@ -37,7 +38,7 @@
     // 排版镜：字已入场，靠衬底色块呼吸供给运动
     MV.motifLoop('.stage', { kind: 'breathe', amp: 0.6, duration: 1800, span: 16 });
 
-      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
+      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}', intensity: {{INTENSITY}} });
     });
   </script>
 </body>

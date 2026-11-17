@@ -12,13 +12,14 @@
     - 标点镜 punch 当前站（V-MOT-013 预算）；母题：光斑呼吸 + 轨道 shimmer。
 -->
 <style>
+  :root { --pad: {{STAGE_PAD}}; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   [data-scene-id] { position: relative; width: 100%; height: 100%; }
   body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; color: {{NEUTRAL_0}}; }
 
   .stage {
     position: relative; width: 100%; height: 100%; box-sizing: border-box;
-    padding: 7% 8%;
+    padding: calc(var(--pad) * 1%) calc(var(--pad) * 1.1%);
     background:
       repeating-linear-gradient(90deg, {{NEUTRAL_3}}44 0 1px, transparent 1px 4.2vmin),
       linear-gradient(178deg, {{NEUTRAL_4}} 0%, {{NEUTRAL_3}} 100%);
@@ -145,6 +146,15 @@
 
     // ⑤ 重音标点：punch 当前站（不是整条轨道），仅标点镜
     if (accent) MV.punch('.stop.cur', { delay: {{PUNCH_AT}}, amp: 1.1 });
+
+    // ⑤b 关键部件高亮（y6 的「关键部件高亮 + 位移到联动位」）：
+    //     当前站的光带扫过——力传导到结果的那一下。
+    MV.highlight('.stop.cur .dot', { delay: 520, duration: 400 });
+
+    // ⑤c 走过的站淡出（MV.exit）：已经讲完的站点退到后面去，
+    //     观众的注意力自然落到当前站——「走过的路」不该继续抢戏。
+    //     最后一站之前的三站依次退场（压后 160ms 一个一个来）。
+    MV.exit('.stop.lit', { delay: 900, stagger: 160, duration: 400 });
 
     // ⑥ 母题：光斑呼吸已立；轨道加 shimmer 微光（已走完的部分在反光）；时长取 2000ms 档
     MV.motifLoop('.rail-drawn', { kind: 'shimmer', amp: 0.5, duration: 2000, span: 16 });

@@ -40,25 +40,19 @@ export type VisualKind = z.infer<typeof VisualKindSchema>;
 //   punch-in = 短推后停住（0.25-0.35s 推 18-32%），是**标点**不是慢推——受 V-MOT-013 预算约束；
 //   whip-pan = 甩镜（0.26-0.30s expo.inOut + 运动模糊），视线突然转移；
 //   drift    = 整镜匀速慢移（1-4%/s），**只给氛围镜/艺术镜**——解说片每镜都慢推就是 PPT。
-export const CAMERA_MOVES = [
-  'push-in',
-  'pull-out',
-  'pan',
-  'pan-left',
-  'tilt-up',
-  'tilt-down',
-  // 2026-11-13 增补：原词表只有 push/pull/pan/tilt/drift 五类运动 + 两个标点，
-  // 16 镜分配下去必然成对重复（实测 v2 里 push-in×4、drift×4、pull-out×3、tilt-down×2），
-  // 观感就是用户说的「很刻意的同质化放大」。dolly 带纵深、crane 带升降，与上面四类可区分。
-  'dolly-in',
-  'dolly-out',
-  'crane-up',
-  'crane-down',
-  'punch-in',
-  'whip-pan',
-  'drift',
-] as const;
-export type CameraMove = (typeof CAMERA_MOVES)[number] | 'static';
+//
+// P12 阶段3（M1 合并）：**词表的唯一事实源在 `validators/scene.ts` 的 CAMERA_MOVES**
+//（那是校验器真正把关的表）。此处只保留别名表——它回答的是
+// 「用户/模型写的这个词，要不要认成词表里的哪个值」，与「哪些词合法」是两件事。
+// 此前两张表各写一遍，漂移过一次（`pan-right` 只在别名表里，词表里没有）。
+import { CAMERA_MOVES as CAMERA_MOVE_TOKENS } from './validators/scene.js';
+
+/** 合法机位词（不含 static/none —— 那两个是合法选择，不是运动） */
+export const CAMERA_MOVES = CAMERA_MOVE_TOKENS.filter(
+  (m) => m !== 'static' && m !== 'none',
+);
+
+export type CameraMove = (typeof CAMERA_MOVE_TOKENS)[number];
 
 const CAMERA_ALIASES: Record<string, CameraMove> = {
   'push-in': 'push-in',

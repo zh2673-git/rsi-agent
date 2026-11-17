@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <style>
+  :root { --pad: {{STAGE_PAD}}; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; }
-  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8% 10%; box-sizing: border-box; }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: calc(var(--pad) * 1%) calc(var(--pad) * 1.1%); box-sizing: border-box; }
   .title { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; margin-bottom: 6%; }
   .chart { display: flex; align-items: flex-end; gap: 6%; height: 46%; border-bottom: 2px solid {{NEUTRAL_3}}; padding-bottom: 2%; }
   .bar { flex: 1; background: {{PRIMARY}}; border-radius: 6px 6px 0 0; position: relative; }
@@ -22,28 +23,40 @@
   <div class="stage">
     <div class="title">{{TITLE}}</div>
     <div class="chart">
-      <div class="bar" style="height:38%"></div>
-      <div class="bar" style="height:62%"></div>
-      <div class="bar accent" style="height:88%"></div>
-      <div class="bar" style="height:54%"></div>
+      <div class="bar" style="height:{{BAR1}}%"><span class="val">{{VAL1}}</span></div>
+      <div class="bar" style="height:{{BAR2}}%"><span class="val">{{VAL2}}</span></div>
+      <div class="bar accent" style="height:{{BAR3}}%"><span class="val">{{VAL3}}</span></div>
+      <div class="bar" style="height:{{BAR4}}%"><span class="val">{{VAL4}}</span></div>
     </div>
+    <div class="xlabels">
+      <span>{{LABEL1}}</span><span>{{LABEL2}}</span><span>{{LABEL3}}</span><span>{{LABEL4}}</span>
+    </div>
+    <div class="note">{{SUB_LINE}}</div>
   </div>
   <div class="letterbox"></div>
   <div class="grain" style="opacity:{{GRAIN}}"></div>
   <div class="vignette" style="opacity:{{VIGNETTE}};background:radial-gradient(ellipse at center, transparent 55%, #000 130%)"></div>
-  <script src="../motion/motion-lib.js"></script>
+  <script src="../motion/gsap.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       MV.enter('.title', { easing: '{{EASING}}', duration: {{DURATION}} });
+
+      // 柱子按高度生长：transform-origin 在底部（from scaleY 0 → 1）
       MV.enter('.bar', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, scaleY: 0, transformOrigin: 'bottom' } });
+
+      // 数字滚动：每根柱子的数值滚到自己的终值（to 给数组，逐元素不同）
+      // 这是 t3_finance 的「数据自己长出来」——不是装饰动画，是数据出现的方式。
+      MV.counter('.bar .val', { delay: 420, stagger: 140, from: 0, to: [{{VAL1}},{{VAL2}},{{VAL3}},{{VAL4}}], decimals: 0 });
+
+      // 强调柱高亮扫过（t3 的「只标一件事」）
       MV.emphasis('.bar.accent', { duration: 1400 });
       MV.idle('.chart', { delay: 1200 });
 
-    // 柱状图呼吸 + 整图缓慢漂移：数据镜最容易「画完就死」
-    MV.motifLoop('.chart', { kind: 'drift', amp: 0.6, duration: 1600, span: 16 });
-    MV.motifLoop('.bar.accent', { kind: 'pulse', amp: 0.7, duration: 1400, span: 16 });
+      // 柱状图呼吸 + 整图缓慢漂移：数据镜最容易「画完就死」
+      MV.motifLoop('.chart', { kind: 'drift', amp: 0.6, duration: 1600, span: 16 });
+      MV.motifLoop('.bar.accent', { kind: 'pulse', amp: 0.7, duration: 1400, span: 16 });
 
-      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}' });
+      MV.camera('.stage', { move: '{{CAMERA}}', zoom: '{{ZOOM}}', intensity: {{INTENSITY}} });
     });
   </script>
 </body>

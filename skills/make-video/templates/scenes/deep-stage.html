@@ -148,6 +148,20 @@
     MV.orbit('.deck', { step: 16, duration: 2000 });
     MV.tilt3d('.deck', { amp: 5, duration: 1800 });
 
+    // ③b 连续形变（t1 3b1b 的「一个对象变成下一个」）：三张卡依次接力，
+    //     上一张淡出、下一张在原位长大——这是 t1 的招牌动作，不是装饰。
+    MV.morphTo('.panel.p1', { delay: 420, out: 200, resize: 380, inn: 320, to: { scale: 0.9 } });
+    MV.morphTo('.panel.p2', { delay: 640, out: 200, resize: 380, inn: 320, to: { scale: 1.04 } });
+
+    // ③c 卡片翻面（3D 素材语言层的招牌用法）：中面板翻到背面——
+    //     观众看到的是「这一面被翻过去了」，比缩放更有物理感。
+    MV.card3d('.panel.p2', { delay: 900, duration: 600, to: 180 });
+
+    // ③d 立方体复合转动：整个卡阵缓慢双轴转。
+    //     与 orbit/tilt3d 作用于**同一个** .deck（不是新主体）——
+    //     否则同屏持续运动主体会超过 4 个（V-MOT-010 共同命运约束）。
+    MV.spin3d('.deck', { amp: 8, duration: 2000 });
+
     // ④ 地面网格擦除揭示（纵深「长出来」而不是淡入）
     MV.maskReveal('.floor', { dir: 'up', duration: 500, delay: 240 });
 
@@ -157,6 +171,9 @@
     //    观众读到的是「画面抖了一下」，不是「这句话被强调」。
     if (accent) {
       MV.punch('.deck', { delay: {{PUNCH_AT}}, amp: 1.1 });
+      // ⑤b 镜内甩镜：视线从第一张卡突然转到第三张（阿杜的「我打开电脑 →（屏幕）」）。
+      //     甩镜是镜内动作，不是剪辑层转场；它带运动模糊，0.28s。
+      MV.whip('.panel.p3', { delay: {{PUNCH_AT}}, duration: 280, dir: 'right' });
     }
 
     // ⑥ 环境层：光晕呼吸 + 地面缓慢旋转（与主体分离 → 画面一直是活的）。

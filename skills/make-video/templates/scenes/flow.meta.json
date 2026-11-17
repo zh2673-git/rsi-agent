@@ -1,0 +1,21 @@
+{
+  "id": "flow",
+  "name": "流程展开",
+  "grammar": [],
+  "motifs": [
+    "scan",
+    "pulse"
+  ],
+  "camera": [
+    "push-in",
+    "pull-out",
+    "pan"
+  ],
+  "params": [],
+  "materials": [],
+  "capacity": {
+    "maxChars": 40,
+    "maxElements": 5
+  },
+  "variants": []
+}

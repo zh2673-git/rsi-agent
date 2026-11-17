@@ -1,0 +1,25 @@
+{
+  "id": "chart",
+  "name": "数据图表",
+  "grammar": ["t3_finance", "y1_flat_explainer"],
+  "motifs": ["drift", "pulse"],
+  "camera": ["push-in", "pull-out", "dolly-in"],
+  "params": [
+    { "name": "BAR1", "type": "number", "context": "code", "default": 38, "min": 0, "max": 100, "note": "第一根柱的相对高度（%）" },
+    { "name": "BAR2", "type": "number", "context": "code", "default": 62, "min": 0, "max": 100, "note": "第二根柱的相对高度（%）" },
+    { "name": "BAR3", "type": "number", "context": "code", "default": 88, "min": 0, "max": 100, "note": "第三根柱（强调柱）的相对高度（%）" },
+    { "name": "BAR4", "type": "number", "context": "code", "default": 54, "min": 0, "max": 100, "note": "第四根柱的相对高度（%）" },
+    { "name": "VAL1", "type": "number", "context": "code", "default": 38, "min": 0, "max": 999999, "note": "第一根柱的数值（数字滚动的终值）" },
+    { "name": "VAL2", "type": "number", "context": "code", "default": 62, "min": 0, "max": 999999, "note": "第二根柱的数值" },
+    { "name": "VAL3", "type": "number", "context": "code", "default": 88, "min": 0, "max": 999999, "note": "第三根柱的数值" },
+    { "name": "VAL4", "type": "number", "context": "code", "default": 54, "min": 0, "max": 999999, "note": "第四根柱的数值" },
+    { "name": "LABEL1", "type": "string", "context": "text", "note": "第一根柱的横轴标签" },
+    { "name": "LABEL2", "type": "string", "context": "text", "note": "第二根柱的横轴标签" },
+    { "name": "LABEL3", "type": "string", "context": "text", "note": "第三根柱的横轴标签" },
+    { "name": "LABEL4", "type": "string", "context": "text", "note": "第四根柱的横轴标签" },
+    { "name": "SUB_LINE", "type": "string", "context": "text", "note": "图下注释" }
+  ],
+  "materials": [],
+  "capacity": { "maxChars": 60, "maxElements": 5 },
+  "variants": []
+}

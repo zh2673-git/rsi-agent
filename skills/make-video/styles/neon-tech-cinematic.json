@@ -94,8 +94,8 @@
     "absorbedAt": "2026-10-27",
     "review": "成片 v4 验收后沉淀"
   },
-  "references": "references.md",
-  "antiPatterns": "anti-patterns.md",
+  "references": "neon-tech-cinematic.references.md",
+  "antiPatterns": "neon-tech-cinematic.anti-patterns.md",
   "visuals": {
     "dimension": "2d",
     "motifs": [
@@ -105,7 +105,13 @@
       "evidence-card",
       "presenter-card"
     ],
-    "sceneBias": ["deep-stage", "kinetic-type", "typography", "comparison", "flow"],
+    "sceneBias": [
+      "deep-stage",
+      "kinetic-type",
+      "typography",
+      "comparison",
+      "flow"
+    ],
     "sceneDeny": [
       "iso-stage",
       "css3d"

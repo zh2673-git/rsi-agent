@@ -1459,6 +1459,21 @@ function buildTransitionsScript(
       // 横推：后镜从右侧整幅推入，遮住前镜；前镜不淡出，避免中间发黑
       lines.push(`  tl.set('${inn}', { xPercent: 100 }, ${t0});`);
       lines.push(`  tl.to('${inn}', { xPercent: 0, duration: ${dur}, ease: 'power3.inOut' }, ${t0});`);
+    } else if (plan.kind === 'page-turn') {
+      // 翻页（韦斯·安德森招牌）：后镜绕 Y 轴从 90° 转正盖上前镜。
+      // 方向按剪切序号交替——每次都往同一侧翻会形成节拍器。
+      // transformPerspective 提供纵深，否则 rotateY 看起来只是压扁。
+      const dir = i % 2 === 0 ? 1 : -1;
+      lines.push(
+        `  tl.set('${inn}', { opacity: 1, rotationY: ${90 * dir}, transformPerspective: 1600, transformOrigin: 'left center' }, ${t0});`,
+      );
+      lines.push(
+        `  tl.to('${inn}', { rotationY: 0, duration: ${dur}, ease: 'power2.inOut' }, ${t0});`,
+      );
+      // 前镜跟着「被翻过去」：轻微旋转 + 压暗，产生翻页的物理感
+      lines.push(
+        `  tl.to('${out}', { rotationY: ${-45 * dir}, opacity: 0.55, duration: ${dur}, ease: 'power2.in' }, ${t0});`,
+      );
     } else if (plan.kind === 'fade-black') {
       // 黑场过渡：仅风格包显式声明时使用（前镜先黑，后镜再从黑里浮出）
       lines.push(`  tl.set('${inn}', { opacity: 0 }, ${t0});`);

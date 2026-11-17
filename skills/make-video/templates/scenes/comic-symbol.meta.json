@@ -1,0 +1,23 @@
+{
+  "id": "comic-symbol",
+  "name": "漫画符号",
+  "grammar": [
+    "y4_story"
+  ],
+  "motifs": [
+    "pulse",
+    "breathe"
+  ],
+  "camera": [
+    "static",
+    "punch-in",
+    "tilt-up"
+  ],
+  "params": [],
+  "materials": [],
+  "capacity": {
+    "maxChars": 40,
+    "maxElements": 3
+  },
+  "variants": []
+}

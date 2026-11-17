@@ -1,0 +1,103 @@
+{
+  "id": "kinetic-type",
+  "name": "动态文字",
+  "grammar": [
+    "t2_keynote",
+    "y5_kinetic_type"
+  ],
+  "motifs": [
+    "drain",
+    "pulse"
+  ],
+  "camera": [
+    "punch-in",
+    "static",
+    "drift"
+  ],
+  "params": [
+    {
+      "name": "HERO_WORD",
+      "type": "string",
+      "context": "text",
+      "note": "主语关键词（一句话里最该被记住的那个词）"
+    },
+    {
+      "name": "FIGURE",
+      "type": "string",
+      "context": "text",
+      "note": "大数字（可选）"
+    },
+    {
+      "name": "FIGURE_TO",
+      "type": "number",
+      "context": "code",
+      "default": 0,
+      "note": "数字滚动的终值"
+    },
+    {
+      "name": "FIGURE_DEC",
+      "type": "number",
+      "context": "code",
+      "default": 0,
+      "min": 0,
+      "max": 4,
+      "note": "小数位数"
+    },
+    {
+      "name": "FIGURE_SUFFIX",
+      "type": "string",
+      "context": "code",
+      "default": "",
+      "note": "数字后缀（%/倍/年）"
+    },
+    {
+      "name": "FIGURE_AT",
+      "type": "number",
+      "context": "code",
+      "default": 600,
+      "min": 0,
+      "max": 6000,
+      "note": "数字滚动落定时刻（毫秒）"
+    },
+    {
+      "name": "SUB_LINE",
+      "type": "string",
+      "context": "text",
+      "note": "辅助说明（一行短句）"
+    }
+  ],
+  "materials": [
+    {
+      "role": "text.hero",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 24
+    },
+    {
+      "role": "text.figure",
+      "required": false,
+      "ifMissing": "skip",
+      "maxChars": 12
+    }
+  ],
+  "capacity": {
+    "maxChars": 48,
+    "maxElements": 4
+  },
+  "variants": [
+    {
+      "id": "slam",
+      "name": "砸入",
+      "params": {
+        "HERO_WORD": ""
+      },
+      "note": "标点镜用：整词砸入 + 高亮扫过"
+    },
+    {
+      "id": "soft",
+      "name": "缓入",
+      "params": {},
+      "note": "非标点镜用：缓入 + 高亮扫过（默认）"
+    }
+  ]
+}

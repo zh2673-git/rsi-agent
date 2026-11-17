@@ -1,0 +1,13 @@
+{
+  "id": "talking-head",
+  "name": "口播主播",
+  "grammar": ["y4_story", "t2_keynote"],
+  "motifs": ["breathe", "scan"],
+  "camera": ["static", "push-in", "pan"],
+  "params": [],
+  "materials": [
+    { "role": "image.presenter", "required": false, "ifMissing": "placeholder", "sample": "templates/canvas/avatar.png", "note": "主播头像；缺素材时用占位并标记 data-film-sample" }
+  ],
+  "capacity": { "maxChars": 40, "maxElements": 2 },
+  "variants": []
+}

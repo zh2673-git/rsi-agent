@@ -81,6 +81,20 @@ export function validateSceneFile(
     whitelist?: string[];
     /** 风格声明的视觉维度（V-STYLE-008 素材语言一致性） */
     dimension?: '2d' | 'css3d' | 'mixed';
+    /**
+     * 画面**有意显示**的术语（P12 阶段1）。
+     *
+     * 为什么需要豁免：V-SCENE-005（禁看图说话）禁止画面复述旁白，
+     * 判据是「旁白的连续 4 个汉字出现在画面上」。但**术语本来就在旁白里**——
+     * 「同步执行」「内存屏障」这类词，观众要看的正是这个词。
+     * 规则一刀切地把术语也挡掉，结果是画面只能显示抽象图形或空标签。
+     *
+     * 豁免范围严格受限：
+     *   - 只有**声明式**的术语（编剧在 segment.emphasis 里显式标注的词）才豁免；
+     *   - 启发式抽取的词**不豁免**（那是猜的，猜错了就是复述旁白）；
+     *   - 豁免只针对「该词整体」，词周围的旁白片段仍然照查。
+     */
+    exemptTerms?: string[];
   },
 ): Issue[] {
   const issues: Issue[] = [];
@@ -241,7 +255,7 @@ export function validateSceneFile(
     issues.push(warn('V-ACT-005', `长镜（≈${estSec.toFixed(1)}s）无 idle 微动（禁死寂）`));
   }
   const visualText = stripSubtitleAreas(html, opts.title);
-  const shared = findSharedRuns(opts.narration, visualText);
+  const shared = findSharedRuns(opts.narration, visualText, 4, opts.exemptTerms);
   for (const run of shared) {
     // V-SCENE-005：画面禁复述旁白原文（对位铁律）；V-SCP-005 属编剧字数档位条款，不得借用
     issues.push(
@@ -262,14 +276,35 @@ function stripSubtitleAreas(html: string, title?: string): string {
   return out;
 }
 
-const CJK = /[\u4e00-\u9fff]/;
-
-export function findSharedRuns(narration: string, html: string, minLen = 4): string[] {
+/**
+ * 找出画面与旁白共享的连续片段（V-SCENE-005 的数据源）。
+ *
+ * @param exemptTerms 豁免的术语（声明式）。命中豁免词的片段不算「复述」。
+ *
+ * 豁免的实现方式：把旁白里被豁免的词**挖掉**再找共享片段。
+ * 这样豁免是精确到词的——「同步执行」豁免后，
+ * 「并行流水线的吞吐」这样的其余片段仍然照查。
+ */
+export function findSharedRuns(
+  narration: string,
+  html: string,
+  minLen = 4,
+  exemptTerms: string[] = [],
+): string[] {
   const cleaned = narration.replace(/[，。！？、；：""''（）\s,.!?;:()]/g, '');
+  // 先挖掉豁免词（挖成空格，保持长度不影响其他窗口的判定）
+  let carved = cleaned;
+  for (const term of exemptTerms) {
+    if (!term || term.length < minLen) continue;
+    const t = term.replace(/[，。！？、；：""''（）\s,.!?;:()]/g, '');
+    if (t.length < minLen) continue;
+    carved = carved.split(t).join(' '.repeat(t.length));
+  }
   const runs = new Set<string>();
-  if (CJK.test(cleaned)) {
-    for (let i = 0; i + minLen <= cleaned.length; i += 1) {
-      const run = cleaned.slice(i, i + minLen);
+  const CJK = /[\u4e00-\u9fff]/;
+  if (CJK.test(carved)) {
+    for (let i = 0; i + minLen <= carved.length; i += 1) {
+      const run = carved.slice(i, i + minLen);
       if (CJK.test(run) && html.includes(run)) runs.add(run);
     }
   }
@@ -300,4 +335,34 @@ export function validateChartScene(html: string): Issue[] {
     issues.push(warn('V-CHT-001', '图表渐变填充过多，疑似装饰 junk'));
   }
   return issues;
+}
+
+/**
+ * V-SCENE-007：场景里不许残留未填充的占位符（2026-11-16，P12 阶段1）。
+ *
+ * 为什么是 error 而不是 warn：残留 `{{HERO_WORD}}` 在 HTML 文本里只是难看，
+ * 但在 `<script>` 里是**非法 JS 语法**——`MV.counter('.x', { to: {{FIGURE_TO}} })`
+ * 会被 JS 引擎当成对象字面量里没有键名的表达式，整个 script 块抛 SyntaxError，
+ * 于是**这一镜的所有动画都不发生**（画面只剩静态文字）。
+ *
+ * 实测（2026-11-16）：15 个场景模板里有 6 个中招
+ * （kinetic-type / compare-stage / deep-stage / hierarchy-stack / paper-stage / process-track），
+ * 而所有既有校验器全绿——它们查的是「调用了哪些原语」，不是「JS 能不能跑」。
+ * 这类缺陷此前能一路出片，说明缺口就在「渲染后有没有残留占位符」这一层。
+ *
+ * 判据：渲染完成后 HTML 里还有 `{{NAME}}` 形态的占位符 → error。
+ */
+export function validateNoLeftoverPlaceholder(html: string): Issue[] {
+  const leftovers = [
+    ...new Set([...html.matchAll(/\{\{([A-Z_][A-Z_0-9]*)\}\}/g)].map((m) => m[1]!)),
+  ];
+  if (leftovers.length === 0) return [];
+  return [
+    err(
+      'V-SCENE-007',
+      `场景残留未填充的占位符 ${leftovers.map((l) => `{{${l}}}`).join(' ')}：` +
+        '若该占位符在 <script> 内会导致整块 JS 语法错误（该镜动画全部失效）；' +
+        '请在模板契约 params 里声明它，或在内容派生层给出值',
+    ),
+  ];
 }

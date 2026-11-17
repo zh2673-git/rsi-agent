@@ -12,13 +12,14 @@
     - 母题循环分两层：赢侧呼吸略快（张力），中线 shimmer。
 -->
 <style>
+  :root { --pad: {{STAGE_PAD}}; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   [data-scene-id] { position: relative; width: 100%; height: 100%; }
   body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; color: {{NEUTRAL_0}}; }
 
   .stage {
     position: relative; width: 100%; height: 100%; box-sizing: border-box;
-    padding: 7% 8%;
+    padding: calc(var(--pad) * 1%) calc(var(--pad) * 1.1%);
     background: linear-gradient(176deg, {{NEUTRAL_4}} 0%, {{NEUTRAL_3}} 100%);
   }
 
@@ -117,6 +118,7 @@
 </div>
 <script src="../motion/gsap.min.js"></script>
 <script src="../motion/motion-lib.js"></script>
+<script src="../motion/choreo-lib.js"></script>
 <script>
 (function () {
   function boot() {
@@ -145,6 +147,34 @@
 
     // ⑥ 张力层：中线微光扫过（与主体分离的第二母题）
     MV.motifLoop('.divider', { kind: 'shimmer', amp: 0.5, duration: 2000, span: 16 });
+
+    // ⑦ 对峙张力：逐帧解析式编舞（阿杜的 CH.* 层，P12 阶段3 接入）
+    //    为什么这里用它：两栏对峙的「张力」需要**每帧都在变**的关系——
+    //    赢的一侧随重音顿挫、输的一侧随节拍轻晃——而 tween 排队只能做一次性动作，
+    //    表达不了「持续的对峙关系」。
+    //    CH.run 用属性 setter 逐帧写位姿（不是 onUpdate——GSAP 在快速 seek 路径上
+    //    不保证每次触发 onUpdate，实测会漏帧）。
+    if (typeof CH !== 'undefined' && CH.attach) {
+      var tl = CH.attach('scene-{{SCENE_ID}}');
+      var winner = document.querySelector('.side.winner');
+      var loser = document.querySelector('.side.loser');
+      var divider = document.querySelector('.divider');
+      if (tl && winner && loser) {
+        CH.run(tl, CH.duration(6), function (t) {
+          // 输的一侧：极慢的呼吸位移（每帧算，不排队）
+          var l = CH.enterAt(t, 0, { k: 'up', d: 3.2, dist: 14 });
+          CH.poseAt(loser, [l.dx, l.dy + Math.sin(t * 1.7) * 3, 1, 0.72, 0, 0]);
+          // 赢的一侧：重音那一帧的顿挫（CH.impact 是带符号的阻尼过冲曲线）
+          var imp = accent ? CH.impact(t, {{PUNCH_AT}} / 1000, { d: 0.34 }) : 0;
+          CH.poseAt(winner, [0, 0, 1 + imp * 0.06, 1, 0, imp * 1.2]);
+          // 中线：随对峙轻微呼吸（不是 shimmer 的固定层，是跟着赢方走的）
+          if (divider) {
+            var d = CH.shake(t, accent ? {{PUNCH_AT}} / 1000 : 999, 0.4, 5);
+            CH.poseAt(divider, [d[0], d[1], 1, 1, 0, 0]);
+          }
+        });
+      }
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

@@ -14,6 +14,16 @@ export type TransitionKind =
   | 'wipe'
   | 'slide'
   | 'fade-black'
+  /**
+   * 翻页（2026-11-16，P12 阶段3 补齐 D6）。
+   *
+   * 此前 `styles/anderson-symmetry.json` 声明了 `page-turn`，但转场词表里没有它——
+   * `normalizeAllowed` 会把它**静默丢弃**，于是这个风格实际只剩 `dissolve`，
+   * 而风格包上写着一个永远不生效的词（典型的「声明了但不生效」）。
+   *
+   * 现在补上实现：后镜以 Y 轴翻页盖上前镜（韦斯·安德森的招牌转场）。
+   */
+  | 'page-turn'
   /** T3a 一镜到底（2026-11-14）：相邻镜声明为同一连续长镜的节拍段——无操作转场，
    *  机位接力由 continuity-audit / rig 负责。不进风格包词表校验（它不是「怎么接」的选择）。 */
   | 'continuity';
@@ -40,6 +50,8 @@ const ALIASES: Record<string, TransitionKind> = {
   whip: 'whip-pan',
   wipe: 'wipe',
   slide: 'slide',
+  'page-turn': 'page-turn',
+  pageturn: 'page-turn',
   push: 'slide',
   'fade-black': 'fade-black',
   fadeblack: 'fade-black',
@@ -58,6 +70,8 @@ const TIMING: Record<TransitionKind, { durationMs: number; overlapMs: number }> 
   'whip-pan': { durationMs: 360, overlapMs: 300 },
   wipe: { durationMs: 420, overlapMs: 420 },
   slide: { durationMs: 420, overlapMs: 420 },
+  // 翻页：后镜绕 Y 轴翻过盖上前镜。420ms + 全重叠（不留缝）。
+  'page-turn': { durationMs: 480, overlapMs: 480 },
   // 只有明确声明 fade-black 的风格包才走"黑场过渡"；默认风格词表里没有它
   'fade-black': { durationMs: 600, overlapMs: 300 },
   // continuity 是无操作转场：不重叠、不渲染过渡效果（两镜在时间线上直接相接）

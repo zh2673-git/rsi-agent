@@ -1,0 +1,25 @@
+{
+  "id": "iso-stage",
+  "name": "等距舞台",
+  "grammar": [
+    "b_roll",
+    "y1_flat_explainer",
+    "t1_3b1b"
+  ],
+  "motifs": [
+    "breathe",
+    "rotate"
+  ],
+  "camera": [
+    "drift",
+    "push-in",
+    "crane-up"
+  ],
+  "params": [],
+  "materials": [],
+  "capacity": {
+    "maxChars": 40,
+    "maxElements": 4
+  },
+  "variants": []
+}

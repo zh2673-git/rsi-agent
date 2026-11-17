@@ -620,7 +620,10 @@ program
       const bridge = new BuddyCloudBridge();
       const done: string[] = [];
       for (const shot of shots) {
-        const asset = await ensureAssets(store, project, shot, bridge, pack);
+        // P12 修复：必须把 LLM 传进去。此前漏传 → draw 走模板 forge，
+        // 全片被 V-SCENE-007（forge 回退 >10%）拦下——`draw` 明明是「画这镜」，
+        // 却因为少一个参数退化成拼字板。state-engine 路径传了，CLI 路径没传。
+        const asset = await ensureAssets(store, project, shot, bridge, pack, engine.deps.llm);
         shot.asset = asset;
         shot.state = 'sourced';
         done.push(shot.id);

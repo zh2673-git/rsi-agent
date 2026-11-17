@@ -95,8 +95,8 @@
     "absorbedAt": "2026-10-24",
     "review": "v1 程序化画面验收"
   },
-  "references": "references.md",
-  "antiPatterns": "anti-patterns.md",
+  "references": "cinematic-dark.references.md",
+  "antiPatterns": "cinematic-dark.anti-patterns.md",
   "visuals": {
     "dimension": "mixed",
     "motifs": [

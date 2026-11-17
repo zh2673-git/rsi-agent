@@ -14,7 +14,10 @@
       "知识短视频"
     ],
     "vibe": "深黑底 + 金色线条 + 粒子聚字 + 逐词卡拉OK字幕；代码逐帧画出来的知识片",
-    "bestFor": ["short-vibe", "science-explainer"]
+    "bestFor": [
+      "short-vibe",
+      "science-explainer"
+    ]
   },
   "anatomy": {
     "script": "五拍：钩子/立概念/转折/收束/开放问题；一支片只讲透一个知识点，数据逐条核实",
@@ -39,12 +42,16 @@
     "colorArc": "黑场粒子微光 → 金线展开 → 转折紫青爆点 → 金字定格 → 开放问题留白"
   },
   "type": {
-    "families": ["'Microsoft YaHei','PingFang SC',sans-serif"],
+    "families": [
+      "'Microsoft YaHei','PingFang SC',sans-serif"
+    ],
     "scale": {
       "title": 0.095,
       "body": 0.042
     },
-    "tracking": { "title": 0.1 }
+    "tracking": {
+      "title": 0.1
+    }
   },
   "layout": {
     "density": 0.35,
@@ -55,11 +62,17 @@
     "easing": "sine.inOut",
     "intensity": 0.6,
     "staggerMs": 95,
-    "spring": { "stiffness": 150, "damping": 19 }
+    "spring": {
+      "stiffness": 150,
+      "damping": 19
+    }
   },
   "pacing": {
     "curve": "beat-grid",
-    "shotLenMs": [2600, 5600],
+    "shotLenMs": [
+      2600,
+      5600
+    ],
     "breathEvery": 6
   },
   "effects": {
@@ -69,8 +82,15 @@
     "dof": 0,
     "bloom": 0.38
   },
-  "transitions": ["dissolve", "whip-pan", "smash-cut"],
-  "shotScaleBias": ["MS", "CU"],
+  "transitions": [
+    "dissolve",
+    "whip-pan",
+    "smash-cut"
+  ],
+  "shotScaleBias": [
+    "MS",
+    "CU"
+  ],
   "provenance": {
     "source": "manual",
     "from": "Vibe 知识大赏赛道爆款关键帧参数化（话题播放 12 亿；信息论单条 138 万赞）",
@@ -78,8 +98,8 @@
     "absorbedAt": "2026-11-14",
     "review": "未对拍：试产 grade B，产出首条成片对拍爆款后按 V-STYLE-005 结论升级"
   },
-  "references": "",
-  "antiPatterns": "禁黑场开场；禁每镜都砸 slam（重音预算 ≤1/3）；禁三个知识点塞 60 秒；禁竖屏沿用横屏字号",
+  "references": "vibe-cosmos.references.md",
+  "antiPatterns": "vibe-cosmos.anti-patterns.md",
   "subtitlePolicy": "word",
   "caption": {
     "plate": "rgba(10,10,18,0.45)",
@@ -88,10 +108,29 @@
   },
   "visuals": {
     "dimension": "2d",
-    "motifs": ["particle-converge", "golden-line", "glow-title", "karaoke-subtitle"],
-    "sceneBias": ["kinetic-type", "deep-stage", "typography", "atmosphere"],
-    "sceneDeny": ["comic-symbol", "paper-stage", "iso-stage", "depth-layers"],
-    "texture": ["grain", "vignette", "glow"],
+    "motifs": [
+      "particle-converge",
+      "golden-line",
+      "glow-title",
+      "karaoke-subtitle"
+    ],
+    "sceneBias": [
+      "kinetic-type",
+      "deep-stage",
+      "typography",
+      "atmosphere"
+    ],
+    "sceneDeny": [
+      "comic-symbol",
+      "paper-stage",
+      "iso-stage",
+      "depth-layers"
+    ],
+    "texture": [
+      "grain",
+      "vignette",
+      "glow"
+    ],
     "note": "全代码绘制；粒子/金线/光晕三件套；竖屏构图主体居中带，字幕下 1/3"
   }
 }

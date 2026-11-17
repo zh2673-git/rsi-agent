@@ -1,0 +1,111 @@
+{
+  "id": "paper-stage",
+  "name": "纸面舞台",
+  "grammar": [
+    "y2_collage",
+    "y3_whiteboard",
+    "y6_mechanism"
+  ],
+  "motifs": [
+    "breathe"
+  ],
+  "camera": [
+    "pan",
+    "pan-left",
+    "push-in",
+    "dolly-out"
+  ],
+  "params": [
+    {
+      "name": "CARD1_TAG",
+      "type": "string",
+      "context": "text",
+      "note": "第一张卡标签"
+    },
+    {
+      "name": "CARD1_BODY",
+      "type": "string",
+      "context": "text",
+      "note": "第一张卡正文"
+    },
+    {
+      "name": "CARD2_TAG",
+      "type": "string",
+      "context": "text",
+      "note": "第二张卡标签"
+    },
+    {
+      "name": "CARD2_BODY",
+      "type": "string",
+      "context": "text",
+      "note": "第二张卡正文"
+    },
+    {
+      "name": "CARD3_TAG",
+      "type": "string",
+      "context": "text",
+      "note": "第三张卡标签"
+    },
+    {
+      "name": "CARD3_BODY",
+      "type": "string",
+      "context": "text",
+      "note": "第三张卡正文"
+    },
+    {
+      "name": "HERO_CARD",
+      "type": "number",
+      "context": "code",
+      "default": 1,
+      "min": 1,
+      "max": 3,
+      "note": "主角卡的序号（第几张卡接管）"
+    },
+    {
+      "name": "HERO_CARD_N",
+      "type": "number",
+      "context": "code",
+      "default": 1,
+      "min": 1,
+      "max": 3,
+      "note": "主角卡在 DOM 里的序号（nth-child）"
+    },
+    {
+      "name": "SUB_LINE",
+      "type": "string",
+      "context": "text",
+      "note": "辅助说明"
+    },
+    {
+      "name": "MORPH_AT",
+      "type": "number",
+      "context": "code",
+      "default": 640,
+      "min": 0,
+      "max": 6000,
+      "note": "连续形变时刻（毫秒）"
+    },
+    {
+      "name": "PUNCH_AT",
+      "type": "number",
+      "context": "code",
+      "default": 720,
+      "min": 0,
+      "max": 6000,
+      "note": "重音标点落点（毫秒）"
+    }
+  ],
+  "materials": [
+    {
+      "role": "text.card",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 30
+    }
+  ],
+  "capacity": {
+    "maxChars": 120,
+    "maxElements": 5
+  },
+  "variants": []
+}

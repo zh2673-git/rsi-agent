@@ -12,6 +12,7 @@
     - 重音预算：1 次 MV.punch（V-MOT-013）。
 -->
 <style>
+  :root { --pad: {{STAGE_PAD}}; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   /* 子合成根到 .stage 之间还有一层 [data-scene-id] 包装（wrapComposition 提供），
      必须给它尺寸，否则绝对定位子元素落进 0 高度盒子。 */
@@ -20,7 +21,7 @@
 
   .stage {
     position: relative; width: 100%; height: 100%; box-sizing: border-box;
-    padding: 7% 8%;
+    padding: calc(var(--pad) * 1%) calc(var(--pad) * 1.1%);
     background:
       repeating-linear-gradient(0deg, {{NEUTRAL_3}}55 0 1px, transparent 1px 3.4vmin),
       linear-gradient(174deg, {{NEUTRAL_4}} 0%, {{NEUTRAL_3}} 100%);

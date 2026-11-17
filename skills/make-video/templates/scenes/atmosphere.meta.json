@@ -1,0 +1,14 @@
+{
+  "id": "atmosphere",
+  "name": "氛围空镜",
+  "grammar": ["b_roll", "y1_flat_explainer"],
+  "motifs": ["drift", "breathe"],
+  "camera": ["push-in", "pull-out", "drift"],
+  "params": [],
+  "materials": [],
+  "capacity": { "maxChars": 40, "maxElements": 2 },
+  "variants": [
+    { "id": "warm", "name": "暖色地平", "params": {}, "note": "默认：日落方向" },
+    { "id": "cold", "name": "冷色夜幕", "params": {}, "note": "冷调天空" }
+  ]
+}

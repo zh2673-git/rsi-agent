@@ -98,8 +98,8 @@
     "absorbedAt": "2026-10-24",
     "review": "v1 对拍验收（情感落点检查必过）"
   },
-  "references": "references.md",
-  "antiPatterns": "anti-patterns.md",
+  "references": "comedy-pop.references.md",
+  "antiPatterns": "comedy-pop.anti-patterns.md",
   "subtitlePolicy": "keyword",
   "visuals": {
     "dimension": "css3d",

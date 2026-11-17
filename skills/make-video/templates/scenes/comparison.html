@@ -5,7 +5,7 @@
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body { font-family: {{FONT}}; background: {{NEUTRAL_4}}; }
-  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 8% 8%; box-sizing: border-box; }
+  .stage { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: calc(var(--pad) * 1%) calc(var(--pad) * 1.1%); box-sizing: border-box; }
   .title { font-size: {{TITLE_SIZE}}px; font-weight: 700; color: {{NEUTRAL_0}}; margin-bottom: 7%; text-align: center; }
   .versus { display: flex; gap: 4%; align-items: stretch; }
   .side { flex: 1; background: {{NEUTRAL_3}}; border-radius: 16px; padding: 6% 5%; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
@@ -35,7 +35,8 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       MV.enter('.title', { easing: '{{EASING}}', duration: {{DURATION}} });
-      MV.enter('.side', { easing: '{{EASING}}', duration: {{DURATION}}, stagger: {{STAGGER}}, from: { opacity: 0, y: 60 } });
+      // 错峰入场：两侧压后不同时响（y2 的「材料冲印件落下」语汇）
+      MV.staggeredIn('.side', { delay: 60, secondary: 200, tertiary: 320 });
       MV.enter('.vs', { easing: '{{EASING}}', duration: 400, delay: {{STAGGER}} * 2, from: { opacity: 0, scale: 2 } });
       MV.performance('.side.right', { stiffness: {{SPRING_STIFFNESS}}, damping: {{SPRING_DAMPING}} });
 

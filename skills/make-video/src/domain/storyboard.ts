@@ -10,11 +10,22 @@ import type {
   VisualKind,
 } from '../core/schema.js';
 import { V } from '../core/index.js';
+import { PUSH_CAMERAS } from '../core/validators/scene.js';
+
+/** 推镜族词集（V-MOT-014；唯一事实源在 core/validators/scene.ts） */
+const PUSH_WORDS = new Set<string>(PUSH_CAMERAS);
 import { mvError, ERR } from '../core/errors.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
 import type { StyleRegistry } from './style-registry.js';
 import { applyStyleVisualPool, pickTemplateBySemantics } from './scene-semantics.js';
-import { pickGrammar, actionSheet, defaultCameraFor, varyCameraFor } from './motion-grammar.js';
+import {
+  pickGrammar,
+  actionSheet,
+  defaultCameraFor,
+  varyCameraFor,
+  GRAMMARS,
+  normalizeCameraBias,
+} from './motion-grammar.js';
 import { parseEnergyCurve, energyAt } from './continuity.js';
 
 export interface MaterialIndexItem {
@@ -201,11 +212,13 @@ export async function storyboard(
         stylePack.visuals?.sceneBias ?? [],
       );
     }
-    // canvas 程序化场景：kicker = 该段 beat 的名称（观众可读的章节标签）
-    if ((visual.template ?? '').startsWith('canvas:')) {
+    // kicker = 该段 beat 的名称（观众可读的章节标签）。
+    // P12 阶段1：不止 canvas 用它——普通场景模板的 KICKER 槽也需要它，
+    // 否则「这一镜属于哪一章」这个信息在画面上完全没有体现。
+    {
       const seg = project.script?.segments.find((x) => x.id === (shot.segmentId ?? project.script?.segments[i]?.id));
       const beatName = recipe.beats.find((b) => b.id === seg?.beat)?.name;
-      visual.params['kicker'] = beatName ?? visual.params['kicker'] ?? '';
+      visual.params['kicker'] = visual.params['kicker'] ?? beatName ?? '';
     }
     return {
       id: `s${String(i + 1).padStart(2, '0')}`,
@@ -306,28 +319,71 @@ export async function storyboard(
       suppressTextLed: suppress,
       suppressBroll: lastGrammar === 'b_roll',
       energy: energyCurve ? energyAt(shots.length, shots.indexOf(shot), energyCurve) : undefined,
+      // P12 阶段2：把「风格偏好」与「可用场景池」喂给语法选型。
+      // 此前 styleBias 字段定义了但全仓 0 消费——语法选型完全不看风格，
+      // 于是「科技风格」只换了配色，动效与镜头跟风格无关。
+      styleBias: stylePack.visuals?.sceneBias ?? [],
+      scenePool: templatePool,
     });
     grammarRecent.push(g.id);
     if (g.id === 'y5_kinetic_type') y5Count += 1;
     shot.visual.params['actionSheet'] = actionSheet(shot, g);
+    // P12 阶段3：**模板对齐语法**——把「画面形态」也纳入语法的管辖。
+    //
+    // 此前语法与模板是两条独立的选型链：语法说「这一镜怎么动」，
+    // 模板说「这一镜画成什么样」，两者各选各的 → 选出「语法 y5 动态文字 +
+    // 画面氛围空镜」这种自相矛盾的组合（V-MOT-024 报的就是这个）。
+    //
+    // 现在：语法选定后，若当前模板不承载该语法，就换到**承载它的模板**里
+    // 选语义最贴的那个（优先风格偏好，其次语义线索）。
+    // 换不了（池里没有承载它的模板）就保留原模板——此时由 V-MOT-024 报不匹配，
+    // 而不是静默出一个对不上的画面。
+    if (!(shot.visual.template ?? '').startsWith('canvas:')) {
+      const current = shot.visual.template ?? '';
+      const carriers = g.sceneForms.filter((f) => templatePool.includes(f));
+      if (carriers.length > 0 && !carriers.includes(current)) {
+        const bias = stylePack.visuals?.sceneBias ?? [];
+        const preferred = carriers.find((c) => bias.includes(c));
+        shot.visual.template = preferred ?? pickTemplateBySemantics(shot.narration, carriers, bias);
+      }
+    }
   }
   // V-CAM-006 兜底修正（I-05）：缺省机位不再一律 push-in，按各镜语法取机位偏好
   // （b_roll→drift、y4→static、y2→pan…）。「static 是合法选择」的提示词承诺
   // 由兜底兑现，而不是只出现在文案里。导演显式给了机位的镜不受影响。
   // 死板清除 X1：同语法相邻镜（splitShots 的 a/b 对）机位变奏——b 镜在语法机位
   // 偏好里取一个与 a 镜不同的值，拆分镜不再「同一动作播两遍」。
+  // P12 阶段2：机位兜底带上 **V-MOT-014 前瞻**——已连续两镜往里推时，
+  // 本镜不再选推镜族（push-in/punch-in），否则整片在 compose 期被判 error。
+  // 注意两条分支都要查：y5 的 cameraBias 首选就是 punch-in，
+  // 「不同语法」那条分支同样会选出推镜。
+
+  /** 已连续 pushRun 镜往里推时，本镜让位到第一个非推镜偏好 */
+  const avoidPush = (grammarId: string | undefined, candidate: string): string => {
+    if (pushRun < 2 || !PUSH_WORDS.has(candidate)) return candidate;
+    const g = grammarId ? GRAMMARS.find((x) => x.id === grammarId) : undefined;
+    const bias = (g?.cameraBias ?? ['static']).map(normalizeCameraBias);
+    return bias.find((c) => !PUSH_WORDS.has(c)) ?? candidate;
+  };
+  let pushRun = 0;
   for (let i = 0; i < shots.length; i += 1) {
     const shot = shots[i]!;
     const declared = shot.visual.params['actionSheet'] as { grammar?: string } | undefined;
-    if (shot.camera && shot.camera !== 'none') continue;
+    if (shot.camera && shot.camera !== 'none') {
+      pushRun = PUSH_WORDS.has(shot.camera) ? pushRun + 1 : 0;
+      continue;
+    }
     const prev = shots[i - 1];
     const sameGrammar =
       prev &&
       (prev.visual.params['actionSheet'] as { grammar?: string } | undefined)?.grammar ===
         declared?.grammar;
-    shot.camera = (
-      sameGrammar ? varyCameraFor(declared?.grammar, prev!.camera) : defaultCameraFor(declared?.grammar)
-    ) as Shot['camera'];
+    const candidate = sameGrammar
+      ? varyCameraFor(declared?.grammar, prev!.camera)
+      : defaultCameraFor(declared?.grammar);
+    shot.camera = avoidPush(declared?.grammar, candidate) as Shot['camera'];
+    // 不同语法的镜也可能选到推镜——同样纳入连续计数
+    pushRun = PUSH_WORDS.has(shot.camera) ? pushRun + 1 : 0;
   }
   // 重跑分镜不该无差别清空已完成产物：旁白原文没变的镜头照旧沿用配音与素材，
   // 否则每次 --script 微调或 storyboard 重进都要重配音（0.6B 模型几分钟起步）。

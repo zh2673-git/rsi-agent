@@ -1,0 +1,71 @@
+{
+  "id": "process-track",
+  "name": "流程轨道",
+  "grammar": [
+    "y3_whiteboard"
+  ],
+  "motifs": [
+    "breathe",
+    "shimmer"
+  ],
+  "camera": [
+    "pan",
+    "pan-left",
+    "push-in",
+    "crane-up"
+  ],
+  "params": [
+    {
+      "name": "STOP1",
+      "type": "string",
+      "context": "text",
+      "note": "第一站名称"
+    },
+    {
+      "name": "STOP2",
+      "type": "string",
+      "context": "text",
+      "note": "第二站名称"
+    },
+    {
+      "name": "STOP3",
+      "type": "string",
+      "context": "text",
+      "note": "第三站名称"
+    },
+    {
+      "name": "STOP4",
+      "type": "string",
+      "context": "text",
+      "note": "第四站名称"
+    },
+    {
+      "name": "SUB_LINE",
+      "type": "string",
+      "context": "text",
+      "note": "辅助说明"
+    },
+    {
+      "name": "PUNCH_AT",
+      "type": "number",
+      "context": "code",
+      "default": 720,
+      "min": 0,
+      "max": 6000,
+      "note": "重音标点落点（毫秒）"
+    }
+  ],
+  "materials": [
+    {
+      "role": "text.stop",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 12
+    }
+  ],
+  "capacity": {
+    "maxChars": 64,
+    "maxElements": 5
+  },
+  "variants": []
+}

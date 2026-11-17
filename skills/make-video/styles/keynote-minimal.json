@@ -95,8 +95,8 @@
     "absorbedAt": "2026-10-24",
     "review": "v1 对拍验收"
   },
-  "references": "references.md",
-  "antiPatterns": "anti-patterns.md",
+  "references": "keynote-minimal.references.md",
+  "antiPatterns": "keynote-minimal.anti-patterns.md",
   "visuals": {
     "dimension": "2d",
     "motifs": [
@@ -104,7 +104,12 @@
       "single-subject",
       "hairline-grid"
     ],
-    "sceneBias": ["kinetic-type", "typography", "paper-stage", "comparison"],
+    "sceneBias": [
+      "kinetic-type",
+      "typography",
+      "paper-stage",
+      "comparison"
+    ],
     "sceneDeny": [
       "comic-symbol",
       "iso-stage",

@@ -1,0 +1,42 @@
+{
+  "id": "typography",
+  "name": "陈述排版",
+  "grammar": [
+    "t2_keynote",
+    "y1_flat_explainer"
+  ],
+  "motifs": [
+    "breathe"
+  ],
+  "camera": [
+    "static",
+    "push-in",
+    "pull-out"
+  ],
+  "params": [
+    {
+      "name": "HERO_WORD",
+      "type": "string",
+      "context": "text",
+      "note": "主语：本镜要落的那个词/短句"
+    },
+    {
+      "name": "KICKER",
+      "type": "string",
+      "context": "text",
+      "note": "小标签（章节名/类别）"
+    },
+    {
+      "name": "SUB_LINE",
+      "type": "string",
+      "context": "text",
+      "note": "辅助说明"
+    }
+  ],
+  "materials": [],
+  "capacity": {
+    "maxChars": 40,
+    "maxElements": 2
+  },
+  "variants": []
+}

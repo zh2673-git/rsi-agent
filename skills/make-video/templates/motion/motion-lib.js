@@ -67,6 +67,27 @@
     }
   }
 
+  /**
+   * 景别 → 恒定过扫量 hold（镜内机位用）。
+   *
+   * 为什么景别要影响过扫：近景（CU/ECU）视野窄，同样百分比的位移在画面里
+   * 占的比例更大；远景（ELS/LS）视野宽，同样的位移几乎看不出来。
+   * 所以过扫量随景别收紧递增——**景别一变，整镜的运镜手感就变**，
+   * 这正是此前 zoom 传了不生效时丢掉的一层信息。
+   *
+   * 范围 1.00–1.10：上限再高就成了用户明确讨厌的「贴着放大」。
+   */
+  var ZOOM_HOLD = {
+    ELS: 1.0, LS: 1.01, MLS: 1.02, MS: 1.03, MCU: 1.05, CU: 1.07, ECU: 1.1,
+  };
+  function holdForZoom(zoom) {
+    var z = String(zoom || '').trim().toUpperCase();
+    if (ZOOM_HOLD[z] !== undefined) return ZOOM_HOLD[z];
+    // 未知景别：用缺省值，不猜
+    return 1.06;
+  }
+  MV.ZOOM_HOLD = ZOOM_HOLD;
+
   MV.enter = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
@@ -167,14 +188,27 @@
    *
    * 现在：景别（zoom）只用来定一个**恒定**过扫值 hold（保证位移时不露边），
    * 运动全交给 xPercent/yPercent。改 hold 就改全片过扫量；改分支只改移动方向。
+   *
+   * P12 阶段1：**zoom 参数现在真的被读了**（治 F3「8 个模板传 zoom 但原语只读 hold」）。
+   * 此前 zoom 传了等于没传——景别信息在这 8 个模板里彻底不生效。
+   * 现在 zoom → hold 的过扫量映射：景别越近，视野越窄，同样位移占比越大，
+   * 所以过扫量略大一点（最大 1.10，再多就成了用户讨厌的「贴着放大」）。
+   *
+   * P12 阶段2：**intensity 现在真的被读了**（治 F6「motion.intensity 零消费」）。
+   * 风格包声明的「运动强度」此前是一纸空文——10 个风格包的 intensity 从未生效。
+   * 现在它统一缩放**机位行程**（T）与**重音幅度**：
+   *   - 行程：intensity 0.3 → 行程 ×0.6（克制）；1.0 → 行程 ×1.4（张扬）
+   *   - 重音：intensity 同时缩放 slam/punch 的 amp
+   * 口径：intensity 是「这一派的运动有多猛」，行程是最直接的体现。
    */
   MV.camera = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
     var move = opts.move || 'none';
-    // 景别 → 恒定过扫（原为「放大到多少」）：近景视野窄，同样位移占比更大，
-    // 故略放大一点即可，最大 1.10 —— 再多就成了用户讨厌的「贴着放大」。
-    var hold = num(opts.hold, 1.06);
+    // 景别 → 恒定过扫。zoom 显式给了就用它推导，没给就用 hold 的缺省值。
+    var hold = opts.zoom !== undefined ? holdForZoom(opts.zoom) : num(opts.hold, 1.06);
+    // 运动强度（风格包的 motion.intensity）：缩放行程
+    var intensity = num(opts.intensity, 0.55);
     var tl = ensureTimeline();
     if (!tl) {
       finalize(nodes, 'scale(' + hold.toFixed(3) + ')');
@@ -192,7 +226,9 @@
     var e = opts.ease || 'power2.inOut';
     // 所有分支：scale 恒为 hold（只 set 一次），运动只由 xPercent/yPercent 承担。
     // 行程 2.2% 是 16:9 上「看得出来又没有晃动」的实测区间（<1.5% 等于没动，>4% 成抖）。
-    var T = num(opts.travel, 2.2);
+    // P12 阶段2：行程再乘上风格包的 motion.intensity——「这一派运动有多猛」终于生效。
+    // 映射：intensity 0.3 → ×0.6（克制）；0.55（缺省）→ ×1.0；1.0 → ×1.4（张扬）。
+    var T = num(opts.travel, 2.2) * (0.6 + intensity * 0.8);
     tl.set(nodes, { scale: hold }, 0);
     if (move === 'push-in') {
       // 「靠近」= 横向平移把主体带向中轴；不再放大
@@ -236,6 +272,21 @@
     return tl;
   };
 
+  /**
+   * 表演：一次「压下去再弹回」的微动作。
+   *
+   * P12 阶段1：**真的读 stiffness/damping**（治 F4「4 个模板传了但原语硬编码」）。
+   * 此前这里写死 `back.out(2.2)` / `elastic.out(1.8, 0.12)`，
+   * 于是 10 个风格包的 `motion.spring` 参数**从未生效过**——
+   * 「这一派的弹性手感」是写在风格包里、却没有任何出口的一纸空文。
+   *
+   * 映射口径（GSAP 的 elastic/amplitude 语义）：
+   *   - stiffness（刚度，GSAP 里对应 duration 越短越硬）：越大 → 回弹越快越硬
+   *   - damping（阻尼）：越大 → 回弹越少越稳，越小 → 弹得越久
+   * 所以：damping 低 → elastic（弹很久）；damping 高 → back（弹一下就停）。
+   *
+   * 缺省值沿用历史硬编码值，保证不传参数的模板观感不变。
+   */
   MV.performance = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
@@ -244,10 +295,17 @@
       finalize(nodes, 'none');
       return tl;
     }
-    tl.to(nodes, { scale: 1.05, duration: 0.35, ease: 'back.out(2.2)' }).to(nodes, {
+    // 刚度 → 压缩段时长（硬 = 短）：stiffness 100 → 0.35s，260 → 0.22s
+    var stiffness = num(opts.stiffness, 170);
+    var damping = num(opts.damping, 14);
+    var pressDur = Math.max(0.12, Math.min(0.6, 0.62 - stiffness / 600));
+    // 阻尼 → 回弹段时长与缓动：阻尼越大回弹越短越接近「弹一下就停」
+    var springDur = Math.max(0.2, Math.min(1.2, 0.3 + damping / 28));
+    var springEase = damping >= 22 ? 'back.out(2.4)' : 'elastic.out(1.6, ' + (damping / 110).toFixed(3) + ')';
+    tl.to(nodes, { scale: 1.05, duration: pressDur, ease: 'power2.out' }).to(nodes, {
       scale: 1,
-      duration: 0.6,
-      ease: 'elastic.out(1.8, 0.12)',
+      duration: springDur,
+      ease: springEase,
     });
     return tl;
   };
@@ -422,7 +480,14 @@
   };
 
   /** 数字滚动：诚实数值 + 落定在口播说到它那一刻（花叔 t3 财经 / y5 大数字）。
-   *  数值永远来自文案，动画只决定怎么出现（V-CHT-002 禁编造数据）。 */
+   *  数值永远来自文案，动画只决定怎么出现（V-CHT-002 禁编造数据）。
+   *
+   * P12 阶段1：**真的读 stagger**（治 F5「compare-stage / hierarchy-stack /
+   * process-track 三处传了 stagger 但原语不读」）。此前多个数字**同帧一起滚**，
+   * 「错峰」这个意图落空——观众看到的是一排数字同时跳变，没有先后关系。
+   * 现在 stagger 决定第 i 个数字的延迟（毫秒），与 MV.staggeredIn 同一口径。
+   * 不传 stagger 就是 0 = 同帧（保持历史观感不变）。
+   */
   MV.counter = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
@@ -442,24 +507,38 @@
     var c = MO.counter;
     var dur = num(opts.duration, c.dur * 1000) / 1000;
     var at = num(opts.delay, 0) / 1000;
-    var box = { v: from };
-    tl.to(
-      box,
-      {
-        v: to,
-        duration: dur,
-        ease: opts.easing || c.ease,
-        onUpdate: function () {
-          for (var j = 0; j < nodes.length; j += 1) if (nodes[j]) nodes[j].textContent = fmt(box.v);
-        },
-      },
-      at,
-    );
+    // 错峰步长（毫秒）：不给就是 0 = 同帧（保持历史观感）
+    var step = num(opts.stagger, 0) / 1000;
+    // to 可以是数组：逐元素给不同终值（如层级编号 L1/L2/L3 依次滚到各自的值）。
+    // 不给数组就是所有元素同一个终值（历史行为）。
+    var targets = Array.isArray(opts.to) ? opts.to : null;
+    for (var i = 0; i < nodes.length; i += 1) {
+      (function (node, idx) {
+        var target = targets ? num(targets[idx], to) : to;
+        var box = { v: from };
+        tl.to(
+          box,
+          {
+            v: target,
+            duration: dur,
+            ease: opts.easing || c.ease,
+            onUpdate: function () {
+              if (node) node.textContent = fmt(box.v);
+            },
+          },
+          at + idx * step,
+        );
+      })(nodes[i], i);
+    }
     return tl;
   };
 
   /** 高亮扫过：荧光笔/红线从一端画到另一端（花叔 y2「线是一顿一顿画上去的」）。
-   *  用 scaleX 0→1 + transformOrigin 实现，不改元素宽度（避免重排导致 seek 抖动）。 */
+   *  用 scaleX 0→1 + transformOrigin 实现，不改元素宽度（避免重排导致 seek 抖动）。
+   *
+   * P12 阶段1：**真的读 stagger**（治 F5）。此前多条高亮线同帧画出来，
+   * 「一根一根顿着画」的语汇落空；现在第 i 条延迟 i×stagger 毫秒。
+   */
   MV.highlight = function (sel, opts) {
     opts = opts || {};
     var nodes = $(sel);
@@ -471,12 +550,15 @@
     var h = MO.highlight;
     var dur = num(opts.duration, h.dur * 1000) / 1000;
     var at = num(opts.delay, 0) / 1000;
-    tl.fromTo(
-      nodes,
-      { scaleX: 0, transformOrigin: opts.origin || '0% 50%' },
-      { scaleX: 1, duration: dur, ease: h.ease },
-      at,
-    );
+    var step = num(opts.stagger, 0) / 1000;
+    for (var i = 0; i < nodes.length; i += 1) {
+      tl.fromTo(
+        nodes[i],
+        { scaleX: 0, transformOrigin: opts.origin || '0% 50%' },
+        { scaleX: 1, duration: dur, ease: h.ease },
+        at + i * step,
+      );
+    }
     return tl;
   };
 

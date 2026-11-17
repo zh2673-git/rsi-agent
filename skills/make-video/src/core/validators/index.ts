@@ -7,7 +7,17 @@ export {
   validateRhythmPeriodicity,
   validateScriptContent,
 } from './content.js';
-export { validateSceneFile, validateChartScene, extractKeywords, uses3d, MOTION_WHITELIST, ACCENT_PRIMITIVES, PUSH_CAMERAS, CAMERA_MOVES } from './scene.js';
+export {
+  validateSceneFile,
+  validateChartScene,
+  validateNoLeftoverPlaceholder,
+  extractKeywords,
+  uses3d,
+  MOTION_WHITELIST,
+  ACCENT_PRIMITIVES,
+  PUSH_CAMERAS,
+  CAMERA_MOVES,
+} from './scene.js';
 export { validateStoryboard } from './storyboard.js';
 export {
   validateStyleDecision,

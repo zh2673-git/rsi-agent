@@ -97,8 +97,8 @@
     "absorbedAt": "2026-10-24",
     "review": "v1 对拍验收"
   },
-  "references": "references.md",
-  "antiPatterns": "anti-patterns.md",
+  "references": "anderson-symmetry.references.md",
+  "antiPatterns": "anderson-symmetry.anti-patterns.md",
   "visuals": {
     "dimension": "2d",
     "motifs": [

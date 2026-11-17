@@ -1,0 +1,23 @@
+{
+  "id": "comparison",
+  "name": "并排对照",
+  "grammar": [
+    "y4_story"
+  ],
+  "motifs": [
+    "breathe",
+    "pulse"
+  ],
+  "camera": [
+    "static",
+    "push-in",
+    "pull-out"
+  ],
+  "params": [],
+  "materials": [],
+  "capacity": {
+    "maxChars": 40,
+    "maxElements": 4
+  },
+  "variants": []
+}

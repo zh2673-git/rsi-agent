@@ -1,0 +1,24 @@
+{
+  "id": "depth-layers",
+  "name": "纵深层叠",
+  "grammar": [
+    "b_roll",
+    "y1_flat_explainer"
+  ],
+  "motifs": [
+    "drift"
+  ],
+  "camera": [
+    "push-in",
+    "pull-out",
+    "crane-down",
+    "dolly-in"
+  ],
+  "params": [],
+  "materials": [],
+  "capacity": {
+    "maxChars": 40,
+    "maxElements": 4
+  },
+  "variants": []
+}

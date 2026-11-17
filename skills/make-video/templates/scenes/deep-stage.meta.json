@@ -1,0 +1,75 @@
+{
+  "id": "deep-stage",
+  "name": "纵深舞台",
+  "grammar": ["t1_3b1b"],
+  "motifs": [
+    "shimmer",
+    "rotate"
+  ],
+  "camera": [
+    "drift",
+    "push-in",
+    "dolly-out",
+    "crane-up"
+  ],
+  "params": [
+    {
+      "name": "HERO_WORD",
+      "type": "string",
+      "context": "text",
+      "note": "主语关键词"
+    },
+    {
+      "name": "PANEL1",
+      "type": "string",
+      "context": "text",
+      "note": "后层卡面标签"
+    },
+    {
+      "name": "PANEL2",
+      "type": "string",
+      "context": "text",
+      "note": "中层卡面标签"
+    },
+    {
+      "name": "PANEL3",
+      "type": "string",
+      "context": "text",
+      "note": "前层卡面标签"
+    },
+    {
+      "name": "SUB_LINE",
+      "type": "string",
+      "context": "text",
+      "note": "辅助说明"
+    },
+    {
+      "name": "PUNCH_AT",
+      "type": "number",
+      "context": "code",
+      "default": 720,
+      "min": 0,
+      "max": 6000,
+      "note": "重音标点落点（毫秒）"
+    }
+  ],
+  "materials": [
+    {
+      "role": "text.hero",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 24
+    },
+    {
+      "role": "text.panel",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 16
+    }
+  ],
+  "capacity": {
+    "maxChars": 72,
+    "maxElements": 5
+  },
+  "variants": []
+}

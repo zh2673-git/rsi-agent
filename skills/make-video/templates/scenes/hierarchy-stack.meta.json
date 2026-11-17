@@ -1,0 +1,107 @@
+{
+  "id": "hierarchy-stack",
+  "name": "层级堆栈",
+  "grammar": [
+    "y7_system_map"
+  ],
+  "motifs": [
+    "breathe",
+    "float"
+  ],
+  "camera": [
+    "crane-up",
+    "crane-down",
+    "push-in",
+    "pull-out"
+  ],
+  "params": [
+    {
+      "name": "TIER1",
+      "type": "string",
+      "context": "text",
+      "note": "第一层名称（如「底层」）"
+    },
+    {
+      "name": "NAME1",
+      "type": "string",
+      "context": "text",
+      "note": "第一层的对象名（如「存储单元」）"
+    },
+    {
+      "name": "DESC1",
+      "type": "string",
+      "context": "text",
+      "note": "第一层说明"
+    },
+    {
+      "name": "TIER2",
+      "type": "string",
+      "context": "text",
+      "note": "第二层名称"
+    },
+    {
+      "name": "NAME2",
+      "type": "string",
+      "context": "text",
+      "note": "第二层的对象名"
+    },
+    {
+      "name": "DESC2",
+      "type": "string",
+      "context": "text",
+      "note": "第二层说明"
+    },
+    {
+      "name": "TIER3",
+      "type": "string",
+      "context": "text",
+      "note": "第三层名称"
+    },
+    {
+      "name": "NAME3",
+      "type": "string",
+      "context": "text",
+      "note": "第三层的对象名"
+    },
+    {
+      "name": "DESC3",
+      "type": "string",
+      "context": "text",
+      "note": "第三层说明"
+    },
+    {
+      "name": "SUB_LINE",
+      "type": "string",
+      "context": "text",
+      "note": "辅助说明"
+    },
+    {
+      "name": "PUNCH_AT",
+      "type": "number",
+      "context": "code",
+      "default": 720,
+      "min": 0,
+      "max": 6000,
+      "note": "重音标点落点（毫秒）"
+    }
+  ],
+  "materials": [
+    {
+      "role": "text.tier",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 12
+    },
+    {
+      "role": "text.desc",
+      "required": false,
+      "ifMissing": "skip",
+      "maxChars": 26
+    }
+  ],
+  "capacity": {
+    "maxChars": 120,
+    "maxElements": 5
+  },
+  "variants": []
+}

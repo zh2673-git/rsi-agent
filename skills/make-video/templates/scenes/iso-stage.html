@@ -48,11 +48,16 @@
       MV.depth('.panel', { strength: 1.1 });
       MV.idle('.subject', { delay: 2000 });
 
+      // 连续形变（t1 3b1b 的「一个对象变成下一个」）：
+      // 三块面板依次接力——上一块淡出，下一块在原位长大。这是 t1 的招牌动作。
+      MV.morphTo('.panel.p1', { delay: 420, out: 220, resize: 400, inn: 340, to: { scale: 0.9 } });
+      MV.morphTo('.panel.p2', { delay: 660, out: 220, resize: 400, inn: 340, to: { scale: 1.05 } });
+
     // 等距舞台：转台缓慢旋转 + 光晕呼吸（与主体分离）
     MV.motifLoop('.halo', { kind: 'breathe', amp: 1.0, duration: 1600, span: 16 });
     MV.motifLoop('.floor', { kind: 'rotate', amp: 0.9, duration: 1800, span: 16 });
 
-      MV.camera('.stage', { move: 'push-in', zoom: '{{ZOOM}}' });
+      MV.camera('.stage', { move: 'push-in', zoom: '{{ZOOM}}', intensity: {{INTENSITY}} });
     });
   </script>
 </body>

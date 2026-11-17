@@ -12,6 +12,7 @@
   非标点镜只走错峰入场 + 环境母题，一样是活的，但不抢重音资源。
 -->
 <style>
+  :root { --pad: {{STAGE_PAD}}; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   /* 子合成根到 .stage 之间还有一层 [data-scene-id] 包装（wrapComposition 提供），
      必须给它尺寸，否则绝对定位子元素落进 0 高度盒子（整帧只剩 body 底色）。 */
@@ -21,7 +22,7 @@
   .stage {
     position: relative; width: 100%; height: 100%;
     display: flex; flex-direction: column; justify-content: center;
-    padding: 9% 10%; box-sizing: border-box;
+    padding: calc(var(--pad) * 1%) calc(var(--pad) * 1.1%); box-sizing: border-box;
     background:
       radial-gradient(ellipse at 78% 18%, {{ACCENT}}22 0%, transparent 56%),
       linear-gradient(168deg, {{NEUTRAL_4}} 0%, {{NEUTRAL_3}} 100%);
@@ -43,6 +44,9 @@
      整镜没有任何可见的大面积元素在动 —— 实测变化像素仅 4%。
      让中间那条带常驻淡色呼吸，画面才是活的。 */
   .band.b2 { opacity: 0.16; }
+  /* 标点镜：色带实体化（MV.bands 扫过去就是「换场」）——
+     非标点镜保持 b2 的淡色呼吸，标点镜三条全亮起来扫过。 */
+  [data-accent="1"] .band { opacity: 0.92; }
 
   /* 主语：一句话里最该被记住的那个词，全屏最大 */
   .subject {
@@ -131,6 +135,9 @@
       // ① 标点镜：整词砸入（0.17s 1.55→0.94→1.0）——这一镜唯一的标点
       MV.slam('.subject', { delay: 60 });
       MV.highlight('.subject em .hl', { delay: 300 });
+      // ①b 色带换场：三条色带扫过去（MV.bands 的招牌用法）——
+      //     标点镜才有实体色带（CSS 由 data-accent 切换），非标点镜不抢重音。
+      MV.bands('.band', { duration: 320, stagger: 60, dir: 'down' });
     } else {
       // ② 非标点镜：仍是「字是演员」，但用缓入 + 高亮扫过，不砸
       MV.enter('.subject', { easing: '{{EASING}}', duration: {{DURATION}}, from: { opacity: 0, y: 54 } });

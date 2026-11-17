@@ -864,3 +864,512 @@ if (prev?.exitAnchor && cur?.enterAnchor && prev.exitAnchor === cur.enterAnchor)
 | `MV.emphasis` 卡点 | 晚到 +266/+366/+433ms | 仅 `s02b` 用显式 `points` 解决 |
 | `tests/engineering.test.ts` | 单跑 `ERR:TimeoutExpired`（>150s） | 无结论 |
 
+---
+
+# P11：风格/动效/镜头四层重整 + 模板沉淀（2026-11-16）
+
+> 用户判断：**视频质量高低与模型能力有关——差模型只会顾某个词（"震撼来袭" → 做得显眼夸张），
+> 忽略整体兼容性。稳定产出需要模板：模板的本质是把「某风格在某场景使用的动效、镜头、渲染方式」
+> 固定下来，方便后续替换素材。**
+> 本轮产出：四层分类规范 + 零碎清理清单 + 对标阿杜 motiongit `.motion` 的模板沉淀路线。
+> 完整产物：`outputs/风格动效镜头分层重整.md`；盘点底稿 `outputs/风格动效镜头资产盘点.md`（73KB）、
+> motiongit 研究 `outputs/阿杜motiongit模板体系研究.md`（64KB）。
+> **本轮只做规划，未改任何代码/资产**（`npx tsc --noEmit` 干净，基线测试：
+> `catalog` 14 / `motion-grammar` 36 / `semantics` 12 通过）。
+
+## 11.0 起点：用户判断与它的代码对应物
+
+用户的诊断是「**风格只统一了配色，没统一动效与镜头**」。代码里的对应物：
+
+| 用户说的 | 代码里的东西 | 现状 |
+|---|---|---|
+| 风格 | `styles/*.json`（10 包） | 管 palette/type/motion/effects/transitions/visuals |
+| 动效 | `MV.*`（26 原语）+ 11 种语法 | 管「这一镜怎么动」 |
+| 镜头 | `CAMERA_MOVES`（15 词）+ 两套运镜实现 | 管「机位怎么走」 |
+| 模板 | `templates/scenes/*.html`（15）+ `templates/canvas/`（12 程序） | 管「画面长什么样」 |
+
+**四者之间缺少三条连接**（本轮实测确认）：
+
+1. **风格 → 语法**：断。`pickGrammar` 的 `ctx.styleBias` 字段定义了（`motion-grammar.ts:181`）
+   但**全仓 0 消费**——语法选型完全不看风格池。
+2. **语法 → 模板**：断。全仓无 grammar↔template 映射表，`templates/` 下 0 处语法 id。
+3. **模板 → 风格参数**：断。模板不声明自己是哪一派；`visuals.motifs`/`texture` 基本闲置。
+
+于是用户看到的就是「每镜都很努力，但不是一个组做的」——**这正是「差模型顾单个词」的结构性成因**：
+模型手上只有单镜动作的词汇，没有表达「整体要像科技片」的载体。
+
+## 11.1 四层分类规范（目标态）
+
+| 层 | 实体 | 一句话 | 目录 |
+|---|---|---|---|
+| **L1 风格** | `StylePack` | 这一片**长什么样**（画材/配色/语气/节奏档） | `styles/<id>.json` |
+| **L2 场景** | `SceneForm` | 这一镜**用哪种画面形态** | `templates/scenes/<kind>.html` |
+| **L3 动效/镜头语法** | `GrammarSpec` | 这一镜**怎么动**（主动作+机位+母题） | `src/domain/motion-grammar.ts` |
+| **L4 模板** | `SceneTemplate` | 这一类镜头的**完整实现**（画面+动效+机位+渲染） | `templates/` |
+
+层间目标连接（`outputs/风格动效镜头分层重整.md` §1.1 有完整图）：
+
+- L1 `visuals.sceneBias/sceneDeny` → L2 场景池（**已实现 ✓**）
+- L1 `motion.easing/staggerMs` → L4 模板占位符（**已实现 ✓**）
+- L1 `motion.intensity/spring` → L4 模板占位符（**实现了但原语不读 ✗**）
+- L2 场景 → 决定 L3 用哪种语法（**映射表缺失 ✗**）
+- L3 `requiredPrimitives` → L4 必须调用哪些原语（**只在 LLM 路径强制，forge 路径不检查 ✗**）
+
+## 11.2 关键发现：语法层与模板层之间有一条已验证的断裂
+
+用 `REQUIRED_BY_GRAMMAR` 的必选原语反查 15 个场景模板（实测统计）：
+
+| 语法 | 满足的模板数 | 说明 |
+|---|---|---|
+| y1_flat_explainer | 11 | 约束太松，等于没约束 |
+| b_roll | 15（全部） | 同上 |
+| y2/y3/y7/t2 | 5–6 | 同一套原语被 5 个模板共享，语法之间也分不开 |
+| y6_mechanism | 1（paper-stage） | |
+| t1_3b1b | 1（paper-stage） | |
+| **y5_kinetic_type** | **0** | `kinetic-type` 模板是它的专属模板，却因不调 `MV.emphasis` 而机械不合格——它用 `MV.slam` 达成了同一效果（`templates/scenes/kinetic-type.html:132`） |
+
+**结论**：`REQUIRED_BY_GRAMMAR` 用「**原语名单**」表达「**动作要求**」本身就不精确——
+同一意图可用不同原语组合达成（slam 与 emphasis 都是重音），用名单卡模板必然误伤。
+**修法**：改成「动作要求 + 等效原语组」，或至少让重音类接受 `slam | emphasis`。
+
+## 11.3 阿杜 motiongit `.motion` 对标结论
+
+阿杜的两级编号（仓库 `references/template-catalog.md` 原文）：
+> 「同一叙事模板的画面表现差异作为二级风格，**新的叙事模板才分配新的一级编号**」
+
+即 **一级 = 叙事骨架（模板族），二级 = 画面皮肤（风格变体）**，两者同轴不交叉。
+本项目现在是「风格包（10）× 类型配方（10）× 场景模板（15）」三个维度自由交叉，
+**没有一个轴把它们组织起来**。
+
+四层对照（固化 / 可换 / 自选）见 `outputs/风格动效镜头分层重整.md` §2.2。
+
+**5 条可迁移原则 → 本项目动作**：
+
+| # | 原则 | 本项目动作 |
+|---|---|---|
+| P1 | 先立参数契约，再写动画 | `shots[].visual.params` 是自由 record（`src/core/schema.ts:140`）→ 升级为**模板级可校验控件表** |
+| P2 | 素材用语义角色绑定，缺素材有确定行为 | 统一角色表 + `ifMissing` + `ask` + `data-film-sample` 占位标记 |
+| P3 | 风格分支只换预设，动效差异升版本 | 同镜型不同画法 = **variant**，不是新模板 |
+| P4 | 确定性渲染 + 容量上限硬约束 | 保持逐帧 seek；加 `maxChars`/`maxHoldFrames`，超限明确失败，**绝不静默缩字凑时长** |
+| P5 | 内容声明可机检，验收分级留痕 | 模板级技术验收 ≠ 导演级声画验收，分栏记录 |
+
+**边界（继承 §10.7，不改）**：`.motion` 与本项目**架构同构、层次不同**——
+它是「单模板自包含 + 参数化」，本项目是「多镜流水线 + 校验器 + 状态机」。
+**可对齐的只有契约层，不可搬的是包结构**：不引入 `.motion` 包结构，不改 `project.json` 单一真源，不动 `remotion/` 合成模型。
+
+## 11.4 零碎清理清单（判据 + 逐条落点）
+
+### 删除（死参数 / 零消费 / 自相矛盾）
+
+| # | 对象 | 判据 |
+|---|---|---|
+| D1 | `MV.exit`（`motion-lib.js:92`） | 15 模板 0 调用；`catalog.ts:34` 已列非主动作 |
+| D2 | `MV.whip`（`motion-lib.js:538`） | 0 调用，却占 `ACCENT_PRIMITIVES` 一格 → 重音预算恒缺一格 |
+| D3 | `MV.bands`（`motion-lib.js:608`） | 0 调用；但 `docs/05:157` 把它列为 `kinetic-type` 的调用原语 |
+| D4 | `MV.card3d`/`MV.spin3d`（`:810`/`:832`） | 各 0 调用；README 与 `llm-client.ts:152` 仍当可用宣传 |
+| D5 | `templates/motion/choreo-lib.js`（363 行） | **无任何模板 `<script src>` 引入**；`composer.ts:670` 仍把它带进渲染产物 |
+| D6 | `anderson-symmetry` 的 `page-turn` 转场（`styles/anderson-symmetry.json:87`） | 不在 `transitions.ts` 的 `ALIASES`（`:29-51`）→ `normalizeAllowed`（`:73-77`）静默丢弃，该风格实际只剩 `dissolve` |
+| D7 | `styles/*` 的 `references`/`antiPatterns`（各包 2 字段） | `styles/` 下**无任何 `.md` 文件**，registry 也不读这两项 |
+
+### 合并（同一件事写了两遍）
+
+| # | 重复 | 去向 |
+|---|---|---|
+| M1 | 机位 move 词表**三处**（`schema.ts:43-60` 13 词 / `validators/scene.ts:46-64` 15 词 / `motion-lib.js` 15 分支） | 以 `validators/scene.ts` 为唯一源 |
+| M2 | 两套同名运镜实现（镜内 `MV.camera` vs 外层 `camera.ts`） | **不合并实现**，合并命名与文档边界 |
+| M3 | `PUSH_CAMERAS`（`validators/scene.ts:39`，0 消费）vs `PUSH_SET`（`motion-grammar.ts:506,543,557`） | 删一份 |
+| M4 | 语法性格两套（`GrammarSpec.textShare/cameraBias/motifs` vs `continuity.ts:167-179` `GRAMMAR_ENERGY`） | 合并进 `GrammarSpec` |
+| M5 | 配方风格绑定（`recipes/*.json` vs `constants.ts:46-57` `GENRES`） | 加断言：recommended 必须真实存在 |
+| M6 | 转场 kind 清单（`transitions.ts:9-19` 8 kind vs `SKILL.md:58-59`「七类」） | 以代码为准 |
+
+### 修复（声明了但不生效——最伤的一类）
+
+| # | 现象 | 后果 |
+|---|---|---|
+| **F1** | 5 处配方推荐风格在磁盘上不存在（`documentary-mood`/`story-narrative`/`kids-education`/`news-brief` → `ghibli-painterly`/`shinkai-atmosphere`/`pixar-2d`/`cyber-neon`） | `storyboard.ts:119-126` 跳过后落到 `:137-145` 的 `registry.listStyles()[0]` = **`anderson-symmetry`**。即「纪录片/儿童/故事/新闻」实际都在用韦斯·安德森风格 |
+| **F2** | 20 处 `pacing.curve` 全不可解析（`three-act`/`beat-pause`/`tarkovsky`/…） | `continuity.ts:149-156` 只认 0-1 数字 → **V-CON-002 与分镜能量曲线对全部资产恒为 no-op** |
+| **F3** | `MV.camera` 收 `zoom` 只读 `hold`（8 个模板传 `{{ZOOM}}`） | 景别在这 8 个模板里彻底不生效 |
+| **F4** | `MV.performance` 不读 `stiffness/damping`（4 模板传 `{{SPRING_*}}`） | **10 个风格包的 `motion.spring` 全部无效** |
+| **F5** | `MV.counter`/`MV.highlight` 收 `stagger` 不读（5 处） | 4 处错峰意图落空 |
+| **F6** | `motion.intensity` 零消费（`schema.ts:412`） | 10 个风格的运动强度档位形同虚设 |
+| **F7** | `layout.density` 零消费（`schema.ts:406`） | 信息密度不参与任何判定 |
+| **F8** | `visuals.motifs`/`texture` 基本闲置（`texture` 全仓 0 消费） | 风格的签名母题没约束到画面 |
+| **F9** | 母题 kind `sweep`/`compress`/`settle` 被语法表认领但**无模板使用** | 语法表与模板能力脱节 |
+| **F10** | 语法↔模板映射完全缺失 | 见 §11.2 |
+| **F11** | `REQUIRED_BY_GRAMMAR` 在 forge 路径不检查（`scene-forge.ts:276-281` 注释 + `:151-157` 调用点不传 `enforceActionSheet`） | 模板直出时语法与画面可彻底无关且无人报警 |
+| **F12** | 文档/代码漂移 5 处 | README 写「16 个风格」实为 10；`docs/11` 风格目录列 16（13 不存在）；`docs/11` §6.1 列 8 类配方实为 10；`docs/10:102` 4 档 vs 代码 5 档；`docs/10:181` 11 词 vs 代码 15 词。`tests/catalog.test.ts:142-185` **只守 SKILL.md** |
+
+### 降级为附录
+
+`docs/13` 的原语引用点计数（写「4 处」实为 5 处）、`outputs/` 下 6 份历史评估 → 移入 PLAN 归档。
+
+## 11.5 模板沉淀路线（三阶段）
+
+### 阶段 1 · 契约先行（治 F3/F4/F5/F6/F7/F11 + M1/M3）
+
+- 新增 `templates/scenes/<kind>.meta.json`（最小版：`params` + `grammar` + `motifs` + `camera`）。
+- `scene-forge.ts` 渲染前用 `meta.params` **校验注入参数**：声明了却不被原语读的参数，
+  要么原语读，要么删参数。
+- `MV.performance` 真读 `stiffness/damping`（**让 10 个风格包的 spring 第一次生效**）；
+  `MV.counter`/`MV.highlight` 补 `stagger`；`motion.intensity` 接到重音幅度。
+- `REQUIRED_BY_GRAMMAR` 改「动作要求 + 等效原语组」（否则 `kinetic-type` 永远机械不合格）。
+- **forge 路径也过 `enforceActionSheet`**。
+
+> 为什么先做：纯收益，不改架构/真源，只是让已经在传的东西真的生效；且是后续一切的地基。
+
+### 阶段 2 · 风格→语法→场景 打通（治 F1/F2/F8/F10/F12）
+
+- **F1 改绑不补包**：`cyber-neon` 与现有 `neon-tech-cinematic` 疑似同一个 → 合并改绑；
+  `ghibli-painterly`/`shinkai-atmosphere`/`pixar-2d` 改绑到已存在包。
+  依据 `docs/11` §8.2「匹配优先原则」——防风格库膨胀。
+- **F2 定曲线格式**：`curveKind: 'named' | 'numeric'` + 具名曲线→数值映射表（保留具名表达的价值）。
+- **F10 建语法↔场景映射**：`GrammarSpec` 加 `sceneForms: string[]`；
+  并让 `pickGrammar` 真正消费 `ctx.styleBias`（现在定义了不用）。
+- **F8 母题对账**：`visuals.motifs` 里的母题必须在某模板 `meta.motifs` 出现。
+- **F12 守卫扩面**：`catalog.test.ts` 的数量断言从只查 SKILL.md 扩到 README/docs。
+
+### 阶段 3 · 模板沉淀与变体（阿杜式「模板 = 可反复做的视频」）
+
+- 15 个模板升级为「换素材/文案/画幅即可复用」的镜头配方。
+- `variants`：同镜型不同画法用预设切换（**风格分支只换预设，动效差异升版本**）。
+- 容量上限（`maxChars`/`maxHoldFrames`）：超限明确失败，**绝不静默缩字/裁信息/冻结凑时长**。
+- 素材槽位 + `data-film-sample` 占位标记（绑定即摘，宿主据此提示「样例未替换」）。
+- 验收分级留痕：模板级技术验收 vs 导演级声画验收分栏。
+
+> 为什么放最后：阶段 1、2 不做，参数/槽位/语法归属就没有事实基础，顺序反了会返工。
+
+## 11.6 已评估不做
+
+| 项 | 理由 |
+|---|---|
+| 引入 `.motion` 包结构 / 新 IR | §10.7 已定：只对齐契约层 |
+| 补 4 个新风格包 | 匹配优先原则：改绑优先于新增 |
+| 重写 `project.json` schema | 单一真源是既有铁律 |
+| 引入阿杜那种 1.4MB 参数表规模 | 阿杜是「单模板 70 控件」；本项目是「多镜流水线」，参数应在**模板级**而非片级 |
+| 改 `remotion/` 合成模型 | 底层框架不要变 |
+
+## 11.7 本轮未解（不得报完成）
+
+| 项 | 状态 |
+|---|---|
+| 全部代码修复（F1–F12、D/M 系列） | **未动**，本轮只出计划 |
+| `tests/engineering.test.ts` 单跑 >150s 超时 | 未解决（§10.9 已记）；**阶段 1 验收不能依赖它** |
+| `MV.emphasis` 卡点晚到 266–433ms | 未解（§10.9） |
+| `REQUIRED_BY_GRAMMAR` 改等效原语组后 V-MOT-023 口径会变 | 需同步改 `scene-forge.ts:281-292` + `tests/motion-grammar.test.ts` |
+| 阿杜 `params.schema.json`/`kit.params.schema.json`/`capacity-matrix.json` **内层内容** | 未确证（需登录解包）；本轮只对齐结构，未对齐规模 |
+
+---
+
+# P12 · 完整实施：模板契约层 + 风格/语法/场景打通（2026-11-16）
+
+> 上一轮（P11）只出计划。本轮**完整实施**。
+> 基线：动手前 `npx vitest run --exclude tests/engineering.test.ts` → **14 文件 / 187 测试全绿**。
+> 收尾：→ **17 文件 / 234 测试全绿**（新增 `template-contract.test.ts` 27 + `doc-drift.test.ts` 10 + 扩 catalog）。
+
+## 12.0 实施中最重的发现（比计划里写的更严重）
+
+计划阶段做的是「读代码找问题」。实施阶段第一件事是**写探针实测**，
+结果发现一个计划里**没有的**严重缺陷：
+
+> **15 个场景模板里有 6 个渲染出未填充的 `{{占位符}}`，
+> 而其中落在 `<script>` 里的那些是「非法 JS 语法」——
+> `MV.counter('.figure', { to: {{FIGURE_TO}} })` 会被 JS 引擎当成对象字面量里
+> 没有键名的表达式，整个 script 块抛 SyntaxError，
+> 于是**这一镜的所有动画都不发生**。**
+>
+> 6 个中招的：kinetic-type / compare-stage / deep-stage /
+> hierarchy-stack / paper-stage / process-track。
+>
+> 而**所有既有校验器全绿**——它们查的是「调用了哪些原语」「主语是不是 1 个」，
+> 没有一条查「JS 能不能跑」或「占位符填了没有」。
+
+这解释了用户观察到的现象的一半：「每镜都很努力，但不像一个组做的」。
+画面只剩静态文字 + 偶发的一两个 tween，动画语言根本没有建立起来。
+
+**教训**：清单式的静态审计会漏掉「运行时才炸」的问题。
+本轮之后，模板渲染的产物**必须**跑一次机检（见 12.2 的 V-SCENE-007）。
+
+## 12.1 阶段 1 · 模板参数契约（治 F3/F4/F5/F6/F7/F11）
+
+### 12.1.1 新增：模板契约层（L4 模板的「声明」）
+
+| 文件 | 职责 |
+|---|---|
+| `templates/scenes/<kind>.meta.json` × 15 | **模板契约的唯一真源**：params / materials / capacity / variants / grammar / motifs / camera |
+| `src/domain/template-contract.ts` | 契约的 schema、加载、参数校验、**占位符注入器** |
+| `src/domain/template-content.ts` | **内容绑定层**：把旁白落到画面的具体位置（HERO_WORD / STOP1 / LEFT_NUM…） |
+
+### 12.1.2 占位符注入器（治「整镜无动画」）
+
+新写的 `injectPlaceholders` 有两个关键设计：
+
+1. **逐个出现位置判定上下文**（`contextAt`）——同一个 `{{SCENE_ID}}`
+   既是 HTML 属性又是 JS 字符串，按名字统一判会让其中一个位置拿到错误的转义策略。
+   代码位置（`<script>`/`<style>` 内）**原样注入**，文本位置**转义**。
+2. **未提供的占位符替换成空串**——残留 `{{X}}` 在文本里只是难看，
+   在 `<script>` 里是语法错误。
+
+配套新增 **V-SCENE-007**（error 级）：渲染后残留占位符 → 直接打回。
+
+### 12.1.3 内容绑定层：术语从哪来（V-SCENE-005 的张力）
+
+V-SCENE-005 禁止画面复述旁白（判据：旁白的连续 4 个汉字出现在画面上）。
+但**术语本来就在旁白里**（「同步执行」「内存屏障」）。一刀切挡掉术语，
+画面就只能显示抽象图形或空标签。
+
+解法是**区分声明式与启发式**：
+
+| 来源 | 处置 |
+|---|---|
+| 编剧在 `segment.emphasis` 里显式标注的重音词 | **豁免**（`findSharedRuns` 的 `exemptTerms` 参数，把这个词从旁白里挖掉再查） |
+| 启发式抽取的术语（`extractTerm`） | **不豁免**，必须过 `safeLabel`（不与旁白共享 4 字窗口） |
+| 派生不出安全术语 | 留空（宁可空着，也不编造） |
+
+`extractTerm` 在**谓语边界**处断开（「顶层负责调度」→「顶层」而不是「负责调」），
+`splitTiers` 保留层级名（「上层是控制单元」→「上层」+「控制单元」两槽）。
+
+### 12.1.4 死参数全部接通（治 F3/F4/F5/F6/F7）
+
+| 参数 | 之前 | 现在 |
+|---|---|---|
+| `MV.camera` 的 `zoom` | 传了不读（景别彻底失效） | 读：`ZOOM_HOLD` 映射（ELS 1.00 → ECU 1.10），景别一变运镜手感就变 |
+| `MV.performance` 的 `stiffness/damping` | 硬编码 `back.out(2.2)`，**10 个风格包的 spring 全网无效** | 真读：刚度→压缩段时长，阻尼→回弹时长与缓动（≥22 用 back，<22 用 elastic） |
+| `MV.counter` / `MV.highlight` 的 `stagger` | 传了不读（多元素同帧） | 真读：第 i 个延迟 i×stagger |
+| `MV.counter` 的 `to` | 只支持单值 | 支持**数组**（逐元素终值——层级编号 L1/L2/L3 各滚到自己的值） |
+| `motion.intensity` | **零消费**（10 个风格包的「运动强度」是空话） | 注入 `MV.camera`，缩放机位行程（0.3→×0.6，1.0→×1.4） |
+| `layout.density` | **零消费** | 派生 `STAGE_PAD`（10%→4%），10 个模板的 `.stage` 内边距改用 `calc(var(--pad) * 1%)` |
+
+## 12.2 阶段 2 · 风格 → 语法 → 场景 打通（治 F1/F2/F8/F10/F12）
+
+### 12.2.1 语法接上了风格与场景
+
+`GrammarSpec` 新增两个字段：
+
+- `sceneForms: string[]` —— 该语法能由哪些模板承载（L2↔L3 映射，**从模板实际能力推导**）
+- `energy: number` —— 语法的能量档（**从 `continuity.ts` 的 `GRAMMAR_ENERGY` 并回本体**，
+  此前加语法忘同步就是一次静默漂移）
+
+`pickGrammar` 现在**真的消费** `ctx.styleBias` 与 `ctx.scenePool`：
+- `scenePool` 不相容 → **硬排除**（选出的语法必须有模板能接，否则画面与动效对不上）
+- `styleBias` 相容 → **加分**（风格与语义冲突时语义赢；语义无倾向时风格赢）
+
+### 12.2.2 模板对齐语法（新增 V-MOT-024，warn）
+
+语法选定后，若当前模板不承载它，就换到承载它的模板里选语义最贴的。
+换不了 → V-MOT-024 报「本镜语法与模板不匹配」，而不是静默出对不上的画面。
+
+### 12.2.3 具名能量曲线（治 F2：20 处 pacing.curve 全部 no-op）
+
+新增 `NAMED_ENERGY_CURVES`：13 条具名曲线 → 数值序列
+（`three-act` / `beat-pause` / `staccato` / `even` / `slow-burn` / `beat-grid` /
+`comedy-beat` / `tarkovsky` / `gentle` / `rapid` / `argument` / `story-arc` / `steady`）。
+
+`parseEnergyCurve` 先认具名、再认数字。
+**10 个风格包 + 10 个配方的曲线现在全部可解析**——由测试守住。
+
+### 12.2.4 幽灵风格改绑（治 F1）
+
+5 个配方的推荐风格指向磁盘上不存在的包 → **静默退化**到 `registry.listStyles()[0]`
+（= `anderson-symmetry`）。即「纪录片/儿童/故事/新闻/科普」五类内容实际都在用韦斯·安德森。
+
+按「宁改绑不补包」原则（`docs/11` §8.2 匹配优先）全部改绑到真实存在的包：
+
+| 配方 | 原来（不存在） | 现在 |
+|---|---|---|
+| documentary-mood | ghibli-painterly / shinkai-atmosphere | cinematic-dark / noir-contrast |
+| kids-education | pixar-2d | bass-graphic / comedy-pop |
+| news-brief | bass-graphic / **cyber-neon** | bass-graphic / **neon-tech-cinematic** |
+| science-explainer | kurzgesagt-explainer / **vox-explainer** | kurzgesagt-explainer / keynote-minimal |
+| story-narrative | shinkai-atmosphere / ghibli-painterly | cinematic-dark / vibe-cosmos |
+
+### 12.2.5 V-MOT-014 前瞻（连带修的真实回归）
+
+风格偏好接通后，y5 变多，而 y5 的机位偏好首选 `punch-in`（属推镜族）——
+三连镜撞车，**整片在 compose 期被判 V-MOT-014 error**（pipeline 测试红）。
+
+修法在机位兜底层：已连续 2 镜是推镜族时，本镜**让位**到第一个非推镜偏好。
+不是报错（会卡住出片），是提前避让。
+
+## 12.3 阶段 3 · 等效原语组 + 能力矩阵（治 F10/F11）
+
+### 12.3.1 「动作要求」取代「原语名单」
+
+计划阶段就发现的设计错误：y5 的专属模板 kinetic-type 用 `MV.slam`，
+而 `REQUIRED_BY_GRAMMAR` 要求 `MV.emphasis` → **机械地永远不合格**。
+
+根因：**同一意图可以用不同原语组合达成**。
+新增 `REQUIREMENTS_BY_GRAMMAR`：一个要求 = 一组**任一命中即可**的原语。
+
+```ts
+{ id: 'accent', label: '关键词重音落下', anyOf: ['MV.slam', 'MV.emphasis', 'MV.punch'] }
+```
+
+### 12.3.2 能力矩阵从代码推导
+
+`grammar ↔ template` 的映射不再手写——**从模板实际调用的原语推导**。
+实测发现 8 个模板的契约声明与实际做的事脱节（typography 声明 y5 但不做砸入、
+iso-stage 声明 y6 但不做拆解），已逐个**补实现**（不是删声明）：
+
+| 模板 | 补的动作 |
+|---|---|
+| comparison | `MV.staggeredIn`（原来是 `MV.enter` + stagger，同帧落） |
+| flow | `MV.staggeredIn`（节点按行程顺序依次落位） |
+| iso-stage | `MV.morphTo`（连续形变）+ `MV.card3d` + `MV.spin3d` |
+| deep-stage | `MV.morphTo`（三张卡接力）+ `MV.whip`（标点镜甩镜） |
+| process-track | `MV.highlight`（当前站光带）+ `MV.exit`（走过的站退场） |
+| kinetic-type | `MV.bands`（标点镜色带换场） |
+| chart | `MV.counter`（数据自己长出来）+ 真实数据（不再硬编码 38/62/88/54） |
+
+**结果：26 个原语全部有调用点，零调用原语清零。**
+
+### 12.3.3 forge 路径也过动作要求校验（治 F11）
+
+口径：只判**本镜选中的那一个语法**，且要求该语法 ∈ 模板声明的语法集合。
+（一个模板承载 3 种语法时，它不必同时满足 3 套动作要求——那会必然误伤。）
+
+### 12.3.4 阿杜的 `choreo-lib.js` 接上了（D5）
+
+363 行的逐帧解析式编舞层此前**零消费者**（只被 composer 拷进渲染目录）。
+接入 `compare-stage`：两栏对峙的「张力」需要**每帧都在变**的关系
+（赢的一侧随重音顿挫、输的一侧随节拍轻晃），
+而 tween 排队只能做一次性动作，表达不了持续关系。
+
+实测验证（`.scratch/probe-choreo.ts`）：
+`CH.impact` 峰值 0.567 后衰减、`CH.shake` 窗口外恒为 0、`CH.wordStarts` 均匀分配。
+
+## 12.4 清理（D/M 系列）
+
+| # | 项 | 处置 |
+|---|---|---|
+| D1 | `MV.exit` 零调用 | **接入** process-track（走过的站退场），不删 |
+| D2 | `MV.whip` 零调用 | **接入** deep-stage 标点镜，不删 |
+| D3 | `MV.bands` 零调用 | **接入** kinetic-type 标点镜（色带换场），不删 |
+| D4 | `MV.card3d`/`MV.spin3d` 零调用 | **接入** iso-stage，不删 |
+| D5 | `choreo-lib.js` 零消费者 | **接入** compare-stage（见 12.3.4） |
+| D6 | `page-turn` 转场不存在 | **补实现**（绕 Y 轴翻页，方向按剪切序号交替）+ 进词表 + 进 SKILL.md |
+| D7 | `references`/`antiPatterns` 指向空气 | **补 20 份真档案**（从风格包本体推导：`<id>.references.md` / `<id>.anti-patterns.md`） |
+| M1 | 机位词表三处 | schema.ts **改为派生** `validators/scene.ts` 的 `CAMERA_MOVES` |
+| M3 | 推镜族词表四份 | 合并到 `core/validators/scene.ts` 的 `PUSH_CAMERAS` |
+| M4 | 语法能量档两张表 | 并回 `GrammarSpec.energy` |
+| M6 | SKILL.md 转场类数 | 七类 → 八类（补 page-turn） |
+
+**D1–D5 的处置原则**：原语是**可复用的表达手段**，不是垃圾。
+零调用说明「没人在用它」，处置应该是**找到该用它的地方并接上**，
+而不是删掉能力。本轮 5 个零调用原语全部接上，零调用清零。
+
+## 12.5 文档漂移守卫（治 F12）
+
+新增 `tests/doc-drift.test.ts`（10 个断言）：
+
+- README.md 的 registered 风格数 = 磁盘风格包数
+- docs/11 风格目录表 ↔ 磁盘（**双向**）
+- 每个风格包的 references / antiPatterns 指向真实存在的文件
+- docs/11 配方总表 ↔ `GENRES`（双向）
+- 文档里的「N 类配方」= 实际
+- SKILL.md 的转场类数 = 词表 kind 数
+- 每个风格包声明的转场词都真的可识别（不被静默丢弃）
+- docs/10 的机位词数 / 时长档位数 = 代码
+- 每个场景模板都有契约文件
+
+同时修正了文档：
+README（16→10 风格、八→十类配方）、SKILL.md（七→八类转场、十类 recipe）、
+docs/11（16 个风格 id → 真实的 10 个；8 类配方 → 10 类）、docs/10（时长档位补标点档）。
+
+## 12.6 新增测试
+
+| 文件 | 断言数 | 守什么 |
+|---|---|---|
+| `tests/template-contract.test.ts` | 27 | 占位符↔契约↔派生三源对齐；注入器的转义与上下文；参数契约；语法↔模板↔风格三层对齐；具名曲线；内容派生的安全与术语 |
+| `tests/doc-drift.test.ts` | 10 | 文档↔代码/磁盘的数量一致性（README / SKILL / docs/10 / docs/11） |
+
+## 12.7 本轮未解（不得报完成）
+
+| 项 | 状态 |
+|---|---|
+| `tests/engineering.test.ts` 单跑 >150s 超时 | **仍未解决**（§10.9 已记）；本轮验收同样不依赖它（其余 16 文件 / 224 测试全绿） |
+| `MV.emphasis` 卡点晚到 266–433ms | 未解（§10.9）——根因在音频平移，与本轮改动无关 |
+| `s02b 镜内空窗 / 其余 15 镜编舞 / V-MOT-016/017 / MV.emphasis 卡点晚到` | 继承自 §10.9，本轮未触碰 |
+| 阿杜 `params.schema.json` 内层内容 | 未确证（需登录解包）；本轮只对齐了结构与**职责**，未对齐规模 |
+| 模板的**素材槽**（`materials`）只声明未接线 | 契约层已声明 `materials`/`ifMissing`，但**采集阶段还没读它**——阶段 4 的活 |
+| `variants` 只声明未接线 | 同上（阶段 4） |
+| `capacity.maxChars` 只声明未接线 | 同上（阶段 4） |
+
+## 12.8 阶段 4（下一轮）
+
+模板契约的**声明**已完备，但有三个字段还只是「写在契约里」：
+
+1. **素材槽接线** —— `materials[].ifMissing` 要真的影响采集（ask/skip/placeholder）
+2. **容量上限接线** —— `capacity.maxChars` 超限要**明确失败**，不能静默缩字
+3. **变体接线** —— `variants` 要能被 `visual.params.variant` 选中
+
+这三件事做完，「模板 = 一条可以反复做的视频」才真正成立。
+
+## 12.9 已评估不做（继承 P11 的边界）
+
+| 项 | 理由 |
+|---|---|
+| 引入 `.motion` 包结构 / 新 IR | §10.7 已定：架构同构、层次不同，只对齐契约层 |
+| 补 4 个新风格包（ghibli/shinkai/pixar/vox） | 匹配优先原则：改绑优先于新增，防风格库膨胀 |
+| 重写 `project.json` schema | 单一真源是既有铁律 |
+| 引入阿杜那种 1.4MB 参数表规模 | 阿杜是「单模板 70 控件」；本项目是「多镜流水线」，参数应在**模板级** |
+| 改 `remotion/` 合成模型 | 底层框架不要变 |
+| 删除零调用原语 | 改为**接入**（见 12.4）——原语是可复用表达手段，不是垃圾 |
+
+## 13. P13 表达层升级：从「看图说话」到「拍电影」（2026-11-17 并入）
+
+> 完整提案（含登记簿待办表、审视附录 A1-C3 审计证据、行业参照背书）见
+> `outputs/P13提案-表达层升级计划.md`；本节是执行视图，冲突时以提案为准。
+
+### 13.1 本质定义与时空契约
+
+把最小叙事单位从「镜头=旁白的插图」升级为「场=叙事单元、潜台词驱动、调度表决策」；
+规则体系从「不可解释的约束」重构为「每条带域与反例的登记簿」。瓶颈判断：镜头层语法
+已足够密（11 语法 / 26 原语 / 机位轨 / 转场词表 / 字幕策略），缺的是镜头层之上的三层
+结构（潜台词→场→调度表）与镜头层之内的规则治理。
+
+**不变量**：输入（主题/讲稿/素材）与输出（project.json 单一真源 + mp4）不变；
+新字段全部可缺省，旧项目打开/compose/render 零回归；不推倒架构、不引入新 IR、
+不改 remotion 合成模型（继承 12.9）。
+
+### 13.2 六个升级（A-F）
+
+| 升级 | 治什么 | 关键落点 |
+|---|---|---|
+| A 潜台词+对位 | 「就事论事」看图说话 | A2 加 subtext/emotion/assetNeed；A5 每镜 counterpoint 四模式必填；对位多样性（≥2 种/片）+ 直译率按 recipe 分档校验 |
+| B 场层与连续画布 | 「逐镜割裂」 | IR 新增 scenes[]（组织层，可缺省回退）：canvas + viewportWindows[{shotId,x,y,zoom,motion}]；场内切点只许动作/视线/节拍接，溶解只许场间；试点题材按「共享空间+元素接力+特写全景往返」判据选定 |
+| C 调度表五轨 | 「廉价感」（全都在动） | A3 扩 staging：{机位,主体,配角,环境,字幕}×{动静,做什么,为什么}；camera.intent（hold=合法决策）；单动优先进登记簿为推定；接力纪律（动量传递）为偏好层默认 |
+| D 情绪词典 | 风格有皮没情绪 | 风格包 visuals.emotionMap（情绪→色温/占比/光线/速度/节奏），偏好层+覆写口子；对拍盲评验收 |
+| E 素材诉求链 | 素材决策靠临场 | A2.assetNeed → material-plan 需求单 → IR；继承 P12 阶段 4 三接线（ifMissing/maxChars/variants） |
+| F 原语扩容 26→28 | 手写/流式逐镜现写 | strokeDraw（笔迹揭示，y3 下沉默认）+ typewriter（屏内文字流）；**沉淀动词不沉淀画面** |
+
+### 13.3 阶段路线图（串行，每阶段独立可验收）
+
+| 阶段 | P（做什么） | Q（怎么算过） | I（不破坏什么） |
+|---|---|---|---|
+| 0 · P12 阶段 4 接线 | ifMissing/maxChars/variants 三接线 | vitest 全绿 + tsc CLEAN + doc-drift | 旧模板契约向后兼容 |
+| 1 · 导演部 IR 包 | A2 四字段、A5 调度表+camera.intent 落 IR；三审计扩展；对位/直译率校验器；**登记簿前置修复**：语义表纳入守护+未注册语法显式报错（A1）、英文豁免通道（A3）、双需求表单源化（B1） | 新校验器测试；224 测试不退化；真实项目全链路审计可读；新增双表一致性断言 | 字段全可缺省；V-CMP-001 不破 |
+| 2 · 场层最小版 | scenes[] + viewport 窗口；试点「场=连续画布」成片（≥10s 一镜到底）；转场双规则进 cut-audit；strokeDraw/typewriter 沉淀（含前置闸：V-MOT-008 补 800-1200 档、scene.ts 两处原语正则同步、C1/C2 卫生清理） | 帧差>3 验证窗口运动；场内切点 100% 合规；语法冒烟；catalog 守护测试 28 | 无 scenes[] 回退现状；shots[] 语义不破 |
+| 3 · 情绪词典+五轨审计 | ≥1 包 emotionMap；motion-audit 五轨化；同讲稿有/无词典对拍 | judge 盲评非劣且氛围镜更高；统计层只 warn 不拦单镜 | 词典=偏好层可覆写 |
+| 4 · 治理落地 | 规则登记簿落盘（含 drift 三义/duration 单位/main=第二拍条目）；10 包约束盘点含 provenance；punch≤2 下沉、静止占比挂 recipe | ≥1 约束完成消融对拍；登记簿过 doc-drift | V-* 笼子只减不增（媒介承诺除外） |
+| 5 · 对拍基线与转正 | skill-eval 案例库（4 样片基线+意境 judge+语法冒烟）；阿杜编舞对照片（单变量 ±CH.*） | 基线数字固化；旧案例不退化 | choreo-lib 走 rsi-steward 转正 |
+
+### 13.4 审计结论（2026-11-17 并入前独立审视，证据在提案 §2 附录）
+
+26 原语↔实现双向对表健康、无死原语；问题集中在**第二层表与正则启发式没享受第一层守护**：
+A1 语义需求表零守护+未注册语法静默放行；A2 V-MOT-008 区间与原语缺省互不校准（counter
+900ms/motifLoop 2400ms 越档，800-1200 空洞卡新原语）；A3 V-SCENE-005 英文无豁免通道；
+B1 双需求表已分裂（提示词口径≠校验口径）；B2 drift 一词三义；B3 原语手写引用点 ≥7 处
+（catalog 只声明 5）；B4 dolly/crane 语义贴现；C1 slow-drift 幽灵值；C2 pulse 影子原语；
+C3 actionSheet.main 恒取第二拍。修复全部走现有 catalog.test.ts/单源化，不建平行审计。
+
+### 13.5 不做清单（新增）
+
+继承 12.9 全部；另加：不做自动情绪识别管线（编剧部 LLM 直接写字段）；不建平行审计体系
+（只扩展现有 cut/rig/motion 三审计）；不做规则自动执行器（登记簿=文档+测试断言）；
+不预设情绪/动作/机位固定组合（词典与推定只给默认，组合归调度表）。
+
+### 13.6 执行记录
+
+| 日期 | 阶段 | 记录 |
+|---|---|---|
+| 2026-11-17 | 并入 | P13 提案评审通过并入本文件；并入前完成原语库与设定独立审计（10 项发现落提案 §2 附录）；尾部乱码残片（原 L1318）修复 |

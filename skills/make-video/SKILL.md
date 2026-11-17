@@ -48,7 +48,7 @@ cd skills/make-video && npm test && git add -A && git commit -m "fix: ..." && gi
 2. **电影部门制**：7 个部门（编剧/导演/美术摄影/采购/声音/剪辑/工程）+ 14 份工件
    （A1-A14）在部门间交接；LLM 只按表格填空，不自由发挥——翻译损耗由此管理。
 3. **风格三层**：规范笼子（10，不许做什么）/ 风格包（11，参数+部门指令集）/
-   类型配方（11，八类场景组装）。**registered 风格按登记指令执行，禁止逐镜
+   类型配方（11，十类场景组装）。**registered 风格按登记指令执行，禁止逐镜
    重新解释**（V-STYLE-007）。
 4. **字幕策略**（V-CAP-001/002/004）：风格包可声明 `subtitlePolicy`——
 `full`=整句条（关键词句内高亮，不再叠加独立黄词条）；`keyword`=关键词梗卡
@@ -56,9 +56,12 @@ cd skills/make-video && npm test && git add -A && git commit -m "fix: ..." && gi
 卡拉OK（词点亮节奏按字位比例换算，重音词整词金色脉冲，vibe 知识大赏签名形式）；
 `off`=无画面字幕（srt 仍全量导出）。project.json 顶层 `"subtitlePolicy"` 可覆写。
 5. **转场按词表裁决，不默认设置**（docs/08 ④ + V-MOT-008）：`hard-cut` /
-   `smash-cut` / `dissolve` / `whip-pan` / `wipe` / `slide` / `fade-black` 七类；
-   除硬切外均为 300-600ms，溶解/擦除/横推通过**视觉轨重叠**实现（两镜同框交叠），
-   **禁止淡到黑再亮起**；`fade-black` 只给显式声明它的风格包用；音频仍按原剪切点入。
+   `smash-cut` / `dissolve` / `whip-pan` / `wipe` / `slide` / `page-turn` /
+   `fade-black` 八类（`continuity` 是一镜到底的结构声明，不算转场）；
+   除硬切外均为 300-600ms，溶解/擦除/横推/翻页通过**视觉轨重叠**实现（两镜同框交叠），
+   **禁止淡到黑再亮起**；`fade-black` 只给显式声明它的风格包用；
+   `page-turn`（翻页）只给显式声明它的风格包用（韦斯·安德森式）；
+   音频仍按原剪切点入。
    风格包 `transitions` 之外的词一律回退并写审计日志。
    **转场由切点动机裁决**：每镜 `motivation` 写清这一刀为什么切（match-cut / 动作 /
    视线 / 情绪 / 节拍 / 景别跳）；`transition` 留空或写 `auto` 时按动机自动选型
@@ -156,7 +159,7 @@ provenance 归档）。
 铁律：提取**语法**（构图/色彩关系/节奏结构），不提取素材；参考帧禁止进入成片。
 `make-video style absorb --from <源>` 触发。
 
-## 类型菜单（八类 recipe）
+## 类型菜单（十类 recipe）
 
 science-explainer / story-narrative / product-promo / tutorial-howto /
 news-brief / opinion-essay / documentary-mood / kids-education。
@@ -258,7 +261,7 @@ docs/01-项目方案.md           总纲：本质+双视角+部门划分+工件�
 docs/02-职能分工总论.md       11 角色谱系/职责矩阵/工件登记表/反模式组织
 docs/03-编剧部.md … 09-工程部.md   七个部门的模块四层+工件+校验域
 docs/10-视觉与剪辑规范.md      V-* 不变量（公共法律，唯一权威登记处）
-docs/11-风格库与类型配方.md    风格包 schema/沉淀流水线/八类配方/分类轴
+docs/11-风格库与类型配方.md    风格包 schema/沉淀流水线/十类配方/分类轴
 docs/12-架构总览.md           分层/数据流/技术选型/ADR-1~11/CLI/测试
 docs/13-优化落点地图.md        六层落点×三条路径的收益矩阵/判定速查/防腐机制（改哪里有用）
 docs/14-真实素材与地图主轴.md   地理类题材骨架/地图落点投影/分级标注(region·flow·marker)/两个渲染陷阱

@@ -67,9 +67,10 @@
   ],
   "style": {
     "recommended": [
-      "pixar-2d"
+      "bass-graphic",
+      "comedy-pop"
     ],
-    "rationale": "儿童内容依赖形体语言（圆=友善）与慢速清晰节奏；3D 工艺不可（B 级预期）"
+    "rationale": "儿童内容依赖形体语言（圆=友善）与慢速清晰节奏；3D 工艺不可（B 级预期）：bass-graphic 给大色块与粗字，comedy-pop 给圆润图形与轻快节拍"
   },
   "pacing": {
     "curve": "gentle",

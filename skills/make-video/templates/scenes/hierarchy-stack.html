@@ -12,13 +12,14 @@
     - 标点镜 punch 顶层卡（V-MOT-013 预算）；母题：光斑呼吸 + 顶卡 float。
 -->
 <style>
+  :root { --pad: {{STAGE_PAD}}; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   [data-scene-id] { position: relative; width: 100%; height: 100%; }
   body { font-family: {{FONT}}; background: #0b0e15; color: {{NEUTRAL_4}}; }
 
   .stage {
     position: relative; width: 100%; height: 100%; box-sizing: border-box;
-    padding: 7% 8%; overflow: hidden;
+    padding: calc(var(--pad) * 1%) calc(var(--pad) * 1.1%); overflow: hidden;
     perspective: 1200px; transform-style: preserve-3d;
     background:
       radial-gradient(ellipse at 74% 20%, {{PRIMARY}}30 0%, transparent 58%),
@@ -100,19 +101,19 @@
     <div class="subject" data-rank="primary">{{TITLE}}</div>
     <div class="stack">
       <div class="layer l1" data-depth="0.4" data-rank="secondary">
-        <span class="tier">L{{TIER1}}</span>
+        <span class="tier">{{TIER1}}</span>
         <div class="name">{{NAME1}}</div>
         <div class="desc">{{DESC1}}</div>
         <span class="beam" data-beam></span>
       </div>
       <div class="layer l2" data-depth="0.7" data-rank="secondary">
-        <span class="tier">L{{TIER2}}</span>
+        <span class="tier">{{TIER2}}</span>
         <div class="name">{{NAME2}}</div>
         <div class="desc">{{DESC2}}</div>
         <span class="beam" data-beam></span>
       </div>
       <div class="layer l3" data-depth="1" data-rank="primary">
-        <span class="tier">L{{TIER3}}</span>
+        <span class="tier">{{TIER3}}</span>
         <div class="name">{{NAME3}}</div>
         <div class="desc">{{DESC3}}</div>
         <span class="beam" data-beam></span>
@@ -147,7 +148,8 @@
     MV.tilt3d('.stack', { amp: 4, duration: 2000 });
 
     // ④ 层号落定：L1→L3 数字滚动（y6 的「部件逐个点亮」落在编号上）
-    MV.counter('.layer .tier', { delay: 560, stagger: 140, from: 0, to: 3, decimals: 0, prefix: 'L' });
+    //    to 给数组：三层各滚到自己的编号（1/2/3），不是全部滚到 3
+    MV.counter('.layer .tier', { delay: 560, stagger: 140, from: 0, to: [1, 2, 3], decimals: 0, prefix: 'L' });
 
     // ⑤ 荧光条：三层 beam 逐层点亮（从底层往上，能量向上传导 = y6 力传导）
     MV.highlight('.layer .beam', { delay: 540, stagger: 140 });

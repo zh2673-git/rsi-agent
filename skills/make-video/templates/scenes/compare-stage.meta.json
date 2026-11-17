@@ -1,0 +1,109 @@
+{
+  "id": "compare-stage",
+  "name": "对比舞台",
+  "grammar": [
+    "t3_finance",
+    "y2_collage",
+    "y7_system_map"
+  ],
+  "motifs": [
+    "breathe",
+    "shimmer"
+  ],
+  "camera": [
+    "pan",
+    "pan-left",
+    "push-in"
+  ],
+  "params": [
+    {
+      "name": "LEFT_TAG",
+      "type": "string",
+      "context": "text",
+      "note": "左侧标签"
+    },
+    {
+      "name": "LEFT_NUM",
+      "type": "string",
+      "context": "text",
+      "note": "左侧数值"
+    },
+    {
+      "name": "LEFT_NOTE",
+      "type": "string",
+      "context": "text",
+      "note": "左侧说明"
+    },
+    {
+      "name": "RIGHT_TAG",
+      "type": "string",
+      "context": "text",
+      "note": "右侧标签"
+    },
+    {
+      "name": "RIGHT_NUM",
+      "type": "string",
+      "context": "text",
+      "note": "右侧数值"
+    },
+    {
+      "name": "RIGHT_NOTE",
+      "type": "string",
+      "context": "text",
+      "note": "右侧说明"
+    },
+    {
+      "name": "SUB_LINE",
+      "type": "string",
+      "context": "text",
+      "note": "辅助说明"
+    },
+    {
+      "name": "PUNCH_AT",
+      "type": "number",
+      "context": "code",
+      "default": 720,
+      "min": 0,
+      "max": 6000,
+      "note": "重音标点落点（毫秒）"
+    }
+  ],
+  "materials": [
+    {
+      "role": "text.left",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 12
+    },
+    {
+      "role": "text.right",
+      "required": true,
+      "ifMissing": "ask",
+      "maxChars": 12
+    },
+    {
+      "role": "text.note",
+      "required": false,
+      "ifMissing": "skip",
+      "maxChars": 40
+    }
+  ],
+  "capacity": {
+    "maxChars": 96,
+    "maxElements": 6
+  },
+  "variants": [
+    {
+      "id": "winner-right",
+      "name": "右侧胜出",
+      "params": {},
+      "note": "默认：右栏为胜方"
+    },
+    {
+      "id": "winner-left",
+      "name": "左侧胜出",
+      "params": {},
+      "note": "翻转胜方"
+    }
+  ]
+}

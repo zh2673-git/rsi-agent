@@ -79,10 +79,10 @@
   ],
   "style": {
     "recommended": [
-      "shinkai-atmosphere",
-      "ghibli-painterly"
+      "cinematic-dark",
+      "vibe-cosmos"
     ],
-    "rationale": "故事需要情绪弧与氛围层；B 级预期：调性可复现，手绘/照片级工艺不可"
+    "rationale": "故事需要情绪弧与氛围层；B 级预期：调性可复现，手绘/照片级工艺不可——cinematic-dark 给深色空间与体积光，vibe-cosmos 给暖光与粒子氛围"
   },
   "pacing": {
     "curve": "story-arc",

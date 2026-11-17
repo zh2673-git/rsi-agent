@@ -96,8 +96,8 @@
     "absorbedAt": "2026-10-24",
     "review": "v1 对拍验收"
   },
-  "references": "references.md",
-  "antiPatterns": "anti-patterns.md",
+  "references": "bass-graphic.references.md",
+  "antiPatterns": "bass-graphic.anti-patterns.md",
   "visuals": {
     "dimension": "2d",
     "motifs": [

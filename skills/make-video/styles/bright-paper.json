@@ -105,8 +105,8 @@
     "absorbedAt": "2026-11-04",
     "review": "v1 亮调对拍验收"
   },
-  "references": "references.md",
-  "antiPatterns": "anti-patterns.md",
+  "references": "bright-paper.references.md",
+  "antiPatterns": "bright-paper.anti-patterns.md",
   "visuals": {
     "dimension": "2d",
     "motifs": [
@@ -114,7 +114,13 @@
       "ink-structure",
       "soft-haze"
     ],
-    "sceneBias": ["kinetic-type", "paper-stage", "typography", "comparison", "chart"],
+    "sceneBias": [
+      "kinetic-type",
+      "paper-stage",
+      "typography",
+      "comparison",
+      "chart"
+    ],
     "sceneDeny": [],
     "texture": [
       "paper",

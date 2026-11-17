@@ -37,6 +37,14 @@ describe('① 白名单 ↔ motion-lib 实现（钉住「有词无实现」静�
     expect(missing, `白名单有、motion-lib 没实现（会静默走 else）：${missing.join(', ')}`).toEqual([]);
   });
 
+  it('motion-lib.js 可以被解析（语法冒烟，钉住 P12 编辑事故：函数体残留 → 整库非法 JS）', () => {
+    expect(() => new Function(read('templates/motion/motion-lib.js'))).not.toThrow();
+  });
+
+  it('choreo-lib.js 可以被解析', () => {
+    expect(() => new Function(read('templates/motion/choreo-lib.js'))).not.toThrow();
+  });
+
   it('motion-lib.js 的每个 `MV.x = function` 都在白名单里（钉住反向漏登记）', () => {
     const implemented = [...lib.matchAll(/MV\.([a-zA-Z][a-zA-Z0-9]*)\s*=\s*function/g)].map(
       (m) => `MV.${m[1]}`,
