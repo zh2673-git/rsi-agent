@@ -1,0 +1,8 @@
+{
+  "id": "BS4-BOARD-CLI-SCHEMA",
+  "description": "board.py：task-upsert 的字段规格做成 TASK_UPSERT_HELP 常量并由 CLI 枚举常量格式化（不手抄字面量），--help 原样印出——修「规格不在调用点同框，模型只能猜」（I-20261116 子窗口连撞 4 次 BAD_ARG，另一窗口查了 --help 就放弃）",
+  "file": "scripts/board.py",
+  "anchor_file": "blocks/bs4-board-cli-schema-anchor.txt",
+  "patch_file": "blocks/bs4-board-cli-schema-patch.txt",
+  "applied_marker": "TASK_UPSERT_HELP = f\"\"\"\\"
+}

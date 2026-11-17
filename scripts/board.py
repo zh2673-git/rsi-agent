@@ -95,6 +95,42 @@ DEFAULT_LAYOUT = {
 TASK_ID_RE = re.compile(r"^T-\d{8}-\d{2,3}$")
 INSP_ID_RE = re.compile(r"^I-\d{8}-\d{2,3}$")
 
+# ── task-upsert 的字段规格（`--help` 末尾原样印出）──────────────────────────────
+# 为什么规格要印在 --help 里（I-20261116 实测）：子窗口的 agent 连撞 4 次 BAD_ARG
+# （task 级写了 in_progress、自造 id `T-blind-full`、acceptance 给了裸字符串），
+# 第 4 次才对；另一个窗口查了 --help 就放弃了——**规格不在调用点同框**，模型只能猜。
+# 提示词 brief 档也印同一份（skills.rs），两处必须同时在位，且枚举逐字一致
+# （tests/test_board_schema_contract.py 守着这条不变量）。
+# 枚举由下面的常量格式化进来，不手抄字面量——手抄必然漂移。
+TASK_UPSERT_HELP = f"""\
+JSON schema（task-upsert 读 ONE JSON 对象；`--file -` 从 stdin 读）
+
+最小可用形状：
+  {{"title": "一句话标题", "status": "planning", "priority": "P1",
+   "plan": [{{"step": "第一步", "status": "pending", "owner": "self"}}],
+   "acceptance": ["可核对的验收项"],
+   "resourcing": {{"model": "current", "effort": "medium"}}}}
+
+字段规则（违反即拒，不做纠正/不猜）：
+  id            省略即由 CLI 自动分配（形如 T-20261107-01）。自己写就必须匹配
+                T-YYYYMMDD-NN；写 `T-foo-bar` 这类会被拒。
+  status        task 级，只能是 {"|".join(TASK_STATUSES)}
+                —— in_progress 不是 task 级状态（它属于 plan 步）。
+  plan[].status 只能是 {"|".join(PLAN_STATUSES)}
+  plan[].owner  只能是 {"|".join(PLAN_OWNERS)}（记录谁干，不是调度指令）
+  acceptance    必须是**字符串数组**；给一整段裸字符串会被拒。
+  priority      {"|".join(PRIORITIES)}；resourcing.model 取 current|cheap|strong；
+                resourcing.effort 取 {"|".join(EFFORTS)}
+  checks        数组，元素 {{id, kind, name, target, timeout_secs}}；
+                kind 取 {"|".join(CHECK_KINDS)}
+  outcomes      {{brief, pro}}，两条短句，移到 done 时写。
+
+常见拒因（实测撞过的，照着改就能过）：
+  - status: 'in_progress'        → task 级没有它，用 doing / verifying
+  - id: 'T-blind-full'           → 形状错，省略 id 让它自动分配
+  - acceptance: "一整段字符串"    → 必须是 ["第一条", "第二条"]
+  被拒时任务**不在**看板上（用户看不到任何东西）：改完形状立刻重试，不要放着。"""
+
 
 class BoardError(Exception):
     """业务错误：带 code/field，CLI 出口统一序列化。"""
@@ -1286,7 +1322,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("stats", help="计数概览")
     p.set_defaults(fn=cmd_stats)
 
-    p = sub.add_parser("task-upsert", help="新建或更新任务（JSON 文件或 - 读 stdin）")
+    p = sub.add_parser("task-upsert", help="新建或更新任务（JSON 文件或 - 读 stdin）",
+                       description=TASK_UPSERT_HELP,
+                       formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--file", required=True)
     p.set_defaults(fn=cmd_task_upsert)
 

@@ -1,0 +1,8 @@
+{
+  "id": "BS5-BOARD-CLI-HELP",
+  "description": "board.py：task-upsert 子命令挂 description=TASK_UPSERT_HELP + RawDescriptionHelpFormatter，让 --help 真的印出字段规格（BS4 只定义了常量，不接上等于没印）",
+  "file": "scripts/board.py",
+  "anchor_file": "blocks/bs5-board-cli-help-anchor.txt",
+  "patch_file": "blocks/bs5-board-cli-help-patch.txt",
+  "applied_marker": "description=TASK_UPSERT_HELP,"
+}

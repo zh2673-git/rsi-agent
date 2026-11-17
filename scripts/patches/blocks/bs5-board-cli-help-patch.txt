@@ -1,0 +1,3 @@
+    p = sub.add_parser("task-upsert", help="新建或更新任务（JSON 文件或 - 读 stdin）",
+                       description=TASK_UPSERT_HELP,
+                       formatter_class=argparse.RawDescriptionHelpFormatter)
