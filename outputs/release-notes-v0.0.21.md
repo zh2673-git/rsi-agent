@@ -1,6 +1,9 @@
 # rsi-agent v0.0.21
 
-本版覆盖 `v0.0.20..v0.0.21` 区间的**全部 8 笔提交**，263 个文件，+19,298 / −385。
+本版覆盖 `v0.0.20..v0.0.21` 区间的**全部 8 笔提交**，263 个文件，+19,298 / −385；
+另有一笔**紧接 tag 之后**落在 `main` 上的收尾提交（`187a119`，8 文件 / +417 −10），
+本文档把它一并写进来（否则「发行说明提到 `verify-login-buttons.py`、但 tag 里没这个文件」
+会是个坑）。含该笔后合计 9 笔 / 270 文件 / +19,706 −386。
 
 主题：**模型目录不再是手工维护的静态表**。本版把「模型从哪来、为什么少了几个、
 路由组怎么管、哪些登录渠道真的可用」这四件事从「靠人记」变成「由 `/v1/models`
@@ -18,6 +21,12 @@
 | 调用点规格 | `a103bad` | `task-upsert --help` 印出字段规格 |
 | 测试修复 | `9d2674e` | 修两条 HEAD 既有失败：判据选错 + 用例读真实时钟 |
 | 发行说明归档 | `8a0d4cd` | 本文件（v0.0.21 发行说明） |
+
+tag 之后补的一笔（也在本版口径内）：
+
+| 类别 | 提交 | 说明 |
+|---|---|---|
+| 登录按钮三层契约 | `187a119` | 新增 `scripts/verify-login-buttons.py` + 9 条 pytest 契约 + `NW18B-TURNS-META` 补丁（8 文件） |
 
 ---
 
@@ -57,8 +66,10 @@
 
 前端面板位置在 `#sec-llm` 之后、生图组头之前，复用 `.poolhead.collapsible` + `.poolbody`。
 
-实测 `magpie groups` = **8 组**；模型下拉 **97** 项（96 + `__custom__`）；路由组成员
-多选 88；routing 11；stays 5。
+实测 `magpie groups` = **8 组**（DeepSeek V4.1 Flash / DeepSeek V4 Pro / MiniMax-M2.1 /
+GLM-5 / GLM-5.3 / GLM-5.3-Flash / GLM-5.2 / MiniMax-M3.1-Flash，即 8 个 `auto/*`）；
+`GET /api/routegroups/options` = **88** 个可加入成员、routing 11、stays 5；模型下拉
+**97** 项（96 + `__custom__`）。
 
 两条踩过的坑记在这里，免得后人重踩：
 
@@ -97,10 +108,23 @@ qwenwork-enterprise                                                             
 浏览器端逐项比对过：`#upstream-login-btns` 里 9 个按钮的**数量、顺序、文案、`disabled`
 状态**与 API 返回逐一相同；`qwenwork-enterprise` 的按钮带 `title` 指向终端命令。
 
+这条判据是三层落地的，缺一层就拦不住「前端又写死」：
+
+1. 纯函数映射（前端按 API 生成按钮）+ `tests/test_login_buttons_contract.py` 的 9 条
+   静态契约（不需要浏览器）——其中 `test_mapping_has_teeth` 把 `usable` 语义取反后
+   必须与正解不等，保证判据自己有牙；
+2. 源码契约：`index.html` 不得出现写死的 `upstream-login-*` 按钮（正则用 `(?!btns\b)`
+   排除容器本身），`app-settings.js` 必须含灰显分支与 `plugin login` 提示；
+3. `scripts/verify-login-buttons.py`（真浏览器）——上面的实测就是它跑出来的。
+
 > 一个容易误判的坑，如实记下：如果你机器上跑着的 `react-agent-host.exe` 是这次改动**之前**
 > 编译的，`/api/upstream/providers` 会返回 **404**，看起来像「P3 没实现」。实际是旧二进制
 > 里根本没有这条路由（`strings` 比对：旧 exe 无 `/api/upstream/providers` 字面量，新 exe 有）。
-> 重启 Host 即可，不是代码问题。
+> 重启 Host 即可，不是代码问题。本机就有一例：用户实例 PID 32756（exe mtime `11-17 14:07`，
+> sha256 前 16 位 `391988da657c9898`）属旧二进制，该路由 404；本轮重建的
+> `.scratch/target/debug/react-agent-host.exe`（sha256 `d9315738f7034c94`）实测 9 渠道全 200。
+> 也正因如此，`verify-login-buttons.py` 增加了 `--build`：先 `cargo build` 再用新 exe，
+> 不让「拿旧二进制验新路由」制造假阴性。
 
 ---
 
@@ -219,7 +243,7 @@ BS1 只做了 brief 那半；CLI 那半从未实现——`task-upsert --help` �
 | `cargo test -p react-agent-host --lib` | **99 passed** |
 | `scripts/verify-model-sync.py --gw 3425 --rsi 8710` | exit 0，**96/96**，含 8 个 `auto/*` |
 | `scripts/verify-login-buttons.py --build` | exit 0，API **9** 渠道 ↔ UI **9** 按钮逐一相同 |
-| 补丁链 `--dry-run` | **281 行 / 281 OK / 0 FAIL**（全部 `applied_marker` 命中，幂等跳过） |
+| 补丁链 `--dry-run` | **281 行 / 281 OK / 0 FAIL**（全部 `applied_marker` 命中，幂等跳过；含本版新增的 `NW18B-TURNS-META`） |
 | `GET /api/upstream/providers` ↔ UI 按钮 | **9 / 9**，顺序 + 文案 + `disabled` 逐一相同 |
 | 浏览器端到端 | 27 pass / 0 fail |
 
@@ -241,6 +265,10 @@ BS1 只做了 brief 那半；CLI 那半从未实现——`task-upsert --help` �
 `session_id` 是 `r16`（正是该测试的会话 id）。补 `NW18B-TURNS-META` 后再跑，文件数
 保持 112 不变。
 
+该补丁的 `applied_marker` 是 `agent-loop-meta-turns-`，刻意与 NW18 的
+`agent-loop-contract-turns-` 错开——两条补丁覆盖同一个文件的两处同文锚点，marker
+若相同，幂等判据会互相冒充（第二条永远「已应用」）。
+
 ---
 
 ## 升级注意
@@ -248,7 +276,10 @@ BS1 只做了 brief 那半；CLI 那半从未实现——`task-upsert --help` �
 - 本版**不改** `Cargo` 版本线，不动 `v0.0.20`；
 - 模型同步**不带** `?provider=` 覆盖，**不静默替换**用户当前模型；
 - Magpie 的 provider/model/group 管理一律走 CLI，Host 不直接读写 `providers.json`；
-- `auto/beam-free` 不可恢复（上游已无该模型），其余 8 个 `auto/*` 可用。
+- `auto/beam-free` 不可恢复（上游已无该模型），其余 8 个 `auto/*` 可用；
+- **升级后请重启 Host**：`/api/upstream/providers` 是本版新增路由，跑着旧 exe 会 404
+  （现象像「功能没实现」，实为旧二进制，`strings` 可反证）。本机用户实例 PID 32756
+  即属此列，重启即恢复。
 
 ## 与其他 Release 的关系
 
