@@ -1,0 +1,8 @@
+{
+  "id": "P2-ROUTEGROUPS-B-API-MOD",
+  "description": "api/mod.rs：注册 routegroups 模块并 re-export 7 个路由组处理器（mod 声明按字母序插在 publish/skills 之间；re-export 追加在 skills 之后——既有补丁 I07-REEXPORT 的幂等判据是 publish→skills 两行连续文本，中间插行会令其永远判失败）。P3 动态化改写了同一锚点内的 misc 导出块，故补 applied_marker 作终态判据",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor_file": "blocks/p2-routegroups-b-api-mod-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-b-api-mod-patch.txt",
+  "applied_marker": "mod routegroups;"
+}

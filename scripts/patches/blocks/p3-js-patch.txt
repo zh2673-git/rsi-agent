@@ -1,0 +1,67 @@
+// ── 账号签到（magpie 内置渠道）：登录弹窗 / 一键领取 / 状态行 ──
+// 登录渠道**动态**渲染：GET /api/upstream/providers（Host 侧来自 `magpie plugin list --json`）。
+// 为什么不在前端写死渠道表：渠道是插件能力，装了什么就有什么；写死必然与用户机器漂移
+// （曾出现「MiniMax 登录入口」在插件里根本不存在），也会漏掉新装插件。
+let checkinProvidersLoaded = false;
+async function refreshCheckinProviders(force) {
+  const box = $("upstream-login-btns");
+  if (!box) return;
+  if (checkinProvidersLoaded && !force) return;
+  try {
+    const v = await api("GET", "/api/upstream/providers");
+    const list = Array.isArray(v.providers) ? v.providers : [];
+    box.textContent = "";
+    for (const p of list) {
+      const label = p.name || p.id;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn ghost";
+      if (p.usable) {
+        b.textContent = `登录 ${label} 账号`;
+        b.onclick = () => loginProvider(p.id, label, b);
+      } else {
+        // 该渠道的 method 需要交互输入（api key / 企业域名），Host 子进程 stdin=null 做不了
+        b.textContent = `登录 ${label} 账号（需终端）`;
+        b.disabled = true;
+        b.title = `${label} 的登录方式需要交互输入，请在终端执行：magpie plugin login ${p.id}`;
+      }
+      box.appendChild(b);
+    }
+    if (!list.length) box.textContent = "未发现可登录渠道（检查 magpie 插件是否安装）";
+    checkinProvidersLoaded = true;
+  } catch { checkinProvidersLoaded = false; }
+}
+async function loginProvider(pid, label, btn) {
+  btn.disabled = true; btn.textContent = `${label} 登录中…（在弹窗完成登录后自动恢复）`;
+  flash("llm-flash", true, `${label} 登录窗已弹出——在窗口里完成验证，关窗后自动刷新账号。`);
+  try { await api("POST", `/api/upstream/login?provider=${encodeURIComponent(pid)}`); flash("llm-flash", true, `${label} 登录流程结束，正在刷新账号…`); }
+  catch (e) { flash("llm-flash", false, `${label} 登录流程提前退出：${e.message}（若窗口里已完成登录，稍后自动刷新即可确认）`); }
+  btn.disabled = false; btn.textContent = `登录 ${label} 账号`;
+  refreshCheckinAccounts(); refreshUpstream();
+}
+function renderCheckinState(text, cls) {
+  const st = $("checkin-state");
+  st.textContent = text;
+  st.className = "up-state " + (cls ?? "");
+}
+async function refreshCheckinAccounts() {
+  const field = $("upstream-checkin-field");
+  if (field.hidden) return;
+  refreshCheckinProviders();
+  try {
+    const v = await api("GET", "/api/upstream/accounts");
+    const list = Array.isArray(v.accounts) ? v.accounts : (v.accounts?.accounts ?? []);
+      const PN = { workbuddy: "WorkBuddy", "trae-cn": "Trae CN", qoder: "Qoder", kiro: "Kiro" };
+      const f = x => (typeof x === "number" ? Math.round(x * 10) / 10 : x);
+      const log = $("upstream-checkin-log");
+      log.style.whiteSpace = "pre-wrap";
+      log.textContent = list.map(a => {
+        const name = `${PN[a.agent] ?? a.agent} ${a.user}${a.active ? "" : "（未激活）"}`;
+        const qs = (a.windows ?? []).map(w => `${w.name ?? "积分"} 剩 ${f(w.remaining) ?? "?"}`).join("，");
+        return `· ${name}：${qs || "暂无积分数据"}`;
+      }).join("\n");
+      log.hidden = list.length === 0;
+    const withQuota = list.filter(a => (a.windows?.length ?? 0) > 0);
+    renderCheckinState(`已登录 ${list.length} 个账号${withQuota.length ? `（${withQuota.length} 个有积分）` : ""}`, "up");
+  } catch { renderCheckinState("账号状态获取失败", "down"); }
+}

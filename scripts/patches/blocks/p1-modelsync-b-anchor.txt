@@ -1,0 +1,38 @@
+async function fetchModels(silent) {
+  const btn = $("llm-fetch-models");
+  const prev = btn.textContent;
+  if (!silent) { btn.disabled = true; btn.textContent = "拉取中…"; }
+  try {
+    const v = await api("GET", "/api/models?provider=" + encodeURIComponent($("llm-provider").value));
+    if (v && v.ok && Array.isArray(v.models) && v.models.length) {
+      const sel = $("llm-model");
+      const cur = sel.value && sel.value !== "__custom__" ? sel.value : "";
+      modelsMeta = Array.isArray(v.models_meta) ? v.models_meta : [];
+      const ctxByName = new Map(modelsMeta.filter((m) => m.ctx_limit).map((m) => [m.name, m.ctx_limit]));
+      sel.innerHTML = "";
+      for (const m of v.models) {
+        const o = document.createElement("option");
+        o.value = m;
+        o.textContent = ctxByName.has(m) ? `${m} · ${fmtCtx(ctxByName.get(m))}` : m;
+        sel.appendChild(o);
+      }
+      const oc = document.createElement("option");
+      oc.value = "__custom__"; oc.textContent = "（自定义…）"; sel.appendChild(oc);
+      sel.value = (cur && v.models.includes(cur)) ? cur : (v.models[0] || "__custom__");
+      syncModelField();
+      if (!silent) flash("llm-flash", true, `已拉取 ${v.models.length} 个模型，点 model 下拉选择`);
+    } else if (!silent) {
+      flash("llm-flash", false, "未返回模型列表：" + (v?.error?.message || "空"));
+    }
+  } catch (e) {
+    if (!silent) flash("llm-flash", false, "拉取失败: " + e.message);
+  } finally {
+    if (!silent) { btn.disabled = false; btn.textContent = prev; }
+    updateCtxHint();
+  }
+}
+// 打开设置时静默拉一次（仅 ollama）：Agent 页原生窗口提示开箱可用，失败不打扰
+async function ensureModelsMeta() {
+  if (modelsMeta.length || $("llm-provider").value !== "ollama") return;
+  await fetchModels(true);
+}

@@ -348,24 +348,19 @@ pub(crate) async fn upstream_start(stream: &mut TcpStream) -> anyhow::Result<()>
 
 // ───────────────────── 账号签到（magpie accounts login/checkin/list） ─────────────────────
 
-/// 解析查询串里 url 编码的 provider 参数（只放行四个内置签到渠道）。
-fn checkin_provider(query: &str) -> Option<&'static str> {
-    for pair in query.split('&') {
-        let (k, v) = pair.split_once('=')?;
-        if k != "provider" {
-            continue;
-        }
-        return match v {
-            "workbuddy" => Some("workbuddy"),
-            "trae-cn" => Some("trae-cn"),
-            "trae-global" => Some("trae-global"),
-            "qoder" => Some("qoder"),
-            "minimax" => Some("minimax"),
-            "kiro" => Some("kiro"),
-            _ => None,
-        };
+/// 解析查询串里 url 编码的 provider 参数：**只做形状校验**（非空、仅 `[a-z0-9-]{1,64}`）。
+/// provider 是否存在、能不能登录，一律由 `magpie plugin list --json` 动态判定（P3 动态化）。
+/// 为什么不保留固定白名单：渠道是插件能力，装了什么就有什么；写死在 Host 里必然与用户
+/// 机器上的实际插件漂移（曾出现 minimax 登录入口在插件里根本不存在）。
+fn checkin_provider(query: &str) -> Option<String> {
+    let v = parse_query(query).get("provider").cloned().unwrap_or_default();
+    if v.is_empty() || v.len() > 64 {
+        return None;
     }
-    None
+    if !v.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        return None;
+    }
+    Some(v)
 }
 
 /// Windows 下隐藏 CLI 子进程窗口（与 upstream_start 同款）。
@@ -379,35 +374,145 @@ fn checkin_spawn(command: &mut std::process::Command) {
     let _ = command;
 }
 
-/// POST /api/upstream/login?provider=workbuddy：弹 magpie 登录窗（CLI 子进程跑
-/// `magpie plugin login <provider>`，GUI 完成 OTP 后子进程自然退出）。请求会阻塞到
+/// 读 `magpie plugin list --json` 的 `providers` 数组——登录渠道与可用 method 的**唯一事实源**。
+/// 为什么不写死白名单：渠道是插件能力，用户装了什么就有什么；写死在 Host 里必然与机器实际
+/// 插件漂移（曾出现「MiniMax 登录入口」在插件里根本不存在）。解析走 serde_json，不用
+/// PowerShell ConvertFrom-Json（中文 labels 会触发 `Invalid object passed in`）。
+fn plugin_providers(exe: &std::path::Path) -> Option<Value> {
+    let mut cmd = std::process::Command::new(exe);
+    cmd.args(["plugin", "list", "--json"]).stdin(std::process::Stdio::null());
+    checkin_spawn(&mut cmd);
+    let o = cmd.output().ok()?;
+    let v: Value = serde_json::from_slice(&o.stdout).ok()?;
+    v.get("providers").cloned()
+}
+
+/// 判断一个 method 能否被 Host 子进程自动完成：Host 的 stdin=null，凡是需要用户输入值的
+/// method（带 `placeholder` 的 api-key 型，或 label 里写明「输入…」的企业域名型）一打就
+/// EOF/挂死，只能留给终端。返回 true = 可自动完成。
+fn method_usable(m: &Value) -> bool {
+    let label = m.get("label").and_then(Value::as_str).unwrap_or("").trim();
+    !label.is_empty() && m.get("placeholder").is_none() && !label.contains("输入")
+}
+
+/// 从 provider 的 `methods[]` 里挑一个可自动完成的 method（偏好浏览器 OAuth，其次复用本机
+/// CLI/IDE 登录态，最后取第一个可用的）。
+fn usable_method(p: &Value) -> Option<String> {
+    let ms = p.get("methods")?.as_array()?;
+    let cands: Vec<String> = ms
+        .iter()
+        .filter(|m| method_usable(m))
+        .filter_map(|m| m.get("label").and_then(Value::as_str).map(|s| s.trim().to_string()))
+        .collect();
+    if let Some(l) = cands.iter().find(|l| l.contains("browser")) {
+        return Some(l.clone());
+    }
+    if let Some(l) = cands.iter().find(|l| l.contains("CLI's or")) {
+        return Some(l.clone());
+    }
+    cands.into_iter().next()
+}
+
+/// POST /api/upstream/login?provider=workbuddy：弹 `magpie` 登录窗（CLI 子进程跑
+/// `magpie plugin login <provider> <method>`，GUI 完成 OTP 后子进程自然退出）。请求会阻塞到
 /// 登录窗关闭——前端按钮自行 disable + 等待；宿主每连接独立 spawn，不会卡其它请求。
 pub(crate) async fn upstream_login(stream: &mut TcpStream, query: &str) -> anyhow::Result<()> {
     let Some(provider) = checkin_provider(query) else {
-        return json_resp(stream, 400, json!({"ok": false, "error": {"code": "K400", "message": "缺少或非法 provider（支持 workbuddy/trae/qoder/minimax）"}})).await;
+        return json_resp(stream, 400, json!({"ok": false, "error": {"code": "K400", "message": "缺少或非法 provider（形如 trae-cn / workbuddy；可用清单见 GET /api/upstream/providers）"}})).await;
     };
     let exe = tokio::task::spawn_blocking(find_magpie_exe).await.unwrap_or(None);
     let Some(exe) = exe else {
         return json_resp(stream, 404, json!({"ok": false, "error": {"code": "K404", "message": "未找到 magpie CLI（可设 MAGPIE_EXE env，或装到 %USERPROFILE%\\.local\\bin\\magpie.exe）"}})).await;
     };
+    // 先问 CLI 现有哪些渠道、目标渠道有哪些 method——provider 是否存在只能这样判定：
+    // `magpie plugin login nosuchprovider` 可能退出 0，凭退出码判断会放行不存在的渠道。
+    let probe_exe = exe.clone();
+    let probe_pid = provider.clone();
+    let probe = tokio::task::spawn_blocking(move || -> Result<String, (u16, Value)> {
+        let Some(ps) = plugin_providers(&probe_exe) else {
+            return Err((502, json!({"ok": false, "error": {"code": "K502", "message": "读取 magpie plugin list --json 失败，无法确认登录渠道"}})));
+        };
+        let arr = ps.as_array().cloned().unwrap_or_default();
+        let ids: Vec<String> = arr
+            .iter()
+            .filter_map(|p| p.get("id").and_then(Value::as_str).map(str::to_string))
+            .collect();
+        let Some(p) = arr.iter().find(|p| p.get("id").and_then(Value::as_str) == Some(probe_pid.as_str())) else {
+            return Err((
+                400,
+                json!({"ok": false, "error": {"code": "K400", "message": format!("未安装的 provider: {probe_pid}（当前可用: {}）", ids.join(" / "))}}),
+            ));
+        };
+        match usable_method(p) {
+            Some(m) => Ok(m),
+            None => Err((
+                400,
+                json!({"ok": false, "error": {"code": "K400", "message": format!("{probe_pid} 没有能在面板里自动完成的登录方式（需要交互输入或企业域名），请在终端执行: magpie plugin login {probe_pid}")}}),
+            )),
+        }
+    })
+    .await;
+    let method = match probe {
+        Ok(Ok(m)) => m,
+        Ok(Err((status, body))) => return json_resp(stream, status, body).await,
+        Err(_) => {
+            return json_resp(stream, 500, json!({"ok": false, "error": {"code": "K500", "message": "magpie CLI 执行失败"}})).await
+        }
+    };
+    let pid = provider.clone();
     let r = tokio::task::spawn_blocking(move || {
         let mut cmd = std::process::Command::new(&exe);
-        cmd.args(["plugin", "login", provider]).stdin(std::process::Stdio::null());
+        cmd.args(["plugin", "login", provider.as_str(), method.as_str()])
+            .stdin(std::process::Stdio::null());
         checkin_spawn(&mut cmd);
         cmd.output()
     })
     .await;
     match r {
         Ok(Ok(o)) if o.status.success() => {
-            json_resp(stream, 200, json!({"ok": true, "provider": provider})).await
+            json_resp(stream, 200, json!({"ok": true, "provider": pid})).await
         }
         Ok(Ok(o)) => {
             let msg = String::from_utf8_lossy(&o.stderr);
             let msg = msg.lines().next().unwrap_or("CLI 退出非 0").to_string();
-            json_resp(stream, 502, json!({"ok": false, "error": {"code": "K502", "message": format!("{provider} 登录未完成: {msg}")}})).await
+            json_resp(stream, 502, json!({"ok": false, "error": {"code": "K502", "message": format!("{pid} 登录未完成: {msg}")}})).await
         }
         _ => json_resp(stream, 500, json!({"ok": false, "error": {"code": "K500", "message": "magpie CLI 执行失败"}})).await,
     }
+}
+
+/// GET /api/upstream/providers：登录渠道清单（动态，来自 `magpie plugin list --json`）。
+/// 每个 provider 给出 id / name / usable / methods[{label,usable}]，前端据此渲染登录按钮——
+/// 装了什么插件就有什么按钮，MiniMax 这类不存在的渠道不会再出现。
+pub(crate) async fn upstream_providers(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let exe = tokio::task::spawn_blocking(find_magpie_exe).await.unwrap_or(None);
+    let Some(exe) = exe else {
+        return json_resp(stream, 404, json!({"ok": false, "error": {"code": "K404", "message": "未找到 magpie CLI"}})).await;
+    };
+    let r = tokio::task::spawn_blocking(move || plugin_providers(&exe)).await;
+    let Some(ps) = r.ok().flatten() else {
+        return json_resp(stream, 502, json!({"ok": false, "error": {"code": "K502", "message": "读取 magpie plugin list --json 失败"}})).await;
+    };
+    let mut list: Vec<Value> = Vec::new();
+    for p in ps.as_array().cloned().unwrap_or_default() {
+        let id = p.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+        if id.is_empty() {
+            continue;
+        }
+        let name = p
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .unwrap_or_else(|| id.clone());
+        let mut methods: Vec<Value> = Vec::new();
+        for m in p.get("methods").and_then(Value::as_array).cloned().unwrap_or_default() {
+            let label = m.get("label").and_then(Value::as_str).unwrap_or("").trim().to_string();
+            methods.push(json!({"label": label, "usable": method_usable(&m)}));
+        }
+        let usable = methods.iter().any(|m| m.get("usable").and_then(Value::as_bool).unwrap_or(false));
+        list.push(json!({"id": id, "name": name, "usable": usable, "methods": methods}));
+    }
+    json_resp(stream, 200, json!({"ok": true, "providers": list})).await
 }
 
 /// POST /api/upstream/checkin：全量签到（跑 `magpie accounts checkin`，幂等），返回可读结果行。

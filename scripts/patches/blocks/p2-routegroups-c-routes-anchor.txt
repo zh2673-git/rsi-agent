@@ -1,0 +1,3 @@
+        ("GET", "/api/config") => api::get_config(&mut stream, &kernel).await,
+        ("GET", "/api/models") => api::get_models(&mut stream, &kernel, query).await,
+        ("GET", "/api/presets") => api::get_presets(&mut stream, &kernel).await,

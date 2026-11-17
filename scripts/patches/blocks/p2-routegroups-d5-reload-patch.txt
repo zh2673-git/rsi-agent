@@ -1,0 +1,6 @@
+  // 在飞期间的第二次 rgLoad 不能直接丢：建/改/删/恢复组之后紧跟的那次刷新，正是「把新
+  // 状态读回来」的那一次；丢掉它界面就停在旧列表（实测：flash 说建组成功，列表里却没有
+  // 新组，用户以为没建成）。改成排队，由 finally 补跑一次。
+  if (!box) return;
+  if (rgState.loading) { rgState.pending = true; return; }
+  rgState.loading = true;

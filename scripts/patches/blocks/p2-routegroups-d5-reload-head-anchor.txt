@@ -1,0 +1,2 @@
+  if (!box || rgState.loading) return;
+  rgState.loading = true;

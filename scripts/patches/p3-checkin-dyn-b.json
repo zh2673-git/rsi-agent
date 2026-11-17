@@ -1,0 +1,9 @@
+{
+  "id": "P3-CHECKIN-DYN-B",
+  "description": "misc.rs：登录流程改为动态——先 magpie plugin list --json 校验 provider 存在并从 methods[] 选一个可自动完成的 method（无 placeholder / 不含「输入」），删掉固定 login_method；新增 GET /api/upstream/providers",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "order": 11,
+  "anchor_file": "blocks/p3-misc-b-anchor.txt",
+  "patch_file": "blocks/p3-misc-b-patch.txt",
+  "applied_marker": "pub(crate) async fn upstream_providers(stream: &mut TcpStream) -> anyhow::Result<()> {"
+}

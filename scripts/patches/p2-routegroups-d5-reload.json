@@ -1,0 +1,9 @@
+{
+  "id": "P2-ROUTEGROUPS-D5-RELOAD",
+  "description": "app-settings.js：rgLoad 在飞期间的第二次调用改为排队补跑（原来直接 return，导致建/改/删组后紧跟的那次刷新被静默丢弃，列表停在旧状态）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p2-routegroups-d5-reload-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-d5-reload-patch.txt",
+  "applied_marker": "rgState.pending = true",
+  "order": 7
+}

@@ -331,9 +331,33 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         ("GET", "/api/config") => api::get_config(&mut stream, &kernel).await,
         ("GET", "/api/models") => api::get_models(&mut stream, &kernel, query).await,
         ("GET", "/api/presets") => api::get_presets(&mut stream, &kernel).await,
+        // P2：Magpie 路由组管理（列表 / 选项 / 详情 / 新建 / 改 / 删 / 恢复）。
+        // 组状态只存在于 Magpie 自己的 providers.json，机器可读出口**只有 CLI**
+        // （`groups --json` / `group show --json` 都被忽略）——所以每个 handler 由 Host
+        // 用 `Command::args(...)` 调 CLI，前端只发 HTTP，不碰 shell。
+        // 顺序要紧：`/api/routegroups/options` 必须排在泛化的 `/api/routegroups/<id>`
+        // **之前**——Rust 的 match 首个命中即生效，反过来 `options` 会被当成组 id 去读。
+        ("GET", "/api/routegroups") => api::routegroups_list(&mut stream).await,
+        ("GET", "/api/routegroups/options") => api::routegroups_options(&mut stream, &kernel).await,
+        ("POST", "/api/routegroups") => api::routegroups_create(&mut stream, &body, &kernel).await,
+        // 恢复（把被移除的 Magpie 内置 found 组放回来）：必须排在泛化 POST 之前单独判尾缀。
+        ("POST", r) if r.starts_with("/api/routegroups/") && r.ends_with("/restore") => {
+            api::routegroups_restore(&mut stream, r.trim_start_matches("/api/routegroups/")).await
+        }
+        ("PUT", r) if r.starts_with("/api/routegroups/") => {
+            api::routegroups_set(&mut stream, r.trim_start_matches("/api/routegroups/"), &body, &kernel).await
+        }
+        ("DELETE", r) if r.starts_with("/api/routegroups/") => {
+            api::routegroups_rm(&mut stream, r.trim_start_matches("/api/routegroups/")).await
+        }
+        ("GET", r) if r.starts_with("/api/routegroups/") => {
+            api::routegroups_show(&mut stream, r.trim_start_matches("/api/routegroups/")).await
+        }
         // 上游本地网关（magpie）：状态（探活+积分）/ 一键启动 serve
         ("GET", "/api/upstream/status") => api::upstream_status(&mut stream, &kernel).await,
         ("POST", "/api/upstream/start") => api::upstream_start(&mut stream).await,
+        // 登录渠道清单（P3 动态化）：装了什么插件就有什么按钮，前端不再写死渠道表。
+        ("GET", "/api/upstream/providers") => api::upstream_providers(&mut stream).await,
         // 账号签到扩展：弹登录窗（CLI 子进程，长阻塞由每连接 tokio::spawn 吸收）/ 全量签到 / 账号清单
         ("POST", "/api/upstream/login") => api::upstream_login(&mut stream, &query).await,
         ("POST", "/api/upstream/checkin") => api::upstream_checkin(&mut stream).await,

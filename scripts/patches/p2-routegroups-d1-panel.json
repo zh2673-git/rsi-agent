@@ -1,0 +1,8 @@
+{
+  "id": "P2-ROUTEGROUPS-D1-PANEL",
+  "description": "index.html：LLM 页新增「路由组（auto 组）」面板——组列表（public id + 内部 id + 成员 + 可见性）、新建组表单（组名/多选成员/routing/stays/auto 目标）、刷新入口。前端只调 Host /api/routegroups*，不拼 shell",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/p2-routegroups-d1-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-d1-patch.txt",
+  "applied_marker": "id=\"rg-list\""
+}

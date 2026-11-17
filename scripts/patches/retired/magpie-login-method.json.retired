@@ -1,0 +1,7 @@
+{
+  "id": "MAGPIE-LOGIN-METHOD-1",
+  "description": "misc.rs 修复登录 EOF：magpie plugin login 不带 method 时 CLI 打交互菜单读 stdin，host 子进程 stdin=null → 读到 EOF 直接死（报 magpie: EOF）。按 provider 附加 method 参数跳过菜单：workbuddy→WorkBuddy account (browser)，kiro→Kiro CLI's or Kiro IDE's sign-in；trae-cn/trae-global 无菜单本就直接开浏览器，不动。",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor": "    let r = tokio::task::spawn_blocking(move || {\n        let mut cmd = std::process::Command::new(&exe);\n        cmd.args([\"plugin\", \"login\", provider]).stdin(std::process::Stdio::null());\n        checkin_spawn(&mut cmd);\n        cmd.output()\n    })\n    .await;",
+  "patch": "    // magpie plugin login 不带 method 时会打交互菜单并读 stdin 选号；host 子进程\n    // stdin=null，菜单一打就 EOF 退出（前端报 magpie: EOF）。按 provider 附加默认\n    // method 跳过菜单：workbuddy 用浏览器登录（桌面方式在 WorkBuddy 5.6+ 读不了），\n    // kiro 用本机 kiro-cli/IDE 的登录态；trae-cn/trae-global 无菜单，保持不带。\n    fn login_method(provider: &str) -> Option<&'static str> {\n        match provider {\n            \"workbuddy\" => Some(\"WorkBuddy account (browser)\"),\n            \"kiro\" => Some(\"Kiro CLI's or Kiro IDE's sign-in\"),\n            _ => None,\n        }\n    }\n    let r = tokio::task::spawn_blocking(move || {\n        let mut cmd = std::process::Command::new(&exe);\n        cmd.args([\"plugin\", \"login\", provider]).stdin(std::process::Stdio::null());\n        if let Some(m) = login_method(provider) {\n            cmd.arg(m);\n        }\n        checkin_spawn(&mut cmd);\n        cmd.output()\n    })\n    .await;"
+}

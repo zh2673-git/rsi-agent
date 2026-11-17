@@ -1,0 +1,3 @@
+    flash("llm-flash", true, "已保存并热生效");
+    loadConfig();
+    fetchModels();

@@ -1,0 +1,3 @@
+  processBody.addEventListener("scroll", () => {
+    processPinned = processBody.scrollHeight - processBody.scrollTop - processBody.clientHeight < 48;
+  }, { passive: true });

@@ -1,0 +1,8 @@
+{
+  "id": "P2-ROUTEGROUPS-C-ROUTES",
+  "description": "web/mod.rs：注册 Magpie 路由组 7 条路由（GET 列表 / GET options / GET 详情 / POST 新建 / PUT 改 / DELETE 删 / POST 恢复）。/api/routegroups/options 必须排在泛化的 /api/routegroups/<id> 之前——Rust match 首个命中即生效，反序会把 options 当组 id 去读；POST 恢复同理由尾缀守卫单独前置",
+  "file": "runtime/crates/host/src/web/mod.rs",
+  "anchor_file": "blocks/p2-routegroups-c-routes-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-c-routes-patch.txt",
+  "applied_marker": "\"/api/routegroups/options\""
+}

@@ -1,0 +1,118 @@
+// ── P1 模型目录自动同步 ──────────────────────────────────────────────────────
+// 单一事实源：网关 /v1/models（= /api/models 不带 provider 覆盖的转发结果）。
+// 三个坑（均为实测，不是推测）：
+//  ① 自动同步**不带** ?provider= 覆盖——llm-adapter 用的是它自己进程里的 env（config.json 热应用），
+//     带覆盖等于把 UI 里**尚未保存**的值当真值（实测 ?provider=ollama 返回本机 ollama 清单，
+//     与网关的 90 个模型毫无关系）。
+//  ② 当前模型不在新目录里时**继续显示为自定义值**，不得改成第一个模型——
+//     静默换模型 = 用户下一次发言用了别的模型却不知道（且原模型可能已下线）。
+//  ③ 自动失败必须**看得见 + 能重试**：静默失败等于目录永远停在旧快照，用户无从判断。
+let lastSyncedModel = "";  // 最近一次按服务端已保存配置同步到的模型（重试时沿用）
+let modelPicked = false;   // 用户在面板上手动选过模型（自动同步不得冲掉未保存的选择）
+let syncing = false;       // 同步在飞标记（并发请求会把下拉框刷成两个来源的结果）
+let syncPending = "";      // 在飞期间又来一次同步请求 → 结束后补跑（用最新模型值）
+function ensureCustomOption(sel) {
+  if (![...sel.options].some((o) => o.value === "__custom__")) {
+    const oc = document.createElement("option");
+    oc.value = "__custom__"; oc.textContent = "（自定义…）";
+    sel.appendChild(oc);
+  }
+}
+// 目录状态行：kind = ""（隐藏）/ "ok" / "err"；err 附「重试」按钮（重跑自动同步）
+function modelCatalogStatus(kind, text) {
+  const box = $("llm-model-sync");
+  if (!box) return;
+  if (!kind) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  box.innerHTML = `<span class="flash ${kind === "ok" ? "ok" : "err"}">${esc(text)}</span>` +
+    (kind === "err" ? ` <button type="button" class="btn ghost" id="llm-model-retry">重试</button>` : "");
+  const rb = $("llm-model-retry");
+  if (rb) rb.onclick = () => autoSyncModels(lastSyncedModel);
+}
+// 用目录重建下拉：cur 命中 → 选中；未命中 → 继续显示为自定义值（**不改成第一个模型**）
+function applyModelCatalog(models, meta, cur) {
+  const sel = $("llm-model");
+  modelsMeta = Array.isArray(meta) ? meta : [];
+  const ctxByName = new Map(modelsMeta.filter((m) => m.ctx_limit).map((m) => [m.name, m.ctx_limit]));
+  sel.innerHTML = "";
+  for (const m of models) {
+    const o = document.createElement("option");
+    o.value = m;
+    o.textContent = ctxByName.has(m) ? `${m} · ${fmtCtx(ctxByName.get(m))}` : m;
+    sel.appendChild(o);
+  }
+  ensureCustomOption(sel);
+  const keep = (cur ?? "").trim();
+  if (keep && models.includes(keep)) {
+    sel.value = keep; $("llm-model-custom").value = "";
+  } else if (keep) {
+    sel.value = "__custom__"; $("llm-model-custom").value = keep;
+  } else {
+    sel.value = models[0] || "__custom__";
+  }
+  syncModelField();
+}
+async function fetchModels(silent) {
+  const btn = $("llm-fetch-models");
+  const prev = btn.textContent;
+  if (!silent) { btn.disabled = true; btn.textContent = "拉取中…"; }
+  try {
+    // 手动「拉取模型」按 UI 里的 provider 取（用户可能正在试一个**尚未保存**的站点）；
+    // 自动同步不走这条路（见 autoSyncModels 的说明 ①）。
+    const v = await api("GET", "/api/models?provider=" + encodeURIComponent($("llm-provider").value));
+    if (v && v.ok && Array.isArray(v.models) && v.models.length) {
+      // 当前模型不在新目录里时同样保留为自定义值——否则「拉取模型」会顺手把用户选的模型
+      // 换成第一个，用户再点保存就悄悄换掉了模型。
+      applyModelCatalog(v.models, v.models_meta, curModelName());
+      if (!silent) flash("llm-flash", true, `已拉取 ${v.models.length} 个模型，点 model 下拉选择`);
+    } else if (!silent) {
+      flash("llm-flash", false, "未返回模型列表：" + (v?.error?.message || "空"));
+    }
+  } catch (e) {
+    if (!silent) flash("llm-flash", false, "拉取失败: " + e.message);
+  } finally {
+    if (!silent) { btn.disabled = false; btn.textContent = prev; }
+    updateCtxHint();
+  }
+}
+// 自动同步：按**服务端已保存**的 provider/base_url 拉目录（不带 provider 覆盖）
+async function autoSyncModels(savedModel) {
+  const cur = (savedModel ?? lastSyncedModel ?? "").trim();
+  if (cur) lastSyncedModel = cur;
+  if (syncing) { syncPending = lastSyncedModel; return false; }  // 别并发发第二次（两源相冲）
+  syncing = true;
+  modelCatalogStatus("", "");
+  try {
+    const v = await api("GET", "/api/models");
+    if (v && v.ok && Array.isArray(v.models) && v.models.length) {
+      applyModelCatalog(v.models, v.models_meta, lastSyncedModel);
+      modelCatalogStatus("ok", `已按已保存配置同步 ${v.models.length} 个模型`);
+      return true;
+    }
+    modelCatalogStatus("err", "模型目录为空：" + (v?.error?.message || "网关未返回 /v1/models 清单"));
+    keepCurrentAsCustom(lastSyncedModel);
+    return false;
+  } catch (e) {
+    modelCatalogStatus("err", "自动同步模型目录失败：" + e.message);
+    keepCurrentAsCustom(lastSyncedModel);
+    return false;
+  } finally {
+    syncing = false;
+    updateCtxHint();
+    if (syncPending) { const p = syncPending; syncPending = ""; autoSyncModels(p); }
+  }
+}
+// 失败兜底：当前模型继续以自定义值显示（不丢、不静默换成第一个）
+function keepCurrentAsCustom(cur) {
+  const keep = (cur ?? "").trim();
+  if (!keep) return;
+  const sel = $("llm-model");
+  ensureCustomOption(sel);
+  if (![...sel.options].some((o) => o.value === keep)) {
+    sel.value = "__custom__"; $("llm-model-custom").value = keep;
+    syncModelField();
+  }
+}
+// 手动改动模型 → 记为「用户选过」，自动同步据此保留未保存的选择
+$("llm-model").addEventListener("change", () => { modelPicked = true; });
+$("llm-model-custom").addEventListener("input", () => { modelPicked = true; });

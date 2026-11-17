@@ -1,0 +1,1 @@
+let rgState = { groups: [], options: null, loaded: false, loading: false, pending: false, editing: "" };

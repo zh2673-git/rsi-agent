@@ -1,0 +1,1 @@
+        <p class="hint"><code>auto/&lt;model&gt;</code> 是网关路由组：成员是真实模型，网关按 routing 策略挑一个。组有两套 id——内部 id 是规范化的 <code>auto-&lt;slug&gt;</code>，public 尾段保留原始大小写/下划线/点号，两者不能互相反推，所以下面都显示出来；删除/恢复一律按内部 id 精确指向，避免误删内置组。</p>

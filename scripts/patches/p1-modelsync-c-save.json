@@ -1,0 +1,8 @@
+{
+  "id": "P1-MODELSYNC-C-SAVE",
+  "description": "app-settings.js 保存后不再并发发第二次带 provider 覆盖的拉取（两条路径会把下拉框刷成不同来源的结果）；改为 await loadConfig() 走已保存配置的自动同步",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p1-modelsync-c-anchor.txt",
+  "patch_file": "blocks/p1-modelsync-c-patch.txt",
+  "applied_marker": "保存后由 loadConfig 内的自动同步刷新目录"
+}

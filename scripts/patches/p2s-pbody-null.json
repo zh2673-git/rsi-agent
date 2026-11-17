@@ -1,0 +1,9 @@
+{
+  "id": "P2S-PBODY-NULL",
+  "description": "app-stream.js：过程框 scroll 闭包改抓自己那个 body 元素（模块级 processBody 会被 resetStreamState 置 null，旧框被清空时再派发一次 scroll 就 null.scrollHeight 报错；线上基线页面 6s 内必报）",
+  "file": "runtime/crates/host/web-dist/vendor/app-stream.js",
+  "anchor_file": "blocks/p2s-pbody-null-anchor.txt",
+  "patch_file": "blocks/p2s-pbody-null-patch.txt",
+  "applied_marker": "const ownBody = processBody;",
+  "order": 7
+}

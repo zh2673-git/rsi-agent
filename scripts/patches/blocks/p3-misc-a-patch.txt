@@ -1,0 +1,14 @@
+/// 解析查询串里 url 编码的 provider 参数：**只做形状校验**（非空、仅 `[a-z0-9-]{1,64}`）。
+/// provider 是否存在、能不能登录，一律由 `magpie plugin list --json` 动态判定（P3 动态化）。
+/// 为什么不保留固定白名单：渠道是插件能力，装了什么就有什么；写死在 Host 里必然与用户
+/// 机器上的实际插件漂移（曾出现 minimax 登录入口在插件里根本不存在）。
+fn checkin_provider(query: &str) -> Option<String> {
+    let v = parse_query(query).get("provider").cloned().unwrap_or_default();
+    if v.is_empty() || v.len() > 64 {
+        return None;
+    }
+    if !v.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        return None;
+    }
+    Some(v)
+}

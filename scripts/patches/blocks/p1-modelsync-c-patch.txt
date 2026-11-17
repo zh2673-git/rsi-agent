@@ -1,0 +1,5 @@
+    flash("llm-flash", true, "已保存并热生效");
+    // 保存后由 loadConfig 内的自动同步刷新目录（走**已保存**配置）。
+    // 原来这里另发一次带 provider 覆盖的 fetchModels()——两条路径并发会把下拉框
+    // 刷成两个不同来源的结果，且覆盖路径用的是 UI 值而非服务端已保存值。
+    await loadConfig();

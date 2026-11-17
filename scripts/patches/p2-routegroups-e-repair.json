@@ -1,0 +1,8 @@
+{
+  "id": "P2-ROUTEGROUPS-E-REPAIR",
+  "description": "routegroups.rs 受控同步（P2-E）：把 P2-A 最初落盘的基线版整块替换为修订版——删除 dead code（bare_model/model_matches）、新增 public_auto_id_matches 严格校验 CLI 回读的 auto/<model>、GroupView 增加权威 restore_id、load_state 以查询 ref 为 internal id 权威来源、抽出 view_from_show/pick_restore_arg 供单测、fixture 常量加 #[cfg(test)]。repair 型：锚点（修改前基线快照）不存在即视为已同步（新 checkout 里 P2-A 已直接落盘修订版），幂等跳过",
+  "file": "runtime/crates/host/src/web/api/routegroups.rs",
+  "repair": true,
+  "anchor_file": "blocks/p2-routegroups-e-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-rs.txt"
+}

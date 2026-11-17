@@ -1,0 +1,8 @@
+{
+  "id": "P1-MODELSYNC-A-LOADCONFIG",
+  "description": "app-settings.js loadConfig：先备好「（自定义…）」选项（否则 sel.value 赋值静默失败 → 模型在面板上不可见），保留用户手动选过的模型，并在配置回显后触发按**已保存配置**的目录自动同步",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p1-modelsync-a-anchor.txt",
+  "patch_file": "blocks/p1-modelsync-a-patch.txt",
+  "applied_marker": "autoSyncModels(lastSyncedModel);"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "P2-ROUTEGROUPS-A-MODULE",
+  "description": "新建 host/src/web/api/routegroups.rs：Magpie 路由组管理安全 API（CLI 解析、成员白名单、auto 规范 id 预检、失败清理、p18 真实 fixture 单测）",
+  "file": "runtime/crates/host/src/web/api/routegroups.rs",
+  "create": true,
+  "content_file": "blocks/p2-routegroups-rs.txt",
+  "create_marker": "pub(crate) async fn routegroups_list"
+}

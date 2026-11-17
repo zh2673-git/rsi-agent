@@ -1,7 +1,8 @@
 {
   "id": "SELF-UPDATE-4",
-  "description": "api/mod.rs：导出 self_update_status / self_update_start 两个处理器",
+  "description": "api/mod.rs：导出 self_update_status / self_update_start 两个处理器（终态已并入统一导出列表；P3 动态化后又追加 upstream_providers，故补 applied_marker 作幂等判据）",
   "file": "runtime/crates/host/src/web/api/mod.rs",
   "anchor": "    reveal_target, session_exists, upstream_accounts, upstream_checkin, upstream_login,\n    upstream_start, upstream_status,",
-  "patch": "    reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,\n    upstream_checkin, upstream_login, upstream_start, upstream_status,"
+  "patch": "    reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,\n    upstream_checkin, upstream_login, upstream_start, upstream_status,",
+  "applied_marker": "self_update_start, self_update_status, session_exists, upstream_accounts,"
 }

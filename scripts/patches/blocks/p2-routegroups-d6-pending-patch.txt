@@ -1,0 +1,6 @@
+  } finally {
+    rgState.loading = false;
+    // 排队的那次补跑：放在 finally 里，成功/失败都补——失败时用户点「重试」也一样能生效。
+    if (rgState.pending) { rgState.pending = false; rgLoad(); }
+  }
+}

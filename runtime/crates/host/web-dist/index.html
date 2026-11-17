@@ -114,6 +114,7 @@
           <a id="llm-site-key-url" class="site-link" href="#" target="_blank" rel="noopener" hidden>申请 key ↗</a>
         </div>
         <div class="field"><label>model</label><select id="llm-model" style="flex:1"></select><input id="llm-model-custom" placeholder="自定义模型名" style="flex:1; display:none"><button type="button" class="btn ghost" id="llm-fetch-models">拉取模型</button></div>
+        <p class="hint" id="llm-model-sync" hidden style="margin-top:-2px"></p>
         <div class="field"><label>base_url</label><input id="llm-base" placeholder="https://api.deepseek.com/v1"></div>
         <div class="field"><label>api_key</label><input id="llm-key" type="password" autocomplete="off"></div>
         <div class="row"><button class="btn" id="llm-save">保存</button><button class="btn ghost" id="llm-reveal" title="在文件管理器中定位 config.json">📂 源文件</button><span class="flash" id="llm-flash"></span></div>
@@ -126,15 +127,31 @@
         <p class="hint" id="upstream-quotas" hidden style="margin-top:-2px"></p>
         <div class="field" id="upstream-checkin-field" hidden>
           <label>账号签到</label>
-          <button type="button" class="btn ghost" id="upstream-login-workbuddy">登录 WorkBuddy 账号</button>
-          <button type="button" class="btn ghost" id="upstream-login-trae">登录 Trae 账号</button>
-          <button type="button" class="btn ghost" id="upstream-login-qoder">登录 Qoder 账号</button>
-          <button type="button" class="btn ghost" id="upstream-login-minimax">登录 MiniMax 账号</button>
+          <span id="upstream-login-btns"></span>
           <button type="button" class="btn" id="upstream-checkin">一键领取积分</button>
           <span class="up-state" id="checkin-state">账号状态：检测中…</span>
         </div>
         <p class="hint" id="upstream-checkin-log" hidden style="margin-top:-2px"></p>
         <p class="hint">保存即热生效（env 更新 + 落盘 config.json）。api_key 留空 = 不修改；回显只显示尾 4 位。不清楚怎么填？直接在对话里问（如「XX 站怎么配」），我会调研该站点文档并给出可粘贴的配置。</p>
+      </div>
+      <!-- P2-D：路由组（Magpie auto 组）管理 ─────────────────────────────────────
+           为什么需要这一块：模型下拉里的 `auto/<model>` 不是「模型」，而是网关里的
+           一个**路由组**（成员是若干真实模型，网关按 routing 策略挑一个）。组不存在时
+           模型能选却调不通——用户无从判断是「模型下线」还是「组没建」。
+           这里只调 Host 的 /api/routegroups*；Host 再用 Command::args 调 Magpie CLI。
+           前端不拼 shell：组名/模型名里带引号或空格就会变成命令注入面。 -->
+      <div class="poolhead collapsible" id="rg-head"><span class="chev">▾</span><span class="plabel">路由组（auto 组）</span><span class="pcnt" id="rg-cnt"></span></div>
+      <div class="poolbody" id="sec-routegroups">
+        <p class="hint"><code>auto/&lt;model&gt;</code> 是网关路由组：成员是真实模型，网关按 routing 策略挑一个。组有两套 id——内部 id 是规范化的 <code>auto-&lt;slug&gt;</code>，public 尾段保留原始大小写/下划线/点号，两者不能互相反推，所以下面都显示出来；删除/恢复一律按内部 id 精确指向，避免误删内置组。</p>
+        <div id="rg-list"><p class="hint">展开后读取…</p></div>
+        <div class="ov" id="rg-missing" hidden></div>
+        <div class="poolhint" id="rg-form-title">新建组</div>
+        <div class="field"><label>组名</label><input id="rg-name" placeholder="MiniMax M3.1 Flash"></div>
+        <div class="field"><label>成员模型（Ctrl/⌘ 点选多选；必须是网关目录里的真实模型 id）</label><select id="rg-members" multiple size="8"></select></div>
+        <div class="field"><label>routing（网关挑成员的策略）</label><select id="rg-routing"></select></div>
+        <div class="field"><label>stays（会话粘性）</label><select id="rg-stays"></select></div>
+        <div class="field" id="rg-auto-field"><label>auto 目标（选填：填裸模型名 → 建成 public <code>auto/&lt;model&gt;</code>）</label><input id="rg-auto" placeholder="minimax-m3.1-flash"></div>
+        <div class="row"><button class="btn" id="rg-create">新建组</button><button class="btn ghost" id="rg-cancel" hidden>取消编辑</button><button class="btn ghost" id="rg-reload">刷新</button><span class="flash" id="rg-flash"></span></div>
       </div>
       <div class="poolhead collapsible"><span class="chev">▾</span><span class="plabel">生图模型</span><span class="pcnt" id="media-img-cnt"></span></div>
       <div class="poolbody" id="sec-media-img">

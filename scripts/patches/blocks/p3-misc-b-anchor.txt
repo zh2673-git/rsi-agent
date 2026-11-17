@@ -1,0 +1,44 @@
+/// POST /api/upstream/login?provider=workbuddy：弹 magpie 登录窗（CLI 子进程跑
+/// `magpie plugin login <provider>`，GUI 完成 OTP 后子进程自然退出）。请求会阻塞到
+/// 登录窗关闭——前端按钮自行 disable + 等待；宿主每连接独立 spawn，不会卡其它请求。
+pub(crate) async fn upstream_login(stream: &mut TcpStream, query: &str) -> anyhow::Result<()> {
+    let Some(provider) = checkin_provider(query) else {
+        return json_resp(stream, 400, json!({"ok": false, "error": {"code": "K400", "message": "缺少或非法 provider（支持 workbuddy/trae/qoder/minimax）"}})).await;
+    };
+    let exe = tokio::task::spawn_blocking(find_magpie_exe).await.unwrap_or(None);
+    let Some(exe) = exe else {
+        return json_resp(stream, 404, json!({"ok": false, "error": {"code": "K404", "message": "未找到 magpie CLI（可设 MAGPIE_EXE env，或装到 %USERPROFILE%\\.local\\bin\\magpie.exe）"}})).await;
+    };
+    // magpie plugin login 不带 method 时会打交互菜单并读 stdin 选号；host 子进程
+    // stdin=null，菜单一打就 EOF 退出（前端报 magpie: EOF）。按 provider 附加默认
+    // method 跳过菜单：workbuddy 用浏览器登录（桌面方式在 WorkBuddy 5.6+ 读不了），
+    // kiro 用本机 kiro-cli/IDE 的登录态；trae-cn/trae-global 无菜单，保持不带。
+    fn login_method(provider: &str) -> Option<&'static str> {
+        match provider {
+            "workbuddy" => Some("WorkBuddy account (browser)"),
+            "kiro" => Some("Kiro CLI's or Kiro IDE's sign-in"),
+            _ => None,
+        }
+    }
+    let r = tokio::task::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args(["plugin", "login", provider]).stdin(std::process::Stdio::null());
+        if let Some(m) = login_method(provider) {
+            cmd.arg(m);
+        }
+        checkin_spawn(&mut cmd);
+        cmd.output()
+    })
+    .await;
+    match r {
+        Ok(Ok(o)) if o.status.success() => {
+            json_resp(stream, 200, json!({"ok": true, "provider": provider})).await
+        }
+        Ok(Ok(o)) => {
+            let msg = String::from_utf8_lossy(&o.stderr);
+            let msg = msg.lines().next().unwrap_or("CLI 退出非 0").to_string();
+            json_resp(stream, 502, json!({"ok": false, "error": {"code": "K502", "message": format!("{provider} 登录未完成: {msg}")}})).await
+        }
+        _ => json_resp(stream, 500, json!({"ok": false, "error": {"code": "K500", "message": "magpie CLI 执行失败"}})).await,
+    }
+}

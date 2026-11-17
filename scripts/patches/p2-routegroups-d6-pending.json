@@ -1,0 +1,9 @@
+{
+  "id": "P2-ROUTEGROUPS-D6-PENDING",
+  "description": "app-settings.js：rgLoad 的 finally 补跑排队的刷新（配 D5；否则 pending 只置位不消费）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p2-routegroups-d6-pending-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-d6-pending-patch.txt",
+  "applied_marker": "if (rgState.pending) { rgState.pending = false; rgLoad(); }",
+  "order": 8
+}

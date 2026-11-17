@@ -1,0 +1,9 @@
+{
+  "id": "P2-ROUTEGROUPS-D4-HINT",
+  "description": "index.html：路由组面板说明行改用 <code> 而非 Markdown 反引号/星号（hint 是纯文本渲染，Markdown 记号会原样显示）",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/p2-routegroups-d4-hint-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-d4-hint-patch.txt",
+  "applied_marker": "<code>auto/&lt;model&gt;</code> 是网关路由组",
+  "order": 6
+}

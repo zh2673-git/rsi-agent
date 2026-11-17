@@ -1,7 +1,8 @@
 {
   "id": "MAGPIE-CHECKIN-3",
-  "description": "api/mod.rs 导出（终态演化 v2）：upstream 三处理器 + self_update 两处理器均已并入统一导出列表；本补丁仅作幂等锚点校验",
+  "description": "api/mod.rs 导出（终态演化 v3）：upstream 三处理器 + self_update 两处理器均已并入统一导出列表；P3 动态化后又追加 upstream_providers。本补丁仅作幂等锚点校验",
   "file": "runtime/crates/host/src/web/api/mod.rs",
   "anchor": "    reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,\n    upstream_checkin, upstream_login, upstream_start, upstream_status,",
-  "patch": "    reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,\n    upstream_checkin, upstream_login, upstream_start, upstream_status,"
+  "patch": "    reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,\n    upstream_checkin, upstream_login, upstream_start, upstream_status,",
+  "applied_marker": "upstream_checkin, upstream_login, upstream_providers, upstream_start, upstream_status,"
 }

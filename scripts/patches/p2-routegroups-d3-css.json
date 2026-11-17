@@ -1,0 +1,8 @@
+{
+  "id": "P2-ROUTEGROUPS-D3-CSS",
+  "description": "style.css：路由组面板样式（成员标签 .rg-mem、面板内 code、成员多选框等宽字体）",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/p2-routegroups-d3-css-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-d3-css-patch.txt",
+  "applied_marker": ".rg-mem {"
+}

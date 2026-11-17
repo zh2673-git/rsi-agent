@@ -1,0 +1,19 @@
+/// 解析查询串里 url 编码的 provider 参数（只放行四个内置签到渠道）。
+fn checkin_provider(query: &str) -> Option<&'static str> {
+    for pair in query.split('&') {
+        let (k, v) = pair.split_once('=')?;
+        if k != "provider" {
+            continue;
+        }
+        return match v {
+            "workbuddy" => Some("workbuddy"),
+            "trae-cn" => Some("trae-cn"),
+            "trae-global" => Some("trae-global"),
+            "qoder" => Some("qoder"),
+            "minimax" => Some("minimax"),
+            "kiro" => Some("kiro"),
+            _ => None,
+        };
+    }
+    None
+}

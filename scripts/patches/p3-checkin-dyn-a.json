@@ -1,0 +1,9 @@
+{
+  "id": "P3-CHECKIN-DYN-A",
+  "description": "misc.rs：checkin_provider 从固定白名单（含不存在的 minimax）改为形状校验——provider 是否存在交由 magpie plugin list --json 动态判定",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "order": 10,
+  "anchor_file": "blocks/p3-misc-a-anchor.txt",
+  "patch_file": "blocks/p3-misc-a-patch.txt",
+  "applied_marker": "fn checkin_provider(query: &str) -> Option<String> {"
+}

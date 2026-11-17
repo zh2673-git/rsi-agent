@@ -1,0 +1,16 @@
+    const model = c.llm.model ?? "";
+    // P1：用户手动选过模型时，以面板当前值为准——自动同步不得把**未保存**的选择冲掉
+    const keepPick = modelPicked ? curModelName() : "";
+    const sel = $("llm-model");
+    ensureCustomOption(sel); // P1：先备好「（自定义…）」选项——否则 sel.value 赋值静默失败，模型在面板上根本看不见
+    if ([...sel.options].some((o) => o.value === model)) {
+      sel.value = model; $("llm-model-custom").value = "";
+    } else {
+      sel.value = "__custom__"; $("llm-model-custom").value = model;
+    }
+    syncModelField();
+    modelPicked = false; // 已按服务端已保存配置回显（后续自动同步以它为准）
+    // P1：打开设置即按**服务端已保存**的 provider/base_url 同步模型目录
+    // （网关 /v1/models 为单一事实源；此处不传 provider 覆盖，见 autoSyncModels 说明）
+    lastSyncedModel = keepPick || model || "";
+    autoSyncModels(lastSyncedModel);

@@ -1,0 +1,8 @@
+{
+  "id": "P1-MODELSYNC-B-CATALOG",
+  "description": "app-settings.js：模型目录自动同步——自动路径不带 provider 覆盖（用服务端已保存值）；当前模型不在新目录时保留为自定义值（不改成第一个模型）；失败显示可见错误并给「重试」按钮；并发请求合并为一次",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p1-modelsync-b-anchor.txt",
+  "patch_file": "blocks/p1-modelsync-b-patch.txt",
+  "applied_marker": "async function autoSyncModels(savedModel) {"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "P1-MODELSYNC-D-INDEX",
+  "description": "index.html：model 字段下新增 #llm-model-sync 状态行（自动同步结果 / 失败原因 + 重试入口）",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/p1-modelsync-d-anchor.txt",
+  "patch_file": "blocks/p1-modelsync-d-patch.txt",
+  "applied_marker": "id=\"llm-model-sync\""
+}

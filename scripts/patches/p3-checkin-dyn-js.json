@@ -1,0 +1,9 @@
+{
+  "id": "P3-CHECKIN-DYN-JS",
+  "description": "app-settings.js：删掉写死的 CHECKIN_PROVIDERS 表与固定 provider 按钮循环，改为拉 GET /api/upstream/providers 动态渲染登录按钮（usable=false 的渠道灰显不可点，提示去终端登录）；PN 账号名映射去掉不存在的 minimax",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "order": 15,
+  "anchor_file": "blocks/p3-js-anchor.txt",
+  "patch_file": "blocks/p3-js-patch.txt",
+  "applied_marker": "async function refreshCheckinProviders(force) {"
+}

@@ -1,0 +1,8 @@
+    const model = c.llm.model ?? "";
+    const sel = $("llm-model");
+    if ([...sel.options].some((o) => o.value === model)) {
+      sel.value = model; $("llm-model-custom").value = "";
+    } else {
+      sel.value = "__custom__"; $("llm-model-custom").value = model;
+    }
+    syncModelField();

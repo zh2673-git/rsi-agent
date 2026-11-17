@@ -1,0 +1,8 @@
+{
+  "id": "P3-CHECKIN-DYN-HTML",
+  "description": "index.html：删掉 workbuddy/trae/qoder/minimax 四个写死的登录按钮，改为 <span id=upstream-login-btns> 由前端按 /api/upstream/providers 动态渲染",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "order": 14,
+  "anchor": "          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-workbuddy\">登录 WorkBuddy 账号</button>\n          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-trae\">登录 Trae 账号</button>\n          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-qoder\">登录 Qoder 账号</button>\n          <button type=\"button\" class=\"btn ghost\" id=\"upstream-login-minimax\">登录 MiniMax 账号</button>\n",
+  "patch": "          <span id=\"upstream-login-btns\"></span>\n"
+}

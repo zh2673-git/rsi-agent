@@ -99,8 +99,13 @@ function ensureProcessBox() {
   // 文本增长（characterData）与卡片追加（childList），一处挂接全量生效。
   processFollowQueued = false;
   processPinned = true;
-  processBody.addEventListener("scroll", () => {
-    processPinned = processBody.scrollHeight - processBody.scrollTop - processBody.clientHeight < 48;
+  // 闭包必须抓**自己那个** body 元素：resetStreamState / restoreStreamState 会把模块级
+  // processBody 置 null（旧过程框随 innerHTML 一起被丢弃），而旧 body 在被清空的瞬间
+  // 还会因为 scrollTop 被 clamp 再派发一次 scroll —— 此时读模块级变量就是
+  // `null.scrollHeight`（线上实测：基线页面 6s 内必报，与是否打开设置抽屉无关）。
+  const ownBody = processBody;
+  ownBody.addEventListener("scroll", () => {
+    processPinned = ownBody.scrollHeight - ownBody.scrollTop - ownBody.clientHeight < 48;
   }, { passive: true });
   // X6：改「按需触发 + 每帧合并」，语义不变（内容增长仍贴底、上滚仍暂停）。
   // 原实现是 MutationObserver(childList+subtree+characterData) —— 历史重放时每个事件都会

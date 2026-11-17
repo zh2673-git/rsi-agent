@@ -1,0 +1,9 @@
+{
+  "id": "P2-ROUTEGROUPS-D7-STATE",
+  "description": "app-settings.js：rgState 增加 pending 字段（配 D5/D6 的排队补跑）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p2-routegroups-d7-state-anchor.txt",
+  "patch_file": "blocks/p2-routegroups-d7-state-patch.txt",
+  "applied_marker": "pending: false, editing",
+  "order": 9
+}

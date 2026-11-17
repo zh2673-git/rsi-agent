@@ -87,13 +87,21 @@ async function loadConfig() {
     const c = (await api("GET", "/api/config")).config;
     $("llm-provider").value = c.llm.provider;
     const model = c.llm.model ?? "";
+    // P1：用户手动选过模型时，以面板当前值为准——自动同步不得把**未保存**的选择冲掉
+    const keepPick = modelPicked ? curModelName() : "";
     const sel = $("llm-model");
+    ensureCustomOption(sel); // P1：先备好「（自定义…）」选项——否则 sel.value 赋值静默失败，模型在面板上根本看不见
     if ([...sel.options].some((o) => o.value === model)) {
       sel.value = model; $("llm-model-custom").value = "";
     } else {
       sel.value = "__custom__"; $("llm-model-custom").value = model;
     }
     syncModelField();
+    modelPicked = false; // 已按服务端已保存配置回显（后续自动同步以它为准）
+    // P1：打开设置即按**服务端已保存**的 provider/base_url 同步模型目录
+    // （网关 /v1/models 为单一事实源；此处不传 provider 覆盖，见 autoSyncModels 说明）
+    lastSyncedModel = keepPick || model || "";
+    autoSyncModels(lastSyncedModel);
     const isOllama = c.llm.provider === "ollama";
     $("llm-base").value = isOllama ? (c.llm.ollama_host ?? "localhost:11434") : (c.llm.base_url ?? "");
     $("llm-key").value = "";
@@ -276,28 +284,72 @@ $("ctx-fill").onclick = () => {
   const hit = modelsMeta.find((m) => m.name === curModelName() && m.ctx_limit);
   if (hit) $("agent-llm-context-tokens").value = hit.ctx_limit;
 };
+// ── P1 模型目录自动同步 ──────────────────────────────────────────────────────
+// 单一事实源：网关 /v1/models（= /api/models 不带 provider 覆盖的转发结果）。
+// 三个坑（均为实测，不是推测）：
+//  ① 自动同步**不带** ?provider= 覆盖——llm-adapter 用的是它自己进程里的 env（config.json 热应用），
+//     带覆盖等于把 UI 里**尚未保存**的值当真值（实测 ?provider=ollama 返回本机 ollama 清单，
+//     与网关的 90 个模型毫无关系）。
+//  ② 当前模型不在新目录里时**继续显示为自定义值**，不得改成第一个模型——
+//     静默换模型 = 用户下一次发言用了别的模型却不知道（且原模型可能已下线）。
+//  ③ 自动失败必须**看得见 + 能重试**：静默失败等于目录永远停在旧快照，用户无从判断。
+let lastSyncedModel = "";  // 最近一次按服务端已保存配置同步到的模型（重试时沿用）
+let modelPicked = false;   // 用户在面板上手动选过模型（自动同步不得冲掉未保存的选择）
+let syncing = false;       // 同步在飞标记（并发请求会把下拉框刷成两个来源的结果）
+let syncPending = "";      // 在飞期间又来一次同步请求 → 结束后补跑（用最新模型值）
+function ensureCustomOption(sel) {
+  if (![...sel.options].some((o) => o.value === "__custom__")) {
+    const oc = document.createElement("option");
+    oc.value = "__custom__"; oc.textContent = "（自定义…）";
+    sel.appendChild(oc);
+  }
+}
+// 目录状态行：kind = ""（隐藏）/ "ok" / "err"；err 附「重试」按钮（重跑自动同步）
+function modelCatalogStatus(kind, text) {
+  const box = $("llm-model-sync");
+  if (!box) return;
+  if (!kind) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  box.innerHTML = `<span class="flash ${kind === "ok" ? "ok" : "err"}">${esc(text)}</span>` +
+    (kind === "err" ? ` <button type="button" class="btn ghost" id="llm-model-retry">重试</button>` : "");
+  const rb = $("llm-model-retry");
+  if (rb) rb.onclick = () => autoSyncModels(lastSyncedModel);
+}
+// 用目录重建下拉：cur 命中 → 选中；未命中 → 继续显示为自定义值（**不改成第一个模型**）
+function applyModelCatalog(models, meta, cur) {
+  const sel = $("llm-model");
+  modelsMeta = Array.isArray(meta) ? meta : [];
+  const ctxByName = new Map(modelsMeta.filter((m) => m.ctx_limit).map((m) => [m.name, m.ctx_limit]));
+  sel.innerHTML = "";
+  for (const m of models) {
+    const o = document.createElement("option");
+    o.value = m;
+    o.textContent = ctxByName.has(m) ? `${m} · ${fmtCtx(ctxByName.get(m))}` : m;
+    sel.appendChild(o);
+  }
+  ensureCustomOption(sel);
+  const keep = (cur ?? "").trim();
+  if (keep && models.includes(keep)) {
+    sel.value = keep; $("llm-model-custom").value = "";
+  } else if (keep) {
+    sel.value = "__custom__"; $("llm-model-custom").value = keep;
+  } else {
+    sel.value = models[0] || "__custom__";
+  }
+  syncModelField();
+}
 async function fetchModels(silent) {
   const btn = $("llm-fetch-models");
   const prev = btn.textContent;
   if (!silent) { btn.disabled = true; btn.textContent = "拉取中…"; }
   try {
+    // 手动「拉取模型」按 UI 里的 provider 取（用户可能正在试一个**尚未保存**的站点）；
+    // 自动同步不走这条路（见 autoSyncModels 的说明 ①）。
     const v = await api("GET", "/api/models?provider=" + encodeURIComponent($("llm-provider").value));
     if (v && v.ok && Array.isArray(v.models) && v.models.length) {
-      const sel = $("llm-model");
-      const cur = sel.value && sel.value !== "__custom__" ? sel.value : "";
-      modelsMeta = Array.isArray(v.models_meta) ? v.models_meta : [];
-      const ctxByName = new Map(modelsMeta.filter((m) => m.ctx_limit).map((m) => [m.name, m.ctx_limit]));
-      sel.innerHTML = "";
-      for (const m of v.models) {
-        const o = document.createElement("option");
-        o.value = m;
-        o.textContent = ctxByName.has(m) ? `${m} · ${fmtCtx(ctxByName.get(m))}` : m;
-        sel.appendChild(o);
-      }
-      const oc = document.createElement("option");
-      oc.value = "__custom__"; oc.textContent = "（自定义…）"; sel.appendChild(oc);
-      sel.value = (cur && v.models.includes(cur)) ? cur : (v.models[0] || "__custom__");
-      syncModelField();
+      // 当前模型不在新目录里时同样保留为自定义值——否则「拉取模型」会顺手把用户选的模型
+      // 换成第一个，用户再点保存就悄悄换掉了模型。
+      applyModelCatalog(v.models, v.models_meta, curModelName());
       if (!silent) flash("llm-flash", true, `已拉取 ${v.models.length} 个模型，点 model 下拉选择`);
     } else if (!silent) {
       flash("llm-flash", false, "未返回模型列表：" + (v?.error?.message || "空"));
@@ -309,11 +361,47 @@ async function fetchModels(silent) {
     updateCtxHint();
   }
 }
-// 打开设置时静默拉一次（仅 ollama）：Agent 页原生窗口提示开箱可用，失败不打扰
-async function ensureModelsMeta() {
-  if (modelsMeta.length || $("llm-provider").value !== "ollama") return;
-  await fetchModels(true);
+// 自动同步：按**服务端已保存**的 provider/base_url 拉目录（不带 provider 覆盖）
+async function autoSyncModels(savedModel) {
+  const cur = (savedModel ?? lastSyncedModel ?? "").trim();
+  if (cur) lastSyncedModel = cur;
+  if (syncing) { syncPending = lastSyncedModel; return false; }  // 别并发发第二次（两源相冲）
+  syncing = true;
+  modelCatalogStatus("", "");
+  try {
+    const v = await api("GET", "/api/models");
+    if (v && v.ok && Array.isArray(v.models) && v.models.length) {
+      applyModelCatalog(v.models, v.models_meta, lastSyncedModel);
+      modelCatalogStatus("ok", `已按已保存配置同步 ${v.models.length} 个模型`);
+      return true;
+    }
+    modelCatalogStatus("err", "模型目录为空：" + (v?.error?.message || "网关未返回 /v1/models 清单"));
+    keepCurrentAsCustom(lastSyncedModel);
+    return false;
+  } catch (e) {
+    modelCatalogStatus("err", "自动同步模型目录失败：" + e.message);
+    keepCurrentAsCustom(lastSyncedModel);
+    return false;
+  } finally {
+    syncing = false;
+    updateCtxHint();
+    if (syncPending) { const p = syncPending; syncPending = ""; autoSyncModels(p); }
+  }
 }
+// 失败兜底：当前模型继续以自定义值显示（不丢、不静默换成第一个）
+function keepCurrentAsCustom(cur) {
+  const keep = (cur ?? "").trim();
+  if (!keep) return;
+  const sel = $("llm-model");
+  ensureCustomOption(sel);
+  if (![...sel.options].some((o) => o.value === keep)) {
+    sel.value = "__custom__"; $("llm-model-custom").value = keep;
+    syncModelField();
+  }
+}
+// 手动改动模型 → 记为「用户选过」，自动同步据此保留未保存的选择
+$("llm-model").addEventListener("change", () => { modelPicked = true; });
+$("llm-model-custom").addEventListener("input", () => { modelPicked = true; });
 function syncModelField() {
   const isCustom = $("llm-model").value === "__custom__";
   $("llm-model").style.display = isCustom ? "none" : "";
@@ -417,7 +505,46 @@ function renderUpstream(v) {
   if (rows.length) { q.innerHTML = rows.join("<br>"); q.hidden = false; } else q.hidden = true;
 }
 // ── 账号签到（magpie 内置渠道）：登录弹窗 / 一键领取 / 状态行 ──
-const CHECKIN_PROVIDERS = [["workbuddy","WorkBuddy","workbuddy"],["trae","Trae","trae-cn"],["qoder","Qoder","qoder"],["minimax","MiniMax","minimax"]];
+// 登录渠道**动态**渲染：GET /api/upstream/providers（Host 侧来自 `magpie plugin list --json`）。
+// 为什么不在前端写死渠道表：渠道是插件能力，装了什么就有什么；写死必然与用户机器漂移
+// （曾出现「MiniMax 登录入口」在插件里根本不存在），也会漏掉新装插件。
+let checkinProvidersLoaded = false;
+async function refreshCheckinProviders(force) {
+  const box = $("upstream-login-btns");
+  if (!box) return;
+  if (checkinProvidersLoaded && !force) return;
+  try {
+    const v = await api("GET", "/api/upstream/providers");
+    const list = Array.isArray(v.providers) ? v.providers : [];
+    box.textContent = "";
+    for (const p of list) {
+      const label = p.name || p.id;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn ghost";
+      if (p.usable) {
+        b.textContent = `登录 ${label} 账号`;
+        b.onclick = () => loginProvider(p.id, label, b);
+      } else {
+        // 该渠道的 method 需要交互输入（api key / 企业域名），Host 子进程 stdin=null 做不了
+        b.textContent = `登录 ${label} 账号（需终端）`;
+        b.disabled = true;
+        b.title = `${label} 的登录方式需要交互输入，请在终端执行：magpie plugin login ${p.id}`;
+      }
+      box.appendChild(b);
+    }
+    if (!list.length) box.textContent = "未发现可登录渠道（检查 magpie 插件是否安装）";
+    checkinProvidersLoaded = true;
+  } catch { checkinProvidersLoaded = false; }
+}
+async function loginProvider(pid, label, btn) {
+  btn.disabled = true; btn.textContent = `${label} 登录中…（在弹窗完成登录后自动恢复）`;
+  flash("llm-flash", true, `${label} 登录窗已弹出——在窗口里完成验证，关窗后自动刷新账号。`);
+  try { await api("POST", `/api/upstream/login?provider=${encodeURIComponent(pid)}`); flash("llm-flash", true, `${label} 登录流程结束，正在刷新账号…`); }
+  catch (e) { flash("llm-flash", false, `${label} 登录流程提前退出：${e.message}（若窗口里已完成登录，稍后自动刷新即可确认）`); }
+  btn.disabled = false; btn.textContent = `登录 ${label} 账号`;
+  refreshCheckinAccounts(); refreshUpstream();
+}
 function renderCheckinState(text, cls) {
   const st = $("checkin-state");
   st.textContent = text;
@@ -426,10 +553,11 @@ function renderCheckinState(text, cls) {
 async function refreshCheckinAccounts() {
   const field = $("upstream-checkin-field");
   if (field.hidden) return;
+  refreshCheckinProviders();
   try {
     const v = await api("GET", "/api/upstream/accounts");
     const list = Array.isArray(v.accounts) ? v.accounts : (v.accounts?.accounts ?? []);
-      const PN = { workbuddy: "WorkBuddy", "trae-cn": "Trae CN", qoder: "Qoder", minimax: "MiniMax", kiro: "Kiro" };
+      const PN = { workbuddy: "WorkBuddy", "trae-cn": "Trae CN", qoder: "Qoder", kiro: "Kiro" };
       const f = x => (typeof x === "number" ? Math.round(x * 10) / 10 : x);
       const log = $("upstream-checkin-log");
       log.style.whiteSpace = "pre-wrap";
@@ -442,17 +570,6 @@ async function refreshCheckinAccounts() {
     const withQuota = list.filter(a => (a.windows?.length ?? 0) > 0);
     renderCheckinState(`已登录 ${list.length} 个账号${withQuota.length ? `（${withQuota.length} 个有积分）` : ""}`, "up");
   } catch { renderCheckinState("账号状态获取失败", "down"); }
-}
-for (const [prov, label, pid] of CHECKIN_PROVIDERS) {
-  $(`upstream-login-${prov}`).onclick = async () => {
-    const btn = $(`upstream-login-${prov}`);
-    btn.disabled = true; btn.textContent = `${label} 登录中…（在弹窗完成登录后自动恢复）`;
-    flash("llm-flash", true, `${label} 登录窗已弹出——在窗口里完成验证，关窗后自动刷新账号。`);
-    try { await api("POST", `/api/upstream/login?provider=${pid}`); flash("llm-flash", true, `${label} 登录流程结束，正在刷新账号…`); }
-    catch (e) { flash("llm-flash", false, `${label} 登录流程提前退出：${e.message}（若窗口里已完成登录，稍后自动刷新即可确认）`); }
-    btn.disabled = false; btn.textContent = `登录 ${label} 账号`;
-    refreshCheckinAccounts(); refreshUpstream();
-  };
 }
 $("upstream-checkin").onclick = async () => {
   const btn = $("upstream-checkin");
@@ -519,8 +636,10 @@ $("llm-save").onclick = async () => {
       if (sid && sid !== "custom") localStorage.setItem("react-agent:llmkey:" + sid, key);
     }
     flash("llm-flash", true, "已保存并热生效");
-    loadConfig();
-    fetchModels();
+    // 保存后由 loadConfig 内的自动同步刷新目录（走**已保存**配置）。
+    // 原来这里另发一次带 provider 覆盖的 fetchModels()——两条路径并发会把下拉框
+    // 刷成两个不同来源的结果，且覆盖路径用的是 UI 值而非服务端已保存值。
+    await loadConfig();
   } catch (e) { flash("llm-flash", false, e.message); }
 };
 // ── 媒体模型独立保存（tools PLAN §九 M3）：生图/生视频各自 PUT media 段（逐字段 merge，
@@ -569,6 +688,280 @@ document.querySelectorAll("#tab-llm .poolhead.collapsible").forEach((head) => {
     head.classList.toggle("closed", body.hidden);
   };
 });
+// ── P2-D 路由组（auto 组）管理 ───────────────────────────────────────────────
+// 为什么前端不自己拼 CLI：组名与模型 id 里带空格/引号/冒号（`kilo/recursive/flint-v1.0:free`），
+// 直接拼 shell 就是命令注入面。这里只调 Host 的 /api/routegroups*，Host 用
+// Command::args 传参（无 shell 解析）。
+//
+// 三个界面事实（均为实测，不是推测）：
+//  ① 组有两套 id：内部 id（`auto-minimax-m3-1-flash`，规范化）与 public id
+//     （`auto/minimax-m3.1-flash`，保留原始大小写/下划线/点号）。public 尾段**不能**
+//     由内部 id 无损反推（`Doubao_1_6` 保留下划线，`Doubao-Seed-2.1-Turbo` 被小写），
+//     所以列表把两者都显示出来，删除/恢复一律按内部 id 精确指向——裸 id 可能命中
+//     内置 found 组并把它藏掉。
+//  ② 用户组删除是真删除（不可恢复）；内置 found 组删除后留 hidden 记录，可 restore，
+//     权威 restore id 由 `group show` 后缀给出（Host 已解析进 `restore_id`）。
+//  ③ 模型目录里的 `auto/<model>` 只有在组**真实存在且可见**时才调得通。用户选了不存在
+//     的 auto 模型时，界面必须当场说清「组不存在 + 能建什么 + 一键创建」，而不是等到
+//     对话时才报网关错误。
+let rgState = { groups: [], options: null, loaded: false, loading: false, pending: false, editing: "" };
+
+function rgFlash(ok, msg) { flash("rg-flash", ok, msg); }
+
+async function rgLoad() {
+  const box = $("rg-list");
+  // 在飞期间的第二次 rgLoad 不能直接丢：建/改/删/恢复组之后紧跟的那次刷新，正是「把新
+  // 状态读回来」的那一次；丢掉它界面就停在旧列表（实测：flash 说建组成功，列表里却没有
+  // 新组，用户以为没建成）。改成排队，由 finally 补跑一次。
+  if (!box) return;
+  if (rgState.loading) { rgState.pending = true; return; }
+  rgState.loading = true;
+  try {
+    const [list, opts] = await Promise.all([
+      api("GET", "/api/routegroups"),
+      rgState.options ? Promise.resolve(rgState.options) : api("GET", "/api/routegroups/options"),
+    ]);
+    rgState.options = opts;
+    rgState.groups = Array.isArray(list.groups) ? list.groups : [];
+    rgState.loaded = true;
+    rgFillOptions();
+    rgRender();
+    const c = list.counts || {};
+    $("rg-cnt").textContent = `${c.visible ?? 0} 组${c.removed ? `（${c.removed} 个已移除）` : ""}`;
+  } catch (e) {
+    box.innerHTML = `<p class="flash err">读取路由组失败：${esc(e.message)}</p>`;
+  } finally {
+    rgState.loading = false;
+    // 排队的那次补跑：放在 finally 里，成功/失败都补——失败时用户点「重试」也一样能生效。
+    if (rgState.pending) { rgState.pending = false; rgLoad(); }
+  }
+}
+
+// 下拉只在首次填充（用户可能已经点选过，重填会丢选择）。
+function rgFillOptions() {
+  const o = rgState.options;
+  if (!o) return;
+  const rsel = $("rg-routing"), ssel = $("rg-stays");
+  if (!rsel.options.length) {
+    rsel.innerHTML = (o.routings || []).map((r) => `<option value="${escAttr(r)}">${esc(r)}</option>`).join("");
+    rsel.value = "smart";
+  }
+  if (!ssel.options.length) {
+    ssel.innerHTML = (o.stays || []).map((s) => `<option value="${escAttr(s)}">${esc(s)}</option>`).join("");
+    ssel.value = "auto";
+  }
+  const sel = $("rg-members");
+  if (sel.options.length) return;
+  sel.innerHTML = (o.models || []).map((m) => `<option value="${escAttr(m)}">${esc(m)}</option>`).join("");
+}
+
+function rgRender() {
+  const box = $("rg-list");
+  const gs = rgState.groups;
+  if (!gs.length) {
+    box.innerHTML = `<p class="hint">Magpie 里还没有任何路由组。下面填组名与成员即可新建。</p>`;
+  } else {
+    box.innerHTML = gs.map((g) => {
+      const badges = [
+        g.found ? `<span class="badge">内置</span>` : `<span class="badge">自建</span>`,
+        g.visible ? "" : `<span class="badge">已移除</span>`,
+      ].join(" ");
+      const members = (g.members || [])
+        .map((m) => `<span class="rg-mem" title="${escAttr(m.provider || "")}">${esc(m.id)}${m.selected ? " ✓" : ""}</span>`)
+        .join(" ");
+      const acts = [];
+      if (g.visible) {
+        acts.push(`<button type="button" class="btn ghost" data-rg-act="edit" data-rg-id="${escAttr(g.internal_id)}">编辑</button>`);
+        acts.push(`<button type="button" class="btn ghost" data-rg-act="rm" data-rg-id="${escAttr(g.internal_id)}">删除</button>`);
+      } else if (g.restorable) {
+        acts.push(`<button type="button" class="btn ghost" data-rg-act="restore" data-rg-id="${escAttr(g.restore_id || g.internal_id)}">恢复</button>`);
+      }
+      const note = g.routing_note ? `<div class="hint" style="margin:2px 0 0;color:#c66">${esc(g.routing_note)}</div>` : "";
+      return `<div class="ov" style="margin-bottom:8px">
+        <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+          <b>${esc(g.name)}</b>${badges}
+          <span class="hint" style="margin:0">public <code>${esc(g.public_id)}</code></span>
+          <span class="hint" style="margin:0">内部 <code>${esc(g.internal_id)}</code></span>
+          <span class="hint" style="margin:0">${esc(g.routing)}${g.stays ? ` / ${esc(g.stays)}` : ""}</span>
+          <span style="margin-left:auto">${acts.join(" ")}</span>
+        </div>
+        <div class="hint" style="margin:4px 0 0">成员：${members || "（无）"}</div>
+        ${note}
+      </div>`;
+    }).join("");
+  }
+  rgRenderMissing();
+}
+
+// 当前模型是否在最近一次同步到的目录里（下拉 option 就是那份目录）。
+function rgCatalogHas(m) {
+  return [...$("llm-model").options].some((o) => o.value === m);
+}
+
+// 模型下拉里选了 auto/<model> 但网关没这个组 → 当场提示 + 一键创建。
+// 判定口径与 Host 一致：public id **精确等于**所选模型名（不做 slug 宽松匹配）。
+function rgRenderMissing() {
+  const box = $("rg-missing");
+  if (!box) return;
+  const hide = () => { box.hidden = true; box.innerHTML = ""; };
+  const cur = curModelName();
+  if (!cur.startsWith("auto/")) return hide();
+  const tail = cur.slice(5);
+  if (rgState.groups.some((g) => g.visible && g.public_id === cur)) return hide();
+  // 还没读过组列表：目录里有它 = 上次同步时组还在，先不喊；目录里没有（自定义输入）
+  // = 必须读一次才能判断，否则会在没证据的情况下报「组不存在」。
+  if (!rgState.loaded) {
+    if (!rgCatalogHas(cur)) rgLoad();
+    return hide();
+  }
+  const others = rgState.groups.filter((g) => g.visible && g.public_id.startsWith("auto/")).map((g) => g.public_id);
+  box.hidden = false;
+  box.innerHTML = `<div class="ov-title">这个 auto 组不存在</div>
+    <p class="hint" style="margin:0 0 6px">网关里没有 <code>${esc(cur)}</code>，直接发消息会失败。可以一键按模型尾段 <code>${esc(tail)}</code> 建组（成员取目录里尾段同名的真实模型）。</p>
+    <div class="row" style="flex-wrap:wrap">
+      <button type="button" class="btn" id="rg-missing-create">按 ${esc(tail)} 建组</button>
+      ${others.length ? `<span class="hint" style="margin:0">现有 auto 组：${others.map((p) => `<code>${esc(p)}</code>`).join("、")}</span>` : ""}
+    </div>`;
+  $("rg-missing-create").onclick = () => rgQuickCreate(tail);
+}
+
+// 尾段匹配而不是整串匹配：同一模型常有多渠道（`kilo/x:free` 与 `opencode-zen/x`），
+// 组的意义正是把多渠道合成一个入口。reasoning effort 后缀（`:high`）不计入尾段。
+function rgMembersForTarget(tail) {
+  const models = (rgState.options && rgState.options.models) || [];
+  return models.filter((m) => m.replace(/:[a-z+]+$/, "").split("/").pop() === tail);
+}
+
+async function rgQuickCreate(tail) {
+  const members = rgMembersForTarget(tail);
+  if (!members.length) {
+    rgFlash(false, `网关目录里没有尾段为 ${tail} 的模型，无法自动建组——请先在 Magpie 侧暴露该模型`);
+    return;
+  }
+  try {
+    const v = await api("POST", "/api/routegroups", { name: tail, members, routing: "smart", stays: "auto", auto_model: tail });
+    rgFlash(true, `已建组 ${(v.group && v.group.public_id) || tail}（成员 ${members.length} 个）`);
+    await rgLoad();
+    autoSyncModels(lastSyncedModel);  // 组变了 → auto/* 条目跟着变
+  } catch (e) { rgFlash(false, "建组失败：" + e.message); }
+}
+
+// 编辑：把当前组载入表单（id 不可改——改 id 等于换一个组，应该新建）。
+function rgEdit(internal) {
+  const g = rgState.groups.find((x) => x.internal_id === internal);
+  if (!g) return;
+  rgState.editing = internal;
+  $("rg-form-title").textContent = `编辑 ${g.public_id}（内部 id 不变）`;
+  $("rg-name").value = g.name || "";
+  // 成员可能不在网关目录里（组是历史配置、模型已下线）——这些必须以额外 option 出现，
+  // 否则「载入表单 → 直接保存」会静默把这些成员删掉。
+  const sel = $("rg-members");
+  const known = new Set([...sel.options].map((o) => o.value));
+  for (const m of g.members || []) {
+    if (known.has(m.id)) continue;
+    const o = document.createElement("option");
+    o.value = m.id; o.textContent = m.id + "（不在当前目录）";
+    sel.appendChild(o);
+    known.add(m.id);
+  }
+  const ids = new Set((g.members || []).map((m) => m.id));
+  for (const o of sel.options) o.selected = ids.has(o.value);
+  if (g.routing && [...$("rg-routing").options].some((o) => o.value === g.routing)) $("rg-routing").value = g.routing;
+  if (g.stays && [...$("rg-stays").options].some((o) => o.value === g.stays)) $("rg-stays").value = g.stays;
+  $("rg-auto-field").hidden = true;
+  $("rg-create").textContent = "保存修改";
+  $("rg-cancel").hidden = false;
+  $("rg-name").focus();
+}
+
+function rgCancelEdit() {
+  rgState.editing = "";
+  $("rg-form-title").textContent = "新建组";
+  $("rg-name").value = "";
+  $("rg-auto").value = "";
+  $("rg-auto-field").hidden = false;
+  for (const o of $("rg-members").options) o.selected = false;
+  $("rg-create").textContent = "新建组";
+  $("rg-cancel").hidden = true;
+}
+
+async function rgSubmit() {
+  const name = $("rg-name").value.trim();
+  const members = [...$("rg-members").selectedOptions].map((o) => o.value);
+  if (!name) { rgFlash(false, "请填组名"); return; }
+  if (!members.length) { rgFlash(false, "至少选一个成员模型"); return; }
+  const body = { name, members, routing: $("rg-routing").value, stays: $("rg-stays").value };
+  const btn = $("rg-create");
+  const prev = btn.textContent;
+  const editing = rgState.editing;
+  btn.disabled = true; btn.textContent = editing ? "保存中…" : "创建中…";
+  try {
+    if (editing) {
+      const v = await api("PUT", "/api/routegroups/" + encodeURIComponent(editing), body);
+      rgFlash(true, `已保存 ${(v.group && v.group.public_id) || editing}`);
+    } else {
+      const autoModel = $("rg-auto").value.trim();
+      if (autoModel) body.auto_model = autoModel;
+      const v = await api("POST", "/api/routegroups", body);
+      rgFlash(true, `已建组 ${(v.group && v.group.public_id) || name}`);
+    }
+    rgCancelEdit();
+    await rgLoad();
+    autoSyncModels(lastSyncedModel);
+  } catch (e) { rgFlash(false, (editing ? "保存失败：" : "建组失败：") + e.message); }
+  btn.disabled = false; btn.textContent = rgState.editing ? "保存修改" : prev;
+}
+
+async function rgRemove(internal) {
+  const g = rgState.groups.find((x) => x.internal_id === internal);
+  if (!g) return;
+  const warn = g.found
+    ? `删除内置组 ${g.public_id}？\n\n它会变成「已移除」但可以恢复（restore id: ${g.restore_id || internal}）。`
+    : `删除自建组 ${g.public_id}？\n\n自建组是真删除，删掉无法恢复（只能用同样的成员重建）。`;
+  if (!window.confirm(warn)) return;
+  try {
+    const v = await api("DELETE", "/api/routegroups/" + encodeURIComponent(internal));
+    rgFlash(true, v.hidden ? `已移除 ${g.public_id}（可恢复）` : `已删除 ${g.public_id}`);
+    await rgLoad();
+    autoSyncModels(lastSyncedModel);
+  } catch (e) { rgFlash(false, "删除失败：" + e.message); }
+}
+
+async function rgRestore(restoreId) {
+  try {
+    await api("POST", "/api/routegroups/" + encodeURIComponent(restoreId) + "/restore");
+    rgFlash(true, `已恢复 ${restoreId}`);
+    await rgLoad();
+    autoSyncModels(lastSyncedModel);
+  } catch (e) { rgFlash(false, "恢复失败：" + e.message); }
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest && e.target.closest("[data-rg-act]");
+  if (!btn) return;
+  const act = btn.dataset.rgAct, id = btn.dataset.rgId;
+  if (act === "edit") rgEdit(id);
+  else if (act === "rm") rgRemove(id);
+  else if (act === "restore") rgRestore(id);
+});
+
+(function bindRouteGroupPanel() {
+  if (!$("rg-head")) return;
+  // 组列表要跑 `magpie groups` + 逐组 `group show` 子进程（实测 1~2 秒），
+  // 所以只在打开设置或切到 LLM 页签时读，不在脚本加载时就打。
+  $("gear").addEventListener("click", () => { if (!rgState.loaded) rgLoad(); });
+  document.querySelectorAll('#drawer .tabs button[data-tab="llm"]')
+    .forEach((b) => b.addEventListener("click", () => rgLoad()));
+  $("rg-create").onclick = rgSubmit;
+  $("rg-cancel").onclick = rgCancelEdit;
+  $("rg-reload").onclick = () => rgLoad();
+  // 模型下拉被自动同步重建（option 全换）时重新判定 auto 组是否存在：
+  // 自动同步是改 DOM 而不是派发 change 事件，所以监听 DOM 变化才收得到。
+  new MutationObserver(() => rgRenderMissing()).observe($("llm-model"), { childList: true });
+  $("llm-model").addEventListener("change", rgRenderMissing);
+  $("llm-model-custom").addEventListener("input", rgRenderMissing);
+})();
+
 // 工具三池分组元数据（pool → 组标题/说明）；条目点击折叠展开配置详情
 const POOL_META = {
   builtin: { label: "内置工具", hint: "" },
