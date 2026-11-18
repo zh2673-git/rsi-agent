@@ -17,6 +17,7 @@
     "reasoning": str|null   思考内容（DeepSeek reasoning_content 等）
     "usage": {"input_tokens","output_tokens","cache_read_tokens","reasoning_tokens"}
     "elapsed_ms": int       本次请求墙钟耗时
+    "http_attempts": int    本次请求实际发出的 HTTP 尝试次数（含 provider 内部重试；缺省=未上报）
 
 流式旁路（guest 协议是 unary gRPC，插件无反向推事件通道，故走文件旁路）：
     payload 携带 "stream_path"（绝对路径）+ "sid" 时，provider 在生成过程中把增量
@@ -178,11 +179,15 @@ def _extract_ctx(resp_text: str) -> dict:
     return ctx
 
 
-def norm(content, calls, model, finish_reason, reasoning=None, usage=None, elapsed_ms=None) -> dict:
+def norm(content, calls, model, finish_reason, reasoning=None, usage=None, elapsed_ms=None, http_attempts=None) -> dict:
     """归一化成功响应。
 
-    reasoning / usage / elapsed_ms 为追加的可选字段：按「有才写」处理，既有四字段
-    与线契约逐字一致，未升级的消费者行为不变。
+    reasoning / usage / elapsed_ms / http_attempts 为追加的可选字段：按「有才写」处理，
+    既有四字段与线契约逐字一致，未升级的消费者行为不变。
+
+    http_attempts：本次请求**实际发出的 HTTP 尝试次数**（provider 内部重试已计入）。
+    只有存在重试循环的 provider 才上报；缺省 None = 未观测，agent-loop 指标落 null，
+    与「1 次成功」区分开（旧 provider / 无重试路径都走 None）。
     """
     out = {"ok": True, "content": content, "tool_calls": calls, "model": model, "finish_reason": finish_reason}
     if reasoning:
@@ -191,6 +196,8 @@ def norm(content, calls, model, finish_reason, reasoning=None, usage=None, elaps
         out["usage"] = usage
     if elapsed_ms is not None:
         out["elapsed_ms"] = elapsed_ms
+    if http_attempts is not None:
+        out["http_attempts"] = http_attempts
     return out
 
 

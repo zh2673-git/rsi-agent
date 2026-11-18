@@ -121,13 +121,17 @@ def _chat_once(endpoint: dict, body: dict, provider_label: str) -> dict:
             resp = httpx.post(f"{endpoint['base_url']}/chat/completions", json=body, headers=endpoint["headers"], timeout=httpx.Timeout(PROVIDER_DEADLINE, connect=10.0))
         except Exception as exc:  # noqa: BLE001 - httpx 连接异常（ConnectError 等）非 OSError；响应未到达，重试安全
             last = err(f"{provider_label} 连接失败: {type(exc).__name__}: {exc}", code="LLM_TRANSIENT")
+            # P5 观测：真实尝试次数写顶层键（agent-loop 读顶层 http_attempts）。
+            last["http_attempts"] = attempt + 1
         else:
             elapsed_ms = int((time.monotonic() - start) * 1000)
             if resp.status_code < 400:
                 data = resp.json()
                 # 原成功路径主体（原样保留，仅包进循环提前返回）
-                return _chat_once_success(endpoint, body, provider_label, data, elapsed_ms)
+                return _chat_once_success(endpoint, body, provider_label, data, elapsed_ms, attempt + 1)
             last = err_from_resp(provider_label, resp.status_code, resp.text)
+            # P5 观测：HTTP 层失败同样上报真实尝试次数（含本次）。
+            last["http_attempts"] = attempt + 1
             if last.get("error", {}).get("code") == "LLM_TRANSIENT" and attempt < attempts - 1:
                 retry_after = 1.0
                 try:
@@ -140,7 +144,9 @@ def _chat_once(endpoint: dict, body: dict, provider_label: str) -> dict:
     return last or err(f"{provider_label} 重试耗尽", code="LLM_TRANSIENT")
 
 
-def _chat_once_success(endpoint: dict, body: dict, provider_label: str, data: dict, elapsed_ms: int) -> dict:
+def _chat_once_success(
+    endpoint: dict, body: dict, provider_label: str, data: dict, elapsed_ms: int, http_attempts: int = 1
+) -> dict:
     """_chat_once 的成功响应归一化段（原实现原样提取，行为不变）。"""
     # 200 异常态防护：部分网关（限流/瞬时故障）会在 200 里返回非 chat 形态（null / {"error":...}），
     # 硬下标 choices 会崩成 'NoneType' object is not subscriptable——统一收敛为业务错误。
@@ -162,6 +168,7 @@ def _chat_once_success(endpoint: dict, body: dict, provider_label: str, data: di
         reasoning=reasoning,
         usage=map_usage(data["usage"]) if data.get("usage") else None,
         elapsed_ms=elapsed_ms,
+        http_attempts=http_attempts,
     )
 
 
@@ -181,7 +188,14 @@ def _chat_stream(endpoint: dict, body: dict, stream_path: str, sid, provider_lab
         sink.close()
 
 
-def _stream_once(endpoint: dict, body: dict, sink: StreamSink, provider_label: str, include_usage: bool) -> dict:
+def _stream_once(
+    endpoint: dict,
+    body: dict,
+    sink: StreamSink,
+    provider_label: str,
+    include_usage: bool,
+    http_attempts: int = 1,
+) -> dict:
     """单次流式请求。`include_usage=False` 即去掉 stream_options 的降级重试。"""
     import httpx
 
@@ -211,7 +225,8 @@ def _stream_once(endpoint: dict, body: dict, sink: StreamSink, provider_label: s
                 if include_usage:
                     # 部分兼容层（自托管网关等）不认 stream_options → 去掉重试一次。
                     # 复用同一 sink：start 行不重复写，前端不会重开气泡。
-                    return _stream_once(endpoint, body, sink, provider_label, False)
+                    # P5 观测：降级重放是**真实的第二次** HTTP 请求，尝试数记 2。
+                    return _stream_once(endpoint, body, sink, provider_label, False, http_attempts + 1)
                 payload = err_from_resp(provider_label, resp.status_code, resp.text)
                 sink.error(payload["error"]["message"])
                 return payload
@@ -303,6 +318,7 @@ def _stream_once(endpoint: dict, body: dict, sink: StreamSink, provider_label: s
         reasoning="".join(reasoning_parts) or None,
         usage=usage,
         elapsed_ms=elapsed_ms,
+        http_attempts=http_attempts,
     )
 
 
@@ -393,5 +409,6 @@ PROVIDER = {
     "chat": chat,
     "models": models,
     "embed": embed,
+    "capabilities": {"stream": True, "tools": True, "images": True, "embed": True, "models": True},
     "requires_env": ["OPENAI_API_KEY"],
 }
