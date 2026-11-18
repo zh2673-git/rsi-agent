@@ -12,8 +12,8 @@ import repo_query
 def main() -> int:
     try:
         payload = json.loads(sys.stdin.read() or "{}")
-        q = str((payload.get("args") or {}).get("query") or "status").strip()
-        sub = q.split()[0] if q else "status"
+        q = str((payload.get("args") or {}).get("query") or "state").strip()
+        sub = q.split()[0] if q else "state"
         print(json.dumps({"ok": True, **repo_query.query(sub)}, ensure_ascii=False))
         return 0
     except Exception as e:

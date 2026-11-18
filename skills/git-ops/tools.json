@@ -1,13 +1,13 @@
 [
   {
     "name": "repo_query",
-    "description": "Read-only git repo state queries for the rsi-agent workspace (no writes, no network): status (branch + porcelain dirty list), diff_stat (working tree+staged vs HEAD, i.e. what would be committed), log (last 10 oneline), remote (remotes with urls), branch (current + upstream). Use before committing to verify exactly what will be committed.",
+    "description": "Read-only git repo state queries for the rsi-agent workspace (no writes, no network). Prefer `state` as the single first check before commit/push/release: it returns status (branch + porcelain dirty list, UTF-8 paths), diff_stat (working tree+staged vs HEAD), log (last 10 oneline) and ahead (unpushed commits) in ONE call. Other subs: status, diff_stat, log, ahead, branch (current + upstream), remote, tags (version-desc). Paths are never octal-escaped (core.quotepath=false).",
     "parameters": {
       "type": "object",
       "properties": {
         "query": {
           "type": "string",
-          "description": "status | diff_stat | log | remote | branch; default 'status'"
+          "description": "state (default; all-in-one) | status | diff_stat | log | ahead | branch | remote | tags"
         }
       },
       "required": ["query"]

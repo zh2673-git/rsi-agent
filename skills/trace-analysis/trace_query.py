@@ -199,7 +199,7 @@ def _cmd_multiline(events) -> dict:
 # bash 首 token → 「本仓库内置工具即可替代」的映射（opencode/pi/codex/dsh 四家调研的本地化结论）。
 # 口径：bash 应留给运行/构建/测试/git/进程与系统查询；文件读写、检索、列目录走专用工具。
 REPLACEABLE = {
-    "python": ("专用工具 / trace-analysis 技能", "trace 分析用 trace-analysis；其余 python -c 多为探针，应改用 read_file/grep 拿事实"),
+    "python": ("repo_query / trace-analysis / read_file", "git 查询用 skills/git-ops/repo_query.py（含 -c core.quotepath=false，中文不转义）；trace 分析用 trace-analysis；纯读文件用 read_file/grep"),
     "chcp": ("无需调用", "代码页探测对模型无信息量；直接删掉这类调用"),
     "powershell": ("bash 单行 / tasklist", "进程与系统查询优先 tasklist；确需 powershell 则压成 -Command 单行"),
     "findstr": ("grep 工具", "内容搜索用 grep（regex/context/count 俱全），不要用 findstr"),

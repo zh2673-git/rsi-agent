@@ -30,6 +30,7 @@ python skills/trace-analysis/trace_query.py writes    --trace s-mvzz0e2s
 python skills/trace-analysis/trace_query.py errors    --trace s-mvzz0e2s
 python skills/trace-analysis/trace_query.py multiline --trace s-mvzz0e2s
 python skills/trace-analysis/trace_query.py calls     --trace s-mvzz0e2s --round 40
+python skills/trace-analysis/trace_query.py substitutability --trace s-mvzz0e2s
 ```
 
 `--trace` 可给三形态，自动解析：
@@ -47,7 +48,13 @@ python skills/trace-analysis/trace_query.py calls     --trace s-mvzz0e2s --round
 | `errors` | `ok:false` 的 tool_result + bash `exit_code != 0`（含截断后的输出前 80 字符） |
 | `multiline` | **含换行符的 bash 调用清单**（cmd.exe /c 只跑首行 → 这些是静默截断嫌疑） |
 | `calls` | 按 round 升序的调用序列 `round/tool/参数摘要`，可 `--round N` 过滤 |
-| `substitutability` | bash 可替代率：first_token 命中「内置工具可替代」映射的比例 + 桶分布 + 每桶样本。`python -m`（pytest/pip 等模块运行）豁免不计——那是 bash 本职 |
+| `substitutability` | bash 可替代率：first_token 命中「内置工具可替代」映射的比例 + 桶分布 + 每桶样本。`python -m`（pytest/pip 等模块运行）豁免不计——那是 bash 本职；`python skills/git-ops/repo_query.py`、`trace_query.py` 也应优先于自写 `python -c` 包装 |
+
+**`python` 桶特别说明（2026-11-19 实测）**：一个 tag+release 会话 151 次调用里，
+`python -c "subprocess.run(['git',...])"` 占 52 次——唯一理由是 git 默认把中文文件名转义成
+`\350\275\254`，模型读不出，只能套层 python 解编码。`skills/git-ops/repo_query.py` 已统一加
+`-c core.quotepath=false` 并合出 `state` 一次查全，这个桶应当塌到接近零；
+该桶重新长大即说明又有人在绕开 repo_query。
 
 全部输出单个 JSON 对象：`{"ok":true,"trace":...,"<子命令名>":...}`；
 文件不可达/格式异常 → `{"ok":false,"error":{...}}`（**不抛 traceback**，模型可直接读错误改参数）。
