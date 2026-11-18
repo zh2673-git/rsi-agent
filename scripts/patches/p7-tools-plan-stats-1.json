@@ -1,0 +1,8 @@
+{
+  "id": "p7-tools-plan-stats-1",
+  "description": "P7 记录勘误：runtime/plugins/tools/PLAN.md 的验证记录把 19 个 suite 的分布写成了「e2e 系列 2/1/1/1/4/1/1、web_gateway 10」，与 .scratch/p7-workspace-clean.log 实测不符（实测 web_gateway 为 2、e2e_ts_memory 为 10，且漏了 e2e_system_prompt）。改为逐 suite 明细，与日志一一对应。",
+  "file": "runtime/plugins/tools/PLAN.md",
+  "anchor_file": "blocks/p7-tools-plan-stats-anchor.txt",
+  "patch_file": "blocks/p7-tools-plan-stats-patch.txt",
+  "applied_marker": "e2e_ts_memory 10、e2e_web_gateway 2、doc-tests 0×2。"
+}

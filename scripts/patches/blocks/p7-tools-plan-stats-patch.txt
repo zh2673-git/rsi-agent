@@ -1,0 +1,4 @@
+  contract_conformance 2、react_mocks 50、host lib 99、main 0、sandbox-run 1、
+  e2e_full_react_mock 2、e2e_live_llm 1、e2e_llm_mock 1、e2e_mcp_tools 1、
+  e2e_python_tools 4、e2e_react_compaction 1、e2e_subagent 1、e2e_system_prompt 1、
+  e2e_ts_memory 10、e2e_web_gateway 2、doc-tests 0×2。
