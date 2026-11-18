@@ -21,6 +21,9 @@
 //   {"op":"memory.recall","session_id":str,"query"?:str,"limit"?:int}
 //       → {"ok":true,"items":[{kind,ts,session_id,cursor,preview}]} —— 摘要级召回（≤5 条）
 //   {"op":"session.index"} → {"ok":true,"sessions":[{id,title,updated_at,event_count,last_cursor}]}
+//   {"op":"trace.meta","session_id":str} → {"ok":true,"exists":bool,"size":int,"mtime_ms":int,"total_events":int,"end_cursor":int}  —— 完整 trace 的有效事件总数与真实末尾绝对游标（M 轮新增）
+//   {"op":"session.skills","session_id":str} → {"ok":true,"skills":[str],"total_events":int}  —— 会话级已加载技能（扫描完整 trace，去重保序；M 轮新增）
+//       以上 trace.meta / session.skills 为 M 轮（长 trace 绝对游标 + 会话级技能作用域）纯追加 op；旧 op 语义逐字不变。
 //       以上为 Q 轮 Phase 2 纯追加 op；旧 op 语义逐字不变（工作集视图仍为 sessions/<safe>.json），
 //       原文/压缩/回滚/UI 事件另追加到 events/<safe>.jsonl（append-only sidecar）。
 // 服务于审计/恢复/UI 重放（与 memory「模型上下文」是不同关注点，dsh：Model-visible means logged）。
@@ -312,19 +315,33 @@ export const memoryPlugin: Plugin = {
         const raw = payload.keep_last as number | undefined;
         const keepLast = raw === undefined || raw < 0 ? 10 : Math.floor(raw);
         const msgs = loadIfAbsent(sessionId);
-        let kept = keepLast > 0 ? msgs.slice(-keepLast) : [];
+        // M3：system 保留必须统一且规范化（与 agent-loop 同规则）。
+        // - 不假定 system 在 msgs[0]：持久化历史里的 system 可能位于任意位置；
+        // - 全历史最多保留**一个** system，取最后一条（最接近当前动态 system 的那份），
+        //   绝不保留多个（多 system 会与动态 system 冲突、污染上下文）；
+        // - 放在压缩标记之前：标记是 user 角色，system 必须最前；
+        // - 空内容 system 视为无 system（与 agent-loop 的规范化判定一致）。
+        let sys: Msg | undefined;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === "system" && typeof msgs[i].content === "string" && (msgs[i].content as string).trim().length > 0) {
+            sys = msgs[i];
+            break;
+          }
+        }
+        // 受保护的头：system 不算「最近」条目——从池中剔除**所有** system，只保留上面选定的
+        // 唯一 sys 前置，确保结果里绝不出第二个 system（多 system 会与动态 system 冲突）。
+        const pool = msgs.filter((m) => m.role !== "system");
+        let kept = keepLast > 0 ? pool.slice(-keepLast) : [];
         while (kept.length > 0 && kept[0].role === "tool") {
           kept = kept.slice(1);
         }
-        const compacted: Msg[] = [
-          {
-            role: "user",
-            content:
-              `[Context compaction] 之前的会话历史已压缩为以下摘要：\n${summary}\n` +
-              `请基于该摘要与后续消息继续任务，不要声称记得被压缩的原文。`,
-          },
-          ...kept,
-        ];
+        const marker: Msg = {
+          role: "user",
+          content:
+            `[Context compaction] 之前的会话历史已压缩为以下摘要：\n${summary}\n` +
+            `请基于该摘要与后续消息继续任务，不要声称记得被压缩的原文。`,
+        };
+        const compacted: Msg[] = sys ? [sys, marker, ...kept] : [marker, ...kept];
         sessions.set(sessionId, compacted);
         persist(sessionId, compacted);
         // Q 轮：压缩不再等于删除原文——先追加一条 typed compaction 事件
@@ -489,6 +506,74 @@ export const memoryPlugin: Plugin = {
             cursor++;
           }
           return { ok: true, events, next: cursor };
+        }
+        // M1：trace.meta —— 完整 trace 的**有效事件总数**与**真实末尾绝对游标**。
+        //
+        // 为什么单列一个 op 而不是改 trace.read.next：trace.read.next 是「本页消费位置」
+        // （前端增量拉取已消费到第几条），分页受 800 条/约 1MB 双预算约束（见上方
+        // trace.read）；把 next 改成总末尾会破坏增量重放与网关追赶（gateway.rs 依赖
+        // next 前进来分批追平）。故真实末尾只能由独立 op 提供：这里直接取
+        // traceOffsets(file).length —— 即完整有效事件数（跳过损坏行）。
+        //
+        // 缺 trace 文件时返回空状态（ok:true + total/end_cursor=0 + exists:false），
+        // **不是失败**：agent-loop 借此把「尚无事件」与「读取失败」区分开，失败才回退
+        // 保守游标（0 / start_cursor / turn 原 end_cursor）。
+        if (op === "trace.meta") {
+          const file = traceFile(sessionId);
+          let exists = false;
+          let size = 0;
+          let mtimeMs = 0;
+          let total = 0;
+          try {
+            const st = fs.statSync(file);
+            exists = true;
+            size = st.size;
+            mtimeMs = st.mtimeMs;
+          } catch {
+            /* 尚无 trace 文件：空状态 */
+          }
+          if (exists) {
+            try {
+              total = traceOffsets(file).length;
+            } catch {
+              total = 0;
+            }
+          }
+          return {
+            ok: true,
+            exists,
+            size,
+            mtime_ms: mtimeMs,
+            total_events: total,
+            end_cursor: total,
+          };
+        }
+        // M2：session.skills —— 会话级已加载技能集合。
+        //
+        // 走 traceOffsets + readEventLine 扫描**完整** trace（不是只看第一页）：过去
+        // agent-loop 用 trace.read(after=0) 只读第一页，长 trace 里第 800 条之后的
+        // skill_loaded 会被漏掉。技能状态是「会话级事实」，应由 Memory 从 trace 这个
+        // 唯一真相源汇总后提供给编排层，而不是把 trace 内部分页细节泄漏给 agent-loop。
+        // 返回去重、保持首次出现顺序的技能名（type==="skill_loaded" 且 skill 为非空字符串）。
+        if (op === "session.skills") {
+          const file = traceFile(sessionId);
+          const skills = new Set<string>();
+          let total = 0;
+          try {
+            const offsets = traceOffsets(file);
+            total = offsets.length;
+            for (let i = 0; i < offsets.length; i++) {
+              const ev = readEventLine(file, offsets[i], offsets[i + 1]);
+              if (ev === null) continue;
+              const e = ev as { type?: unknown; skill?: unknown };
+              if (e.type === "skill_loaded" && typeof e.skill === "string" && e.skill.length > 0) {
+                skills.add(e.skill);
+              }
+            }
+          } catch {
+            /* 尚无 trace 文件 → 空集合 */
+          }
+          return { ok: true, skills: Array.from(skills), total_events: total };
         }
         return err(`unknown op: ${String(op)}`);
       }
