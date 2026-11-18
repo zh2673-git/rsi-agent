@@ -3,5 +3,6 @@
   "description": "P0-C 核心：新增 trim_workset_by_tokens()——按 token 预算保留最近若干条消息（保留 system 头，丢弃前缘孤儿 tool 消息）。只裁发给 LLM 的工作集，不动持久层。解决：压缩后持久层留 COMPACT_KEEP(30) 条、每轮原样发给模型 ≈120K tokens，导致每请求 cache_read 平台值 170-200K、当日 77.1% credits 来自 cache_read。",
   "file": "runtime/crates/agent-loop/src/chat.rs",
   "anchor_file": "blocks/p0c1-trim-fn-anchor.txt",
-  "patch_file": "blocks/p0c1-trim-fn-patch.txt"
+  "patch_file": "blocks/p0c1-trim-fn-patch.txt",
+  "applied_marker": "pub(super) fn trim_workset_by_tokens(msgs: Vec<MemoryMsg>, budget: usize) -> Vec<MemoryMsg> {"
 }
