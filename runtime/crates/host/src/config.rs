@@ -361,6 +361,8 @@ pub const AGENT_ENV_MAP: &[(&str, &str)] = &[
     // Q 轮 Phase 3：并发槽位可配置（缺省仍为 8 / 32，assemble 单测断言不变）。
     ("max_inflight", "AGENT_MAX_INFLIGHT"),
     ("max_total_inflight", "AGENT_MAX_TOTAL_INFLIGHT"),
+    // P4c：无进展同参重复熔断阈值（缺省 0=禁用；>=4 启用）。设置面板走此映射落 env。
+    ("no_progress_repeat_limit", "NO_PROGRESS_REPEAT_LIMIT"),
 ];
 
 /// 启动时把 config.json 应用为 env（spawn 下发走既有机制）。返回应用的键数。

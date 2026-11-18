@@ -378,21 +378,27 @@ impl AgentLoopPlugin {
         )
     }
 
-    /// R9：会话已加载技能集——从 trace 重放推导（skill_loaded 事件），**不新增循环可变态**
-    /// （守 A1）。同会话新对话经重放恢复技能作用域；子代理新会话不继承（独立 trace）。
+    /// R9：会话已加载技能集——由 Memory 侧 `session.skills` 汇总（trace 的 `skill_loaded`
+    /// 事件为唯一真相源），**不新增循环可变态**（守 A1）。同会话新对话据此恢复技能作用域；
+    /// 子代理新会话不继承（独立 trace）。
+    ///
+    /// 为什么不再由本层 `trace.read(after=0)` 逐页重放（P1 修复，改前必读）：
+    /// ① `trace.read` 是分页接口（单页 ≤800 条 / 约 1MB），只读第一页必然漏掉长 trace
+    ///    里第 800 条之后的 `skill_loaded`——技能作用域在长会话里静默丢失；
+    /// ② 「会话已加载哪些技能」是**会话级事实**，应由持有 trace 的 Memory 汇总后提供，
+    ///    而不是把 trace 的分页内部细节泄漏给编排层（漏页 bug 的根源就是这层泄漏）。
+    /// 失败（内核超时/能力缺失）降级为空集，不阻断主流程。
     pub(super) async fn trace_loaded_skills(&self, env: &Envelope, session_id: &str) -> HashSet<String> {
         let mut out = HashSet::new();
         if let Ok(v) = self
-            .call(env, CAP_MEMORY, json!({"op": "trace.read", "session_id": session_id, "after": 0}), MEM_DEADLINE)
+            .call(env, CAP_MEMORY, json!({"op": "session.skills", "session_id": session_id}), MEM_DEADLINE)
             .await
         {
-            if let Some(events) = v.get("events").and_then(Value::as_array) {
-                for e in events {
-                    if e.get("type").and_then(Value::as_str) == Some("skill_loaded") {
-                        if let Some(s) = e.get("skill").and_then(Value::as_str) {
-                            if !s.is_empty() {
-                                out.insert(s.to_string());
-                            }
+            if let Some(skills) = v.get("skills").and_then(Value::as_array) {
+                for s in skills {
+                    if let Some(s) = s.as_str() {
+                        if !s.is_empty() {
+                            out.insert(s.to_string());
                         }
                     }
                 }

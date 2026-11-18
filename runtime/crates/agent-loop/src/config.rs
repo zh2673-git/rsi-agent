@@ -118,6 +118,11 @@ pub(crate) struct AgentLoopConfig {
     pub system_prompt_override: Option<String>,
     /// 具名提示词模板（PROMPT，经 assets 解析）。
     pub prompt_template: Option<String>,
+    /// 无进展熔断：同一工具**同参数连续重复**达到此次数即熔断（NO_PROGRESS_REPEAT_LIMIT，
+    /// 缺省 0=禁用）。只统计连续重复（工具或参数一变即清零），不惩罚「换参重试」。
+    /// 缺省禁用是刻意的：短脚本用例会合法地重复同一调用（如 max_rounds 每轮同一个
+    /// calculator），阈值过低会把它们误判成无进展。要启用请显式给 >=4。
+    pub no_progress_repeat_limit: usize,
 }
 
 fn env_trim(key: &str) -> Option<String> {
@@ -179,6 +184,7 @@ impl AgentLoopConfig {
             output_dir: env_trim("AGENT_OUTPUT_DIR").unwrap_or_else(|| "outputs".into()),
             system_prompt_override: env_trim("AGENT_SYSTEM_PROMPT"),
             prompt_template: env_trim("PROMPT"),
+            no_progress_repeat_limit: env_num("NO_PROGRESS_REPEAT_LIMIT", 0usize, "无进展同参重复阈值"),
         }
     }
 
@@ -254,6 +260,27 @@ mod tests {
         match tok {
             Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
             None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+        }
+    }
+
+    /// P4c 回归：无进展同参重复阈值 env 解析——缺省 0（禁用），正整数生效，非法值 warn 回退。
+    #[test]
+    fn no_progress_repeat_limit_env_parsing() {
+        let _g = env_lock().lock().unwrap();
+        let saved = std::env::var("NO_PROGRESS_REPEAT_LIMIT").ok();
+
+        std::env::remove_var("NO_PROGRESS_REPEAT_LIMIT");
+        assert_eq!(AgentLoopConfig::from_env(8).no_progress_repeat_limit, 0, "缺省禁用");
+
+        std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", "5");
+        assert_eq!(AgentLoopConfig::from_env(8).no_progress_repeat_limit, 5, "正整数生效");
+
+        std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", "not-a-number");
+        assert_eq!(AgentLoopConfig::from_env(8).no_progress_repeat_limit, 0, "非法值回退缺省");
+
+        match saved {
+            Some(v) => std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", v),
+            None => std::env::remove_var("NO_PROGRESS_REPEAT_LIMIT"),
         }
     }
 }

@@ -103,6 +103,12 @@ fn mock_memory(state: Arc<Mutex<Vec<MemoryMsg>>>) -> PluginInstance {
                 }
                 json!({"ok": true})
             }
+            // P1：只读汇总接口（本 mock 无 trace 存储 → 空状态：0 条事件、空技能集）。
+            // 不补这两个分支会让 agent-loop 每次 chat 都收到 K400，虽不致命但会把
+            // 「mock 缺 op」伪装成「trace 读失败」，后续排查极难。
+            Some("trace.meta") => json!({"ok": true, "exists": false, "size": 0, "mtime_ms": 0,
+                                        "total_events": 0, "end_cursor": 0}),
+            Some("session.skills") => json!({"ok": true, "skills": []}),
             _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
         }
     })
@@ -1696,6 +1702,60 @@ async fn subagent_inherits_remaining_token_budget() {
     }
 }
 
+#[tokio::test]
+async fn sibling_subagents_share_one_remaining_budget() {
+    // P4b 公平切分：同一父轮派发 2 个 task，二者**分食**父链剩余额度而不是各拿满额。
+    // 父预算 100，r1 自身用 0 → 剩余 100 按本批 2 个派发均分 = 各 50。
+    // 两个子代理 r1 各用 60 > 50 → 两条子链都 K508（预算耗尽）。
+    // 回归防线：若退回「每个子代理都拿父链满额剩余」，子代理会各得 100、60 < 100 不截停，
+    // 父 r2 将看不到任何「预算耗尽」——该断言即失效。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let saved = std::env::var("CHAT_TOKEN_BUDGET").ok();
+    std::env::set_var("CHAT_TOKEN_BUDGET", "100");
+
+    let sub_resp = json!({"ok": true, "content": null, "tool_calls": [{"id": "cs", "name": "calculator", "arguments": {}}], "model": "mock", "finish_reason": "tool_calls", "usage": {"input_tokens": 40, "output_tokens": 20}});
+    let captured = Arc::new(Mutex::new(Vec::<Vec<Value>>::new()));
+    let llm_script = vec![
+        // ① 父 r1：同一轮派发 2 个 task（自身不计费，剩余额度保持 100）
+        json!({"ok": true, "content": null, "tool_calls": [
+            {"id": "c1", "name": "task", "arguments": {"task": "研究甲"}},
+            {"id": "c2", "name": "task", "arguments": {"task": "研究乙"}}
+        ], "model": "mock", "finish_reason": "tool_calls", "usage": {"input_tokens": 0, "output_tokens": 0}}),
+        // ② 两个子代理 r1：各用 60（> 均分到的 50）
+        sub_resp.clone(),
+        sub_resp.clone(),
+        // ③ 父 r2：看到两条子链都耗尽，收敛
+        json!({"ok": true, "content": "SEEN-SIBLING-BUDGET-FAIL", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let kernel = boot(vec![
+        mock_memory(Arc::new(Mutex::new(vec![]))),
+        mock_llm_capturing(llm_script, captured.clone()),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "delegate twice with shared budget").await;
+    assert_eq!(r["ok"], json!(true), "{r}");
+    assert_eq!(r["answer"], json!("SEEN-SIBLING-BUDGET-FAIL"));
+
+    let cap = captured.lock().unwrap();
+    assert_eq!(cap.len(), 4, "llm 调用 = 父r1 + 子r1×2 + 父r2: {}", cap.len());
+
+    // 父 r2 的上下文里应有**两条**子代理失败观察，且都指明预算耗尽。
+    let parent_r2 = &cap[3];
+    let exhausted = parent_r2
+        .iter()
+        .filter_map(|m| m["content"].as_str())
+        .filter(|c| c.contains("子代理失败") && c.contains("预算耗尽"))
+        .count();
+    assert_eq!(exhausted, 2, "两个兄弟子代理都应被均分后的额度截停: {parent_r2:?}");
+
+    match saved {
+        Some(v) => std::env::set_var("CHAT_TOKEN_BUDGET", v),
+        None => std::env::remove_var("CHAT_TOKEN_BUDGET"),
+    }
+}
+
 // ---- P7/P8（PLAN R5-R8：上下文 token 闸 + 超限收紧/降级）----------------------
 
 /// 预置 4 条 400 ASCII 字符的历史（估算 100 tokens/条）。
@@ -2008,6 +2068,30 @@ fn mock_memory_traced(state: Arc<Mutex<Vec<MemoryMsg>>>, events: Arc<Mutex<Vec<V
                 json!({"ok": true, "count": n})
             }
             Some("trace.read") => json!({"ok": true, "events": events.lock().unwrap().clone()}),
+            // P1：真实末尾游标（= 完整有效事件数）。本 mock 的 trace.read 不分页，故
+            // end_cursor 与事件条数恒等——被测的是「agent-loop 采信 trace.meta.end_cursor」，
+            // 不是分页细节（分页/长 trace 由 e2e_ts_memory 的 TS 用例覆盖）。
+            Some("trace.meta") => {
+                let n = events.lock().unwrap().len() as u64;
+                json!({"ok": true, "exists": n > 0, "size": 0, "mtime_ms": 0,
+                       "total_events": n, "end_cursor": n})
+            }
+            // P1：会话级已加载技能集——从捕获的事件里筛 skill_loaded，去重保首次出现序
+            // （与真实 memory 插件的 session.skills 同口径）。技能作用域恢复用例依赖它：
+            // 旧实现读 trace.read 第一页，长 trace 会漏，本 mock 则用于验证「调用面」。
+            Some("session.skills") => {
+                let mut seen: Vec<String> = Vec::new();
+                for e in events.lock().unwrap().iter() {
+                    if e.get("type").and_then(Value::as_str) == Some("skill_loaded") {
+                        if let Some(s) = e.get("skill").and_then(Value::as_str) {
+                            if !s.is_empty() && !seen.iter().any(|x| x == s) {
+                                seen.push(s.to_string());
+                            }
+                        }
+                    }
+                }
+                json!({"ok": true, "skills": seen})
+            }
             _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
         }
     })
@@ -2406,4 +2490,45 @@ async fn session_skill_tools_replayed_from_trace_at_chat_start() {
         tools.iter().any(|t| t["name"] == json!("calculator")),
         "内置工具仍在: {tools:?}"
     );
+}
+
+#[tokio::test]
+async fn no_progress_repeat_circuit_breaker_fires_on_identical_tool_calls() {
+    // P4c：同一工具 + 同参数**连续**重复达到阈值即熔断（K502 + reason=no_progress），
+    // 不再把无进展拖成 max_rounds 兜底错误；chat_summary 的 stopped_reason 具名可观测。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let saved = std::env::var("NO_PROGRESS_REPEAT_LIMIT").ok();
+    std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", "2");
+
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    // mock_llm 耗尽后复用最后一条：每轮都发同一个 calculator（同参数）→ 连续重复。
+    let llm_script = vec![tool_call_resp(json!([{"id": "c1", "name": "calculator", "arguments": {}}]))];
+    let kernel = boot(vec![
+        mock_memory_traced(Arc::new(Mutex::new(vec![])), events.clone()),
+        mock_llm(llm_script),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "spin forever").await;
+    assert_eq!(r["ok"], json!(false), "无进展应熔断: {r}");
+    assert_eq!(r["error"]["code"], json!("K502"), "{r}");
+    assert_eq!(r["error"]["reason"], json!("no_progress"), "具名理由须落扁平 error.reason: {r}");
+    let msg = r["error"]["message"].as_str().unwrap_or_default();
+    assert!(msg.contains("无进展") && msg.contains("calculator"), "message 须含具名理由: {msg}");
+
+    let evs = events.lock().unwrap().clone();
+    assert!(
+        evs.iter().any(|e| e["type"] == json!("error") && e["where"] == json!("no_progress")),
+        "须发 no_progress error 事件: {evs:#?}"
+    );
+    let summary: Vec<&Value> = evs.iter().filter(|e| e["type"] == json!("chat_summary")).collect();
+    assert_eq!(summary.len(), 1, "熔断须恰好一条 chat_summary: {evs:#?}");
+    assert_eq!(summary[0]["stopped_reason"], json!("no_progress"), "具名理由须出现在 chat_summary: {}", summary[0]);
+    assert!(summary[0]["stopped_by"].is_null(), "非预算原因 stopped_by=null: {}", summary[0]);
+
+    match saved {
+        Some(v) => std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", v),
+        None => std::env::remove_var("NO_PROGRESS_REPEAT_LIMIT"),
+    }
 }

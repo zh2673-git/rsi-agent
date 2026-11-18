@@ -67,8 +67,8 @@ impl AgentLoopPlugin {
             return history;
         }
         let split = history.len() - keep;
-        let (older, recent) = history.split_at(split);
-        let older = older.to_vec();
+        let (older, _recent) = history.split_at(split);
+
 
         // LLM 摘要旧史（不带工具）。R3：摘要输入剥离附件（图片 b64 对文本摘要模型
         // 无意义且易撑爆压缩调用；文件要点已可从 content 内嵌文本获得）。
@@ -92,6 +92,10 @@ necessity, not a fixed word cap. Output only the summary."
             content: m.content.clone(),
             tool_calls: m.tool_calls.clone(),
             tool_call_id: m.tool_call_id.clone(),
+            // R3：摘要输入剥离附件（图片 b64 对文本摘要模型无意义且易撑爆压缩调用；
+            // 文件要点已可从 content 内嵌文本获得）。
+            // P3 降开销：此逐条 owned 克隆是「摘要输入需要独立于 history 的 owned 消息」的
+            // 必要一份——上一处 `older.to_vec()` 的整段克隆已删，故总克隆量减半。
             attachments: None,
         }));
         sum_msgs.push(MemoryMsg {
@@ -136,8 +140,31 @@ necessity, not a fixed word cap. Output only the summary."
             Ok(v) if v.get("ok") == Some(&json!(true)) => {
                 tracing::info!(target: ID, "context compacted: {} older messages summarized, kept {keep}", older.len());
                 self.trace(src, session_id, json!({"type": "compaction", "summarized": older.len(), "kept": keep, "summary": summary})).await;
-                let mut compacted = vec![Self::compaction_marker(&summary)];
-                compacted.extend(recent.iter().cloned());
+                // P3 降开销：压缩已经成功（memory.summarize 持久化完成），下游只有成功路径——
+                // 此时 history 不再需要保留，可把 recent 段**按值消费**（into_iter），
+                // 省掉原先对 recent 的逐条 clone。recent 段 = 下标 >= boundary 的部分，
+                // boundary = history.len() - keep（keep 已 min 到 len）。
+                //
+                // P2：规范化 system（不假定在首位、只留一个、取最后一条非空）后置于压缩标记之前。
+                // 与 memory 插件 summarize 的合成消息同构（sys 前置 + 标记 + recent）；recent 里的
+                // 任何 system 一律剔除（只保留选定的唯一 sys）。空内容 system 视为无 system。
+                let boundary = history.len() - keep;
+                let sys_pos = history.iter().rposition(|m| {
+                    m.role == "system"
+                        && m.content.as_deref().map(|c| !c.trim().is_empty()).unwrap_or(false)
+                });
+                let mut compacted: Vec<MemoryMsg> = Vec::with_capacity(keep + 2);
+                if let Some(i) = sys_pos {
+                    compacted.push(history[i].clone());
+                }
+                compacted.push(Self::compaction_marker(&summary));
+                compacted.extend(
+                    history
+                        .into_iter()
+                        .enumerate()
+                        .filter(|(i, m)| *i >= boundary && m.role != "system")
+                        .map(|(_, m)| m),
+                );
                 compacted
             }
             Ok(v) => {

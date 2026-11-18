@@ -8,7 +8,10 @@
 //! ⑤ undo 透传：tools 结果中的 `undo` 引用原样进 `file_change` 事件（回滚链路依赖）；
 //! ⑥ 观测登记：遗留路径（write_file→artifact、web_search→sources、bash changes[]→file_change）
 //!    与 R16 元数据路径（ToolSpec.obs 胸牌声明 → 改名工具同形登记、无胸牌不登记）；
-//! ⑦ memory op 面：agent-loop 只会调用 {get, append, summarize, trace.append, trace.read}；
+//! ⑦ memory op 面：agent-loop 只会调用 {get, append, summarize, trace.append, trace.read,
+//!    trace.meta, session.skills}（后两个是 P1 引入的只读汇总接口：`trace.meta.end_cursor`
+//!    = 真实末尾绝对游标，`session.skills` = 会话级已加载技能集——都替代「拿分页接口的
+//!    首页当总长度/全量」这种只在长 trace 上才炸的用法）；
 //! ⑧ llm.chat payload 面：messages + tools + stream_path + sid；
 //! ⑨ tools.exec payload 面：{op, name, args}。
 //!
@@ -133,6 +136,28 @@ async fn scripted_chat_fulfills_all_wire_contracts() {
                             json!({"ok": true})
                         }
                         Some("trace.read") => json!({"ok": true, "events": events.lock().unwrap().clone()}),
+                        // P1：真实末尾游标（= 完整有效事件数）。mock 里没有分页上限，故
+                        // end_cursor 与 trace.read 返回的条数一致——契约面断言的是「agent-loop
+                        // 会问 trace.meta 并采信 end_cursor」，不是分页细节。
+                        Some("trace.meta") => {
+                            let n = events.lock().unwrap().len() as u64;
+                            json!({"ok": true, "exists": n > 0, "size": 0, "mtime_ms": 0,
+                                   "total_events": n, "end_cursor": n})
+                        }
+                        // P1：会话级已加载技能集（从捕获的事件里筛 skill_loaded 去重保序）。
+                        Some("session.skills") => {
+                            let mut seen: Vec<String> = Vec::new();
+                            for e in events.lock().unwrap().iter() {
+                                if e.get("type").and_then(Value::as_str) == Some("skill_loaded") {
+                                    if let Some(s) = e.get("skill").and_then(Value::as_str) {
+                                        if !s.is_empty() && !seen.iter().any(|x| x == s) {
+                                            seen.push(s.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                            json!({"ok": true, "skills": seen})
+                        }
                         _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
                     }
                 })
@@ -311,10 +336,11 @@ async fn scripted_chat_fulfills_all_wire_contracts() {
         "保留名不得进 tools 清单: {tool_names:?}");
     assert!(tool_names.iter().any(|n| n == "calculator"), "tools.list 结果必须透传");
 
-    // ⑦ memory op 面（agent-loop 只会调这 5 个 op）
+    // ⑦ memory op 面（agent-loop 只会调这 7 个 op；后两个是 P1 只读汇总接口）
     for op in ops_log.lock().unwrap().iter() {
         assert!(
-            ["get", "append", "summarize", "trace.append", "trace.read"].contains(&op.as_str()),
+            ["get", "append", "summarize", "trace.append", "trace.read", "trace.meta", "session.skills"]
+                .contains(&op.as_str()),
             "memory op 越界：{op}"
         );
     }
@@ -371,6 +397,25 @@ async fn metadata_declared_tools_register_without_legacy_names() {
                             json!({"ok": true})
                         }
                         Some("trace.read") => json!({"ok": true, "events": events.lock().unwrap().clone()}),
+                        // P1：只读汇总接口（与第一套 mock 同构，见上）。
+                        Some("trace.meta") => {
+                            let n = events.lock().unwrap().len() as u64;
+                            json!({"ok": true, "exists": n > 0, "size": 0, "mtime_ms": 0,
+                                   "total_events": n, "end_cursor": n})
+                        }
+                        Some("session.skills") => {
+                            let mut seen: Vec<String> = Vec::new();
+                            for e in events.lock().unwrap().iter() {
+                                if e.get("type").and_then(Value::as_str) == Some("skill_loaded") {
+                                    if let Some(s) = e.get("skill").and_then(Value::as_str) {
+                                        if !s.is_empty() && !seen.iter().any(|x| x == s) {
+                                            seen.push(s.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                            json!({"ok": true, "skills": seen})
+                        }
                         _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
                     }
                 })

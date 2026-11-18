@@ -90,6 +90,9 @@ pub(super) struct UsageAcc {
     cache_read: u64,
     reasoning: u64,
     seen: bool,
+    /// 累计的 provider 上报 HTTP 尝试次数（provider 内部重试已计入）。
+    /// None = 全部请求都未上报（旧 provider / 未接入观测），与「0 次」区分。
+    http_attempts: Option<u64>,
 }
 
 /// 计费权重：cache_read 相对 input 的单价比（env `CACHE_CREDIT_WEIGHT`，缺省 0.32）。
@@ -132,6 +135,23 @@ impl UsageAcc {
         self.output += u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0);
         self.cache_read += u.get("cache_read_tokens").and_then(Value::as_u64).unwrap_or(0);
         self.reasoning += u.get("reasoning_tokens").and_then(Value::as_u64).unwrap_or(0);
+    }
+
+    /// 累计一次请求的 HTTP 尝试次数（P5 观测）。
+    ///
+    /// `None` = 该次请求未上报（旧 provider / 流式旁路），**不参与累计**——这样
+    /// 「未观测」既不会伪装成 0，也不会把已观测的次数冲掉。
+    pub(super) fn add_http_attempts(&mut self, n: Option<u64>) {
+        let Some(n) = n else { return };
+        self.http_attempts = Some(self.http_attempts.unwrap_or(0) + n);
+    }
+
+    /// 指标外抛用：累计 HTTP 尝试次数（None = 全部未上报 → 线契约落 null）。
+    ///
+    /// 刻意不进 `to_value()`：后者同时喂 `assistant.usage` 与 `chat_summary.tokens`，
+    /// 是既有冻结的四字段用量契约；观测指标只在 metrics / chat_summary 顶层单列。
+    pub(super) fn http_attempts_total(&self) -> Option<u64> {
+        self.http_attempts
     }
 
     /// 计费口径（T4 预算）：input+output+cache_read×权重。
