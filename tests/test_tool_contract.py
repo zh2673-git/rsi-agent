@@ -313,7 +313,11 @@ class ExternalPatchTest(unittest.TestCase):
                 self.assertTrue(item["content"], f"{item['id']} create 补丁必须有内容")
             else:
                 self.assertTrue(str(item["anchor"]), f"{item['id']} 锚点不能为空")
-                self.assertTrue(str(item["patch"]), f"{item['id']} 补丁体不能为空")
+                # repair / converge 型补丁用于「删除多余片段 / 收敛重复块」，其 patch 合法为空：
+                # repair 的语义就是「锚点存在则删掉」（不需要替换文本），converge 保留「原本想写成
+                # 什么」但目的只是让坏块消失。其余替换型补丁必须有非空补丁体。
+                if not item.get("repair") and not item.get("converge"):
+                    self.assertTrue(str(item["patch"]), f"{item['id']} 补丁体不能为空")
 
     def test_corrupt_external_skipped_not_fatal(self):
         """单个外挂 JSON 损坏 → 跳过并提示，不拖垮补丁流程。"""

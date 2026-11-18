@@ -38,8 +38,23 @@ PATCH_DIRS = ("", "q-round")
 
 
 def _norm(text: str) -> str:
-    """比对口径：只认非空行的内容，忽略行尾空白与空行差异（CRLF/LF 混用是常态）。"""
-    return "\n".join(l.strip() for l in text.splitlines() if l.strip())
+    """比对口径：只认非空行的内容，忽略行尾空白与空行差异（CRLF/LF 混用是常态）。
+
+    为什么是 `rstrip()` 而不是 `strip()`（P5 实测修正，2026 本轮）：
+
+    `strip()` 连**行首缩进**一起抹掉，于是把「同一构造出现在不同嵌套层次」的不同
+    调用点折叠成同一段文本。实测代价：`chat.rs` 有 4 处 `return self.finish(...)`
+    分布在两个嵌套层次（主循环 20 空格 / 收敛轮 16 空格），P4c 给 4 处都补了
+    `None,` 实参后，`p4c-chat-finish-h2a-1` 与 `-h2b-1` 的 patch 全文在产物里
+    「出现 4 次」——4 处全是**合法调用点**，没有一处是重复插入。
+
+    这类假阳性不能靠白名单压：白名单键是 `(文件, 锚点首行)`，加一条
+    `("chat.rs", "return self")` 就等于放弃对这 4 处真重复的检测，越压越瞎。
+    保留行首缩进后：真重复（同一处被写两遍）仍是 2 次，照样报；跨层次的合法
+    同构调用点不再折叠。代价是「补丁被插到错误的缩进层次」不再由本判据兜住——
+    那属于锚点漂移，`apply-tool-patches.py` 在锚点未命中时已经 FAIL，不靠这里。
+    """
+    return "\n".join(l.rstrip() for l in text.splitlines() if l.strip())
 
 
 def _dup_patch_blocks(specs, read_src):
@@ -213,8 +228,8 @@ class GuardHasTeeth(unittest.TestCase):
        两个测试函数各自 `set_var("AGENT_STREAM_DIR", ...)`，是天经地义的重复）。
     """
 
-    PATCH = "let a = 1;\n// 新增的三行说明\nlet b = 2;\nlet c = 3;"
-    ANCHOR = "let a = 1;"
+    PATCH = "    let a = 1;\n    // 新增的三行说明\n    let b = 2;\n    let c = 3;"
+    ANCHOR = "    let a = 1;"
     SPEC = {"file": "tgt/x.rs", "patch_file": "blocks/p.txt", "anchor_file": "blocks/a.txt"}
 
     def _run(self, src: str) -> list[str]:
