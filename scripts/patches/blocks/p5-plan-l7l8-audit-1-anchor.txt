@@ -1,0 +1,1 @@
+| L3 | **num_ctx 无法 per-request 下发**：P7 的 `LLM_CONTEXT_TOKENS` 只做本地估算闸，未透传给 provider——本地认为没事，服务端窗口（缺省 4096）小得多，两侧对「窗口」的认知脱节 | `providers/ollama.py` / 线契约 | 高 |

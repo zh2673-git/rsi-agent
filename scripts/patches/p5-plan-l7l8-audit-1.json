@@ -1,0 +1,9 @@
+{
+  "id": "p5-plan-l7l8-audit-1",
+  "description": "P5 文档：PLAN 审计表补 L7（请求观测）/ L8（能力声明）两行",
+  "file": "runtime/plugins/llm_adapter/PLAN.md",
+  "anchor_file": "blocks/p5-plan-l7l8-audit-1-anchor.txt",
+  "patch_file": "blocks/p5-plan-l7l8-audit-1-patch.txt",
+  "order": 165,
+  "applied_marker": "| L7 | **请求观测缺失 HTTP 尝试次数**"
+}

@@ -1,0 +1,5 @@
+        // 总预算（T4）：顶层取配置缺省；子代理继承父链衰减后的剩余（req.*_left）。
+        // P4b：budget_root = 整条委派链共享的累计花费账键。顶层缺省取自身 session_id，
+        // 子代理沿用父链透传的同一根；所有链按 (root, 自身 session) 写进同一本账。
+        let budget_root = req.budget_root.clone().unwrap_or_else(|| req.session_id.clone());
+        let budget = ChatBudget {

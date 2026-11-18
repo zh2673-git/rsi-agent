@@ -1,0 +1,9 @@
+{
+  "id": "P4B-SIBLING-TEST-1",
+  "description": "P4b 回归：新增兄弟子代理并发派发用例——同一父轮 2 个 task 分食同一份剩余额度（各 50），两个子代理各用 60 均被截停，父轮看到两条「预算耗尽」观察。防「每个子代理各拿满额」的超支回归。",
+  "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+  "anchor_file": "blocks/p4b-sibling-test-anchor.txt",
+  "patch_file": "blocks/p4b-sibling-test-patch.txt",
+  "applied_marker": "async fn sibling_subagents_share_one_remaining_budget() {",
+  "order": 27
+}

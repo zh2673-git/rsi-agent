@@ -1,0 +1,8 @@
+        let mut out = out;
+        // 本轮事件已由 chat_run 全部写完，现在读到的 `next` 就是本轮终点。
+        // 失败按 0 → 退化为 `start_cursor`（补播会少给，但不会给错）。
+        let trace_next = self
+            .call(env, CAP_MEMORY, json!({"op": "trace.read", "session_id": req.session_id, "after": 0}), MEM_DEADLINE)
+            .await
+            .ok()
+            .and_then(|v| v.get("next").and_then(Value::as_u64));

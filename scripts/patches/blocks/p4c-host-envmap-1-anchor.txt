@@ -1,0 +1,3 @@
+    ("max_inflight", "AGENT_MAX_INFLIGHT"),
+    ("max_total_inflight", "AGENT_MAX_TOTAL_INFLIGHT"),
+];

@@ -1,0 +1,31 @@
+            Some("trace.read") => json!({"ok": true, "events": events.lock().unwrap().clone()}),
+            // P1：真实末尾游标（= 完整有效事件数）。本 mock 的 trace.read 不分页，故
+            // end_cursor 与事件条数恒等——被测的是「agent-loop 采信 trace.meta.end_cursor」，
+            // 不是分页细节（分页/长 trace 由 e2e_ts_memory 的 TS 用例覆盖）。
+            Some("trace.meta") => {
+                let n = events.lock().unwrap().len() as u64;
+                json!({"ok": true, "exists": n > 0, "size": 0, "mtime_ms": 0,
+                       "total_events": n, "end_cursor": n})
+            }
+            // P1：会话级已加载技能集——从捕获的事件里筛 skill_loaded，去重保首次出现序
+            // （与真实 memory 插件的 session.skills 同口径）。技能作用域恢复用例依赖它：
+            // 旧实现读 trace.read 第一页，长 trace 会漏，本 mock 则用于验证「调用面」。
+            Some("session.skills") => {
+                let mut seen: Vec<String> = Vec::new();
+                for e in events.lock().unwrap().iter() {
+                    if e.get("type").and_then(Value::as_str) == Some("skill_loaded") {
+                        if let Some(s) = e.get("skill").and_then(Value::as_str) {
+                            if !s.is_empty() && !seen.iter().any(|x| x == s) {
+                                seen.push(s.to_string());
+                            }
+                        }
+                    }
+                }
+                json!({"ok": true, "skills": seen})
+            }
+            _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
+        }
+    })
+}
+
+/// tools mock：捕获 install payload（断言路由参数）+ 固定 skill_tools 应答 + 技能工具调用。

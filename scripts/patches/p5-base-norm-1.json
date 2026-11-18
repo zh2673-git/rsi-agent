@@ -1,0 +1,9 @@
+{
+  "id": "p5-base-norm-1",
+  "description": "P5：providers/base.py norm 增 http_attempts 可选字段（有才写）",
+  "file": "runtime/plugins/llm_adapter/providers/base.py",
+  "anchor_file": "blocks/p5-base-norm-1-anchor.txt",
+  "patch_file": "blocks/p5-base-norm-1-patch.txt",
+  "order": 150,
+  "applied_marker": "http_attempts=None) -> dict:"
+}

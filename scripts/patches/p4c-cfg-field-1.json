@@ -1,0 +1,9 @@
+{
+  "id": "p4c-cfg-field-1",
+  "description": "P4c：AgentLoopConfig 增 no_progress_repeat_limit 字段（缺省 0=禁用）",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/p4c-cfg-field-1-anchor.txt",
+  "patch_file": "blocks/p4c-cfg-field-1-patch.txt",
+  "order": 120,
+  "applied_marker": "pub no_progress_repeat_limit: usize,"
+}

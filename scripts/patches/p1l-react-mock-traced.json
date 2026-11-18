@@ -1,0 +1,8 @@
+{
+  "id": "p1l-react-mock-traced",
+  "description": "P1：react_mocks 的 mock_memory_traced 补 trace.meta（end_cursor=事件数）与 session.skills（筛 skill_loaded 去重）——技能重放恢复与 turn 游标断言的关键。",
+  "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+  "anchor_file": "blocks/p1l-tracedmock-anchor.txt",
+  "patch_file": "blocks/p1l-tracedmock-patch.txt",
+  "applied_marker": "P1：真实末尾游标（= 完整有效事件数）。本 mock 的 trace.read 不分页"
+}

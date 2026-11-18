@@ -1,0 +1,9 @@
+{
+  "id": "p5-plan-l7l8-record-1",
+  "description": "P5 文档：PLAN 迭代记录追加 P5（http_attempts + capabilities）",
+  "file": "runtime/plugins/llm_adapter/PLAN.md",
+  "anchor_file": "blocks/p5-plan-l7l8-record-1-anchor.txt",
+  "patch_file": "blocks/p5-plan-l7l8-record-1-patch.txt",
+  "order": 167,
+  "applied_marker": "### P5：请求观测（http_attempts）+ provider 能力声明（capabilities）"
+}

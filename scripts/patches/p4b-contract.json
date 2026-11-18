@@ -1,0 +1,9 @@
+{
+  "id": "P4B-CONTRACT-ROOT-1",
+  "description": "P4b（四）：ChatReq 新增 budget_root（任务根会话 id，随链透传；缺省 None = 自身 session_id，向后兼容 host/e2e 调用方）。",
+  "file": "runtime/crates/agent-loop/src/contract.rs",
+  "anchor_file": "blocks/p4b-contract-anchor.txt",
+  "patch_file": "blocks/p4b-contract-patch.txt",
+  "applied_marker": "    pub budget_root: Option<String>,",
+  "order": 13
+}

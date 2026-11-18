@@ -1,0 +1,17 @@
+                    steps.push(StepRecord { round: rounds, tool: tc.name.clone(), ms });
+                    if tc.name == "todo" {
+                        // 验收清单落 todo = 「清单已建立」，contract_first 后续轮次放行。
+                        acceptance_seen = true;
+                    }
+                    if result.get("ok") != Some(&json!(true)) {
+                        tool_failures += 1;
+                    }
+                    // P4c：更新「同工具 + 同参数」连续重复计数（不论成败——同一失败调用反复
+                    // 重放同样是无进展；真正换了参数的重试会重置计数，不受影响）。
+                    let sig = (tc.name.clone(), tc.arguments.clone());
+                    if last_tool_sig.as_ref() == Some(&sig) {
+                        repeat_streak += 1;
+                    } else {
+                        last_tool_sig = Some(sig);
+                        repeat_streak = 1;
+                    }

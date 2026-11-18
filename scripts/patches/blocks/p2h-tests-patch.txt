@@ -1,0 +1,88 @@
+        json!({"ok": true, "answer": answer, "rounds": rounds, "steps": steps, "session_id": session_id})
+    }
+}
+
+#[cfg(test)]
+mod p2_system_tests {
+    use super::*;
+
+    fn m(role: &str, body: &str) -> MemoryMsg {
+        MemoryMsg {
+            role: role.into(),
+            content: Some(body.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        }
+    }
+
+    /// split_system：不假定首位、只留一个、取最后一条非空、空内容视为无。
+    #[test]
+    fn split_system_takes_last_nonempty_and_drops_all_others() {
+        let (sys, rest) = split_system(vec![
+            m("system", "OLD"),
+            m("user", "u1"),
+            m("system", ""),      // 空内容 → 视为无
+            m("assistant", "a1"),
+            m("system", "NEW"),   // 最后一条非空 → 采用
+        ]);
+        assert_eq!(sys.as_ref().and_then(|x| x.content.as_deref()), Some("NEW"));
+        let roles: Vec<_> = rest.iter().map(|x| x.role.clone()).collect();
+        assert_eq!(roles, vec!["user", "assistant"], "除唯一 system 外全部保留，顺序不变");
+        // 无 system 时返回 None
+        let (none, rest2) = split_system(vec![m("user", "u"), m("assistant", "a")]);
+        assert!(none.is_none());
+        assert_eq!(rest2.len(), 2);
+    }
+
+    /// trim_workset_by_tokens：system 不在首位时也必须被识别并保留（不再假定 msgs[0]）。
+    #[test]
+    fn trim_workset_keeps_system_not_at_head() {
+        let big = "x".repeat(8000);
+        // 病态顺序：head 是 user，system 在中段——旧实现会误把 user 当 system 头保留、把真正
+        // 的 system 当普通消息裁掉。
+        let msgs = vec![
+            m("user", "lead"),
+            m("assistant", "a0"),
+            m("system", "SYS"),
+            m("tool", &big),
+            m("tool", &big),
+            m("user", "tail"),
+        ];
+        let out = trim_workset_by_tokens(msgs, 40);
+        // 唯一 system 必留且被规范化到首位
+        assert_eq!(out.first().map(|x| x.role.as_str()), Some("system"), "{:?}", out.iter().map(|x| x.role.clone()).collect::<Vec<_>>());
+        assert_eq!(out[0].content.as_deref(), Some("SYS"));
+        // 结果里绝无第二个 system
+        assert_eq!(out.iter().filter(|x| x.role == "system").count(), 1);
+        // 前缘孤儿 tool 被丢弃
+        assert!(out.iter().skip(1).all(|x| x.role != "tool" || x.content.as_deref() == Some("SYS")));
+    }
+
+    /// trim_workset_by_tokens：出现多个 system 时只留一个（取最后一条非空、置顶）。
+    #[test]
+    fn trim_workset_keeps_single_system() {
+        let msgs = vec![
+            m("system", "OLD"),
+            m("user", "u1"),
+            m("system", "NEW"),
+            m("user", "u2"),
+        ];
+        let out = trim_workset_by_tokens(msgs, 10_000);
+        assert_eq!(out.iter().filter(|x| x.role == "system").count(), 1);
+        assert_eq!(out[0].content.as_deref(), Some("NEW"), "取最后一条 system");
+        assert_eq!(out.first().map(|x| x.role.as_str()), Some("system"));
+    }
+
+    /// append_to_system：不假定首位——对唯一 system 追加；无 system 时不 panic 不新增。
+    #[test]
+    fn append_to_system_targets_unique_system_anywhere() {
+        let mut msgs = vec![m("user", "u"), m("system", "SYS")];
+        append_to_system(&mut msgs, "-TAIL");
+        assert_eq!(msgs[1].content.as_deref(), Some("SYS-TAIL"));
+        let mut no_sys = vec![m("user", "u")];
+        append_to_system(&mut no_sys, "-X");
+        assert_eq!(no_sys.len(), 1);
+        assert_eq!(no_sys[0].content.as_deref(), Some("u"), "无 system 时静默不追加");
+    }
+}

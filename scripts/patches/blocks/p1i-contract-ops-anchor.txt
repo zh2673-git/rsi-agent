@@ -1,0 +1,7 @@
+    // ⑦ memory op 面（agent-loop 只会调这 5 个 op）
+    for op in ops_log.lock().unwrap().iter() {
+        assert!(
+            ["get", "append", "summarize", "trace.append", "trace.read"].contains(&op.as_str()),
+            "memory op 越界：{op}"
+        );
+    }

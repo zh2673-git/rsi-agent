@@ -1,0 +1,12 @@
+        // 需要超预算才会进入规范化裁剪路径（预算内直接幂等返回、不重排）；
+        // 故在两条 system 之间夹一条超预算大消息，强制走裁剪分支。
+        let big = "x".repeat(8000);
+        let msgs = vec![
+            m("system", "OLD"),
+            m("user", "u1"),
+            m("system", "NEW"),
+            m("tool", &big),
+            m("user", "u2"),
+        ];
+        let out = trim_workset_by_tokens(msgs, 60);
+        assert_eq!(out.iter().filter(|x| x.role == "system").count(), 1);

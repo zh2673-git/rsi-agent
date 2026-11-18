@@ -1,0 +1,49 @@
+/// 工作集尾部裁剪（P0-C）：按 **token 预算**保留最近若干条消息，裁掉更早的。
+///
+/// 为什么需要（实测依据）：压缩后持久层留 `COMPACT_KEEP`（配置里 30）条，
+/// 而这 30 条**每轮都原样发给模型**——每条工具结果可达 8K 字符，合计约
+/// 120K tokens。于是每个请求的 cache_read 平台值高达 170–200K，而当日
+/// **77.1%** 的 credits 来自 cache_read（单价是 input 的 32%）。
+///
+/// 与 `apply_history_limit`（按条数）的区别：条数与 token 量不同步——一条
+/// 8K 字符的工具结果顶得上一百条短消息，故这里按 token 裁。
+///
+/// 纪律（与既有裁剪一致）：
+/// - 只裁**发给 LLM 的工作集**，不动持久层（memory 仍留全量，可回看/回滚）；
+/// - 保留 `msgs[0]`（system 头）；
+/// - 裁剪后前缘的**孤儿 tool 消息**必须丢弃（其配对的 assistant.tool_calls
+///   已被裁掉，孤儿回喂会被 provider 拒收）——同 `halve_window` 的处置。
+pub(super) fn trim_workset_by_tokens(msgs: Vec<MemoryMsg>, budget: usize) -> Vec<MemoryMsg> {
+    if budget == 0 || msgs.len() <= 1 {
+        return msgs;
+    }
+    if super::context::estimate_messages(&msgs) <= budget {
+        return msgs;
+    }
+    // 从尾部往前留，累计到预算为止；system 头（第 0 条）始终保留。
+    // 单条超预算时**跳过**它继续看更小的（不 break）——否则一条巨型工具结果
+    // 会把后面所有小消息一起挤掉（实测每条工具结果可达 8K 字符，而 user 消息
+    // 只有几十字符；break 会让模型连「用户在问什么」都看不到）。
+    let mut kept: Vec<MemoryMsg> = Vec::new();
+    let mut used = super::context::estimate_tokens(msgs[0].content.as_deref().unwrap_or("")) + 4;
+    for m in msgs[1..].iter().rev() {
+        let est = super::context::estimate_tokens(m.content.as_deref().unwrap_or("")) + 4;
+        if used + est > budget {
+            continue;
+        }
+        used += est;
+        kept.push(m.clone());
+    }
+    kept.reverse();
+    let mut out = vec![msgs[0].clone()];
+    out.extend(kept);
+    // 前缘孤儿 tool 消息：其 assistant(tool_calls) 载体已被裁掉 → 丢弃。
+    if let Some(first_real) = out.iter().enumerate().skip(1).find(|(_, m)| m.role != "tool").map(|(i, _)| i) {
+        if first_real > 1 {
+            out.drain(1..first_real);
+        }
+    } else if out.len() > 1 {
+        out.truncate(1); // 病态：全剩 tool 消息 → 只留 system 头
+    }
+    out
+}

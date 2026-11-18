@@ -1,0 +1,23 @@
+def _chat_once_success(endpoint: dict, body: dict, provider_label: str, data: dict, elapsed_ms: int) -> dict:
+    """_chat_once 的成功响应归一化段（原实现原样提取，行为不变）。"""
+    # 200 异常态防护：部分网关（限流/瞬时故障）会在 200 里返回非 chat 形态（null / {"error":...}），
+    # 硬下标 choices 会崩成 'NoneType' object is not subscriptable——统一收敛为业务错误。
+    if not isinstance(data, dict) or not data.get("choices"):
+        return err(f"{provider_label} HTTP 200 响应缺少 choices（网关异常响应）: {json.dumps(data, ensure_ascii=False)[:300]}")
+    msg = data["choices"][0].get("message") or {}
+    calls = [
+        {"id": tc.get("id", ""), "name": tc["function"]["name"], "arguments": as_object(tc["function"].get("arguments"))}
+        for tc in (msg.get("tool_calls") or [])
+    ]
+    finish = data["choices"][0].get("finish_reason") or "stop"
+    # 非流式思考通道：DeepSeek 官方返回 reasoning_content；部分网关仅在流式下给。
+    reasoning = msg.get("reasoning_content") or msg.get("reasoning") or None
+    return norm(
+        msg.get("content"),
+        calls,
+        data.get("model", endpoint["model"]),
+        "tool_calls" if calls else finish,
+        reasoning=reasoning,
+        usage=map_usage(data["usage"]) if data.get("usage") else None,
+        elapsed_ms=elapsed_ms,
+    )

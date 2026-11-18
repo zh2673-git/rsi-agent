@@ -1,0 +1,37 @@
+/// 把工作集里的 system 统一规范化（P2）：**只保留一个**、取最后一条、空内容视为无，
+/// 且置顶。返回规范的 system（`None` = 无 system）与非 system 的消息（保持相对顺序）。
+///
+/// 为什么不假定 `msgs[0]` 是 system：持久化历史里的 system 可能位于任意位置（见
+/// `chat.rs` 里历史被直接追加在动态 system 之后），任何「只裁首条之外」或「固定保留
+/// `msgs[0]`」的假设都会把非 system 的头当 system 留下、把真正的 system 漏掉。
+/// 为什么只留一个：多个 system 会与动态 system 冲突、污染上下文（Memory 侧
+/// `summarize` 亦同此规则，见 memory_plugin.ts 的 M3 注释）。
+pub(super) fn split_system(msgs: Vec<MemoryMsg>) -> (Option<MemoryMsg>, Vec<MemoryMsg>) {
+    let mut sys: Option<MemoryMsg> = None;
+    let mut rest: Vec<MemoryMsg> = Vec::with_capacity(msgs.len());
+    for m in msgs {
+        if m.role == "system" {
+            // 只采信**非空**的 system；空内容 system 等同无 system。
+            if m.content.as_deref().map(|c| !c.trim().is_empty()).unwrap_or(false) {
+                sys = Some(m); // 后出现的覆盖先出现的 = 取最后一条
+            }
+        } else {
+            rest.push(m);
+        }
+    }
+    (sys, rest)
+}
+
+/// 就地给 system 追加文本（deferred 工具摘要、同波次批处理纪律等）。P2：不假定
+/// `messages[0]` 是 system——取规范化后的唯一 system；无 system（病态）则不改。
+pub(super) fn append_to_system(messages: &mut [MemoryMsg], extra: &str) {
+    if let Some(sys) = messages
+        .iter_mut()
+        .rev()
+        .find(|m| m.role == "system" && m.content.as_deref().map(|c| !c.trim().is_empty()).unwrap_or(false))
+    {
+        if let Some(c) = sys.content.as_mut() {
+            c.push_str(extra);
+        }
+    }
+}

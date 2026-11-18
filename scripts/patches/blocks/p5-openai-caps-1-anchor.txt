@@ -1,0 +1,7 @@
+PROVIDER = {
+    "name": "openai",
+    "chat": chat,
+    "models": models,
+    "embed": embed,
+    "requires_env": ["OPENAI_API_KEY"],
+}

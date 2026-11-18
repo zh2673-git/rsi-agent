@@ -1,0 +1,9 @@
+{
+  "id": "P4B-CHAT-RECORD-B-1",
+  "description": "P4b（七）：轮次耗尽后的强制收敛轮计费同样回写任务账（siteB，8 空格缩进版）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4b-chat-siteB-anchor.txt",
+  "patch_file": "blocks/p4b-chat-siteB-patch.txt",
+  "applied_marker": "        // P4b：收敛/强制轮的计费同样回写任务账（同 siteA）。\n        self.record_spent(&budget_root, &req.session_id, usage.total());",
+  "order": 16
+}

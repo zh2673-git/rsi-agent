@@ -1,0 +1,8 @@
+{
+  "id": "p4c-chat-finish-sig-1",
+  "description": "P4c：finish 增 stopped_reason 形参",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-finish-sig-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-finish-sig-1-patch.txt",
+  "order": 113
+}

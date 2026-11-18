@@ -1,0 +1,8 @@
+{
+  "id": "m2-summarize-system",
+  "description": "M3：summarize 保留唯一的规范化 system（不假定 msgs[0]、取最后一条、空内容视为无），并从滑动窗口池中剔除后单独前置。",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor_file": "blocks/m2-summarize-anchor.txt",
+  "patch_file": "blocks/m2-summarize-patch.txt",
+  "applied_marker": "// M3：system 保留必须统一且规范化"
+}

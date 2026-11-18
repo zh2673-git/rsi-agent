@@ -1,0 +1,9 @@
+{
+  "id": "p4c-chat-summary-body-1",
+  "description": "P4c：summary_after_stop 的 chat_summary 增 stopped_reason 键",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-summary-body-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-summary-body-1-patch.txt",
+  "order": 106,
+  "applied_marker": "                \"stopped_by\": stopped_by,\n                \"stopped_reason\": stopped_reason,"
+}

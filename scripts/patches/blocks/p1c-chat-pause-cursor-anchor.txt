@@ -1,0 +1,8 @@
+                if let Some((q, call_id)) = paused_by_ask.as_ref() {
+                    let end_cursor = self
+                        .call(env, CAP_MEMORY, json!({"op": "trace.read", "session_id": req.session_id, "after": 0}), MEM_DEADLINE)
+                        .await
+                        .ok()
+                        .and_then(|v| v.get("next").and_then(Value::as_u64))
+                        .unwrap_or(start_cursor);
+                    if turn::mark_paused(&mut turn, q, call_id, end_cursor) {

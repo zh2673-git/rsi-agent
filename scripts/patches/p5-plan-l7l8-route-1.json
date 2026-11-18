@@ -1,0 +1,9 @@
+{
+  "id": "p5-plan-l7l8-route-1",
+  "description": "P5 文档：PLAN 路线表补 L7 / L8 两行",
+  "file": "runtime/plugins/llm_adapter/PLAN.md",
+  "anchor_file": "blocks/p5-plan-l7l8-route-1-anchor.txt",
+  "patch_file": "blocks/p5-plan-l7l8-route-1-patch.txt",
+  "order": 166,
+  "applied_marker": "| L7 请求观测：provider 上报真实 HTTP 尝试次数"
+}

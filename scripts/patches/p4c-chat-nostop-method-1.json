@@ -1,0 +1,9 @@
+{
+  "id": "p4c-chat-nostop-method-1",
+  "description": "P4c：budget_stop 调用补 stopped_reason=null 并追加 no_progress_stop 方法（K502+reason）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-nostop-method-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-nostop-method-1-patch.txt",
+  "order": 104,
+  "applied_marker": "json!({\"type\": \"error\", \"where\": \"no_progress\""
+}

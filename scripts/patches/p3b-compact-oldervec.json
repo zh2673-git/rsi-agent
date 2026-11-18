@@ -1,0 +1,10 @@
+{
+  "id": "P3B-COMPACT-OLDERVEC-1",
+  "description": "P3 降开销：删掉 compaction 中 older.to_vec() 的整段深拷贝（随后逐条克隆摘要输入已是一份，总克隆减半）",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor_file": "blocks/p3b-oldervec-anchor.txt",
+  "patch": "",
+  "repair": true,
+  "applied_marker": "删除 `let older = older.to_vec();`",
+  "order": -1
+}

@@ -1,0 +1,4 @@
+        let out = halve_window(vec![m("system", "SYS"), m("user", "u1"), m("tool", "t1")]);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].role, "system");
+    }

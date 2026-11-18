@@ -1,0 +1,29 @@
+        self.trace(env, session_id, json!({"type": "error", "where": "budget", "message": msg})).await;
+        // E7-C1：预算硬停也要交 chat_summary——「被掐断」的回合不该在效率画像里缺段。
+        self.summary_after_stop(env, session_id, rounds, steps, Some(reason.tag()), None, &usage, llm_ms, llm_calls, retries, tool_failures)
+            .await;
+        json!({"ok": false, "error": {"code": "K508", "message": msg}})
+    }
+    /// P4c 无进展熔断出口：同一工具 + 同参数连续重复达到阈值，立即停止空转。
+    /// 与 budget_stop 同构——发 error 事件 + 交 chat_summary（stopped_reason 具名）+ 返回 K502。
+    /// 错误码沿用 K502（轮次/收敛类兜底码），用扁平 `reason` 区分具体成因（不占用 K503/K508）。
+    #[allow(clippy::too_many_arguments)]
+    async fn no_progress_stop(
+        &self,
+        env: &Envelope,
+        session_id: &str,
+        rounds: u32,
+        steps: &[StepRecord],
+        msg: &str,
+        usage: UsageAcc,
+        llm_ms: u64,
+        llm_calls: u32,
+        retries: u32,
+        tool_failures: u32,
+    ) -> Value {
+        self.trace(env, session_id, json!({"type": "error", "where": "no_progress", "message": msg})).await;
+        // 熔断也要交 chat_summary：画像留段（stopped_by 沿用「非预算=null」，具名成因走 stopped_reason）。
+        self.summary_after_stop(env, session_id, rounds, steps, None, Some("no_progress"), &usage, llm_ms, llm_calls, retries, tool_failures)
+            .await;
+        json!({"ok": false, "error": {"code": "K502", "reason": "no_progress", "message": msg}})
+    }

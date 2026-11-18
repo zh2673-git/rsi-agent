@@ -1,0 +1,8 @@
+{
+  "id": "p2a2-restore-history",
+  "description": "P2 修正：p2a 的锚点误命中 apply_history_limit 本体（其紧跟 split_system 注释），导致 apply_history_limit 被覆盖丢失。此补丁把它补回到 split_system 注释之前。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2a-restore-history-anchor.txt",
+  "patch_file": "blocks/p2a-restore-history-patch.txt",
+  "applied_marker": "pub(super) fn apply_history_limit(history_limit: usize"
+}

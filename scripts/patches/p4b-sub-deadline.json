@@ -1,0 +1,9 @@
+{
+  "id": "P4B-SUB-DEADLINE-1",
+  "description": "P4b（十三）：env.deadline 取三元组首项（墙钟语义不变，仅为类型适配）。",
+  "file": "runtime/crates/agent-loop/src/subagent.rs",
+  "anchor_file": "blocks/p4b-sub-deadline-anchor.txt",
+  "patch_file": "blocks/p4b-sub-deadline-patch.txt",
+  "applied_marker": "        if let Some((Some(ms), _, _)) = budget_snap {",
+  "order": 22
+}

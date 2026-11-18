@@ -1,0 +1,8 @@
+{
+  "id": "p4c-chat-finish-h2c-1",
+  "description": "P4c：收敛轮 finish 调用（resp.ok）补 stopped_reason=null",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-finish-h2c-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-finish-h2c-1-patch.txt",
+  "order": 111
+}

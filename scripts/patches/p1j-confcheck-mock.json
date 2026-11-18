@@ -1,0 +1,8 @@
+{
+  "id": "p1j-confcheck-mock",
+  "description": "P1：conformance_check 的 memory mock 合并分支放行 trace.meta / session.skills，否则出生证明用例 K400 假失败。",
+  "file": "runtime/crates/agent-loop/tests/conformance_check.rs",
+  "anchor_file": "blocks/p1j-confcheck-anchor.txt",
+  "patch_file": "blocks/p1j-confcheck-patch.txt",
+  "applied_marker": "P1：trace.meta / session.skills 是只读汇总接口"
+}

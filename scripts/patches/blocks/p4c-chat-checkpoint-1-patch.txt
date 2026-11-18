@@ -1,0 +1,27 @@
+            // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）
+            if let Some(reason) = self.check_budget(&budget, &usage) {
+                if reason.is_hard() {
+                    return self
+                        .budget_stop(env, &req.session_id, rounds, &steps, reason, usage, llm_ms, llm_calls, retries, tool_failures)
+                        .await;
+                }
+                self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;
+            }
+            // 停车检查点②c：无进展熔断（P4c）——同一工具 + 同参数连续重复达到阈值即收尾，
+            // 交出「已完成 / 未完成 / 下一步」，而不是继续空转烧钱、占满轮次把真进度挤掉。
+            // 只在**没有** wrap_up 时生效：预算软收敛已接管出口，不与非进展原因叠加。
+            if wrap_up.is_none()
+                && cfg.no_progress_repeat_limit > 0
+                && repeat_streak >= cfg.no_progress_repeat_limit
+            {
+                let msg = format!(
+                    "无进展熔断：同一工具 {} 连续 {} 次以相同参数重复调用（阈值 {}），已停止空转",
+                    last_tool_sig.as_ref().map(|(n, _)| n.as_str()).unwrap_or("?"),
+                    repeat_streak,
+                    cfg.no_progress_repeat_limit
+                );
+                return self
+                    .no_progress_stop(env, &req.session_id, rounds, &steps, &msg, usage, llm_ms, llm_calls, retries, tool_failures)
+                    .await;
+            }
+        }

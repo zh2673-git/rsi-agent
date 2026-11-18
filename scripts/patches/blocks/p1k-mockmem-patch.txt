@@ -1,0 +1,12 @@
+            // P1：只读汇总接口（本 mock 无 trace 存储 → 空状态：0 条事件、空技能集）。
+            // 不补这两个分支会让 agent-loop 每次 chat 都收到 K400，虽不致命但会把
+            // 「mock 缺 op」伪装成「trace 读失败」，后续排查极难。
+            Some("trace.meta") => json!({"ok": true, "exists": false, "size": 0, "mtime_ms": 0,
+                                        "total_events": 0, "end_cursor": 0}),
+            Some("session.skills") => json!({"ok": true, "skills": []}),
+            _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
+        }
+    })
+}
+
+/// 脚本化 LLM：按序弹出响应；耗尽后复用最后一个。

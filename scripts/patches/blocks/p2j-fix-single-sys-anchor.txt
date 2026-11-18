@@ -1,0 +1,8 @@
+        let msgs = vec![
+            m("system", "OLD"),
+            m("user", "u1"),
+            m("system", "NEW"),
+            m("user", "u2"),
+        ];
+        let out = trim_workset_by_tokens(msgs, 10_000);
+        assert_eq!(out.iter().filter(|x| x.role == "system").count(), 1);

@@ -1,0 +1,8 @@
+        if let Some((ms_left, toks_left)) = budget_snap {
+            if let Some(ms) = ms_left {
+                payload["budget_ms_left"] = json!(ms);
+            }
+            if let Some(toks) = toks_left {
+                payload["tokens_left"] = json!(toks);
+            }
+        }

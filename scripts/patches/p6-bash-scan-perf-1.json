@@ -1,0 +1,9 @@
+{
+  "id": "p6-bash-scan-perf-1",
+  "description": "P6 Tools/bash 性能：bash 每次调用前后各遍历一次全工作区（实测 11s+11s）。改为 os.scandir 显式栈 + 遍历期剪枝（排除目录不再下钻）、workspace_root() 提到扫描级、超 _UNDO_MAX_BYTES 的文件不 pre-copy 内容。清单逐字节一致；实测 22-25 倍提速。",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "order": 176,
+  "anchor_file": "blocks/p6-bash-scan-anchor.txt",
+  "patch_file": "blocks/p6-bash-scan-patch.txt",
+  "applied_marker": "    stack = [ws]"
+}

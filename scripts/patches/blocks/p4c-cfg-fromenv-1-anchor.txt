@@ -1,0 +1,2 @@
+            prompt_template: env_trim("PROMPT"),
+        }

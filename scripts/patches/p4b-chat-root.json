@@ -1,0 +1,9 @@
+{
+  "id": "P4B-CHAT-ROOT-1",
+  "description": "P4b（五）：chat_run 起手解析 budget_root（顶层取自身 session_id，子代理沿用父链透传的根）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4b-chat-root-anchor.txt",
+  "patch_file": "blocks/p4b-chat-root-patch.txt",
+  "applied_marker": "        let budget_root = req.budget_root.clone().unwrap_or_else(|| req.session_id.clone());",
+  "order": 14
+}

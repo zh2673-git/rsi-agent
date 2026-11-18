@@ -1,0 +1,2 @@
+  实际 connect <1s 可忽略）；LLM_DEADLINE 上调（会放大重试最坏时长）；内核锁修复（跨仓库，
+  待 [patch] vs 上游 issue 决策）。budget_secs 维持 0 由用户自决。

@@ -1,0 +1,4 @@
+/// capability 寻址（K2，内核 v0.1.4）：跨插件调用按能力寻址，提供者可被同名/异名
+/// 实现替换而本 crate 零改动。memory 侧所有 session 域操作（get/append/summarize/
+/// trace.append/trace.read）统一寻址 `memory.session`——与本插件 manifest 硬依赖
+/// 声明一致（声明什么就寻址什么，消除"用了未声明的 capability"的旧不一致）。

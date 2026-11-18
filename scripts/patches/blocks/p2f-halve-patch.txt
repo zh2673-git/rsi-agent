@@ -1,0 +1,39 @@
+/// 窗口条数减半：保留 system 头 + 尾半；丢弃新窗口前缘的孤儿 tool 消息
+/// （其配对的 assistant.tool_calls 已被裁掉，孤儿回喂会被 provider 拒收）。
+/// P2：不假定 `msgs[0]` 为 system——先规范化出唯一 system（取最后一条非空、置顶），
+/// 只对尾部非 system 消息减半；无 system 时同样只裁非 system 部分。
+fn halve_window(mut msgs: Vec<MemoryMsg>) -> Vec<MemoryMsg> {
+    if msgs.len() <= 1 {
+        return msgs;
+    }
+    // 统一规范化：多 system 只留一条（取最后一条非空），恒置于首位。
+    let mut sys: Option<MemoryMsg> = None;
+    let mut rest: Vec<MemoryMsg> = Vec::with_capacity(msgs.len());
+    for m in msgs.drain(..) {
+        if m.role == "system" {
+            if m.content.as_deref().map(|c| !c.trim().is_empty()).unwrap_or(false) {
+                sys = Some(m);
+            }
+        } else {
+            rest.push(m);
+        }
+    }
+    // 只对非 system 的「尾半」保留。
+    let keep = (rest.len() / 2).max(1);
+    let mut kept: Vec<MemoryMsg> = rest.split_off(rest.len().saturating_sub(keep));
+    // 前缘孤儿 tool 消息：其配对的 assistant 已被裁掉 → 丢弃。
+    let head = if sys.is_some() { 1 } else { 0 };
+    let mut out: Vec<MemoryMsg> = Vec::with_capacity(kept.len() + 1);
+    if let Some(s) = sys {
+        out.push(s);
+    }
+    out.append(&mut kept);
+    if let Some(first_real) = out.iter().enumerate().skip(head).find(|(_, m)| m.role != "tool").map(|(i, _)| i) {
+        if first_real > head {
+            out.drain(head..first_real);
+        }
+    } else if out.len() > head {
+        out.truncate(head); // 病态：尾半全是 tool 消息 → 只留 system 头（或无 system 则清空）
+    }
+    out
+}

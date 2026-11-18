@@ -1,0 +1,9 @@
+{
+  "id": "m10-topcontract-ops-1",
+  "description": "遗留文档债：memory_plugin.ts 顶部线契约注释补 trace.meta / session.skills 两个 op（此前只列旧 op）",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor": "//   {\"op\":\"session.index\"} → {\"ok\":true,\"sessions\":[{id,title,updated_at,event_count,last_cursor}]}\n//       以上为 Q 轮 Phase 2 纯追加 op；旧 op 语义逐字不变（工作集视图仍为 sessions/<safe>.json），",
+  "patch": "//   {\"op\":\"session.index\"} → {\"ok\":true,\"sessions\":[{id,title,updated_at,event_count,last_cursor}]}\n//   {\"op\":\"trace.meta\",\"session_id\":str} → {\"ok\":true,\"exists\":bool,\"size\":int,\"mtime_ms\":int,\"total_events\":int,\"end_cursor\":int}  —— 完整 trace 的有效事件总数与真实末尾绝对游标（M 轮新增）\n//   {\"op\":\"session.skills\",\"session_id\":str} → {\"ok\":true,\"skills\":[str],\"total_events\":int}  —— 会话级已加载技能（扫描完整 trace，去重保序；M 轮新增）\n//       以上 trace.meta / session.skills 为 M 轮（长 trace 绝对游标 + 会话级技能作用域）纯追加 op；旧 op 语义逐字不变。\n//       以上为 Q 轮 Phase 2 纯追加 op；旧 op 语义逐字不变（工作集视图仍为 sessions/<safe>.json），",
+  "order": 173,
+  "applied_marker": "以上 trace.meta / session.skills 为 M 轮"
+}

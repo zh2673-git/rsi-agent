@@ -1,0 +1,9 @@
+{
+  "id": "p4c-cfg-fromenv-1",
+  "description": "P4c：from_env 解析 NO_PROGRESS_REPEAT_LIMIT（非法 warn 回退 0）",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/p4c-cfg-fromenv-1-anchor.txt",
+  "patch_file": "blocks/p4c-cfg-fromenv-1-patch.txt",
+  "order": 121,
+  "applied_marker": "no_progress_repeat_limit: env_num(\"NO_PROGRESS_REPEAT_LIMIT\""
+}

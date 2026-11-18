@@ -1,0 +1,8 @@
+{
+  "id": "p1g-contract-mock1",
+  "description": "P1：contract_conformance 第一套 memory mock 补 trace.meta（end_cursor=事件数）与 session.skills（筛 skill_loaded 去重），否则 agent-loop 新 op 收到 K400 假失败。",
+  "file": "runtime/crates/agent-loop/tests/contract_conformance.rs",
+  "anchor_file": "blocks/p1g-contract-mock1-anchor.txt",
+  "patch_file": "blocks/p1g-contract-mock1-patch.txt",
+  "applied_marker": "P1：真实末尾游标（= 完整有效事件数）。mock 里没有分页上限"
+}

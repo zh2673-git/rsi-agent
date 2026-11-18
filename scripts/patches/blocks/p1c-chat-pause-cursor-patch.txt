@@ -1,0 +1,12 @@
+                if let Some((q, call_id)) = paused_by_ask.as_ref() {
+                    // P1：暂停也要记**真实**末尾游标——恢复后 `turn/replay` 的区间以它为界。
+                    // 旧实现取 `trace.read(after=0).next`（分页首页消费位置），长 trace 上会把
+                    // 暂停点钉在首页边界，恢复补播少给后半程事件。真实末尾由 Memory 的
+                    // `trace.meta.end_cursor` 提供；失败退化为 `start_cursor`（宁可多给不漏）。
+                    let end_cursor = self
+                        .call(env, CAP_MEMORY, json!({"op": "trace.meta", "session_id": req.session_id}), MEM_DEADLINE)
+                        .await
+                        .ok()
+                        .and_then(|v| v.get("end_cursor").and_then(Value::as_u64))
+                        .unwrap_or(start_cursor);
+                    if turn::mark_paused(&mut turn, q, call_id, end_cursor) {

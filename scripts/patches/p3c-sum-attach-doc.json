@@ -1,0 +1,9 @@
+{
+  "id": "P3C-SUM-ATTR-1",
+  "description": "P3 降开销：在摘要输入处注明 R3 剥离附件 + P3 唯一一遍克隆（不改逻辑，收敛到已删 to_vec 的状态）",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor_file": "blocks/p3c-summsgs-anchor.txt",
+  "patch_file": "blocks/p3c-summsgs-new.txt",
+  "applied_marker": "P3 降开销：此逐条 owned 克隆是",
+  "order": 0
+}

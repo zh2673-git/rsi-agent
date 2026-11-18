@@ -1,0 +1,8 @@
+{
+  "id": "p4c-chat-reason-flatten-1",
+  "description": "P4c：finish 空答案出口 reason 改扁平（修 error.error.reason 畸形嵌套）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-reason-flatten-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-reason-flatten-1-patch.txt",
+  "order": 115
+}

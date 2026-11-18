@@ -1,0 +1,9 @@
+/// 多轮累计用量：ReAct 一轮可能多次调用 LLM，用户要的是总消耗而非单轮。
+#[derive(Default)]
+pub(super) struct UsageAcc {
+    input: u64,
+    output: u64,
+    cache_read: u64,
+    reasoning: u64,
+    seen: bool,
+}

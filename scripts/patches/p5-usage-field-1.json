@@ -1,0 +1,9 @@
+{
+  "id": "p5-usage-field-1",
+  "description": "P5：UsageAcc 增 http_attempts 字段（不改 to_value，线契约五键不动）",
+  "file": "runtime/crates/agent-loop/src/budget.rs",
+  "anchor_file": "blocks/p5-usage-field-1-anchor.txt",
+  "patch_file": "blocks/p5-usage-field-1-patch.txt",
+  "order": 143,
+  "applied_marker": "    http_attempts: Option<u64>,\n}"
+}

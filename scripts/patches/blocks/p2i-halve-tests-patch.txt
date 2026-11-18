@@ -1,0 +1,49 @@
+        let out = halve_window(vec![m("system", "SYS"), m("user", "u1"), m("tool", "t1")]);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].role, "system");
+    }
+
+    /// P2：system 不在首位时 halve_window 也必须识别并保留唯一 system（不假定 msgs[0]）。
+    #[test]
+    fn halve_window_handles_system_not_at_head() {
+        let m = |role: &str, c: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(c.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        // head 是 user，system 在中段
+        let out = halve_window(vec![
+            m("user", "lead"),
+            m("assistant", "a0"),
+            m("system", "SYS"),
+            m("user", "u1"),
+            m("assistant", "a1"),
+            m("user", "u2"),
+        ]);
+        assert_eq!(out.first().map(|x| x.role.as_str()), Some("system"));
+        assert_eq!(out[0].content.as_deref(), Some("SYS"));
+        assert_eq!(out.iter().filter(|x| x.role == "system").count(), 1);
+    }
+
+    /// P2：多个 system 时 halve_window 只留一个（取最后一条非空）。
+    #[test]
+    fn halve_window_keeps_single_system() {
+        let m = |role: &str, c: &str| MemoryMsg {
+            role: role.into(),
+            content: Some(c.into()),
+            tool_calls: None,
+            tool_call_id: None,
+            attachments: None,
+        };
+        let out = halve_window(vec![
+            m("system", "OLD"),
+            m("user", "u1"),
+            m("system", "NEW"),
+            m("user", "u2"),
+            m("assistant", "a2"),
+        ]);
+        assert_eq!(out.iter().filter(|x| x.role == "system").count(), 1);
+        assert_eq!(out[0].content.as_deref(), Some("NEW"));
+    }

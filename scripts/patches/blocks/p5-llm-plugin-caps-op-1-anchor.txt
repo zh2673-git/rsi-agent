@@ -1,0 +1,4 @@
+        if op == "upstream.status":
+            return self._upstream_status()
+        if op != "chat":
+            return _err(f"unknown op: {op}", code="K400")

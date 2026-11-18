@@ -1,0 +1,6 @@
+            _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
+        }
+    })
+}
+
+/// 脚本化 LLM：按序弹出响应；耗尽后复用最后一个。

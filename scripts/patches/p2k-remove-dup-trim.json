@@ -1,0 +1,8 @@
+{
+  "id": "p2k-remove-dup-trim",
+  "description": "P2 收尾：删除 chat.rs 中 P0C 原始补丁遗留的旧版 trim_workset_by_tokens（固定保留 msgs[0] 语义），仅留 P2 规范化版（split_system）。该旧块与 p2b-trim-anchor.txt 逐字相同，repair 型：锚点不存在即已修好。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2b-trim-anchor.txt",
+  "patch": "",
+  "repair": true
+}

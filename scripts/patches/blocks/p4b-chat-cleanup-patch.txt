@@ -1,0 +1,14 @@
+        self.turn_starts.lock().unwrap().remove(&req.session_id);
+        self.sid_seq.lock().unwrap().remove(&req.session_id);
+        // P4b 任务账清理：只有**根调用**（depth==0 且未随链携带 budget_root）收尾时才清
+        // 整本任务账——此刻其下所有子代理都已完成并把用量写进账本，清账不丢数据。
+        // 子代理绝不能清：父链后续派发的兄弟子代理仍需读同一本账。
+        if req.depth == 0 && req.budget_root.is_none() {
+            self.spent.lock().unwrap().remove(&req.session_id);
+        }
+        // 会话闸卫生（LOOP-P2/A1）：strong_count==2（表 + 本链 Arc）= 没有并发等待者，
+        // 安全逐出；有等待者时留着，由最后一链的出口清理（等待中的请求自带 Arc 克隆）。
+        if Arc::strong_count(&gate) == 2 {
+            self.session_chats.lock().unwrap().remove(&req.session_id);
+        }
+        drop(_permit);

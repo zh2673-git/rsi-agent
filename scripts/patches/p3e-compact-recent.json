@@ -1,0 +1,9 @@
+{
+  "id": "P3E-COMPACT-RECENT-1",
+  "description": "P3 收尾：P3D 改为按值消费 history 后，`recent` 绑定不再被使用；改为 `_recent` 以消除 unused 警告（older 仍用于摘要输入）。",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor": "        let (older, recent) = history.split_at(split);",
+  "patch": "        let (older, _recent) = history.split_at(split);",
+  "applied_marker": "let (older, _recent) = history.split_at(split);",
+  "order": 1
+}

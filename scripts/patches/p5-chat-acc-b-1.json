@@ -1,0 +1,9 @@
+{
+  "id": "p5-chat-acc-b-1",
+  "description": "P5：收敛轮 LLM 调用处累计 http_attempts",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p5-chat-acc-b-1-anchor.txt",
+  "patch_file": "blocks/p5-chat-acc-b-1-patch.txt",
+  "order": 146,
+  "applied_marker": "// P5 观测：收敛/强制轮的请求同样累计"
+}

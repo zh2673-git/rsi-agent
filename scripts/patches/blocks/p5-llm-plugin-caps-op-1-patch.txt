@@ -1,0 +1,6 @@
+        if op == "upstream.status":
+            return self._upstream_status()
+        if op == "provider.capabilities":
+            return self._provider_capabilities(payload)
+        if op != "chat":
+            return _err(f"unknown op: {op}", code="K400")

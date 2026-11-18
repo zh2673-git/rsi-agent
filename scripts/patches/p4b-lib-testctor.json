@@ -1,0 +1,9 @@
+{
+  "id": "P4B-LIB-LEDGER-TCTOR-1",
+  "description": "P4b（三）：#[cfg(test)] 内的测试用构造字面量补 spent 字段初始化（12 空格缩进版）。",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/p4b-lib-testctor-anchor.txt",
+  "patch_file": "blocks/p4b-lib-testctor-patch.txt",
+  "applied_marker": "\n            spent: Mutex::new(std::collections::HashMap::new()),",
+  "order": 12
+}

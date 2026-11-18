@@ -1,0 +1,8 @@
+{
+  "id": "m9-memory-tests",
+  "description": "e2e_ts_memory：新增 trace.meta 末尾游标（>800 条 / ~1MB）、session.skills 后段恢复、system 不在首位/多 system 压缩、rollback+sidecar+session.index 回归测试。",
+  "file": "runtime/crates/host/tests/e2e_ts_memory.rs",
+  "anchor_file": "blocks/m9-memory-tests-anchor.txt",
+  "patch_file": "blocks/m9-memory-tests-patch.txt",
+  "applied_marker": "fn write_jsonl(path: &std::path::Path"
+}

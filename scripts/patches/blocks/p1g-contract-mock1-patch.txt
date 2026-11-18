@@ -1,0 +1,40 @@
+                    ops.lock().unwrap().push(payload.get("op").and_then(Value::as_str).unwrap_or("").to_string());
+                    match payload.get("op").and_then(Value::as_str) {
+                        Some("get") => json!({"ok": true, "messages": store.lock().unwrap().clone()}),
+                        Some("append") => {
+                            if let Some(msgs) = payload.get("messages").and_then(Value::as_array) {
+                                store.lock().unwrap().extend(msgs.iter().cloned());
+                            }
+                            json!({"ok": true})
+                        }
+                        Some("trace.append") => {
+                            if let Some(evs) = payload.get("events").and_then(Value::as_array) {
+                                events.lock().unwrap().extend(evs.iter().cloned());
+                            }
+                            json!({"ok": true})
+                        }
+                        Some("trace.read") => json!({"ok": true, "events": events.lock().unwrap().clone()}),
+                        // P1：真实末尾游标（= 完整有效事件数）。mock 里没有分页上限，故
+                        // end_cursor 与 trace.read 返回的条数一致——契约面断言的是「agent-loop
+                        // 会问 trace.meta 并采信 end_cursor」，不是分页细节。
+                        Some("trace.meta") => {
+                            let n = events.lock().unwrap().len() as u64;
+                            json!({"ok": true, "exists": n > 0, "size": 0, "mtime_ms": 0,
+                                   "total_events": n, "end_cursor": n})
+                        }
+                        // P1：会话级已加载技能集（从捕获的事件里筛 skill_loaded 去重保序）。
+                        Some("session.skills") => {
+                            let mut seen: Vec<String> = Vec::new();
+                            for e in events.lock().unwrap().iter() {
+                                if e.get("type").and_then(Value::as_str) == Some("skill_loaded") {
+                                    if let Some(s) = e.get("skill").and_then(Value::as_str) {
+                                        if !s.is_empty() && !seen.iter().any(|x| x == s) {
+                                            seen.push(s.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                            json!({"ok": true, "skills": seen})
+                        }
+                        _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
+                    }

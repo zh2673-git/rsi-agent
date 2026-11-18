@@ -1,0 +1,27 @@
+        match tok {
+            Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+            None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+        }
+    }
+
+    /// P4c 回归：无进展同参重复阈值 env 解析——缺省 0（禁用），正整数生效，非法值 warn 回退。
+    #[test]
+    fn no_progress_repeat_limit_env_parsing() {
+        let _g = env_lock().lock().unwrap();
+        let saved = std::env::var("NO_PROGRESS_REPEAT_LIMIT").ok();
+
+        std::env::remove_var("NO_PROGRESS_REPEAT_LIMIT");
+        assert_eq!(AgentLoopConfig::from_env(8).no_progress_repeat_limit, 0, "缺省禁用");
+
+        std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", "5");
+        assert_eq!(AgentLoopConfig::from_env(8).no_progress_repeat_limit, 5, "正整数生效");
+
+        std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", "not-a-number");
+        assert_eq!(AgentLoopConfig::from_env(8).no_progress_repeat_limit, 0, "非法值回退缺省");
+
+        match saved {
+            Some(v) => std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", v),
+            None => std::env::remove_var("NO_PROGRESS_REPEAT_LIMIT"),
+        }
+    }
+}

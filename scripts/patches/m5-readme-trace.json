@@ -1,0 +1,8 @@
+{
+  "id": "m5-readme-trace",
+  "description": "README：修正 trace.read 旧描述（已是偏移索引+精确读行），补 trace.meta 真实末尾游标与 session.skills 语义。",
+  "file": "runtime/plugins/memory/README.md",
+  "anchor_file": "blocks/m4-readme-trace-anchor.txt",
+  "patch_file": "blocks/m4-readme-trace-patch.txt",
+  "applied_marker": "- `trace.meta` 才提供**真实末尾绝对游标**"
+}

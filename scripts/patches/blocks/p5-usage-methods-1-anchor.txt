@@ -1,0 +1,9 @@
+impl UsageAcc {
+    pub(super) fn add(&mut self, u: Option<&Value>) {
+        let Some(u) = u else { return };
+        self.seen = true;
+        self.input += u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0);
+        self.output += u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0);
+        self.cache_read += u.get("cache_read_tokens").and_then(Value::as_u64).unwrap_or(0);
+        self.reasoning += u.get("reasoning_tokens").and_then(Value::as_u64).unwrap_or(0);
+    }

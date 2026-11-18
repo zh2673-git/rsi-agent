@@ -1,0 +1,5 @@
+    assert!(
+        tools.iter().any(|t| t["name"] == json!("calculator")),
+        "内置工具仍在: {tools:?}"
+    );
+}

@@ -1,0 +1,21 @@
+        const msgs = loadIfAbsent(sessionId);
+        // M3：system 保留必须统一且规范化（与 agent-loop 同规则）。
+        // - 不假定 system 在 msgs[0]：持久化历史里的 system 可能位于任意位置；
+        // - 全历史最多保留**一个** system，取最后一条（最接近当前动态 system 的那份），
+        //   绝不保留多个（多 system 会与动态 system 冲突、污染上下文）；
+        // - 放在压缩标记之前：标记是 user 角色，system 必须最前；
+        // - 空内容 system 视为无 system（与 agent-loop 的规范化判定一致）。
+        let sys: Msg | undefined;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === "system" && typeof msgs[i].content === "string" && (msgs[i].content as string).trim().length > 0) {
+            sys = msgs[i];
+            break;
+          }
+        }
+        // 受保护的头：system 不算「最近」条目——从池中剔除**所有** system，只保留上面选定的
+        // 唯一 sys 前置，确保结果里绝不出第二个 system（多 system 会与动态 system 冲突）。
+        const pool = msgs.filter((m) => m.role !== "system");
+        let kept = keepLast > 0 ? pool.slice(-keepLast) : [];
+        while (kept.length > 0 && kept[0].role === "tool") {
+          kept = kept.slice(1);
+        }

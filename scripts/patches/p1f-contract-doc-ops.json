@@ -1,0 +1,8 @@
+{
+  "id": "p1f-contract-doc-ops",
+  "description": "P1：contract_conformance.rs 顶部文档注释 ⑦ 的 memory op 清单补 trace.meta / session.skills。",
+  "file": "runtime/crates/agent-loop/tests/contract_conformance.rs",
+  "anchor_file": "blocks/p1f-contract-doc-anchor.txt",
+  "patch_file": "blocks/p1f-contract-doc-patch.txt",
+  "applied_marker": "trace.meta, session.skills}（后两个是 P1 引入的只读汇总接口"
+}

@@ -1,0 +1,5 @@
+                "tokens": usage.to_value(),
+                "llm_ms": llm_ms,
+                "stopped_by": stopped_by,
+                "stopped_reason": stopped_reason,
+            }),

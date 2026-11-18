@@ -1,0 +1,8 @@
+{
+  "id": "p2a-chat-history",
+  "description": "P2：新增 split_system/append_to_system 辅助（system 统一规范化：只留一个、取最后一条非空、不假定首位），供 trim_workset_by_tokens 与 system 追加复用。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2a-chat-history-anchor.txt",
+  "patch_file": "blocks/p2a-chat-history-patch.txt",
+  "applied_marker": "pub(super) fn split_system(msgs: Vec<MemoryMsg>)"
+}

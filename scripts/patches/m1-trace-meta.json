@@ -1,0 +1,8 @@
+{
+  "id": "m1-trace-meta",
+  "description": "M1：新增 trace.meta（完整有效事件总数 + 真实末尾绝对游标 + 文件存在性/大小/mtime；缺文件返回空状态）与 session.skills（扫描完整 trace 去重回已加载技能）。trace.read 语义不变。",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor_file": "blocks/m1-trace-meta-anchor.txt",
+  "patch_file": "blocks/m1-trace-meta-patch.txt",
+  "applied_marker": "if (op === \"trace.meta\")"
+}

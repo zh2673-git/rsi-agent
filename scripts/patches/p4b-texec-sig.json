@@ -1,0 +1,9 @@
+{
+  "id": "P4B-TEXEC-SIG-1",
+  "description": "P4b（十）：act_exec 的 budget_snap 由二元组扩为三元组（附带任务根会话 id）。",
+  "file": "runtime/crates/agent-loop/src/tools_exec.rs",
+  "anchor_file": "blocks/p4b-texec-sig-anchor.txt",
+  "patch_file": "blocks/p4b-texec-sig-patch.txt",
+  "applied_marker": "    /// `budget_snap` 为传给子代理的预算快照 `(剩余ms, 剩余token, 任务根会话id)`（T4 + P4b：",
+  "order": 19
+}

@@ -1,0 +1,10 @@
+{
+  "id": "P3F-DUP-MATCH-ARM-1",
+  "description": "P3D 收尾：p3d 锚点行偏移导致 match 成功臂 `Ok(v) if v.get(\"ok\")...` 重复一行（E unreachable/重复模式），删除重复的一行。",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor_file": "blocks/p3f-duparm-anchor.txt",
+  "patch": "            Ok(v) if v.get(\"ok\") == Some(&json!(true)) => {",
+  "repair": true,
+  "absent_ok": true,
+  "order": 2
+}

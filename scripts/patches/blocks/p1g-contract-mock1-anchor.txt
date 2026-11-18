@@ -1,0 +1,18 @@
+                    ops.lock().unwrap().push(payload.get("op").and_then(Value::as_str).unwrap_or("").to_string());
+                    match payload.get("op").and_then(Value::as_str) {
+                        Some("get") => json!({"ok": true, "messages": store.lock().unwrap().clone()}),
+                        Some("append") => {
+                            if let Some(msgs) = payload.get("messages").and_then(Value::as_array) {
+                                store.lock().unwrap().extend(msgs.iter().cloned());
+                            }
+                            json!({"ok": true})
+                        }
+                        Some("trace.append") => {
+                            if let Some(evs) = payload.get("events").and_then(Value::as_array) {
+                                events.lock().unwrap().extend(evs.iter().cloned());
+                            }
+                            json!({"ok": true})
+                        }
+                        Some("trace.read") => json!({"ok": true, "events": events.lock().unwrap().clone()}),
+                        _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
+                    }

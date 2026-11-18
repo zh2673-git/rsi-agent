@@ -1,0 +1,5 @@
+                "reasonings": reasonings_json,
+                "usage": usage.to_value(),
+                "elapsed_ms": llm_ms,
+                "metrics": {"llm_calls": llm_calls, "retries": retries, "tool_failures": tool_failures},
+            }),

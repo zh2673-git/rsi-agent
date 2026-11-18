@@ -1,0 +1,4 @@
+    /// 该次 LLM 请求墙钟耗时（毫秒）。
+    #[serde(default)]
+    pub elapsed_ms: Option<u64>,
+}

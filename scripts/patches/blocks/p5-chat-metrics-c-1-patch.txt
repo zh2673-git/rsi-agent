@@ -1,0 +1,7 @@
+                "tokens": usage.to_value(),
+                "llm_ms": llm_ms,
+                "stopped_by": stopped_by,
+                "stopped_reason": stopped_reason,
+                // P5 观测：HTTP 尝试总次数（null = provider 未上报）。
+                "http_attempts": usage.http_attempts_total(),
+            }),

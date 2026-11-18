@@ -1,0 +1,7 @@
+PROVIDER = {
+    "name": "mock",
+    "chat": chat,
+    "models": models,
+    "embed": embed,
+    "requires_env": [],
+}

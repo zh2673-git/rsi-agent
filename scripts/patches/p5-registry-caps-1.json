@@ -1,0 +1,9 @@
+{
+  "id": "p5-registry-caps-1",
+  "description": "P5：registry._validate 支持可选 capabilities（dict[name]->bool 形状校验，缺失=未知）",
+  "file": "runtime/plugins/llm_adapter/providers/registry.py",
+  "anchor_file": "blocks/p5-registry-caps-1-anchor.txt",
+  "patch_file": "blocks/p5-registry-caps-1-patch.txt",
+  "order": 156,
+  "applied_marker": "    caps = spec.get(\"capabilities\")"
+}

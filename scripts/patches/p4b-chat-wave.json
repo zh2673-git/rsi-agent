@@ -1,0 +1,9 @@
+{
+  "id": "P4B-CHAT-WAVE-SNAP-1",
+  "description": "P4b（九）：波次派发处按 tool_call id 取本批切分后的额度快照（非 task 调用为 None）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4b-chat-wave-anchor.txt",
+  "patch_file": "blocks/p4b-chat-wave-patch.txt",
+  "applied_marker": "                    budget_snaps.get(&tc.id).cloned(),",
+  "order": 18
+}

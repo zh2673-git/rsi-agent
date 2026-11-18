@@ -1,0 +1,9 @@
+{
+  "id": "P4A-ACTEND-SER-1",
+  "description": "P4 可靠性降开销：act_end 只把工具结果序列化一次，单次扫描同时得到 total_chars 与 2000 字符截断前缀（去掉 chars().count() 与 chars().take().collect() 的重复全扫）；七键协议与 truncated 正文均不变",
+  "file": "runtime/crates/agent-loop/src/tools_exec.rs",
+  "anchor_file": "blocks/p4a-actend-anchor.txt",
+  "patch_file": "blocks/p4a-actend-new.txt",
+  "applied_marker": "P4 降开销（序列化协议统一）",
+  "order": 0
+}

@@ -1,0 +1,8 @@
+        self.turn_starts.lock().unwrap().remove(&req.session_id);
+        self.sid_seq.lock().unwrap().remove(&req.session_id);
+        // 会话闸卫生（LOOP-P2/A1）：strong_count==2（表 + 本链 Arc）= 没有并发等待者，
+        // 安全逐出；有等待者时留着，由最后一链的出口清理（等待中的请求自带 Arc 克隆）。
+        if Arc::strong_count(&gate) == 2 {
+            self.session_chats.lock().unwrap().remove(&req.session_id);
+        }
+        drop(_permit);

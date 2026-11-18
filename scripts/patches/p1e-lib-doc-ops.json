@@ -1,0 +1,8 @@
+{
+  "id": "p1e-lib-doc-ops",
+  "description": "P1：lib.rs CAP_MEMORY 注释补 trace.meta / session.skills 两个只读汇总 op 及「分页接口不能当总长度」的理由。",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/p1e-lib-doc-anchor.txt",
+  "patch_file": "blocks/p1e-lib-doc-patch.txt",
+  "applied_marker": "trace.append/trace.read/trace.meta/session.skills"
+}

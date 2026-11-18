@@ -1,0 +1,5 @@
+            llm_calls += 1;
+            usage.add(resp.usage.as_ref());
+            // P4b：本链累计用量回写任务账（绝对值覆盖，非增量）。
+            self.record_spent(&budget_root, &req.session_id, usage.total());
+            llm_ms += resp.elapsed_ms.unwrap_or(0);

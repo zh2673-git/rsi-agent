@@ -1,0 +1,9 @@
+{
+  "id": "p5-base-docstring-1",
+  "description": "P5：providers/base.py 顶部归一化契约文档段补 http_attempts 说明",
+  "file": "runtime/plugins/llm_adapter/providers/base.py",
+  "anchor_file": "blocks/p5-base-docstring-1-anchor.txt",
+  "patch_file": "blocks/p5-base-docstring-1-patch.txt",
+  "order": 161,
+  "applied_marker": "\"http_attempts\": int    本次请求实际发出的 HTTP 尝试次数"
+}

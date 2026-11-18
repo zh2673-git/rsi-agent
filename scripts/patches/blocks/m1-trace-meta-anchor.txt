@@ -1,0 +1,43 @@
+        if (op === "trace.read") {
+          // P4：按索引偏移直读（traceOffsets 内部 size+mtime 命中缓存 / 未命中重建一次）。
+          // after=N 返回第 N 条之后的事件（UI 增量拉取）——语义与全量扫描版完全一致。
+          const file = traceFile(sessionId);
+          let offsets: number[] = [];
+          let total = 0;
+          try {
+            offsets = traceOffsets(file);
+            total = offsets.length;
+          } catch {
+            /* 尚无日志 → 空事件 */
+          }
+          const after = typeof payload.after === "number" && payload.after >= 0 ? Math.floor(payload.after) : 0;
+          // 分页：一次响应必须远低于 kernel gRPC 解码上限（4MB）。整份大 trace（如 5MB
+          // 会话日志）一次性返回会触发 K700「decoded message length too large」——网关
+          // 每次轮询都报错，前端把错误帧当断线反复重连、feed 反复清空（页面持续闪烁）。
+          // 按「条数 + 字节」双预算切片，next 为已消费游标，网关多批拉取即可追平。
+          // 单条超大事件（极端情况）仍单独放行，避免游标不前进造成死循环。
+          const MAX_EVENTS = 800;
+          const MAX_BYTES = 1_000_000;
+          const events: unknown[] = [];
+          let bytes = 0;
+          let cursor = after;
+          while (cursor < total && events.length < MAX_EVENTS) {
+            // X3：传入下一条事件的起始偏移，readEventLine 据此只读本行字节
+            // （末条无后继 → 传 undefined，退回文件尾/1MB 上限）。
+            const ev = readEventLine(file, offsets[cursor], offsets[cursor + 1]);
+            if (ev === null) {
+              cursor++;
+              continue;
+            }
+            const size = Buffer.byteLength(JSON.stringify(ev), "utf8") + 1;
+            if (events.length > 0 && bytes + size > MAX_BYTES) break;
+            events.push(ev);
+            bytes += size;
+            cursor++;
+          }
+          return { ok: true, events, next: cursor };
+        }
+        return err(`unknown op: ${String(op)}`);
+      }
+    }
+  },

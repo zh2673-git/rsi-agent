@@ -1,0 +1,9 @@
+{
+  "id": "P4B-SUB-PAYLOAD-1",
+  "description": "P4b（十二）：子代理 chat 请求 payload 随链携带 budget_root，使子链用量写进同一本任务账。",
+  "file": "runtime/crates/agent-loop/src/subagent.rs",
+  "anchor_file": "blocks/p4b-sub-payload-anchor.txt",
+  "patch_file": "blocks/p4b-sub-payload-patch.txt",
+  "applied_marker": "            payload[\"budget_root\"] = json!(root);",
+  "order": 21
+}

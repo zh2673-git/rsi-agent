@@ -1,0 +1,8 @@
+PROVIDER = {
+    "name": "openai",
+    "chat": chat,
+    "models": models,
+    "embed": embed,
+    "capabilities": {"stream": True, "tools": True, "images": True, "embed": True, "models": True},
+    "requires_env": ["OPENAI_API_KEY"],
+}

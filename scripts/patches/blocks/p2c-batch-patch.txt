@@ -1,0 +1,13 @@
+        // P2：system 统一规范化后追加（不假定 messages[0] 是 system；取唯一 system）。
+        append_to_system(
+            &mut messages,
+            "\n### Tool-call batching (this is how you stay cheap)\n\
+Your next reply may contain **multiple tool calls at once** — they run concurrently (up to 4 per wave).\n\
+Merge independent calls into one reply: different files, different directories, different reads that\n\
+do not depend on each other, different searches. Only serialize when one call's result is another\n\
+call's input (same file written twice, a path discovered by a previous call).\n\
+Results of one wave come back **in the order you submitted them**, so parallel calls never garble\n\
+each other — there is no reason to send one call per reply.\n\
+Sending one call per reply costs one extra model request every time (each request re-sends the\n\
+whole context), so a batch of 4 independent calls is ~4x cheaper than 4 sequential replies.\n",
+        );

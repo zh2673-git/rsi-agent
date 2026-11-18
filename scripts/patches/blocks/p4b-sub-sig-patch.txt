@@ -1,0 +1,12 @@
+    /// 预算随链衰减（T4）+ 任务级共享账（P4b）：`budget_snap` =
+    /// `(剩余ms, 剩余token, 任务根会话id)` 写入子 chat 请求；剩余 token 由父链按本批
+    /// 派发个数切分（兄弟子代理分食同一份剩余，不再各拿满额）。
+    /// 预算未启用（两者皆 None）→ 只透传任务根，子链退化为各自的 env 缺省（同为禁用）。
+    pub(super) async fn run_subagent(
+        &self,
+        src: &Envelope,
+        parent_session: &str,
+        task_text: &str,
+        depth: u32,
+        budget_snap: Option<(Option<u64>, Option<u64>, String)>,
+    ) -> Value {

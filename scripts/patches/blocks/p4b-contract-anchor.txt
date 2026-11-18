@@ -1,0 +1,3 @@
+    /// 剩余 token 预算（T4）：input+output 累计口径。继承语义同上。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens_left: Option<u64>,

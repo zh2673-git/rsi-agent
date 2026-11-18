@@ -1,0 +1,6 @@
+        let split = history.len() - keep;
+        let (older, _recent) = history.split_at(split);
+        // P3 降开销：删除 `let older = older.to_vec();`——原实现在这里先对 older 全量深拷贝
+        // 一份，随后摘要输入又逐条克隆一次，等于把整段旧史克隆两遍。older 保持切片即可，
+        // 下游 older.iter()/older.len() 与失败时 `return history` 都不受影响。
+        // （recent 段仅在成功路径用于重建工作集，那里改为按值消费 history，故此处不具名。）

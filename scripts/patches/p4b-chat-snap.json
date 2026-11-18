@@ -1,0 +1,9 @@
+{
+  "id": "P4B-CHAT-FAIRSHARE-1",
+  "description": "P4b（八）：把「父链剩余」改成按本批派发个数均分的公平份额（budget_snaps 按 tool_call id 索引，末位吃零头）。这是「可超支 N 倍」的结构性修复点。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4b-chat-snap-anchor.txt",
+  "patch_file": "blocks/p4b-chat-snap-patch.txt",
+  "applied_marker": "            let budget_snaps: std::collections::HashMap<String, (Option<u64>, Option<u64>, String)> = {",
+  "order": 17
+}

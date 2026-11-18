@@ -1,0 +1,6 @@
+    assert_eq!(expect_ok(&r, "trace.read empty 2")["events"].as_array().unwrap().len(), 0, "{r}");
+
+    let _ = std::fs::remove_dir_all(&data_dir);
+    kernel.stop();
+    kernel.destroy().await;
+}

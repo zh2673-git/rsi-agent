@@ -1,0 +1,5 @@
+        const msgs = loadIfAbsent(sessionId);
+        let kept = keepLast > 0 ? msgs.slice(-keepLast) : [];
+        while (kept.length > 0 && kept[0].role === "tool") {
+          kept = kept.slice(1);
+        }

@@ -1,0 +1,22 @@
+/// 窗口条数减半：保留 system 头 + 尾半；丢弃新窗口前缘的孤儿 tool 消息
+/// （其配对的 assistant.tool_calls 已被裁掉，孤儿回喂会被 provider 拒收）。
+/// 假定 `msgs[0]` 为 system（调用方 chat_run 保证）。
+fn halve_window(mut msgs: Vec<MemoryMsg>) -> Vec<MemoryMsg> {
+    if msgs.len() <= 1 {
+        return msgs;
+    }
+    let keep = ((msgs.len() - 1) / 2).max(1);
+    let cut = msgs.len() - keep;
+    msgs.drain(1..cut);
+    let first_real = msgs.iter().enumerate().skip(1).find(|(_, m)| m.role != "tool").map(|(i, _)| i);
+    match first_real {
+        Some(i) if i > 1 => {
+            msgs.drain(1..i);
+        }
+        None => {
+            msgs.truncate(1); // 病态：尾半全是 tool 消息 → 只留 system 头
+        }
+        _ => {}
+    }
+    msgs
+}

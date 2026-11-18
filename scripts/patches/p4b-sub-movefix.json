@@ -1,0 +1,9 @@
+{
+  "id": "P4B-SUB-MOVE-FIX-1",
+  "description": "P4b（十二）修复：payload 里 json!(root) 把 String 移出 budget_snap，随后 env.deadline 再读同一元组触发 E0382。改为 ref root 借用，不动语义。repair 型，锚点消失即已修好。",
+  "file": "runtime/crates/agent-loop/src/subagent.rs",
+  "anchor_file": "blocks/p4b-sub-movefix-anchor.txt",
+  "patch_file": "blocks/p4b-sub-movefix-patch.txt",
+  "repair": true,
+  "order": 26
+}

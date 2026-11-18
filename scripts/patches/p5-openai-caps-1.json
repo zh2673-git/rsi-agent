@@ -1,0 +1,9 @@
+{
+  "id": "p5-openai-caps-1",
+  "description": "P5：openai pack 声明 capabilities（流式/工具/图片/嵌入/模型列表）",
+  "file": "runtime/plugins/llm_adapter/providers/openai_compat.py",
+  "anchor_file": "blocks/p5-openai-caps-1-anchor.txt",
+  "patch_file": "blocks/p5-openai-caps-1-patch.txt",
+  "order": 157,
+  "applied_marker": "\"capabilities\": {\"stream\": True, \"tools\": True, \"images\": True, \"embed\": True, \"models\": True}"
+}

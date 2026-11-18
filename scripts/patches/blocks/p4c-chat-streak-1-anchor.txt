@@ -1,0 +1,8 @@
+                    steps.push(StepRecord { round: rounds, tool: tc.name.clone(), ms });
+                    if tc.name == "todo" {
+                        // 验收清单落 todo = 「清单已建立」，contract_first 后续轮次放行。
+                        acceptance_seen = true;
+                    }
+                    if result.get("ok") != Some(&json!(true)) {
+                        tool_failures += 1;
+                    }

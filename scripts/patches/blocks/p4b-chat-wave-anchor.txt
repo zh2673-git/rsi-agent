@@ -1,0 +1,3 @@
+                let execs = group.iter().map(|tc| {
+                    self.act_exec(env, &req.session_id, req.depth, tc, budget_snap, &deferred_names)
+                });

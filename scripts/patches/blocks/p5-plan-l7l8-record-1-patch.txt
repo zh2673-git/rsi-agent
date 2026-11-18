@@ -1,0 +1,42 @@
+  实际 connect <1s 可忽略）；LLM_DEADLINE 上调（会放大重试最坏时长）；内核锁修复（跨仓库，
+  待 [patch] vs 上游 issue 决策）。budget_secs 维持 0 由用户自决。
+
+### P5：请求观测（http_attempts）+ provider 能力声明（capabilities）✅（2026-11-19）
+
+- **背景**：两件「可解释性」补齐，均按**向后兼容的追加式**改造，旧 provider / 旧消费者行为不变。
+  - **L7 请求观测**：provider 内部重试（openai_compat 的 429 退避循环、流式 `stream_options`
+    不受支持时的降级重放）此前对上层完全不可见。新增可选字段 `http_attempts` 贯穿观测。
+  - **L8 能力声明**：四家 pack 对流式 / 工具 / 图片 / 嵌入 / 原生窗口的支持差异隐性，无可读能力表。
+- **改动（Python）**：
+  - `base.py`：`norm(...)` 末增可选形参 `http_attempts=None`，**有才写**（`if http_attempts is not None`），
+    缺省不写键 = 未上报；顶部「归一化响应契约」文档段同步补一行。
+  - `openai_compat.py`（唯一带重试循环的 pack）：`_chat_once` 连接异常 / HTTP≥400 两条失败路径把
+    `attempt+1` 写顶层 `http_attempts`；成功路径 `_chat_once_success(..., attempt+1)` 透出；
+    `_stream_once` 增 `http_attempts: int = 1`，`stream_options` 降级重放传 `http_attempts+1`。
+  - `anthropic` / `ollama` / `mock`：无内部重试循环，不传 = 未上报（与「1 次成功」区分）。
+  - `registry._validate`：支持**可选** `capabilities`——缺失 = 未知（合法不报错）；一旦声明必须是
+    `{能力名: bool}` 扁平 dict（值非 bool 视为笔误，导入期拒绝）。纯声明式元数据，运行期分派仍看
+    chat / embed 可调用性，与能力声明解耦。
+  - 四 pack 各补 `capabilities`（真实能力）：openai `{stream,tools,images,embed,models}`；mock 同
+    openai 但 `images:false`；anthropic `{stream:false,tools,images,models}`（单发无流式、无 embed）；
+    ollama `{stream,tools,images,models,num_ctx:true}`（embed:false）。
+  - `llm_plugin.py`：新增只读 op `provider.capabilities`（`_provider_capabilities`：按 provider 名或
+    `LLM_PROVIDER` 取 pack，回 `{"ok":true,"provider":name,"capabilities":{...}}`；capabilities 缺失回空 dict）。
+- **改动（Rust / agent-loop 观测出口）**：
+  - `contract.rs`：`LlmChatResp` 增 `#[serde(default)] pub http_attempts: Option<u64>`（缺省 None）。
+  - `budget.rs`：`UsageAcc` 增 `http_attempts: Option<u64>` + `add_http_attempts(Option<u64>)`
+    （None 不参与累计）/ `http_attempts_total()`；**刻意不改 `to_value()`**——后者同时喂
+    `assistant.usage` 与 `chat_summary.tokens`，是既有冻结四字段用量契约，观测指标改在
+    `assistant.metrics` 与 `chat_summary` 顶层单列。
+  - `chat.rs`：主循环 / 收敛轮两处 `usage.add_http_attempts(resp.http_attempts)` 累计；
+    `assistant.metrics`、收敛版 `chat_summary`、失败 / 熔断版 `chat_summary` 三处增
+    `"http_attempts": usage.http_attempts_total()`（null = 未上报）。
+- **三层分离纪律**：provider 请求重试 / 协议降级 / agent-loop 整轮重试仍是三层；`http_attempts` 只
+  统计 provider 层真实的 HTTP 尝试次数，不混入整轮重试；流式不自动整轮重试。
+- **验证**：`cargo test -p react-agent-agent-loop`（lib 83 / conformance_check 1 /
+  contract_conformance 2 / react_mocks 50）全绿；`py_compile` 七个 py 全过；registry 装载
+  `['anthropic','mock','ollama','openai']` 且 capabilities 形状校验（缺失接受 / 非 dict 拒 /
+  值非 bool 拒）与 `provider.capabilities` op 分派行为断言全过；`norm()` 缺省不写键、给了才写的
+  手测通过；`scripts/apply-tool-patches.py --dry-run` 全 DRY 0 FAIL、二次运行全「已应用过」幂等。
+- **结果**：通过。线契约仅追加可选字段（`http_attempts`）与可选声明（`capabilities`），旧 provider /
+  旧消费者无感知；README op 契约段 / 新增 provider 步骤 / 选路段同步。

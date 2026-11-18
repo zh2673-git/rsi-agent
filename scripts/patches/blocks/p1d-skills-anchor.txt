@@ -1,0 +1,22 @@
+    /// R9：会话已加载技能集——从 trace 重放推导（skill_loaded 事件），**不新增循环可变态**
+    /// （守 A1）。同会话新对话经重放恢复技能作用域；子代理新会话不继承（独立 trace）。
+    pub(super) async fn trace_loaded_skills(&self, env: &Envelope, session_id: &str) -> HashSet<String> {
+        let mut out = HashSet::new();
+        if let Ok(v) = self
+            .call(env, CAP_MEMORY, json!({"op": "trace.read", "session_id": session_id, "after": 0}), MEM_DEADLINE)
+            .await
+        {
+            if let Some(events) = v.get("events").and_then(Value::as_array) {
+                for e in events {
+                    if e.get("type").and_then(Value::as_str) == Some("skill_loaded") {
+                        if let Some(s) = e.get("skill").and_then(Value::as_str) {
+                            if !s.is_empty() {
+                                out.insert(s.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }

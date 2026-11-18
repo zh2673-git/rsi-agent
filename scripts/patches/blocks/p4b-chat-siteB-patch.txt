@@ -1,0 +1,5 @@
+        usage.add(resp.usage.as_ref());
+        // P4b：收敛/强制轮的计费同样回写任务账（同 siteA）。
+        self.record_spent(&budget_root, &req.session_id, usage.total());
+        llm_ms += resp.elapsed_ms.unwrap_or(0);
+        llm_calls += 1;

@@ -1,0 +1,8 @@
+{
+  "id": "p2l-dup-batch",
+  "description": "P2 收尾：删除 chat.rs 中重复的「同波次多工具调用纪律」旧写法（if let Some(sys)=messages.first_mut()...push_str，固定假定首条是 system）。P1-D 原始补丁(p1d3)插入此块，P2 的 p2c 又改写成 append_to_system，但 p1d3 在本 checkout 无 marker 且未命中，重放不会去除旧块——结果旧块与 append_to_system 各一份并存，系统提示词里整段批处理纪律出现两次（约 200 token 冗余，直接把预算 301 的 token_gate 用例顶爆）。repair 型：锚点（旧 first_mut 写法整块）不存在即已修好。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2l-dup-batch-anchor.txt",
+  "patch": "",
+  "repair": true
+}

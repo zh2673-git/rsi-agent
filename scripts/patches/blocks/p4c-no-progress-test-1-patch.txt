@@ -1,0 +1,46 @@
+    assert!(
+        tools.iter().any(|t| t["name"] == json!("calculator")),
+        "内置工具仍在: {tools:?}"
+    );
+}
+
+#[tokio::test]
+async fn no_progress_repeat_circuit_breaker_fires_on_identical_tool_calls() {
+    // P4c：同一工具 + 同参数**连续**重复达到阈值即熔断（K502 + reason=no_progress），
+    // 不再把无进展拖成 max_rounds 兜底错误；chat_summary 的 stopped_reason 具名可观测。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let saved = std::env::var("NO_PROGRESS_REPEAT_LIMIT").ok();
+    std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", "2");
+
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    // mock_llm 耗尽后复用最后一条：每轮都发同一个 calculator（同参数）→ 连续重复。
+    let llm_script = vec![tool_call_resp(json!([{"id": "c1", "name": "calculator", "arguments": {}}]))];
+    let kernel = boot(vec![
+        mock_memory_traced(Arc::new(Mutex::new(vec![])), events.clone()),
+        mock_llm(llm_script),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "spin forever").await;
+    assert_eq!(r["ok"], json!(false), "无进展应熔断: {r}");
+    assert_eq!(r["error"]["code"], json!("K502"), "{r}");
+    assert_eq!(r["error"]["reason"], json!("no_progress"), "具名理由须落扁平 error.reason: {r}");
+    let msg = r["error"]["message"].as_str().unwrap_or_default();
+    assert!(msg.contains("无进展") && msg.contains("calculator"), "message 须含具名理由: {msg}");
+
+    let evs = events.lock().unwrap().clone();
+    assert!(
+        evs.iter().any(|e| e["type"] == json!("error") && e["where"] == json!("no_progress")),
+        "须发 no_progress error 事件: {evs:#?}"
+    );
+    let summary: Vec<&Value> = evs.iter().filter(|e| e["type"] == json!("chat_summary")).collect();
+    assert_eq!(summary.len(), 1, "熔断须恰好一条 chat_summary: {evs:#?}");
+    assert_eq!(summary[0]["stopped_reason"], json!("no_progress"), "具名理由须出现在 chat_summary: {}", summary[0]);
+    assert!(summary[0]["stopped_by"].is_null(), "非预算原因 stopped_by=null: {}", summary[0]);
+
+    match saved {
+        Some(v) => std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", v),
+        None => std::env::remove_var("NO_PROGRESS_REPEAT_LIMIT"),
+    }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "p5-mock-caps-1",
+  "description": "P5：mock pack 声明 capabilities（不支持图片）",
+  "file": "runtime/plugins/llm_adapter/providers/mock.py",
+  "anchor_file": "blocks/p5-mock-caps-1-anchor.txt",
+  "patch_file": "blocks/p5-mock-caps-1-patch.txt",
+  "order": 158,
+  "applied_marker": "\"capabilities\": {\"stream\": True, \"tools\": True, \"images\": False, \"embed\": True, \"models\": True}"
+}

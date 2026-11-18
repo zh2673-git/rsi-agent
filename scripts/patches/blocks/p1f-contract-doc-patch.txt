@@ -1,0 +1,4 @@
+//! ⑦ memory op 面：agent-loop 只会调用 {get, append, summarize, trace.append, trace.read,
+//!    trace.meta, session.skills}（后两个是 P1 引入的只读汇总接口：`trace.meta.end_cursor`
+//!    = 真实末尾绝对游标，`session.skills` = 会话级已加载技能集——都替代「拿分页接口的
+//!    首页当总长度/全量」这种只在长 trace 上才炸的用法）；

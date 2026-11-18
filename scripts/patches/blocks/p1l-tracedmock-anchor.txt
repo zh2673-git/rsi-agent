@@ -1,0 +1,7 @@
+            Some("trace.read") => json!({"ok": true, "events": events.lock().unwrap().clone()}),
+            _ => json!({"ok": false, "error": {"code": "K400", "message": "bad op"}}),
+        }
+    })
+}
+
+/// tools mock：捕获 install payload（断言路由参数）+ 固定 skill_tools 应答 + 技能工具调用。

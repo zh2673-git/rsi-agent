@@ -1,0 +1,9 @@
+{
+  "id": "p4c-chat-summary-finish-1",
+  "description": "P4c：finish 的 chat_summary 增 stopped_reason 键",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-summary-finish-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-summary-finish-1-patch.txt",
+  "order": 116,
+  "applied_marker": "                \"stopped_by\": wrap_up.map(|r| r.tag()),\n                \"stopped_reason\": stopped_reason,"
+}

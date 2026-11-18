@@ -1,0 +1,9 @@
+{
+  "id": "P4B-CHAT-LEDGER-CLEAN-1",
+  "description": "P4b（十四）：根调用收尾清整本任务账（子代理绝不清，否则会误删父链兄弟子代理仍需读的共享账）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4b-chat-cleanup-anchor.txt",
+  "patch_file": "blocks/p4b-chat-cleanup-patch.txt",
+  "applied_marker": "        if req.depth == 0 && req.budget_root.is_none() {",
+  "order": 23
+}

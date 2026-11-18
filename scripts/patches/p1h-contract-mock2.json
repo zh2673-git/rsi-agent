@@ -1,0 +1,8 @@
+{
+  "id": "p1h-contract-mock2",
+  "description": "P1：contract_conformance 第二套（最小捕获）memory mock 同样补 trace.meta 与 session.skills，避免 R16 用例里新 op 收到 K400。",
+  "file": "runtime/crates/agent-loop/tests/contract_conformance.rs",
+  "anchor_file": "blocks/p1h-contract-mock2-anchor.txt",
+  "patch_file": "blocks/p1h-contract-mock2-patch.txt",
+  "applied_marker": "P1：只读汇总接口（与第一套 mock 同构，见上）"
+}

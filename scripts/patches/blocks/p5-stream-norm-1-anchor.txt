@@ -1,0 +1,10 @@
+    call_list = [{"id": v["id"], "name": v["name"], "arguments": as_object(v["arguments"])} for v in calls.values() if v["name"]]
+    return norm(
+        "".join(content_parts) or None,
+        call_list,
+        model,
+        "tool_calls" if call_list else finish,
+        reasoning="".join(reasoning_parts) or None,
+        usage=usage,
+        elapsed_ms=elapsed_ms,
+    )

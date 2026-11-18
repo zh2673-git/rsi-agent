@@ -1,0 +1,13 @@
+        // P4 降开销（序列化协议统一）：结果只 `to_string()` 一次，紧随其后的
+        // 一次扫描同时得出总字符数与截断前缀——避免全量序列化后再 `chars().count()`
+        // 与 `chars().take().collect()` 各扫一遍的重复成本（大结果上尤为明显）。
+        let result_str = result.to_string();
+        let limit = effective_result_limit(&tc.name, cfg);
+        let mut full_chars = 0usize;
+        let mut truncated = String::new();
+        for (i, ch) in result_str.chars().enumerate() {
+            if i < 2000 {
+                truncated.push(ch);
+            }
+            full_chars = i + 1;
+        }

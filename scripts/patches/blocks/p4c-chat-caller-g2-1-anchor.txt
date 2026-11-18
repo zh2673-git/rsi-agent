@@ -1,0 +1,3 @@
+        // E7-C2：轮次耗尽出口也交画像（三出口闭环：自然收敛 / 预算停 / 失败收敛）。
+        self.summary_after_stop(env, &req.session_id, rounds, &steps, None, &usage, llm_ms, llm_calls, retries, tool_failures)
+            .await;

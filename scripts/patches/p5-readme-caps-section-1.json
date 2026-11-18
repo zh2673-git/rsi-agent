@@ -1,0 +1,9 @@
+{
+  "id": "p5-readme-caps-section-1",
+  "description": "P5 文档：README 选路段后新增 provider 能力表小节",
+  "file": "runtime/plugins/llm_adapter/README.md",
+  "anchor_file": "blocks/p5-readme-caps-section-1-anchor.txt",
+  "patch_file": "blocks/p5-readme-caps-section-1-patch.txt",
+  "order": 171,
+  "applied_marker": "## provider 能力（capabilities）"
+}

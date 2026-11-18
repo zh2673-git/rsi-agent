@@ -1,0 +1,4 @@
+追加可选字段（缺省 = provider 未提供，旧消费者无感知，故不破坏冻结契约）：
+    "reasoning": str|null   思考内容（DeepSeek reasoning_content 等）
+    "usage": {"input_tokens","output_tokens","cache_read_tokens","reasoning_tokens"}
+    "elapsed_ms": int       本次请求墙钟耗时

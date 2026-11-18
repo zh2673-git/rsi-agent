@@ -1,0 +1,26 @@
+impl UsageAcc {
+    pub(super) fn add(&mut self, u: Option<&Value>) {
+        let Some(u) = u else { return };
+        self.seen = true;
+        self.input += u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0);
+        self.output += u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0);
+        self.cache_read += u.get("cache_read_tokens").and_then(Value::as_u64).unwrap_or(0);
+        self.reasoning += u.get("reasoning_tokens").and_then(Value::as_u64).unwrap_or(0);
+    }
+
+    /// 累计一次请求的 HTTP 尝试次数（P5 观测）。
+    ///
+    /// `None` = 该次请求未上报（旧 provider / 流式旁路），**不参与累计**——这样
+    /// 「未观测」既不会伪装成 0，也不会把已观测的次数冲掉。
+    pub(super) fn add_http_attempts(&mut self, n: Option<u64>) {
+        let Some(n) = n else { return };
+        self.http_attempts = Some(self.http_attempts.unwrap_or(0) + n);
+    }
+
+    /// 指标外抛用：累计 HTTP 尝试次数（None = 全部未上报 → 线契约落 null）。
+    ///
+    /// 刻意不进 `to_value()`：后者同时喂 `assistant.usage` 与 `chat_summary.tokens`，
+    /// 是既有冻结的四字段用量契约；观测指标只在 metrics / chat_summary 顶层单列。
+    pub(super) fn http_attempts_total(&self) -> Option<u64> {
+        self.http_attempts
+    }

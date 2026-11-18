@@ -1,0 +1,8 @@
+{
+  "id": "m6-readme-summarize",
+  "description": "README：summarize 补 system 保留语义（唯一规范化 system，不假定 msgs[0]）。",
+  "file": "runtime/plugins/memory/README.md",
+  "anchor_file": "blocks/m4-readme-summarize-anchor.txt",
+  "patch_file": "blocks/m4-readme-summarize-patch.txt",
+  "applied_marker": "- **system 保留（M3）**"
+}

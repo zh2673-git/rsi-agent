@@ -1,0 +1,8 @@
+{
+  "id": "p1k-react-mock-memory",
+  "description": "P1：react_mocks 简易 mock_memory 补 trace.meta / session.skills（空状态），避免每条 chat 路径都收到 K400 污染 ops_log 与排查。",
+  "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+  "anchor_file": "blocks/p1k-mockmem-anchor.txt",
+  "patch_file": "blocks/p1k-mockmem-patch.txt",
+  "applied_marker": "P1：只读汇总接口（本 mock 无 trace 存储 → 空状态"
+}

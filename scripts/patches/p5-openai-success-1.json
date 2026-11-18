@@ -1,0 +1,9 @@
+{
+  "id": "p5-openai-success-1",
+  "description": "P5：_chat_once_success 接收并透出 http_attempts",
+  "file": "runtime/plugins/llm_adapter/providers/openai_compat.py",
+  "anchor_file": "blocks/p5-openai-success-1-anchor.txt",
+  "patch_file": "blocks/p5-openai-success-1-patch.txt",
+  "order": 152,
+  "applied_marker": "        http_attempts=http_attempts,\n    )"
+}

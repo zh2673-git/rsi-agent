@@ -1,0 +1,9 @@
+{
+  "id": "p4c-chat-checkpoint-1",
+  "description": "P4c：停车检查点②c 无进展熔断（后于预算、wrap_up 判定）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-checkpoint-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-checkpoint-1-patch.txt",
+  "order": 103,
+  "applied_marker": "no_progress_stop(env, &req.session_id, rounds, &steps, &msg"
+}

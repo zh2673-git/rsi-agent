@@ -1,0 +1,9 @@
+{
+  "id": "p5-readme-caps-op-1",
+  "description": "P5 文档：README op 契约新增 provider.capabilities 段",
+  "file": "runtime/plugins/llm_adapter/README.md",
+  "anchor_file": "blocks/p5-readme-caps-op-1-anchor.txt",
+  "patch_file": "blocks/p5-readme-caps-op-1-patch.txt",
+  "order": 169,
+  "applied_marker": "// provider.capabilities（P5 能力声明，只读）"
+}

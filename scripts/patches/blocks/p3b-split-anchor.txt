@@ -1,0 +1,2 @@
+        let (older, recent) = history.split_at(split);
+        let older = older.to_vec();

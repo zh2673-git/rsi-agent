@@ -1,0 +1,9 @@
+{
+  "id": "p5-plan-ref-fix-1",
+  "description": "P5 文档更正：llm_adapter/PLAN.md 第4行『格式对齐』指向不存在的 crates/agent-loop/PLAN.md → 改为同族真实范例 memory/PLAN.md",
+  "file": "runtime/plugins/llm_adapter/PLAN.md",
+  "anchor": "> 方法论：`project-development-prompt.md`「优化模式」§3.4；格式对齐 `crates/agent-loop/PLAN.md`。",
+  "patch": "> 方法论：`project-development-prompt.md`「优化模式」§3.4；模块级 PLAN 格式对齐同族真实范例 `memory/PLAN.md`（历史曾写 `crates/agent-loop/PLAN.md`，该文件从未存在，2026-11-19 更正）。",
+  "order": 172,
+  "applied_marker": "该文件从未存在，2026-11-19 更正"
+}

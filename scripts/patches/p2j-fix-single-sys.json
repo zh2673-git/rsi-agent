@@ -1,0 +1,8 @@
+{
+  "id": "p2j-fix-single-sys",
+  "description": "P2 测试修正：trim_workset_keeps_single_system 用例改为超预算输入（预算内直接幂等返回、不重排，原用例误判）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2j-fix-single-sys-anchor.txt",
+  "patch_file": "blocks/p2j-fix-single-sys-patch.txt",
+  "applied_marker": "// 需要超预算才会进入规范化裁剪路径"
+}

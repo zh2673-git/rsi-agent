@@ -1,0 +1,42 @@
+            // 子代理预算快照（T4 + P4b 任务级公平切分）。
+            //
+            // 修复的缺陷：旧实现只把「父链当前剩余」塞给每个子代理，同一父轮派发 N 个子
+            // 代理时它们各自看到同一份剩余（且并发执行、互相看不到对方花费）→ 实际可超支
+            // N 倍。现在先读任务账得到「全体已花」，把「总额 − 已花」按**本批派发个数**
+            // 均分（依次递减，末位吃掉零头），于是本批各子代理的额度之和恰等于剩余额度。
+            // 墙钟仍按实际剩余毫秒透传（子代理 env.deadline 取用）。
+            let budget_snaps: std::collections::HashMap<String, (Option<u64>, Option<u64>, String)> = {
+                let task_ids: Vec<&str> = resp
+                    .tool_calls
+                    .iter()
+                    .filter(|t| {
+                        t.name == RESERVED_TASK
+                            && t.arguments
+                                .get("task")
+                                .and_then(Value::as_str)
+                                .map(|s| !s.trim().is_empty())
+                                .unwrap_or(false)
+                    })
+                    .map(|t| t.id.as_str())
+                    .collect();
+                let n = task_ids.len();
+                let mut out = std::collections::HashMap::new();
+                if n > 0 {
+                    let ms_left = budget
+                        .deadline
+                        .map(|d| d.saturating_duration_since(Instant::now()).as_millis() as u64);
+                    let mut left = budget.tokens_left.map(|t| t.saturating_sub(self.task_spent(&budget_root)));
+                    for (i, id) in task_ids.iter().enumerate() {
+                        let toks = match left {
+                            Some(l) => {
+                                let share = l / (n - i) as u64;
+                                left = Some(l - share);
+                                Some(share)
+                            }
+                            None => None,
+                        };
+                        out.insert((*id).to_string(), (ms_left, toks, budget_root.clone()));
+                    }
+                }
+                out
+            };

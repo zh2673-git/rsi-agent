@@ -1,0 +1,8 @@
+    /// 具名提示词模板（PROMPT，经 assets 解析）。
+    pub prompt_template: Option<String>,
+    /// 无进展熔断：同一工具**同参数连续重复**达到此次数即熔断（NO_PROGRESS_REPEAT_LIMIT，
+    /// 缺省 0=禁用）。只统计连续重复（工具或参数一变即清零），不惩罚「换参重试」。
+    /// 缺省禁用是刻意的：短脚本用例会合法地重复同一调用（如 max_rounds 每轮同一个
+    /// calculator），阈值过低会把它们误判成无进展。要启用请显式给 >=4。
+    pub no_progress_repeat_limit: usize,
+}

@@ -1,0 +1,9 @@
+{
+  "id": "P4B-LIB-LEDGER-1",
+  "description": "P4b 任务级累计成本账（一）：AgentLoopPlugin 新增 spent 共享账 + record_spent/task_spent 两个读写口。外层键=根会话 id，内层键=链会话 id，值=该链累计 token（绝对值覆盖，非增量）。修复「同一父轮 N 个子代理各拿满额剩余 → 可超支 N 倍」。",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/p4b-lib-field-anchor.txt",
+  "patch_file": "blocks/p4b-lib-field-patch.txt",
+  "applied_marker": "    spent: Mutex<std::collections::HashMap<String, std::collections::HashMap<String, u64>>>,",
+  "order": 10
+}

@@ -1,0 +1,3 @@
+| L3 | **num_ctx 无法 per-request 下发**：P7 的 `LLM_CONTEXT_TOKENS` 只做本地估算闸，未透传给 provider——本地认为没事，服务端窗口（缺省 4096）小得多，两侧对「窗口」的认知脱节 | `providers/ollama.py` / 线契约 | 高 |
+| L7 | **请求观测缺失 HTTP 尝试次数**：provider 内部重试（429 退避 / 流式 `stream_options` 降级重放）对上层不可见——最终只看到一次「成功/失败」，看不到真实打了几次上游，成本与「这次为何慢/贵」无法解释 | `providers/openai_compat.py`（唯一带重试循环的 pack）；Rust 侧指标出口 `contract.rs` / `chat.rs` / `budget.rs` | 中 |
+| L8 | **provider 能力未声明**：各家对流式 / 工具 / 图片 / 嵌入 / 原生窗口（num_ctx）的支持差异只隐含在实现分支里，UI 与选路只能靠试错；无统一能力表可读 | `providers/registry.py` `_validate`；四个 pack 的 `PROVIDER` | 低 |

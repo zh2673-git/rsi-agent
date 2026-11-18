@@ -1,0 +1,8 @@
+    // ⑦ memory op 面（agent-loop 只会调这 7 个 op；后两个是 P1 只读汇总接口）
+    for op in ops_log.lock().unwrap().iter() {
+        assert!(
+            ["get", "append", "summarize", "trace.append", "trace.read", "trace.meta", "session.skills"]
+                .contains(&op.as_str()),
+            "memory op 越界：{op}"
+        );
+    }

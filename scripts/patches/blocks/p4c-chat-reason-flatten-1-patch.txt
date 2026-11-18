@@ -1,0 +1,7 @@
+            let mut err_val = json!({"code": "K502", "message": msg});
+            if truncated {
+                // P4c：统一改用扁平 reason（与主循环空答案出口同形，落在 error.reason，
+                // 而非此前误写的 error.error.reason 畸形嵌套）。
+                err_val["reason"] = json!("length");
+            }
+            return json!({"ok": false, "error": err_val});

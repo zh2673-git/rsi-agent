@@ -1,0 +1,55 @@
+#[tokio::test]
+async fn sibling_subagents_share_one_remaining_budget() {
+    // P4b 公平切分：同一父轮派发 2 个 task，二者**分食**父链剩余额度而不是各拿满额。
+    // 父预算 100，r1 自身用 0 → 剩余 100 按本批 2 个派发均分 = 各 50。
+    // 两个子代理 r1 各用 60 > 50 → 两条子链都 K508（预算耗尽）。
+    // 回归防线：若退回「每个子代理都拿父链满额剩余」，子代理会各得 100、60 < 100 不截停，
+    // 父 r2 将看不到任何「预算耗尽」——该断言即失效。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let saved = std::env::var("CHAT_TOKEN_BUDGET").ok();
+    std::env::set_var("CHAT_TOKEN_BUDGET", "100");
+
+    let sub_resp = json!({"ok": true, "content": null, "tool_calls": [{"id": "cs", "name": "calculator", "arguments": {}}], "model": "mock", "finish_reason": "tool_calls", "usage": {"input_tokens": 40, "output_tokens": 20}});
+    let captured = Arc::new(Mutex::new(Vec::<Vec<Value>>::new()));
+    let llm_script = vec![
+        // ① 父 r1：同一轮派发 2 个 task（自身不计费，剩余额度保持 100）
+        json!({"ok": true, "content": null, "tool_calls": [
+            {"id": "c1", "name": "task", "arguments": {"task": "研究甲"}},
+            {"id": "c2", "name": "task", "arguments": {"task": "研究乙"}}
+        ], "model": "mock", "finish_reason": "tool_calls", "usage": {"input_tokens": 0, "output_tokens": 0}}),
+        // ② 两个子代理 r1：各用 60（> 均分到的 50）
+        sub_resp.clone(),
+        sub_resp.clone(),
+        // ③ 父 r2：看到两条子链都耗尽，收敛
+        json!({"ok": true, "content": "SEEN-SIBLING-BUDGET-FAIL", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let kernel = boot(vec![
+        mock_memory(Arc::new(Mutex::new(vec![]))),
+        mock_llm_capturing(llm_script, captured.clone()),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "delegate twice with shared budget").await;
+    assert_eq!(r["ok"], json!(true), "{r}");
+    assert_eq!(r["answer"], json!("SEEN-SIBLING-BUDGET-FAIL"));
+
+    let cap = captured.lock().unwrap();
+    assert_eq!(cap.len(), 4, "llm 调用 = 父r1 + 子r1×2 + 父r2: {}", cap.len());
+
+    // 父 r2 的上下文里应有**两条**子代理失败观察，且都指明预算耗尽。
+    let parent_r2 = &cap[3];
+    let exhausted = parent_r2
+        .iter()
+        .filter_map(|m| m["content"].as_str())
+        .filter(|c| c.contains("子代理失败") && c.contains("预算耗尽"))
+        .count();
+    assert_eq!(exhausted, 2, "两个兄弟子代理都应被均分后的额度截停: {parent_r2:?}");
+
+    match saved {
+        Some(v) => std::env::set_var("CHAT_TOKEN_BUDGET", v),
+        None => std::env::remove_var("CHAT_TOKEN_BUDGET"),
+    }
+}
+
+// ---- P7/P8（PLAN R5-R8：上下文 token 闸 + 超限收紧/降级）----------------------

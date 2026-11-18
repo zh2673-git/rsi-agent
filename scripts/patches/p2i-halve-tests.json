@@ -1,0 +1,8 @@
+{
+  "id": "p2i-halve-tests",
+  "description": "P2：新增 context.rs 单元测试——halve_window 处理 system 不在首位与多 system 两种情况。",
+  "file": "runtime/crates/agent-loop/src/context.rs",
+  "anchor_file": "blocks/p2i-halve-tests-anchor.txt",
+  "patch_file": "blocks/p2i-halve-tests-patch.txt",
+  "applied_marker": "fn halve_window_handles_system_not_at_head() {"
+}

@@ -1,0 +1,1 @@
+PROVIDER = {"name": "anthropic", "chat": chat, "models": models, "requires_env": ["ANTHROPIC_API_KEY"]}

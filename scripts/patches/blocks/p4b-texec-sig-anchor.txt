@@ -1,0 +1,9 @@
+    /// 返回 (工具结果, 耗时ms)。`depth` 为当前链上的委派深度（0=顶层，随链传播）；
+    /// `budget_snap` 为传给子代理的剩余预算快照 (剩余ms, 剩余token)（T4，随链衰减）。
+    pub(super) async fn act_exec(
+        &self,
+        src: &Envelope,
+        session_id: &str,
+        depth: u32,
+        tc: &ToolCall,
+        budget_snap: Option<(Option<u64>, Option<u64>)>,

@@ -1,0 +1,10 @@
+        if resp.ok && resp.tool_calls.is_empty() {
+            return self
+                .finish(
+                    env, &req.session_id, resp, rounds, steps, sid, usage, llm_ms,
+                    std::mem::take(&mut round_reasonings), &cfg, llm_calls, retries, tool_failures,
+                    wrap_up,
+                    None,
+                )
+                .await;
+        }

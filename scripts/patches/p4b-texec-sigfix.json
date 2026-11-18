@@ -1,0 +1,9 @@
+{
+  "id": "P4B-TEXEC-SIG-FIX-1",
+  "description": "P4b（十）修复：act_exec 签名补丁多带两行（`deferred` + 闭合行），锚点止于 budget_snap 字段行，导致重复。repair 型，锚点消失即已修好。",
+  "file": "runtime/crates/agent-loop/src/tools_exec.rs",
+  "anchor_file": "blocks/p4b-texec-sigfix-anchor.txt",
+  "patch_file": "blocks/p4b-texec-sigfix-patch.txt",
+  "repair": true,
+  "order": 25
+}

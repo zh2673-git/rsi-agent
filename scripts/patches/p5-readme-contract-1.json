@@ -1,0 +1,9 @@
+{
+  "id": "p5-readme-contract-1",
+  "description": "P5 文档：README chat 成功响应追加可选 http_attempts 字段 + 说明",
+  "file": "runtime/plugins/llm_adapter/README.md",
+  "anchor_file": "blocks/p5-readme-contract-1-anchor.txt",
+  "patch_file": "blocks/p5-readme-contract-1-patch.txt",
+  "order": 168,
+  "applied_marker": "http_attempts：本次请求实际发出的 HTTP 尝试次数"
+}

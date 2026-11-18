@@ -1,0 +1,3 @@
+                let mut compacted = vec![Self::compaction_marker(&summary)];
+                compacted.extend(recent.iter().cloned());
+                compacted

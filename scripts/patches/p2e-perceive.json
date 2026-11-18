@@ -1,0 +1,8 @@
+{
+  "id": "p2e-perceive",
+  "description": "P2：chat_run 拉取历史后剔除历史里所有 system（动态 system 权威，历史 system 陈旧丢弃），确保工作集至多一个 system 且在首位——不假定历史 system 位置。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2e-perceive-anchor.txt",
+  "patch_file": "blocks/p2e-perceive-patch.txt",
+  "applied_marker": "messages.extend(hist.into_iter().filter(|m| m.role != \"system\"));"
+}

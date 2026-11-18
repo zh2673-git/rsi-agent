@@ -1,0 +1,1 @@
+| L4 models.list 追加 `models_meta`（ollama 逐模型原生窗口探测）| L3 延伸（窗口真值展示）| 规则 | ✅ 完成 |

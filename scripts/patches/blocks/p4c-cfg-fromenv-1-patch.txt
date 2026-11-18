@@ -1,0 +1,3 @@
+            prompt_template: env_trim("PROMPT"),
+            no_progress_repeat_limit: env_num("NO_PROGRESS_REPEAT_LIMIT", 0usize, "无进展同参重复阈值"),
+        }

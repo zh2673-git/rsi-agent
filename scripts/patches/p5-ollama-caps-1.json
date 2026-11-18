@@ -1,0 +1,9 @@
+{
+  "id": "p5-ollama-caps-1",
+  "description": "P5：ollama pack 声明 capabilities（支持 num_ctx 每请求窗口）",
+  "file": "runtime/plugins/llm_adapter/providers/ollama.py",
+  "anchor_file": "blocks/p5-ollama-caps-1-anchor.txt",
+  "patch_file": "blocks/p5-ollama-caps-1-patch.txt",
+  "order": 160,
+  "applied_marker": "\"capabilities\": {\"stream\": True, \"tools\": True, \"images\": True, \"embed\": False, \"models\": True, \"num_ctx\": True}"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "p4c-cfg-test-1",
+  "description": "P4c：config.rs 新增 no_progress_repeat_limit env 解析回归用例",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor_file": "blocks/p4c-cfg-test-1-anchor.txt",
+  "patch_file": "blocks/p4c-cfg-test-1-patch.txt",
+  "order": 122,
+  "applied_marker": "fn no_progress_repeat_limit_env_parsing()"
+}

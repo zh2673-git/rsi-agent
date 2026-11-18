@@ -1,0 +1,9 @@
+{
+  "id": "p4c-chat-state-1",
+  "description": "P4c：chat_body 局部状态增 last_tool_sig / repeat_streak",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-state-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-state-1-patch.txt",
+  "order": 101,
+  "applied_marker": "let mut last_tool_sig: Option<(String, Value)> = None;"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "p6-tools-plan-doc-1",
+  "description": "P6 Tools/bash 记录：新建 runtime/plugins/tools/PLAN.md（该目录此前无任何 .md），记载 bash 快照遍历 22-25 倍提速的依据/等价性验证，以及「bash 能写文件但代码层不加闸」的职责边界决策与理由。",
+  "file": "runtime/plugins/tools/PLAN.md",
+  "create": true,
+  "content_file": "blocks/p6-tools-plan.md",
+  "create_marker": "P6 Tools/bash"
+}

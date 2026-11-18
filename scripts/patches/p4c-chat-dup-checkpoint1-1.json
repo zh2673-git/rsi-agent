@@ -1,0 +1,9 @@
+{
+  "id": "p4c-chat-dup-checkpoint1-1",
+  "description": "遗留文档债：chat.rs『停车检查点①』注释块逐字重复两遍 → 去重为一份（converge 型，重复块消失即收敛）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor": "            // 停车检查点①：每轮开头——取消（硬中止，用户意愿最高）优先，\n            // 其次预算：token 硬停，墙钟软收敛（见 budget::StopReason）。\n            // 停车检查点①：每轮开头——取消（硬中止，用户意愿最高）优先，\n            // 其次预算：token 硬停，墙钟软收敛（见 budget::StopReason）。",
+  "patch": "            // 停车检查点①：每轮开头——取消（硬中止，用户意愿最高）优先，\n            // 其次预算：token 硬停，墙钟软收敛（见 budget::StopReason）。",
+  "order": 174,
+  "converge": true
+}

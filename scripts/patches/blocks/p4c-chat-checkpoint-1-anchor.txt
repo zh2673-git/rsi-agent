@@ -1,0 +1,10 @@
+            // 停车检查点②：工具波次完成后（不必等下一轮 LLM 调用才知道要停）
+            if let Some(reason) = self.check_budget(&budget, &usage) {
+                if reason.is_hard() {
+                    return self
+                        .budget_stop(env, &req.session_id, rounds, &steps, reason, usage, llm_ms, llm_calls, retries, tool_failures)
+                        .await;
+                }
+                self.wrap_up_once(env, &req.session_id, &mut messages, &mut wrap_up, reason).await;
+            }
+        }

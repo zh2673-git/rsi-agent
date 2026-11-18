@@ -1,0 +1,11 @@
+/// capability 寻址（K2，内核 v0.1.4）：跨插件调用按能力寻址，提供者可被同名/异名
+/// 实现替换而本 crate 零改动。memory 侧所有 session 域操作（get/append/summarize/
+/// trace.append/trace.read/trace.meta/session.skills）统一寻址 `memory.session`——与本插件
+/// manifest 硬依赖声明一致（声明什么就寻址什么，消除"用了未声明的 capability"的旧不一致）。
+///
+/// 后两个 op 是 P1 修复引入的**只读汇总**接口，专治「分页接口当总长度用」这一类 bug：
+/// - `trace.meta` → `{ok, exists, size, mtime_ms, total_events, end_cursor}`：真实末尾
+///   绝对游标（= trace 完整有效事件数）。`trace.read.next` 是**分页消费位置**，单页
+///   ≤800 条 / 约 1MB，长 trace 上恒等于首页边界，绝不能当回合终点（见 chat.rs 三处）。
+/// - `session.skills` → `{ok, skills, total_events}`：会话级已加载技能集合（扫完整
+///   trace 去重），替代编排层逐页重放 `skill_loaded`（只读首页必漏长会话）。

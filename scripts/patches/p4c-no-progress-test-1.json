@@ -1,0 +1,9 @@
+{
+  "id": "p4c-no-progress-test-1",
+  "description": "P4c 回归：同参连续重复触发无进展熔断——K502+reason=no_progress，chat_summary.stopped_reason 具名",
+  "file": "runtime/crates/agent-loop/tests/react_mocks.rs",
+  "anchor_file": "blocks/p4c-no-progress-test-1-anchor.txt",
+  "patch_file": "blocks/p4c-no-progress-test-1-patch.txt",
+  "order": 140,
+  "applied_marker": "async fn no_progress_repeat_circuit_breaker_fires_on_identical_tool_calls() {"
+}

@@ -1,0 +1,21 @@
+                tracing::info!(target: ID, "context compacted: {} older messages summarized, kept {keep}", older.len());
+                self.trace(src, session_id, json!({"type": "compaction", "summarized": older.len(), "kept": keep, "summary": summary})).await;
+                // P2：规范化 system（不假定在首位、只留一个、取最后一条非空）后置于压缩标记之前。
+                // 与 memory 插件 summarize 的合成消息同构（sys 前置 + 标记 + recent）；recent 里的
+                // 任何 system 一律剔除（只保留选定的唯一 sys）。空内容 system 视为无 system。
+                let mut sys: Option<MemoryMsg> = None;
+                for m in history.iter().rev() {
+                    if m.role == "system"
+                        && m.content.as_deref().map(|c| !c.trim().is_empty()).unwrap_or(false)
+                    {
+                        sys = Some(m.clone());
+                        break;
+                    }
+                }
+                let mut compacted: Vec<MemoryMsg> = Vec::with_capacity(recent.len() + 2);
+                if let Some(s) = sys {
+                    compacted.push(s);
+                }
+                compacted.push(Self::compaction_marker(&summary));
+                compacted.extend(recent.iter().filter(|m| m.role != "system").cloned());
+                compacted

@@ -1,0 +1,2 @@
+        // 受保护的头：system 不算「最近」条目，先从滑动窗口池里剔除后单独前置。
+        const pool = sys ? msgs.filter((m) => m !== sys) : msgs;

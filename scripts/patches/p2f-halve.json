@@ -1,0 +1,8 @@
+{
+  "id": "p2f-halve",
+  "description": "P2：halve_window 不再假定 msgs[0] 为 system——先规范化出唯一 system（取最后一条非空、置顶），只对尾部非 system 消息减半，孤儿 tool 前缀按有/无 system 头两种情况裁剪。",
+  "file": "runtime/crates/agent-loop/src/context.rs",
+  "anchor_file": "blocks/p2f-halve-anchor.txt",
+  "patch_file": "blocks/p2f-halve-patch.txt",
+  "applied_marker": "let keep = (rest.len() / 2).max(1);"
+}

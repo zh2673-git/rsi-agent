@@ -1,0 +1,8 @@
+{
+  "id": "p1c-chat-pause-cursor",
+  "description": "P1：ask_user 暂停路径的 end_cursor 改取 trace.meta.end_cursor，修长 trace 上暂停点被钉在分页首页边界（恢复补播少给后半程事件）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p1c-chat-pause-cursor-anchor.txt",
+  "patch_file": "blocks/p1c-chat-pause-cursor-patch.txt",
+  "applied_marker": "P1：暂停也要记**真实**末尾游标"
+}

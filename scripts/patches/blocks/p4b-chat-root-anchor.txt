@@ -1,0 +1,2 @@
+        // 总预算（T4）：顶层取配置缺省；子代理继承父链衰减后的剩余（req.*_left）。
+        let budget = ChatBudget {

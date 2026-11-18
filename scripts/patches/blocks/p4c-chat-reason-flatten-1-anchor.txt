@@ -1,0 +1,5 @@
+            let mut err_val = json!({"code": "K502", "message": msg});
+            if truncated {
+                err_val["error"]["reason"] = json!("length");
+            }
+            return json!({"ok": false, "error": err_val});

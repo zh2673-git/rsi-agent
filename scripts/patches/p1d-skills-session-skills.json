@@ -1,0 +1,8 @@
+{
+  "id": "p1d-skills-session-skills",
+  "description": "P1：trace_loaded_skills 改调 session.skills（Memory 扫完整 trace 去重），删除编排层逐页重放 skill_loaded 的循环——修长 trace 首页漏技能作用域。",
+  "file": "runtime/crates/agent-loop/src/skills.rs",
+  "anchor_file": "blocks/p1d-skills-anchor.txt",
+  "patch_file": "blocks/p1d-skills-patch.txt",
+  "applied_marker": "\"op\": \"session.skills\", \"session_id\": session_id"
+}

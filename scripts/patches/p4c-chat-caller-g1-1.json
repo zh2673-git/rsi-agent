@@ -1,0 +1,8 @@
+{
+  "id": "p4c-chat-caller-g1-1",
+  "description": "P4c：主循环两处空答案出口 summary 调用补 stopped_reason=null",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-caller-g1-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-caller-g1-1-patch.txt",
+  "order": 107
+}

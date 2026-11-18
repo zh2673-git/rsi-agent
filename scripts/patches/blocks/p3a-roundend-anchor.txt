@@ -1,0 +1,13 @@
+            if cfg.workset_budget() > 0 && context::estimate_messages(&messages) > cfg.workset_budget() {
+                let compacted = self.maybe_compact_with_keep(env, &req.session_id, messages.clone(), &cfg, 8).await;
+                if compacted.len() < messages.len() {
+                    messages = compacted;
+                }
+            }
+            // 工作集尾部按 token 裁剪（P0-C）：压缩路径已把尾巴压到 8 条，但**未触发
+            // 压缩**的轮次里工作集仍可能带着一整批旧消息（每条工具结果可达 8K 字符）。
+            // 这里再按 token 预算裁一次尾部，让每轮发出去的上下文有界。
+            if cfg.workset_budget() > 0 && context::estimate_messages(&messages) > cfg.workset_budget() {
+                let tail = std::mem::take(&mut messages);
+                messages = trim_workset_by_tokens(tail, cfg.workset_budget());
+            }

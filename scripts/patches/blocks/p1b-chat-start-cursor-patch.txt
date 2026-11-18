@@ -1,0 +1,18 @@
+        // `start_cursor` 取 `trace.meta` 的 `end_cursor`（= trace 里**完整**有效事件数）。
+        //
+        // 为什么不能用 `trace.read(after=0).next`（P1 修复，改前必读）：那是**分页**
+        // 接口的「本页消费位置」，单页 ≤800 条 / 约 1MB。长会话首页就停在第 800 条，
+        // 于是 `start_cursor` 恒等于 800 左右的常数——新建回合的起点被钉死在 trace
+        // 前段，补播会把这之后的所有历史事件重新算进本轮（区间错位），越长的会话越错。
+        // 真实末尾只能由 Memory 侧的 `trace.meta.end_cursor` 提供（traceOffsets().length）。
+        //
+        // 拿不到就按 0：补播会多给一些旧事件但不会漏——错在多给一侧用户能自己扫过去，
+        // 错在少给一侧就是静默丢内容。
+        let turn_store = turn::TurnStore::open();
+        let start_cursor = match self
+            .call(env, CAP_MEMORY, json!({"op": "trace.meta", "session_id": req.session_id}), MEM_DEADLINE)
+            .await
+        {
+            Ok(v) => v.get("end_cursor").and_then(Value::as_u64).unwrap_or(0),
+            Err(_) => 0,
+        };

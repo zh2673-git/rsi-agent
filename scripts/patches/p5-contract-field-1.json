@@ -1,0 +1,9 @@
+{
+  "id": "p5-contract-field-1",
+  "description": "P5：LlmChatResp 增可选字段 http_attempts（缺省 None = 未上报）",
+  "file": "runtime/crates/agent-loop/src/contract.rs",
+  "anchor_file": "blocks/p5-contract-field-1-anchor.txt",
+  "patch_file": "blocks/p5-contract-field-1-patch.txt",
+  "order": 141,
+  "applied_marker": "pub http_attempts: Option<u64>,"
+}

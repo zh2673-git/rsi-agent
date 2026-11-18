@@ -1,0 +1,8 @@
+{
+  "id": "m2b-summarize-pool",
+  "description": "修正 summarize 的滑动窗口池：剔除**所有** system（非仅选定的那条），确保结果绝无第二个 system。",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor_file": "blocks/m2b-pool-anchor.txt",
+  "patch_file": "blocks/m2b-pool-patch.txt",
+  "applied_marker": "const pool = msgs.filter((m) => m.role !== \"system\");"
+}

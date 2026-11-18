@@ -1,0 +1,8 @@
+{
+  "id": "p2b-trim",
+  "description": "P2：trim_workset_by_tokens 改用 split_system 统一规范化——不假定首条是 system、只保留一个（取最后一条非空），孤儿 tool 前缀按「有/无 system 头」两种情况处理，不再固定保留 msgs[0]。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2b-trim-anchor.txt",
+  "patch_file": "blocks/p2b-trim-patch.txt",
+  "applied_marker": "let (sys, rest) = split_system(msgs);"
+}

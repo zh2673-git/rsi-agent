@@ -1,0 +1,9 @@
+{
+  "id": "P4B-LIB-LEDGER-CTOR-1",
+  "description": "P4b（二）：new_with_policy 构造字面量补 spent 字段初始化（8 空格缩进版，与测试构造器区分）。",
+  "file": "runtime/crates/agent-loop/src/lib.rs",
+  "anchor_file": "blocks/p4b-lib-newctor-anchor.txt",
+  "patch_file": "blocks/p4b-lib-newctor-patch.txt",
+  "applied_marker": "\n        spent: Mutex::new(std::collections::HashMap::new()),",
+  "order": 11
+}

@@ -1,0 +1,1 @@
+PROVIDER = {"name": "ollama", "chat": chat, "models": models, "requires_env": []}

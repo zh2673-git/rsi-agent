@@ -1,0 +1,5 @@
+            error: Some(json!({"code": "LLM_BAD_SHAPE", "message": "llm-adapter 返回了无法解析的响应"})),
+            reasoning: None,
+            usage: None,
+            elapsed_ms: None,
+        }))

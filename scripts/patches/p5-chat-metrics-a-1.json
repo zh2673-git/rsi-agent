@@ -1,0 +1,9 @@
+{
+  "id": "p5-chat-metrics-a-1",
+  "description": "P5：assistant 事件 metrics 增 http_attempts",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p5-chat-metrics-a-1-anchor.txt",
+  "patch_file": "blocks/p5-chat-metrics-a-1-patch.txt",
+  "order": 147,
+  "applied_marker": "\"http_attempts\": usage.http_attempts_total(),\n                },"
+}

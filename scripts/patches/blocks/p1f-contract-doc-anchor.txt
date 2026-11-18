@@ -1,0 +1,1 @@
+//! ⑦ memory op 面：agent-loop 只会调用 {get, append, summarize, trace.append, trace.read}；

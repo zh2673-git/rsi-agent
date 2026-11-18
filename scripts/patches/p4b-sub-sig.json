@@ -1,0 +1,9 @@
+{
+  "id": "P4B-SUB-SIG-1",
+  "description": "P4b（十一）：run_subagent 签名与文档同步为三元组（剩余ms / 剩余token / 任务根）。",
+  "file": "runtime/crates/agent-loop/src/subagent.rs",
+  "anchor_file": "blocks/p4b-sub-sig-anchor.txt",
+  "patch_file": "blocks/p4b-sub-sig-patch.txt",
+  "applied_marker": "    pub(super) async fn run_subagent(\n        &self,\n        src: &Envelope,\n        parent_session: &str,\n        task_text: &str,\n        depth: u32,\n        budget_snap: Option<(Option<u64>, Option<u64>, String)>,",
+  "order": 20
+}

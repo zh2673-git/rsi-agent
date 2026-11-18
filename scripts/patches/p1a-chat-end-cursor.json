@@ -1,0 +1,8 @@
+{
+  "id": "p1a-chat-end-cursor",
+  "description": "P1：包装层回合终点游标改取 trace.meta.end_cursor（真实末尾），不再拿 trace.read(after=0).next（分页首页消费位置）当总长度。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p1a-chat-end-cursor-anchor.txt",
+  "patch_file": "blocks/p1a-chat-end-cursor-patch.txt",
+  "applied_marker": "\"op\": \"trace.meta\", \"session_id\": req.session_id}), MEM_DEADLINE)\n            .await\n            .ok()\n            .and_then(|v| v.get(\"end_cursor\")"
+}

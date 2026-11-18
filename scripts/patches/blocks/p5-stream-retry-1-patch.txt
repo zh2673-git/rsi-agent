@@ -1,0 +1,5 @@
+                if include_usage:
+                    # 部分兼容层（自托管网关等）不认 stream_options → 去掉重试一次。
+                    # 复用同一 sink：start 行不重复写，前端不会重开气泡。
+                    # P5 观测：降级重放是**真实的第二次** HTTP 请求，尝试数记 2。
+                    return _stream_once(endpoint, body, sink, provider_label, False, http_attempts + 1)

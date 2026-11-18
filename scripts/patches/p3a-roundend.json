@@ -1,0 +1,9 @@
+{
+  "id": "P3A-ROUNDEND-1",
+  "description": "P3 降开销：轮末压缩+裁剪只估算一次 workset_budget，并把工作集 move 进压缩（std::mem::take，省 messages.clone 深拷贝）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p3a-roundend-anchor.txt",
+  "patch_file": "blocks/p3a-roundend-new.txt",
+  "applied_marker": "P3 降开销：估算一次、复用",
+  "order": 0
+}

@@ -1,0 +1,8 @@
+{
+  "id": "P3G-DUP-BRACE-1",
+  "description": "P3D 收尾：p3d 锚点行偏移导致成功臂多出一个闭合花括号（`compacted` 之后 `}` 重复），删除多余的 `}` 恢复结构。",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor": "                compacted\n            }\n            }\n            Ok(v) => {",
+  "patch": "                compacted\n            }\n            Ok(v) => {",
+  "order": 3
+}

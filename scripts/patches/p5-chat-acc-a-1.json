@@ -1,0 +1,9 @@
+{
+  "id": "p5-chat-acc-a-1",
+  "description": "P5：主循环 LLM 调用处累计 http_attempts",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p5-chat-acc-a-1-anchor.txt",
+  "patch_file": "blocks/p5-chat-acc-a-1-patch.txt",
+  "order": 145,
+  "applied_marker": "// P5 观测：累计 provider 上报的 HTTP 尝试次数"
+}

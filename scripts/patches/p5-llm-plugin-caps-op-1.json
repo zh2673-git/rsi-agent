@@ -1,0 +1,9 @@
+{
+  "id": "p5-llm-plugin-caps-op-1",
+  "description": "P5：llm_plugin on_event 增 provider.capabilities op 分派",
+  "file": "runtime/plugins/llm_adapter/llm_plugin.py",
+  "anchor_file": "blocks/p5-llm-plugin-caps-op-1-anchor.txt",
+  "patch_file": "blocks/p5-llm-plugin-caps-op-1-patch.txt",
+  "order": 162,
+  "applied_marker": "        if op == \"provider.capabilities\":"
+}

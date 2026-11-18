@@ -1,0 +1,12 @@
+/// 多轮累计用量：ReAct 一轮可能多次调用 LLM，用户要的是总消耗而非单轮。
+#[derive(Default)]
+pub(super) struct UsageAcc {
+    input: u64,
+    output: u64,
+    cache_read: u64,
+    reasoning: u64,
+    seen: bool,
+    /// 累计的 provider 上报 HTTP 尝试次数（provider 内部重试已计入）。
+    /// None = 全部请求都未上报（旧 provider / 未接入观测），与「0 次」区分。
+    http_attempts: Option<u64>,
+}

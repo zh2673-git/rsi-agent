@@ -1,0 +1,9 @@
+{
+  "id": "p5-readme-provider-step-1",
+  "description": "P5 文档：README 新增 provider 步骤补 capabilities 声明 + 校验说明",
+  "file": "runtime/plugins/llm_adapter/README.md",
+  "anchor_file": "blocks/p5-readme-provider-step-1-anchor.txt",
+  "patch_file": "blocks/p5-readme-provider-step-1-patch.txt",
+  "order": 170,
+  "applied_marker": "- `capabilities`（可选）：`{能力名: bool}` 扁平 dict"
+}

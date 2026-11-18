@@ -1,0 +1,18 @@
+        let mut out = out;
+        // 本轮事件已由 chat_run 全部写完，现在取到的 `end_cursor` 就是本轮终点。
+        //
+        // 为什么是 `trace.meta` 而不是 `trace.read(after=0).next`（P1 修复，改前必读）：
+        // `trace.read` 是**分页**接口（单页 ≤800 条 / 约 1MB 双预算），它的 `next` 是
+        // 「本页已消费到第几条」，不是「trace 一共有多少条」。旧实现把首页 `next` 当
+        // 回合终点，于是长 trace（>800 事件）的 `end_cursor` 被永久钉在首页边界上：
+        // 补播区间变短、`turn/replay` 少给后半程事件——静默丢内容，且只在长会话里出现。
+        // 真实末尾只能由 Memory 侧的 `trace.meta.end_cursor`（= traceOffsets().length）
+        // 提供，见 memory_plugin.ts 的 trace.meta 注释。
+        //
+        // 失败（内核超时/能力缺失）→ None，由下方 `unwrap_or_else` 退化为 turn 里已记录的
+        // `end_cursor`：补播会少给，但不会给错。
+        let trace_next = self
+            .call(env, CAP_MEMORY, json!({"op": "trace.meta", "session_id": req.session_id}), MEM_DEADLINE)
+            .await
+            .ok()
+            .and_then(|v| v.get("end_cursor").and_then(Value::as_u64));

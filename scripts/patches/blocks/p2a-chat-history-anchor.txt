@@ -1,0 +1,9 @@
+/// 感知窗口（PLAN R3）：HISTORY_LIMIT 只裁剪**发给 LLM 的工作集**，且必须发生在
+/// 压缩判断之后——修复前截断在前，LIMIT < TRIGGER 时压缩永不触发（memory 无限增长
+/// 且旧史被静默丢弃）。
+pub(super) fn apply_history_limit(history_limit: usize, mut msgs: Vec<MemoryMsg>) -> Vec<MemoryMsg> {
+    if history_limit > 0 && msgs.len() > history_limit {
+        msgs = msgs.split_off(msgs.len() - history_limit);
+    }
+    msgs
+}

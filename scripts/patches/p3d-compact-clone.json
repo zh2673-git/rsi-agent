@@ -1,0 +1,9 @@
+{
+  "id": "P3D-COMPACT-CLONE-1",
+  "description": "P3 降开销：压缩成功后按值消费 history 重建 recent 段（去掉逐条 clone；sys 探测就地重算）",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor_file": "blocks/p3d-defer-anchor.txt",
+  "patch_file": "blocks/p3d-defer-new.txt",
+  "applied_marker": "P3 降开销：压缩已经成功（memory.summarize 持久化完成）",
+  "order": 0
+}

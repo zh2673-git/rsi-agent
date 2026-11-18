@@ -1,0 +1,3 @@
+                Some("append") | Some("summarize") | Some("trace.append") | Some("trace.read") => {
+                    json!({"ok": true, "messages": [], "events": []})
+                }

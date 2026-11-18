@@ -1,0 +1,8 @@
+    /// 该次 LLM 请求墙钟耗时（毫秒）。
+    #[serde(default)]
+    pub elapsed_ms: Option<u64>,
+    /// 该次请求**实际发出的 HTTP 尝试次数**（provider 内部重试已计入，如 429 退避）。
+    /// 缺省 None = provider 未上报（旧插件 / 未接入观测的 provider），与「1 次成功」区分。
+    #[serde(default)]
+    pub http_attempts: Option<u64>,
+}

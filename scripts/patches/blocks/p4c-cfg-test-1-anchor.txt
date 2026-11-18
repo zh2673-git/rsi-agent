@@ -1,0 +1,6 @@
+        match tok {
+            Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+            None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+        }
+    }
+}

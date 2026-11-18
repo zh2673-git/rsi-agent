@@ -1,0 +1,8 @@
+{
+  "id": "m3-summarize-compacted",
+  "description": "M3：summarize 的 compacted 组装——system 位于压缩标记之前（有 system 则 [system, 标记, ...kept]，否则 [标记, ...kept]）。依赖 m2 引入的 sys。",
+  "file": "runtime/plugins/memory/memory_plugin.ts",
+  "anchor_file": "blocks/m2-compacted-anchor.txt",
+  "patch_file": "blocks/m2-compacted-patch.txt",
+  "applied_marker": "const compacted: Msg[] = sys ? [sys, marker, ...kept] : [marker, ...kept];"
+}

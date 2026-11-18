@@ -1,0 +1,9 @@
+{
+  "id": "p5-chat-metrics-b-1",
+  "description": "P5：收敛版 chat_summary 增 http_attempts",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p5-chat-metrics-b-1-anchor.txt",
+  "patch_file": "blocks/p5-chat-metrics-b-1-patch.txt",
+  "order": 148,
+  "applied_marker": "                \"stopped_by\": wrap_up.map(|r| r.tag()),\n                \"stopped_reason\": stopped_reason,\n                // P5 观测：HTTP 尝试总次数"
+}

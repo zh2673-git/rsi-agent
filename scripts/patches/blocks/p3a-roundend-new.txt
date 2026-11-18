@@ -1,0 +1,17 @@
+            // P3 降开销：估算一次、复用。workset_budget 只算一次；压缩后（可能已缩短）
+            // 只需再判一次决定是否裁剪尾部——trim_workset_by_tokens 内部本就会再估一次
+            // （幂等：未超预算直接返回），故这里省掉一遍冗余估算。
+            let workset_budget = cfg.workset_budget();
+            if workset_budget > 0 && context::estimate_messages(&messages) > workset_budget {
+                // P3 降开销：把工作集整体 move 进压缩（std::mem::take），省掉进入前的
+                // messages.clone()——长会话里每次 clone 都要复制整段历史内容（可达数十万
+                // 字符）。压缩内部不满足条件时原样返回该 Vec，故语义等价。
+                let compacted =
+                    self.maybe_compact_with_keep(env, &req.session_id, std::mem::take(&mut messages), &cfg, 8).await;
+                messages = compacted;
+                // 工作集尾部按 token 裁剪（P0-C）：压缩后仍超预算（或未触发压缩）时收尾。
+                if context::estimate_messages(&messages) > workset_budget {
+                    let tail = std::mem::take(&mut messages);
+                    messages = trim_workset_by_tokens(tail, workset_budget);
+                }
+            }

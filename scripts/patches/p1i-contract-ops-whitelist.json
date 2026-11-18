@@ -1,0 +1,8 @@
+{
+  "id": "p1i-contract-ops-whitelist",
+  "description": "P1：contract_conformance 的 memory op 白名单加 trace.meta / session.skills（否则断言「op 越界」直接失败）。",
+  "file": "runtime/crates/agent-loop/tests/contract_conformance.rs",
+  "anchor_file": "blocks/p1i-contract-ops-anchor.txt",
+  "patch_file": "blocks/p1i-contract-ops-patch.txt",
+  "applied_marker": "agent-loop 只会调这 7 个 op"
+}

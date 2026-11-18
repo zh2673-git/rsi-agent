@@ -1,0 +1,38 @@
+def _in_snapshot_zone(rel: str, excluded: list[str]) -> bool:
+    """rel（'/' 分隔相对路径）是否属于快照区。"""
+    real = os.path.normcase(os.path.join(str(workspace_root()), rel.replace("/", os.sep)))
+    return not any(real == e or real.startswith(e + os.sep) for e in excluded)
+
+
+def _scan_zone(with_content: bool = True) -> tuple[dict[str, tuple[int, int]], dict[str, bytes] | None]:
+    """遍历快照区：返回 (stat 清单 rel->(mtime_ns,size), 内容缓存或 None=超限/未请求)。"""
+    ws = str(workspace_root())
+    excluded = _excluded_roots()
+    manifest: dict[str, tuple[int, int]] = {}
+    content: dict[str, bytes] | None = {} if with_content else None
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(ws):
+        dirnames[:] = [d for d in dirnames if d not in _NOISE_DIRS and not d.startswith(".")]
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, ws).replace("\\", "/")
+            if not _in_snapshot_zone(rel, excluded):
+                continue
+            try:
+                st = os.stat(full)
+            except OSError:
+                continue
+            manifest[rel] = (st.st_mtime_ns, st.st_size)
+            if content is not None:
+                if total + st.st_size > _SNAP_MAX_BYTES or len(content) >= _SNAP_MAX_FILES:
+                    content = None  # 超限：放弃内容缓存，退化为 stat 清单比对
+                else:
+                    try:
+                        with open(full, "rb") as f:
+                            b = f.read()
+                    except OSError:
+                        b = None
+                    if b is not None:
+                        content[rel] = b
+                        total += len(b)
+    return manifest, content

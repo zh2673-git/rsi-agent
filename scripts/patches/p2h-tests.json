@@ -1,0 +1,8 @@
+{
+  "id": "p2h-tests",
+  "description": "P2：新增 chat.rs 单元测试——split_system 取最后一条非空/只留一个、trim_workset 处理 system 不在首位与多 system、append_to_system 不假定首位。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2h-tests-anchor.txt",
+  "patch_file": "blocks/p2h-tests-patch.txt",
+  "applied_marker": "mod p2_system_tests {"
+}

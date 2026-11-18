@@ -1,0 +1,8 @@
+{
+  "id": "p1b-chat-start-cursor",
+  "description": "P1：新回合 start_cursor 改取 trace.meta.end_cursor（真实末尾），修长 trace 上起点被钉在分页首页边界导致补播区间错位。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p1b-chat-start-cursor-anchor.txt",
+  "patch_file": "blocks/p1b-chat-start-cursor-patch.txt",
+  "applied_marker": "\"op\": \"trace.meta\", \"session_id\": req.session_id}), MEM_DEADLINE)\n            .await\n        {\n            Ok(v) => v.get(\"end_cursor\")"
+}

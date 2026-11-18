@@ -1,0 +1,8 @@
+{
+  "id": "p5-chat-metrics-c-1",
+  "description": "P5：失败/熔断版 chat_summary 增 http_attempts",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p5-chat-metrics-c-1-anchor.txt",
+  "patch_file": "blocks/p5-chat-metrics-c-1-patch.txt",
+  "order": 149
+}

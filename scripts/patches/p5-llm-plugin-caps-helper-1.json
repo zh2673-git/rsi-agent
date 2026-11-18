@@ -1,0 +1,9 @@
+{
+  "id": "p5-llm-plugin-caps-helper-1",
+  "description": "P5：llm_plugin 增 _provider_capabilities 只读方法",
+  "file": "runtime/plugins/llm_adapter/llm_plugin.py",
+  "anchor_file": "blocks/p5-llm-plugin-caps-helper-1-anchor.txt",
+  "patch_file": "blocks/p5-llm-plugin-caps-helper-1-patch.txt",
+  "order": 163,
+  "applied_marker": "    def _provider_capabilities(self, payload: dict) -> dict:"
+}

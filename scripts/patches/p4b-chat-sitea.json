@@ -1,0 +1,9 @@
+{
+  "id": "P4B-CHAT-RECORD-A-1",
+  "description": "P4b（六）：主循环每次计费后回写任务账（siteA，12 空格缩进版）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4b-chat-siteA-anchor.txt",
+  "patch_file": "blocks/p4b-chat-siteA-patch.txt",
+  "applied_marker": "            // P4b：本链累计用量回写任务账（绝对值覆盖，非增量）。\n            self.record_spent(&budget_root, &req.session_id, usage.total());",
+  "order": 15
+}

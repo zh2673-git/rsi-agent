@@ -1,0 +1,1 @@
+PROVIDER = {"name": "ollama", "chat": chat, "models": models, "capabilities": {"stream": True, "tools": True, "images": True, "embed": False, "models": True, "num_ctx": True}, "requires_env": []}

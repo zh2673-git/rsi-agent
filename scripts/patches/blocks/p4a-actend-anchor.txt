@@ -1,0 +1,4 @@
+        let result_str = result.to_string();
+        let full_chars = result_str.chars().count();
+        let limit = effective_result_limit(&tc.name, cfg);
+        let truncated: String = result_str.chars().take(2000).collect();

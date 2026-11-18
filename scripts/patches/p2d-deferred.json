@@ -1,0 +1,8 @@
+{
+  "id": "p2d-deferred",
+  "description": "P2：deferred 工具摘要追加改用 append_to_system（不再假定 messages[0] 是 system）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2d-deferred-anchor.txt",
+  "patch_file": "blocks/p2d-deferred-patch.txt",
+  "applied_marker": "append_to_system(&mut messages, &line);"
+}

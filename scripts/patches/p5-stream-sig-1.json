@@ -1,0 +1,9 @@
+{
+  "id": "p5-stream-sig-1",
+  "description": "P5：_stream_once 增 http_attempts 形参（流式不重试，缺省 1）",
+  "file": "runtime/plugins/llm_adapter/providers/openai_compat.py",
+  "anchor_file": "blocks/p5-stream-sig-1-anchor.txt",
+  "patch_file": "blocks/p5-stream-sig-1-patch.txt",
+  "order": 153,
+  "applied_marker": "    http_attempts: int = 1,\n) -> dict:"
+}

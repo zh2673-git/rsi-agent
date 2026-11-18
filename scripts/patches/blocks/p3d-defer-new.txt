@@ -1,0 +1,30 @@
+            Ok(v) if v.get("ok") == Some(&json!(true)) => {
+                tracing::info!(target: ID, "context compacted: {} older messages summarized, kept {keep}", older.len());
+                self.trace(src, session_id, json!({"type": "compaction", "summarized": older.len(), "kept": keep, "summary": summary})).await;
+                // P3 降开销：压缩已经成功（memory.summarize 持久化完成），下游只有成功路径——
+                // 此时 history 不再需要保留，可把 recent 段**按值消费**（into_iter），
+                // 省掉原先对 recent 的逐条 clone。recent 段 = 下标 >= boundary 的部分，
+                // boundary = history.len() - keep（keep 已 min 到 len）。
+                //
+                // P2：规范化 system（不假定在首位、只留一个、取最后一条非空）后置于压缩标记之前。
+                // 与 memory 插件 summarize 的合成消息同构（sys 前置 + 标记 + recent）；recent 里的
+                // 任何 system 一律剔除（只保留选定的唯一 sys）。空内容 system 视为无 system。
+                let boundary = history.len() - keep;
+                let sys_pos = history.iter().rposition(|m| {
+                    m.role == "system"
+                        && m.content.as_deref().map(|c| !c.trim().is_empty()).unwrap_or(false)
+                });
+                let mut compacted: Vec<MemoryMsg> = Vec::with_capacity(keep + 2);
+                if let Some(i) = sys_pos {
+                    compacted.push(history[i].clone());
+                }
+                compacted.push(Self::compaction_marker(&summary));
+                compacted.extend(
+                    history
+                        .into_iter()
+                        .enumerate()
+                        .filter(|(i, m)| *i >= boundary && m.role != "system")
+                        .map(|(_, m)| m),
+                );
+                compacted
+            }

@@ -1,0 +1,8 @@
+{
+  "id": "p4c-agent-loop-plan-doc-1",
+  "description": "P4c 记录：新建 runtime/crates/agent-loop/PLAN.md（该文件此前不存在；同格式范例为 plugins/memory/PLAN.md），记载 trace 绝对游标/技能作用域/system 保留/长会话成本/熔断的已落地改动，以及本轮 chat.rs 两处文档债（174 去重、175 缩进）的现象、边界判定与幂等验证。",
+  "file": "runtime/crates/agent-loop/PLAN.md",
+  "create": true,
+  "content_file": "blocks/p4c-agent-loop-plan.md",
+  "create_marker": "agent-loop 改造计划"
+}

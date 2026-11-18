@@ -1,0 +1,1 @@
+   "reasoning"?:str, "usage"?:{...}, "elapsed_ms"?:int}

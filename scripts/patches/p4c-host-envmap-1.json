@@ -1,0 +1,9 @@
+{
+  "id": "p4c-host-envmap-1",
+  "description": "P4c：host AGENT_ENV_MAP 增 no_progress_repeat_limit 映射",
+  "file": "runtime/crates/host/src/config.rs",
+  "anchor_file": "blocks/p4c-host-envmap-1-anchor.txt",
+  "patch_file": "blocks/p4c-host-envmap-1-patch.txt",
+  "order": 130,
+  "applied_marker": "(\"no_progress_repeat_limit\", \"NO_PROGRESS_REPEAT_LIMIT\"),"
+}

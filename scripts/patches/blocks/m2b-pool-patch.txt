@@ -1,0 +1,3 @@
+        // 受保护的头：system 不算「最近」条目——从池中剔除**所有** system，只保留上面选定的
+        // 唯一 sys 前置，确保结果里绝不出第二个 system（多 system 会与动态 system 冲突）。
+        const pool = msgs.filter((m) => m.role !== "system");

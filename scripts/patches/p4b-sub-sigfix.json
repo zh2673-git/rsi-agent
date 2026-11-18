@@ -1,0 +1,9 @@
+{
+  "id": "P4B-SUB-SIG-FIX-1",
+  "description": "P4b（十一）修复：run_subagent 签名补丁多带了一行 `) -> Value {`（锚点止于字段行），导致重复闭合行。repair 型，锚点消失即已修好。",
+  "file": "runtime/crates/agent-loop/src/subagent.rs",
+  "anchor_file": "blocks/p4b-sub-sigfix-anchor.txt",
+  "patch_file": "blocks/p4b-sub-sigfix-patch.txt",
+  "repair": true,
+  "order": 24
+}

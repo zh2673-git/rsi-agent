@@ -1,0 +1,20 @@
+def norm(content, calls, model, finish_reason, reasoning=None, usage=None, elapsed_ms=None, http_attempts=None) -> dict:
+    """归一化成功响应。
+
+    reasoning / usage / elapsed_ms / http_attempts 为追加的可选字段：按「有才写」处理，
+    既有四字段与线契约逐字一致，未升级的消费者行为不变。
+
+    http_attempts：本次请求**实际发出的 HTTP 尝试次数**（provider 内部重试已计入）。
+    只有存在重试循环的 provider 才上报；缺省 None = 未观测，agent-loop 指标落 null，
+    与「1 次成功」区分开（旧 provider / 无重试路径都走 None）。
+    """
+    out = {"ok": True, "content": content, "tool_calls": calls, "model": model, "finish_reason": finish_reason}
+    if reasoning:
+        out["reasoning"] = reasoning
+    if usage:
+        out["usage"] = usage
+    if elapsed_ms is not None:
+        out["elapsed_ms"] = elapsed_ms
+    if http_attempts is not None:
+        out["http_attempts"] = http_attempts
+    return out

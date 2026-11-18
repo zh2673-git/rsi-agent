@@ -1,0 +1,5 @@
+        retries: u32,
+        tool_failures: u32,
+        wrap_up: Option<StopReason>,
+    ) -> Value {
+        let mut answer = resp.content.clone().unwrap_or_default();

@@ -1,0 +1,8 @@
+{
+  "id": "m7-memory-plan",
+  "description": "新建 runtime/plugins/memory/PLAN.md：记录 trace.meta/session.skills/system 保留的实现、回退决策与验证。",
+  "file": "runtime/plugins/memory/PLAN.md",
+  "create": true,
+  "content_file": "blocks/m7-memory-plan.txt",
+  "create_marker": "# memory 插件改造计划（M 轮）"
+}

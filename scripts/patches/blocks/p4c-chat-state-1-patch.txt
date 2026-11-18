@@ -1,0 +1,6 @@
+        let mut empty_nudged = false;
+        // P4c 无进展熔断：记上一次工具调用的 (工具名, 参数 JSON) 与连续重复次数。
+        // 只统计「同一工具 + 同参数」**连续**重复——工具或参数任一变化即清零，
+        // 因此「换着参数重试」不会被误判。阈值 cfg.no_progress_repeat_limit（缺省 0=禁用）。
+        let mut last_tool_sig: Option<(String, Value)> = None;
+        let mut repeat_streak: usize = 0;

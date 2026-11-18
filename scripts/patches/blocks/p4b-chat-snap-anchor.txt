@@ -1,0 +1,9 @@
+            // 子代理预算快照（T4）：父链已用部分扣除后才传给子——随链衰减，多子代理共享同一剩余。
+            let budget_snap = if budget.deadline.is_some() || budget.tokens_left.is_some() {
+                Some((
+                    budget.deadline.map(|d| d.saturating_duration_since(Instant::now()).as_millis() as u64),
+                    budget.tokens_left.map(|t| t.saturating_sub(usage.total())),
+                ))
+            } else {
+                None
+            };

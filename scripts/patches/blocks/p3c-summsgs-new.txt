@@ -1,0 +1,11 @@
+        sum_msgs.extend(older.iter().map(|m| MemoryMsg {
+            role: m.role.clone(),
+            content: m.content.clone(),
+            tool_calls: m.tool_calls.clone(),
+            tool_call_id: m.tool_call_id.clone(),
+            // R3：摘要输入剥离附件（图片 b64 对文本摘要模型无意义且易撑爆压缩调用；
+            // 文件要点已可从 content 内嵌文本获得）。
+            // P3 降开销：此逐条 owned 克隆是「摘要输入需要独立于 history 的 owned 消息」的
+            // 必要一份——上一处 `older.to_vec()` 的整段克隆已删，故总克隆量减半。
+            attachments: None,
+        }));

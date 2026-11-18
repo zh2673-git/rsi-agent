@@ -1,0 +1,9 @@
+{
+  "id": "p4c-chat-streak-1",
+  "description": "P4c：工具波次执行后更新同参连续重复计数",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-streak-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-streak-1-patch.txt",
+  "order": 102,
+  "applied_marker": "if last_tool_sig.as_ref() == Some(&sig) {"
+}

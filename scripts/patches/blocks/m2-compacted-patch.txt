@@ -1,0 +1,7 @@
+        const marker: Msg = {
+          role: "user",
+          content:
+            `[Context compaction] 之前的会话历史已压缩为以下摘要：\n${summary}\n` +
+            `请基于该摘要与后续消息继续任务，不要声称记得被压缩的原文。`,
+        };
+        const compacted: Msg[] = sys ? [sys, marker, ...kept] : [marker, ...kept];

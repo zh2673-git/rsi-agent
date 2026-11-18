@@ -1,0 +1,9 @@
+{
+  "id": "p5-usage-methods-1",
+  "description": "P5：UsageAcc 增 add_http_attempts / http_attempts 方法",
+  "file": "runtime/crates/agent-loop/src/budget.rs",
+  "anchor_file": "blocks/p5-usage-methods-1-anchor.txt",
+  "patch_file": "blocks/p5-usage-methods-1-patch.txt",
+  "order": 144,
+  "applied_marker": "pub(super) fn add_http_attempts("
+}

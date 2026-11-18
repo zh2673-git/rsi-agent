@@ -1,0 +1,9 @@
+{
+  "id": "p5-anthropic-caps-1",
+  "description": "P5：anthropic pack 声明 capabilities（单次 POST 无流式、无 embed）",
+  "file": "runtime/plugins/llm_adapter/providers/anthropic.py",
+  "anchor_file": "blocks/p5-anthropic-caps-1-anchor.txt",
+  "patch_file": "blocks/p5-anthropic-caps-1-patch.txt",
+  "order": 159,
+  "applied_marker": "\"capabilities\": {\"stream\": False, \"tools\": True, \"images\": True, \"embed\": False, \"models\": True}"
+}

@@ -1,0 +1,11 @@
+                let execs = group.iter().map(|tc| {
+                    // P4b：按 tool_call id 取本批切分后的额度快照（非本批 task 调用为空）。
+                    self.act_exec(
+                        env,
+                        &req.session_id,
+                        req.depth,
+                        tc,
+                        budget_snaps.get(&tc.id).cloned(),
+                        &deferred_names,
+                    )
+                });

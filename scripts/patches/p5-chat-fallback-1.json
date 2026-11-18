@@ -1,0 +1,9 @@
+{
+  "id": "p5-chat-fallback-1",
+  "description": "P5：chat.rs 的 LlmChatResp 兜底字面量补 http_attempts: None（唯一构造点）",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p5-chat-fallback-1-anchor.txt",
+  "patch_file": "blocks/p5-chat-fallback-1-patch.txt",
+  "order": 142,
+  "applied_marker": "            http_attempts: None,\n        }))"
+}

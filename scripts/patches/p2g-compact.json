@@ -1,0 +1,9 @@
+{
+  "id": "p2g-compact",
+  "description": "P2：compaction.maybe_compact_with_keep 就地替换工作集时规范化 system（不假定首位、只留一个、取最后一条非空），置于压缩标记之前，recent 里的 system 全部剔除——与 memory summarize 同构。P3D 已把该块改写为按值消费版本（仍保持单 sys 规范化），故此补丁在 P3D 应用后锚点消失 = 已收敛。",
+  "file": "runtime/crates/agent-loop/src/compaction.rs",
+  "anchor_file": "blocks/p2g-compact-anchor.txt",
+  "patch_file": "blocks/p2g-compact-patch.txt",
+  "applied_marker": "compacted.extend(recent.iter().filter(|m| m.role != \"system\").cloned());",
+  "converge": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "p4c-chat-caller-g2-1",
+  "description": "P4c：max_rounds 出口 summary 调用补 stopped_reason=null",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p4c-chat-caller-g2-1-anchor.txt",
+  "patch_file": "blocks/p4c-chat-caller-g2-1-patch.txt",
+  "order": 110
+}

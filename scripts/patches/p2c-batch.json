@@ -1,0 +1,8 @@
+{
+  "id": "p2c-batch",
+  "description": "P2：同波次批处理纪律改用 append_to_system（不再假定 messages[0] 是 system）。",
+  "file": "runtime/crates/agent-loop/src/chat.rs",
+  "anchor_file": "blocks/p2c-batch-anchor.txt",
+  "patch_file": "blocks/p2c-batch-patch.txt",
+  "applied_marker": "append_to_system(\n            &mut messages,"
+}

@@ -1,0 +1,1 @@
+def _stream_once(endpoint: dict, body: dict, sink: StreamSink, provider_label: str, include_usage: bool) -> dict:

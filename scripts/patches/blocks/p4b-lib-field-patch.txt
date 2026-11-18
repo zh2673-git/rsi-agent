@@ -1,0 +1,33 @@
+    /// memory.append 连续失败计数（LOOP-P2/A2）：持久层与内存工作集开始分叉的信号，
+    /// 成功即清零；达到阈值由关键写入点熔断本轮，防错位静默放大。
+    append_fails: AtomicU64,
+    /// P4b 任务级累计花费账：外层键 = 根会话 id（`budget_root`），内层键 = 该任务下每条
+    /// 调用链的会话 id（顶层即根会话 id，子代理为其 sub_session），值 = 该链已消耗 token。
+    ///
+    /// 为什么需要它（改前必读）：修复前 `budget_snap` 只把「父链当前剩余」传给子代理，
+    /// 于是**同一父轮的多个子代理各自看到同一份剩余**——N 个子代理并发跑，实际可超支
+    /// N 倍，token 预算闸在最贵的场景（扇出探索）里彻底失真。任务账把「整条链已花多少」
+    /// 变成显式事实，派发时按「总额 − 全体已花」切分，超支被结构性封住。
+    spent: Mutex<std::collections::HashMap<String, std::collections::HashMap<String, u64>>>,
+}
+
+impl AgentLoopPlugin {
+    /// P4b 记账：写入某条调用链在本任务内的累计花费。
+    ///
+    /// 语义是**绝对值覆盖**（调用方传该链的 `usage.total()`，不是增量）：同一
+    /// (root, session) 只保留最新值，重复调用幂等；不同链互不覆盖，求和即任务总额。
+    fn record_spent(&self, root: &str, session: &str, spent: u64) {
+        let mut m = self.spent.lock().unwrap();
+        m.entry(root.to_string()).or_default().insert(session.to_string(), spent);
+    }
+
+    /// P4b：本任务全体成员（父链 + 所有子代理）已花 token 总额。
+    /// 派发子代理时用它算「总额 − 已花」，从而让兄弟子代理分食同一份剩余。
+    fn task_spent(&self, root: &str) -> u64 {
+        self.spent
+            .lock()
+            .unwrap()
+            .get(root)
+            .map(|m| m.values().copied().fold(0u64, |a, b| a.saturating_add(b)))
+            .unwrap_or(0)
+    }

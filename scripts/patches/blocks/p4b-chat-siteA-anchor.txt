@@ -1,0 +1,3 @@
+            llm_calls += 1;
+            usage.add(resp.usage.as_ref());
+            llm_ms += resp.elapsed_ms.unwrap_or(0);

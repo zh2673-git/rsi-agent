@@ -1,0 +1,9 @@
+    /// 预算随链衰减（T4）：`budget_snap` = (剩余ms, 剩余token) 写入子 chat 请求；
+    /// 预算未启用（两者皆 None）→ 不携带，子链退化为各自的 env 缺省（同为禁用）。
+    pub(super) async fn run_subagent(
+        &self,
+        src: &Envelope,
+        parent_session: &str,
+        task_text: &str,
+        depth: u32,
+        budget_snap: Option<(Option<u64>, Option<u64>)>,
