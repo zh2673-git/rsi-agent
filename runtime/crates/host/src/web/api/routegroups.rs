@@ -1075,6 +1075,27 @@ async fn gateway_models(kernel: &Kernel) -> Result<HashSet<String>, Value> {
     Ok(models)
 }
 
+/// 取网关模型 → display_name 映射（别名归并用）。Magpie 网关在 /v1/models 每项带
+/// `display_name`：同一真实模型在不同平台常是不同 id（glm-5.3-flash / gfmodel /
+/// gmodel…），但 display_name 相同。前端一键建组据此把别名一起纳为成员。
+/// 软降级：adapter 未回传 meta 时返回空数组，前端回退到尾段匹配。
+async fn gateway_models_meta(kernel: &Kernel) -> Vec<Value> {
+    let v = match dispatch_or_err(kernel, "llm-adapter", json!({"op": "models.list"})).await {
+        Ok(v) => v,
+        Err(_) => return vec![],
+    };
+    v.get("models_meta")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|m| {
+            m.get("name").and_then(Value::as_str).is_some_and(|n| !n.starts_with("auto/") && !n.starts_with("group/"))
+                && m.get("display_name").and_then(Value::as_str).is_some_and(|s| !s.is_empty())
+        })
+        .collect()
+}
+
 /// 校验一个成员是否可用。
 ///
 /// 规则（来自 CLI help 与实测）：
@@ -1304,12 +1325,16 @@ pub(crate) async fn routegroups_options(stream: &mut TcpStream, kernel: &Kernel)
         Ok(models) => {
             let mut list: Vec<String> = models.into_iter().collect();
             list.sort();
+            // models_meta=[{name,display_name}]：供前端按 display_name 把别名
+            // （gfmodel/gmodel…）并入同一 auto 组。adapter 未回传时为空数组，前端回退尾段匹配。
+            let meta = gateway_models_meta(kernel).await;
             json_resp(
                 stream,
                 200,
                 json!({
                     "ok": true,
                     "models": list,
+                    "models_meta": meta,
                     "routings": ROUTING_KINDS,
                     "stays": STAYS_KINDS,
                 }),

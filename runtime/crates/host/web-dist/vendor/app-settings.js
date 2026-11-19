@@ -379,6 +379,9 @@ function mpickSelect(name) {
   ensureCustomOption(sel);
   if ([...sel.options].some((o) => o.value === name)) { sel.value = name; $("llm-model-custom").value = ""; }
   else { sel.value = "__custom__"; $("llm-model-custom").value = name; }
+  // 关键：把 lastSyncedModel 同步到用户选择。后台 autoSyncModels() 用它作 keep 回写
+  // select.value；不同步就会在任意一次自动同步后把未保存的选择静默改回服务端旧模型。
+  lastSyncedModel = curModelName();
   syncModelField();
   updateCtxHint();
   sel.dispatchEvent(new Event("change"));  // modelPicked / rgRenderMissing / 高亮重画都挂在这上面
@@ -605,7 +608,7 @@ function keepCurrentAsCustom(cur) {
 }
 // 手动改动模型 → 记为「用户选过」，自动同步据此保留未保存的选择
 $("llm-model").addEventListener("change", () => { modelPicked = true; });
-$("llm-model-custom").addEventListener("input", () => { modelPicked = true; });
+$("llm-model-custom").addEventListener("input", () => { modelPicked = true; lastSyncedModel = curModelName(); });
 function syncModelField() {
   const isCustom = $("llm-model").value === "__custom__";
   $("llm-model").style.display = isCustom ? "none" : "";
@@ -1029,11 +1032,32 @@ function rgRenderMissing() {
   $("rg-missing-create").onclick = () => rgQuickCreate(tail);
 }
 
-// 尾段匹配而不是整串匹配：同一模型常有多渠道（`kilo/x:free` 与 `opencode-zen/x`），
-// 组的意义正是把多渠道合成一个入口。reasoning effort 后缀（`:high`）不计入尾段。
+// 成员归并：同一真实模型在各平台常是不同 id（glm-5.3-flash / gfmodel / gmodel…），
+// 但网关 /v1/models 的 display_name 相同。优先按 display_name 把别名一起纳入组，
+// 组才能覆盖全部平台并自动故障转移；meta 缺失时回退到尾段匹配（老行为）。
+//
+// 例：target=glm-5.3-flash → 尾段命中 workbuddy/glm-5.3-flash，其 display_name=GLM-5.3-Flash；
+// 再把所有 display_name=GLM-5.3-Flash 的模型（含 qoder/gfmodel）并入。
 function rgMembersForTarget(tail) {
-  const models = (rgState.options && rgState.options.models) || [];
-  return models.filter((m) => m.replace(/:[a-z+]+$/, "").split("/").pop() === tail);
+  const o = rgState.options || {};
+  const models = o.models || [];
+  const meta = Array.isArray(o.models_meta) ? o.models_meta : [];
+  const tailOf = (s) => String(s || "").replace(/:[a-z+]+$/, "").split("/").pop();
+  if (meta.length) {
+    const nameOf = new Map(meta.map((m) => [m.name, (m.display_name || "").trim()]));
+    // 1) target 尾段命中的模型 → 它们的 display_name 就是本组要归并的真实模型名
+    const targets = new Set();
+    for (const m of models) {
+      if (tailOf(m) === tail && nameOf.get(m)) targets.add(nameOf.get(m));
+    }
+    // 2) 所有 display_name 命中的真实模型（含别名）都是成员
+    if (targets.size) {
+      const picked = models.filter((m) => targets.has(nameOf.get(m)));
+      if (picked.length) return picked;
+    }
+  }
+  // 回退：尾段匹配（含 effort 后缀归一）
+  return models.filter((m) => tailOf(m) === tail);
 }
 
 async function rgQuickCreate(tail) {

@@ -128,7 +128,19 @@ def _chat_once(endpoint: dict, body: dict, provider_label: str) -> dict:
             if resp.status_code < 400:
                 data = resp.json()
                 # 原成功路径主体（原样保留，仅包进循环提前返回）
-                return _chat_once_success(endpoint, body, provider_label, data, elapsed_ms, attempt + 1)
+                out = _chat_once_success(endpoint, body, provider_label, data, elapsed_ms, attempt + 1)
+                # 200 空正文防护：网关（账号额度耗尽/登录过期/限流页）会回 200 + 空 content，
+                # 旧实现 norm(ok=True) 让 agent-loop 拿到空答案，前端 app-stream 又丢弃空 answer
+                # 事件 → 用户只看到空白。判为瞬时错误并重试，把「空答案」转成可恢复的故障转移。
+                if (out.get("ok") and not (out.get("content") or "").strip()
+                        and not out.get("tool_calls") and not out.get("reasoning")):
+                    last = err(f"{provider_label} HTTP 200 但回复正文为空（账号额度/登录态/网关异常）: {json.dumps(data, ensure_ascii=False)[:200]}", code="LLM_TRANSIENT")
+                    last["http_attempts"] = attempt + 1
+                    if attempt < attempts - 1:
+                        time.sleep(float(2 ** attempt))
+                        continue
+                    return last
+                return out
             last = err_from_resp(provider_label, resp.status_code, resp.text)
             # P5 观测：HTTP 层失败同样上报真实尝试次数（含本次）。
             last["http_attempts"] = attempt + 1
@@ -310,12 +322,19 @@ def _stream_once(
     sink.end(usage, elapsed_ms)
 
     call_list = [{"id": v["id"], "name": v["name"], "arguments": as_object(v["arguments"])} for v in calls.values() if v["name"]]
+    full_text = "".join(content_parts)
+    full_reasoning = "".join(reasoning_parts)
+    # 流式空正文防护：与 _chat_once 同理，正文/思考/工具调用全空时不能 ok:None
+    # （前端会静默丢弃空 answer，用户看到空白）。流式已外抛增量，不再本地重试，
+    # 交给 agent-loop 的错误/降级路径处理。
+    if not full_text.strip() and not call_list and not full_reasoning.strip():
+        return err(f"{provider_label} 流式响应正文为空（账号额度/登录态/网关异常）", code="LLM_EMPTY")
     return norm(
-        "".join(content_parts) or None,
+        full_text or None,
         call_list,
         model,
         "tool_calls" if call_list else finish,
-        reasoning="".join(reasoning_parts) or None,
+        reasoning=full_reasoning or None,
         usage=usage,
         elapsed_ms=elapsed_ms,
         http_attempts=http_attempts,
