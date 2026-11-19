@@ -1,0 +1,88 @@
+{
+  "ok": true,
+  "skill": "make-video",
+  "version": "0.1.0",
+  "suite": "evals\\cases.jsonl",
+  "evaluated_at": "2026-11-19T21:46:00+08:00",
+  "summary": {
+    "total": 6,
+    "decided": 5,
+    "pending": 1,
+    "invalid": 0,
+    "pass_rate": 1.0
+  },
+  "cases": [
+    {
+      "id": "mv-s1-baseline-4samples",
+      "signal": "assert",
+      "weight": 3.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "mv-s2-emotion-judge",
+      "signal": "judge",
+      "weight": 2.0,
+      "status": "pending",
+      "score": null,
+      "pass": null,
+      "reason": "未提供 --judge-cmd（pending）"
+    },
+    {
+      "id": "mv-s3-syntax-smoke",
+      "signal": "assert",
+      "weight": 2.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "mv-s4-choreo-ablation",
+      "signal": "assert",
+      "weight": 2.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "mv-s5-emotion-ablation",
+      "signal": "assert",
+      "weight": 2.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    },
+    {
+      "id": "mv-s6-constraints-ablation",
+      "signal": "assert",
+      "weight": 2.0,
+      "status": "decided",
+      "score": 1.0,
+      "pass": true,
+      "reason": "全部命中"
+    }
+  ],
+  "llm": {
+    "provider": "",
+    "models": [],
+    "drift": false,
+    "recorded": false
+  },
+  "baseline": {
+    "path": "outputs\\style-samples\\eval-baseline.json",
+    "version": "1.0.0-stage5",
+    "pass_rate": 1.0
+  },
+  "regressions": [],
+  "degraded": false,
+  "promotion": {
+    "eligible": true,
+    "reasons": [],
+    "note": "仍需至少一条 E1/E2/E3 外部信号（见 skill_state.py promote）"
+  }
+}

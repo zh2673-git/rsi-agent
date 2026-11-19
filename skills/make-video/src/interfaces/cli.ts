@@ -739,7 +739,8 @@ program
       const { compose } = await import('../domain/composer.js');
       const p = engine.getProject();
       const pack = registry.resolveStyle(p.style!);
-      const timeline = await compose(engine.deps.store, p, pack);
+      const recipe = registry.getRecipe(p.meta.genre);
+      const timeline = await compose(engine.deps.store, p, pack, recipe);
       out({
         shots: timeline.shots.length,
         totalMs: timeline.shots.reduce((a, s) => a + s.durationMs, 0),

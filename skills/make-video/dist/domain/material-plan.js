@@ -17,6 +17,11 @@ export async function planMaterials(project, pack, llm) {
                 narration: s.narration,
                 emphasis: seg?.emphasis ?? [],
                 zoom: s.zoom,
+                // A2（P13 阶段1 · 提案 §1.E）：剧本层的素材诉求随需求单进 LLM 上下文——
+                // 没有这一行，assetNeed 就只是剧本里的一个没人读的字段。
+                ...(seg?.assetNeed ? { assetNeed: seg.assetNeed } : {}),
+                ...(seg?.subtext ? { subtext: seg.subtext } : {}),
+                ...(seg?.emotion ? { emotion: seg.emotion } : {}),
             };
         }),
     };
@@ -43,10 +48,16 @@ function normalize(raw, shot, segments) {
     const segmentId = String(shot?.segmentId ?? r.segmentId ?? '');
     const narration = String(shot?.narration ?? r.narration ?? '');
     const emphasis = segments.find((s) => s.id === segmentId)?.emphasis ?? [];
+    const seg = segments.find((s) => s.id === segmentId);
     // 没有明确判断就退回代码绘制：重音词不等于「现实指称物」，不能据此要真实素材
-    const need = NEEDS.includes(String(r.need))
+    let need = NEEDS.includes(String(r.need))
         ? r.need
         : 'none';
+    // A2：剧本声明 evidence 段而 LLM 判了 none —— 证据诉求优先，按背景素材去检索。
+    // 这不是替 LLM 猜指称物，而是不接受「把证据段判成什么都不用」：声明是编剧的责任，
+    // 需求单必须能承载它，否则 assetNeed 落不了地。
+    if (need === 'none' && seg?.assetNeed === 'evidence')
+        need = 'background';
     const query = need === 'none'
         ? ''
         : String(r.query ?? '').trim() || [projectTopicFallback(narration), ...emphasis].join(' ');

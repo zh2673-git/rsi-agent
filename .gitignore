@@ -46,3 +46,10 @@ config/*.bak
 # run.cmd 与 host 的 sau_on_path() 都按 tools/sau 这个固定路径探测
 # 锚定根目录：不锚定会连带忽略 runtime/plugins/tools/（内置工具实现，必须入库）
 /tools/
+
+# 出片渲染产物（成片 mp4/srt/png + 审计报告 json/md），本机生成不入库
+/outputs/
+skills/make-video/outputs/
+# skill 本机运行状态（版本评分/晋升时间戳），非发行资产
+skills/make-video/state.json
+

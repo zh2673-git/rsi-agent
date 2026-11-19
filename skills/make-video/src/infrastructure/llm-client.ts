@@ -130,7 +130,7 @@ export function buildSceneSystemPrompt(): string {
    若这一镜确实需要文字，只允许：① 概括成数字/专名/缩写（旁白说"同一时间"，屏上写"4 路并行"）；② 短标签（≤4 字且非旁白原文，如"取指""译码"）；③ 标签元素必须带 class="caption"（或 hint/sub），校验器会把它当字幕区跳过。标题类文字同理，只能写本镜的抽象结论，不能抄旁白。
 3. 动画原语**只有**这些（MV. 前缀，写成 MV.xxx）：${prims}。
    此外动作谱 actionSheet.requiredPrimitives 点名的原语必须全部真的调用。**白名单之外的 MV.xxx 一律判打回**——写之前先对照上面这份清单，不要臆造 MV.from / MV.to / MV.fromTo / MV.fade 之类不存在的原语。
-   缓动只能取：power1-4 的 .in/.out/.inOut、sine、expo、quint、back.out、elastic.out、none。时长只允许 150-200/200-400/400-800/300-600/1200-2000ms。
+   缓动只能取：power1-4 的 .in/.out/.inOut、sine、expo、quint、back.out、elastic.out、none。时长只允许 150-200/200-400/400-800/300-600/800-1200/1200-2600ms。
 4. **动作谱就是施工图**（payload.actionSheet）：prepare/main/settle/secondary/cameraPath/soundCue/motif 逐条落实；requiredPrimitives 列出的每个原语必须真的调用一次（缺一个校验器打回）。MV.motifLoop 是**必选**（缺了整镜打回），且 amp ≥ 0.5（动 1-2px 等于没动）。
 4a. **导演精修批注（payload.revisions，可能为空）**：这些是导演对上一版的具体意见（如「收尾再静一点」「数字小一点」），逐条在画面里落实——批注的优先级高于你对画面的默认判断。
 4b. **重音是预算，不是强调语气**（V-MOT-013）：全片只有 ${ACCENT_PRIMITIVES.join('/')} 算重音标点，
@@ -353,7 +353,18 @@ function templateDirectorNotes(payload: Record<string, unknown>): unknown {
 }
 
 interface StoryboardPayload {
-  segments: Array<{ id: string; text: string; beat?: string }>;
+  // A2（P13 阶段1）：segment 带出的剧本层字段原样进 LLM 上下文——
+  // subtext/emotion/counterpoint/assetNeed 是编剧对「这段在说什么/什么调子/怎么对位」的判断，
+  // 分镜要看得见它们，否则这些字段在 storyboard 一处也不生效。
+  segments: Array<{
+    id: string;
+    text: string;
+    beat?: string;
+    subtext?: string;
+    emotion?: string;
+    counterpoint?: string;
+    assetNeed?: string;
+  }>;
   directorNotes: Array<{ segmentId: string; visualIntent: string; counterpoint: string }>;
   templates: string[];
   styleVisual?: { dimension?: string; sceneBias?: string[]; sceneDeny?: string[]; motifs?: string[] };
@@ -399,8 +410,11 @@ function templateStoryboard(payload: Record<string, unknown>): unknown {
       template = pickTemplateBySemantics(seg.text, mvTemplates.length ? mvTemplates : ['typography'], bias);
     }
     const zoom = zooms[i % zooms.length] ?? 'MS';
+    // A2 对位优先取剧本层声明（编剧对「这一段怎么对位」的判断比配方 beat 的默认更具体），
+    // 其次配方导演阐述，最后才是兜底。`parody` 仍归 V-CP-004 管（必须配 gag）。
+    const counterpoint = seg.counterpoint ?? note?.counterpoint ?? 'metaphor';
     const motivation =
-      i === 0 ? '' : relationReason(prevZoom, zoom, note?.counterpoint ?? 'metaphor', seg.text);
+      i === 0 ? '' : relationReason(prevZoom, zoom, counterpoint, seg.text);
     prevZoom = zoom;
     return {
       segmentId: seg.id,
@@ -415,7 +429,7 @@ function templateStoryboard(payload: Record<string, unknown>): unknown {
       zoom,
       camera: CAMERA_CYCLE[i % CAMERA_CYCLE.length] ?? 'push-in',
       motivation,
-      counterpoint: note?.counterpoint ?? 'metaphor',
+      counterpoint,
       // 转场留空 = auto，由剪辑部按动机裁决（P2：转场不再是索引轮转的装饰）
       transition: '',
     };

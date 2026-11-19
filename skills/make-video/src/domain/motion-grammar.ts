@@ -197,7 +197,11 @@ export const GRAMMARS: GrammarSpec[] = [
     when: '无形式可依的氛围/过渡镜',
     avoid: '能用前八种讲清时别用它（它是兜底不是风格）',
     motionBeats: ['主体定场', '→ 环境母题循环（画一直是活的）', '→ 慢漂', '→ 收在可读的静止'],
-    cameraBias: ['drift', 'static', 'slow-drift'],
+    // C1（P13 阶段2）：第三位曾是 'slow-drift'——但 normalizeCameraBias 把
+    // slow-drift 归一为 drift（本文件 :588 附近），cameraBias[2] 永远到不了
+    // 任何词表（actionSheet 只取 cameraBias[0]），是纯幽灵值。删除，防「词表里有
+    // 一个永远不生效的词」式声明腐烂（与 page-turn 事故同类，见 TransitionKind 注）。
+    cameraBias: ['drift', 'static'],
     textShare: 0.15,
     motifs: ['float', 'pulse', 'rotate', 'breathe'],
     sceneForms: ['atmosphere', 'depth-layers', 'iso-stage'],
@@ -430,6 +434,20 @@ export interface ActionRequirement {
   label: string;
   /** 可接受的等效原语（任一命中即满足） */
   anyOf: string[];
+  /**
+   * 骨架代表（P13 阶段1 · B1 单源化）：写进 `REQUIRED_BY_GRAMMAR` 与提示词的那个原语，
+   * 缺省取 `anyOf[0]`。
+   *
+   * 为什么需要这个例外位：`anyOf` 的顺序表达的是「语义上的首选」，而骨架表达的是
+   * 「每镜都必须真的调用」。两者在 y5 分歧——`slam` 是重音要求的语义首选，但它受
+   * V-MOT-013「全片重音镜 ≤1/3」预算约束（16 镜只有 5 个配额），骨架若点 slam 会与
+   * 预算闸死锁；所以 y5 的骨架必须是 `emphasis`（卡点跟随，不计入重音预算）。
+   *
+   * 历史：这两张表此前各自手写，于是 y3/y7 骨架点死 `maskReveal` 而语义表接受
+   * `maskReveal|staggeredIn`，提示词口径 ≠ 校验口径（审计发现 B1）。现在骨架表
+   * 从语义表派生，例外只能写在这里、有名字、可被测试枚举。
+   */
+  skeleton?: string;
 }
 
 /**
@@ -462,8 +480,18 @@ export const REQUIREMENTS_BY_GRAMMAR: Record<string, ActionRequirement[]> = {
   ],
   // 关键词重音（slam 或 emphasis 都算）+ 错峰 + 环境母题
   // 这一组是「等效组」价值的最好例子：kinetic-type 用 slam，不是 emphasis。
+  //
+  // skeleton 例外（B1 单源化后唯一一处，见 ActionRequirement.skeleton）：语义首选是 slam，
+  // 但 slam 是**戏剧标点**，受 V-MOT-013「全片重音镜 ≤1/3」约束（16 镜只有 5 个配额，
+  // 见 accent-budget.ts），骨架若点 slam 必然与预算闸死锁。卡点跟随（emphasis）才是每镜
+  // 都该有的东西，且它不计入重音预算。
   y5_kinetic_type: [
-    { id: 'accent', label: '关键词重音落下', anyOf: ['MV.slam', 'MV.emphasis', 'MV.punch'] },
+    {
+      id: 'accent',
+      label: '关键词重音落下',
+      anyOf: ['MV.slam', 'MV.emphasis', 'MV.punch'],
+      skeleton: 'MV.emphasis',
+    },
     { id: 'stagger', label: '辅助词错峰跟上', anyOf: ['MV.staggeredIn', 'MV.counter'] },
     { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
   ],
@@ -502,7 +530,12 @@ export const REQUIREMENTS_BY_GRAMMAR: Record<string, ActionRequirement[]> = {
 /**
  * 判定一个场景 HTML 是否满足某语法的全部动作要求。
  *
- * @returns 未满足的要求（空数组 = 全部满足）
+ * @returns 未满足的要求（空数组 = 全部满足；**语法未注册时也为空**，见下方警告）
+ *
+ * ⚠️ 未注册语法返回空数组是历史遗留的静默行为（审计发现 A1）：新语法若漏写语义表，
+ * 调用方拿到的「空数组」与「全部满足」不可区分——整条动作校验就这么蒸发，测试还全绿。
+ * 调用方必须先问 `isRequirementsRegistered()` 再决定怎么解释这个空数组；
+ * tests/catalog.test.ts 另有一层守护，把「每条语法都登记了语义表」钉死。
  */
 export function unmetRequirements(
   grammarId: string,
@@ -513,40 +546,43 @@ export function unmetRequirements(
   return reqs.filter((r) => !r.anyOf.some((p) => html.includes(p)));
 }
 
+/**
+ * 该语法的语义需求表是否已登记（P13 阶段1 · A1）。
+ *
+ * 为什么单独立一个函数而不是让 `unmetRequirements` 抛错：这个文件的读者有两类——
+ * 校验器（要判「校验是否失效」）与提示词生成（要判「骨架从哪来」），
+ * 让查询保持无副作用、把裁决留给调用方，才不会在提示词路径上意外抛错。
+ */
+export function isRequirementsRegistered(grammarId: string): boolean {
+  const reqs = REQUIREMENTS_BY_GRAMMAR[grammarId];
+  return Array.isArray(reqs) && reqs.length > 0;
+}
+
 /** 某语法的动作要求（给提示词与文档用） */
 export function requirementsFor(grammarId: string): ActionRequirement[] {
   return REQUIREMENTS_BY_GRAMMAR[grammarId] ?? [];
 }
 
 /**
- * 语法 → 必选原语（P8-T5 约束表）。
- * 取材于各语法 motionBeats 里点名的动作：动作谱写了什么，场景就必须做什么。
- * motifLoop 全语法必选（阿杜/花叔共同铁律「画面一直是活的」= V-MOT-021）。
+ * 语法 → 必选原语（P8-T5 约束表）**从语义表派生**（P13 阶段1 · B1 单源化）。
+ *
+ * 为什么不再手写：这两张表此前各自维护，于是漂移——y3/y7 骨架点死 `maskReveal`，
+ * 语义表却接受 `maskReveal|staggeredIn`；提示词（`actionSheet.requiredPrimitives`）
+ * 按骨架说「必须调 maskReveal」，校验器按语义组判「maskReveal 或 staggeredIn 都行」，
+ * 两套口径对同一张画面给出不同结论（审计发现 B1）。
+ *
+ * 派生规则：每个动作要求取 `skeleton ?? anyOf[0]`。`motifLoop` 全语法必选
+ * （阿杜/花叔共同铁律「画面一直是活的」= V-MOT-021），由语义表各语法的 `alive` 要求保证。
+ *
+ * 唯一的例外（y5 的 accent → emphasis）写在语义表的 `skeleton` 字段里，有名字可枚举；
+ * tests/catalog.test.ts 断言「骨架表与语义表零漂移」，除了这个具名例外。
  */
-export const REQUIRED_BY_GRAMMAR: Record<string, string[]> = {
-  y1_flat_explainer: ['MV.enter', 'MV.motifLoop'],
-  // y2 的动作拍是「材料冲印件落下（错峰）→ 高亮扫过要读那一行 → 红线连接」。
-  // 只强制错峰 + 红线（骨架），高亮要求由导演按镜头取舍：很多 y2 镜只有一个
-  // 待读对象，硬扫一道高亮反而是噪音（本片 8 个 y2 镜里 8 个都没写 highlight，
-  // 若强制则全部打回，等于把主力路径卡死）。
-  y2_collage: ['MV.staggeredIn', 'MV.motifLoop'],
-  y3_whiteboard: ['MV.maskReveal', 'MV.motifLoop'],
-  y4_story: ['MV.enter', 'MV.performance', 'MV.motifLoop'],
-  // y5 的动作拍是「关键词整词砸入 → 主词拉开字距定住 → 辅助词错峰跟上」。
-  // 原来这里点的是 highlight（高亮扫过，那是 y2 的动作），与 motionBeats 不符——
-  // 后果是本片 6 个 y5 镜全被判「缺 highlight」，而语法真正要求的砸入反而没被约束。
-  //
-  // 只强制 emphasis + staggeredIn：slam 是**戏剧标点**，受 V-MOT-013「全片重音镜 ≤1/3」
-  // 约束（16 镜只有 5 个配额，见 accent-budget.ts），强制它必然和预算闸死锁。
-  // 卡点跟随（emphasis）才是每镜都该有的东西，且它不计入重音预算。
-  y5_kinetic_type: ['MV.staggeredIn', 'MV.emphasis', 'MV.motifLoop'],
-  y6_mechanism: ['MV.maskReveal', 'MV.staggeredIn', 'MV.highlight', 'MV.morphTo', 'MV.motifLoop'],
-  y7_system_map: ['MV.maskReveal', 'MV.motifLoop'],
-  t1_3b1b: ['MV.morphTo', 'MV.motifLoop'],
-  t2_keynote: ['MV.staggeredIn', 'MV.motifLoop'],
-  t3_finance: ['MV.counter', 'MV.highlight', 'MV.motifLoop'],
-  b_roll: ['MV.motifLoop'],
-};
+export const REQUIRED_BY_GRAMMAR: Record<string, string[]> = Object.fromEntries(
+  Object.entries(REQUIREMENTS_BY_GRAMMAR).map(([gid, reqs]) => [
+    gid,
+    reqs.map((r) => r.skeleton ?? r.anyOf[0]!),
+  ]),
+);
 
 /**
  * 机位偏好落成词表值（b_roll 的 slow-drift 是别名 → drift）。
@@ -730,6 +766,19 @@ export interface MotionShotFact {
    * （一镜之内当然同构图同语法，那是连续性不是节拍器）。
    */
   continuity?: boolean;
+  /**
+   * A5 调度表：机位动机（follow/reveal/hold/emotion/setup）。
+   * 缺省 = 该镜没有做机位决策，motion-audit 记入 intent 覆盖率。
+   */
+  intent?: string;
+  /** A5 调度表：五轨动/静决策原文（用于「多轨齐动」统计） */
+  staging?: {
+    camera: { motion: string; what: string; why: string; intent: string };
+    subject?: { motion: string; what: string; why: string };
+    supporting?: { motion: string; what: string; why: string };
+    environment?: { motion: string; what: string; why: string };
+    subtitle?: { motion: string; what: string; why: string };
+  };
 }
 
 /**

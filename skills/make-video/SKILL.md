@@ -108,7 +108,7 @@ cd skills/make-video && npm test && git add -A && git commit -m "fix: ..." && gi
      "heroAnchor":{"x":76,"y":46,"width":24}}`）即让卡通头像出镜；
      `hero-to-corner` 是**同一元素**开头大窗、随后改尺寸/位置收到角标，
      不是每镜重新淡入（那会在快切里闪）。
-   - 审计落 `logs/motion-audit.json`；**26 个动效原语**见 `templates/motion/motion-lib.js`（白名单与实现必须一一对应，由 tests/catalog.test.ts 守护）。
+   - 审计落 `logs/motion-audit.json`；**28 个动效原语**见 `templates/motion/motion-lib.js`（白名单与实现必须一一对应，由 tests/catalog.test.ts 守护）。
 
 ## 风格菜单（用户叫法 → 风格包）
 

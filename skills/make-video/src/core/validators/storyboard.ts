@@ -1,6 +1,7 @@
 import type { Project } from '../schema.js';
 import { isCameraToken, CAMERA_MOVES } from '../schema.js';
 import { err, warn, type Issue } from './types.js';
+import { findSharedRuns } from './scene.js';
 
 export function validateStoryboard(p: Project): Issue[] {
   const issues: Issue[] = [];
@@ -100,5 +101,82 @@ export function validateStoryboard(p: Project): Issue[] {
     issues.push(err('V-STYLE-001', '风格决策缺少 rationale'));
   }
 
+  issues.push(...validateCounterpointDiversity(shots));
+
   return issues;
+}
+
+/**
+ * V-CP-005 对位多样性（P13 阶段1 · 提案 §1.A）。
+ *
+ * 为什么是统计而不是逐镜：单镜选 `metaphor` 永远合法，问题只在**全片只有一种**——
+ * 那是「一个语调讲完全片」，观众听到的节奏是平的。所以只在镜数 ≥6 时判，
+ * 少镜短片本来就没有分布可言（4 镜里凑 2 种是凑数不是多样）。
+ *
+ * 照 V-RHY-010 / validateCutMotivation 的 `kinds.size < 2` 现成模式（composer.ts:110-112）。
+ */
+export function validateCounterpointDiversity(shots: Project['shots']): Issue[] {
+  if (shots.length < 6) return [];
+  const kinds = new Set(shots.map((s) => s.counterpoint).filter(Boolean));
+  if (kinds.size >= 2) return [];
+  return [
+    warn(
+      'V-CP-005',
+      `${shots.length} 镜全片只有一种对位模式（${[...kinds].join('/') || '未声明'}）——一个语调讲完全片，至少给一段换对位（literal/atmospheric/complementary 都是现成选项）`,
+    ),
+  ];
+}
+
+/**
+ * V-CP-006 字面直译率分档（P13 阶段1 · 提案 §1.A）。
+ *
+ * 判据：画面与旁白共享的连续片段（`findSharedRuns`，与 V-SCENE-005 同一数据源）
+ * 占旁白内容单位数的比例。比例**过高** = 看图说话：观众看着字，听着同一句字。
+ *
+ * 为什么按 genre 分档而不是一个普世阈值：讲解类（科学/教程/儿童）本来就该让术语上画面，
+ * 高重合是对的；叙事/观点类高重合就是插图。档位是**先验偏好**，进登记簿，不是普世法。
+ *
+ * 为什么只判上限、不判下限：低重合正是隐喻/纯氛围该有的样子——「跑题」与「意境」
+ * 在纯统计上不可分（需要 judge 盲评）。硬判下限会把对的表达判错，所以这一侧留给人看。
+ */
+export const LITERAL_RATE_BANDS: Record<string, number> = {
+  // 讲解/信息类：术语上画面是功能不是缺陷
+  'science-explainer': 0.45,
+  'tutorial-howto': 0.45,
+  'kids-education': 0.5,
+  'news-brief': 0.45,
+  'product-promo': 0.4,
+  // 叙事/观点/氛围类：字面复述就是插图
+  'story-narrative': 0.3,
+  'opinion-essay': 0.3,
+  'documentary-mood': 0.25,
+  'cosmos-cinematic': 0.25,
+  'short-vibe': 0.35,
+};
+/** 未登记 genre 的兜底档（取讲解与叙事之间） */
+export const LITERAL_RATE_DEFAULT_BAND = 0.35;
+
+export function validateLiteralRate(narration: string, html: string, genre: string | undefined): Issue[] {
+  const units = narrationUnits(narration);
+  if (units < 8) return []; // 太短的句子没有比率可言（一两句口号）
+  const runs = findSharedRuns(narration, html);
+  const shared = runs.reduce((acc, r) => acc + r.length, 0);
+  const rate = shared / units;
+  // 注意不能写 `genre && LITERAL_RATE_BANDS[genre]`：genre 为空串时整个表达式就是 ''，
+  // 类型被拉成 string | number，`rate <= band` 直接编译失败（且空串会绕过兜底档）。
+  const band = LITERAL_RATE_BANDS[genre ?? ''] ?? LITERAL_RATE_DEFAULT_BAND;
+  if (rate <= band) return [];
+  return [
+    warn(
+      'V-CP-006',
+      `字面直译率 ${(rate * 100).toFixed(0)}% 超过 ${genre || '默认'} 档 ${(band * 100).toFixed(0)}%（共享片段：${runs.join('、')}）——画面在复述旁白，换成对位表达（换主体/换尺度/换隐喻）`,
+    ),
+  ];
+}
+
+/** 旁白内容单位数：汉字 1 字 1 单位，英文/数字按词（≥2 字符）1 单位，标点不计 */
+function narrationUnits(narration: string): number {
+  const cjk = (narration.match(/[\u4e00-\u9fff]/g) ?? []).length;
+  const words = (narration.match(/[A-Za-z0-9]{2,}/g) ?? []).length;
+  return cjk + words;
 }

@@ -326,6 +326,315 @@ export function leftoverPlaceholders(html: string): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// 阶段 0 接线：素材槽 ifMissing / 容量上限 / 变体（P12 阶段4 遗留的三件事）
+//
+// 为什么放在这一层而不是 scene-forge：这三条都是**契约的事实**，与渲染器无关。
+// 放在契约层，场景渲染、未来的分镜期预检、审计都能复用同一套判据，不会各写一份。
+//
+// 三条都**克制地只在「导演显式给的」上生效**：
+//   派生值（deriveContent 的产出）不受容量约束——派生是**内容压缩器**，
+//   它自己按槽位截断；再对它套容量会二次伤害（deep-stage 的 3 个 PANEL×16 + DESC
+//   合计本就超过 capacity.maxChars=72，而那是模板的真实排版容量，不是文案预算）。
+// ---------------------------------------------------------------------------
+
+/**
+ * 素材槽 → 参数名的绑定（命名约定，不改盘上 meta.json 的 schema）。
+ *
+ * 约定的来源：模板契约里 `role` 写的是**语义槽**（`text.hero` / `image.presenter`），
+ * 参数名写的是**占位符**（`HERO_WORD` / `LEFT_TAG`）。两者此前没有任何机械联系，
+ * 于是「槽位」只是文档，渲染期无人兑现。这里把约定写成可执行的一行表：
+ *
+ *   - `text.hero`      → 前缀 `HERO`（HERO_WORD / HERO_CARD…）
+ *   - `text.left`      → 前缀 `LEFT`（LEFT_TAG / LEFT_NUM / LEFT_NOTE）
+ *   - `text.right`     → 前缀 `RIGHT`
+ *   - `text.note`      → `LEFT_NOTE` / `RIGHT_NOTE` / `NOTE`（两侧共用 NOTE 语义）
+ *   - `text.panel`     → 前缀 `PANEL`（PANEL1..3）
+ *   - `text.tier`      → 前缀 `TIER`；`text.desc` → 前缀 `DESC`
+ *   - `text.card`      → 前缀 `CARD`（CARD1_TAG / CARD1_BODY…）
+ *   - `text.stop`      → 前缀 `STOP`（STOP1..4）
+ *   - `text.figure`    → 前缀 `FIGURE`
+ *   - `image.*`/`video.*` → 无绑定参数（图片槽由素材层兑现，不是文本参数）
+ *
+ * 未列出的槽位返回空数组 = 「无绑定参数」，调用方不得据此报缺料（否则会误伤）。
+ */
+const SLOT_PARAM_PREFIXES: Record<string, readonly string[]> = {
+  hero: ['HERO'],
+  figure: ['FIGURE'],
+  left: ['LEFT'],
+  right: ['RIGHT'],
+  note: ['LEFT_NOTE', 'RIGHT_NOTE', 'NOTE'],
+  panel: ['PANEL'],
+  tier: ['TIER'],
+  desc: ['DESC'],
+  card: ['CARD'],
+  stop: ['STOP'],
+};
+
+/** 槽位的语义基名（`text.hero` → `hero`；`image.presenter` → `presenter`） */
+export function slotBaseName(role: string): string {
+  return role.replace(/^(text|image|video|audio)\./, '');
+}
+
+/** 该槽位绑定的契约参数名（按约定；无绑定返回 []） */
+export function slotParamNames(slot: MaterialSlot, params: readonly ParamSpec[]): string[] {
+  const prefixes = SLOT_PARAM_PREFIXES[slotBaseName(slot.role)];
+  if (!prefixes) return [];
+  return params.filter((p) => prefixes.some((pre) => p.name.startsWith(pre))).map((p) => p.name);
+}
+
+export interface SlotIssue {
+  id: string;
+  level: 'error' | 'warn';
+  message: string;
+}
+
+/**
+ * 素材槽缺料裁决（`ifMissing` 第一次真正生效）。
+ *
+ * 判据：**该槽位绑定的参数在最终值里是否全部为空**。
+ * 只看绑定参数，不看「有没有图片文件」——图片槽没有绑定参数，自然不参与。
+ *
+ * 三种策略的落地行为：
+ *   - `ask`         → **warn**。理由（2026-11-19 实测，非推测）：离线/默认流水线下
+ *                    `deriveContent` 对 kinetic-type 的 `HERO_WORD` 在 12 句真实旁自上
+ *                    **全部派生为空**，而 assetPolicy 默认 'auto'。若这里判 error，
+ *                    端到端成片会直接挂——那不是「发现缺料」，那是把正常成片判死。
+ *                    所以 ask 记 warn：**采集阶段该问的没问**要被看见，但已有派生/占位
+ *                    兜底的成片不受阻断。
+ *   - `skip`        → **由调用方清成空串**（画面相应部分不出现），本函数不报 issue。
+ *   - `placeholder` → **由调用方填 `sample` 并打 `data-film-sample` 标记**，不报 issue；
+ *                    但 `sample` 缺失是契约写错 → error。
+ */
+export function resolveMissingSlots(
+  contract: TemplateContract,
+  values: Record<string, string | number | boolean>,
+): { slots: Array<{ slot: MaterialSlot; bound: string[]; filled: string[] }>; issues: SlotIssue[] } {
+  const issues: SlotIssue[] = [];
+  const out: Array<{ slot: MaterialSlot; bound: string[]; filled: string[] }> = [];
+  for (const slot of contract.materials ?? []) {
+    const bound = slotParamNames(slot, contract.params ?? []);
+    const filled = bound.filter((n) => {
+      const v = values[n];
+      return v !== undefined && v !== null && String(v) !== '';
+    });
+    out.push({ slot, bound, filled });
+    // 无绑定参数的槽（图片/视频/未约定槽）不参与文本缺料判定
+    if (bound.length === 0) continue;
+    if (filled.length > 0) continue;
+    if (slot.ifMissing === 'ask') {
+      issues.push({
+        id: 'V-TPL-001',
+        level: 'warn',
+        message: `素材槽 ${slot.role} 缺内容（${bound.join('/')} 全空）且策略为 ask：采集阶段应询问用户后重画`,
+      });
+    } else if (slot.ifMissing === 'placeholder' && !slot.sample) {
+      issues.push({
+        id: 'V-TPL-001',
+        level: 'error',
+        message: `素材槽 ${slot.role} 声明 ifMissing=placeholder 但未给 sample（契约写错，无法占位）`,
+      });
+    }
+  }
+  return { slots: out, issues };
+}
+
+/**
+ * 容量上限核验（`capacity.maxChars` / 槽位 `maxChars`，超限明确失败，不静默缩字）。
+ *
+ * **只核「导演显式值」与「变体值」，派生值豁免**——理由见本节开头：
+ * 派生是内容压缩器，且 deep-stage 类模板的排版容量本就不等于文案预算。
+ * 豁免是**有意的口径**，不是偷懒：`figure` 槽 maxChars=12 而派生把
+ * `1234.5万` 原样写入（未截断），若对派生值判超限，等于把一条既有正确渲染判成失败。
+ *
+ * @param explicit 导演显式覆盖（shot.visual.params）
+ * @param variantParams 变体覆盖
+ */
+export function checkCapacity(
+  contract: TemplateContract,
+  explicit: Record<string, unknown>,
+  variantParams: Record<string, string | number | boolean>,
+): SlotIssue[] {
+  const issues: SlotIssue[] = [];
+  const params = contract.params ?? [];
+  const cap = contract.capacity ?? {};
+  // 槽位级上限：先按命名约定找到槽 → 该槽绑定参数的上限
+  const slotLimit = new Map<string, { max: number; role: string }>();
+  for (const slot of contract.materials ?? []) {
+    if (slot.maxChars === undefined) continue;
+    for (const name of slotParamNames(slot, params)) {
+      const prev = slotLimit.get(name);
+      // 同一参数被多槽绑定（如 LEFT_NOTE 同时属 left 与 note）时取更严的那个
+      if (!prev || slot.maxChars < prev.max) slotLimit.set(name, { max: slot.maxChars, role: slot.role });
+    }
+  }
+  for (const spec of params) {
+    if (spec.type !== 'string' && spec.type !== 'enum') continue;
+    // 值来源：变体覆盖优先于导演显式（变体是导演选的画法，但显式值更具体）——
+    // 这里与 renderTemplate 的合并顺序保持一致：explicit > variant。
+    const fromExplicit = explicit[spec.name];
+    const hasExplicit = fromExplicit !== undefined && fromExplicit !== null && fromExplicit !== '';
+    const raw = hasExplicit ? fromExplicit : variantParams[spec.name];
+    if (raw === undefined || raw === null || raw === '') continue;
+    const text = String(raw);
+    const slot = slotLimit.get(spec.name);
+    if (slot && text.length > slot.max) {
+      issues.push({
+        id: 'V-TPL-002',
+        level: 'error',
+        message: `参数 ${spec.name} 超槽位容量：${text.length} 字 > ${slot.role} 上限 ${slot.max} 字（"${text}"）`,
+      });
+      continue;
+    }
+    if (slot) continue; // 槽位上限比全局更严，已核过就不再按全局重复报
+    if (cap.maxChars !== undefined && text.length > cap.maxChars) {
+      issues.push({
+        id: 'V-TPL-002',
+        level: 'error',
+        message: `参数 ${spec.name} 超模板容量：${text.length} 字 > ${contract.id} 上限 ${cap.maxChars} 字`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * 选出本镜变体（`shot.visual.params.variant`）。
+ *
+ * 为什么用 params 而不是新开 IR 字段：变体是**导演对画法的选择**，与其它参数同源同生命
+ * 周期（分镜 → 确认 → 渲染）。新字段会让旧项目无法表达，且 IR 扩张必须配消费方。
+ * 未命中 → V-TPL-003（error）：选了一个不存在的画法不能静默退回默认，
+ * 否则「我选了砸入，成片却是缓入」这类错误无法在流水线上被看见。
+ */
+export function resolveVariant(
+  contract: TemplateContract | undefined,
+  requested: unknown,
+): { variant?: VariantSpec; issues: SlotIssue[] } {
+  if (!contract) return { issues: [] };
+  const id = typeof requested === 'string' ? requested.trim() : '';
+  if (!id) return { issues: [] };
+  const hit = (contract.variants ?? []).find((v) => v.id === id);
+  if (!hit) {
+    const available = (contract.variants ?? []).map((v) => v.id).join('/') || '（无）';
+    return {
+      issues: [
+        {
+          id: 'V-TPL-003',
+          level: 'error',
+          message: `模板 ${contract.id} 无变体 "${id}"（可用：${available}）`,
+        },
+      ],
+    };
+  }
+  return { variant: hit, issues: [] };
+}
+
+/**
+ * 给占位符打样例标记：`placeholder` 策略下画面必须能自证「这是样例素材」。
+ *
+ * 做法是把填充值包一层 `<span data-film-sample="1">`——它只在 placeholder 槽生效，
+ * 其它槽原样返回。为什么用行内 span 而不是改模板：模板是所有项目共用的，
+ * 标记是**本镜的选择结果**，不能写死在模板里。
+ * 只对**文本上下文**的占位符有意义；`injectPlaceholders` 里按位置决定是否转义，
+ * 所以这里返回的是 HTML 片段，由调用方只用于 text 上下文参数。
+ */
+export function sampleMarkup(sample: string): string {
+  return `<span data-film-sample="1" data-sample-src="${sample}">${sample}</span>`;
+}
+
+/**
+ * 内容层组装（阶段 0 的唯一入口）：把「导演显式 / 变体 / 派生 / 契约缺省」四层
+ * 按优先级合起来，并把素材槽与容量两条判据一并裁决。
+ *
+ * **合并优先级（高→低）**：导演显式 `shot.visual.params` > 变体 `variant.params`
+ * > 派生值 `deriveContent` > 契约 `spec.default`。
+ * 为什么变体在派生之前：变体是导演选的**画法**（例如 slam 变体把 HERO_WORD 置空，
+ * 让整词砸入而不是逐字），派生值只是「旁白落到哪个位置」的猜测；
+ * 导演讲了画法，就不该被猜测覆盖。而显式值最具体，所以最高。
+ *
+ * 为什么不复用它处已有的 `resolveParams`：那个函数是「契约校验器」，
+ * 缺省值生效 + 越界报错，但它不认识变体，也不认识素材槽；
+ * 强行改造会动到它的既有测试口径（tests/template-contract.test.ts 的 resolveParams 用例）。
+ * 新增一个纯组装函数，两者职责分明，互不回归。
+ */
+export interface ContentWiring {
+  /** 最终内容层取值（裸名 → 值） */
+  values: Record<string, string | number | boolean>;
+  issues: SlotIssue[];
+  /** placeholder 槽：占位符名 → 应注入的样例标记（渲染期在注入前替换） */
+  samples: Map<string, string>;
+  /** 实际生效的变体 id（审计用） */
+  variantId?: string;
+}
+
+export function assembleContentValues(
+  contract: TemplateContract | undefined,
+  explicit: Record<string, unknown>,
+  derived: Record<string, string | number>,
+  requestedVariant?: unknown,
+): ContentWiring {
+  const values: Record<string, string | number | boolean> = {};
+  const issues: SlotIssue[] = [];
+  const samples = new Map<string, string>();
+
+  const vres = resolveVariant(contract, requestedVariant);
+  issues.push(...vres.issues);
+  const variantParams = (vres.variant?.params ?? {}) as Record<string, string | number | boolean>;
+
+  const pick = (name: string): string | number | boolean | undefined => {
+    const ex = explicit[name];
+    if (ex !== undefined && ex !== null && ex !== '') return ex as string | number | boolean;
+    const vp = variantParams[name];
+    // 变体里的 '' 是**有意的置空**（如 slam 让 HERO_WORD 不显示），必须尊重
+    if (vp !== undefined && vp !== null) return vp;
+    return undefined;
+  };
+
+  for (const spec of contract?.params ?? []) {
+    const p = pick(spec.name);
+    if (p !== undefined) {
+      values[spec.name] = p;
+      continue;
+    }
+    const d = derived[spec.name];
+    if (d !== undefined && d !== null && d !== '') {
+      values[spec.name] = d;
+      continue;
+    }
+    if (spec.default !== undefined) values[spec.name] = spec.default;
+  }
+  // 契约外的派生值（白名单由内容派生层管）一并带上
+  for (const [k, v] of Object.entries(derived)) {
+    if (k === 'variant') continue; // 变体选择是控制信号，不是渲染值
+    if (!(k in values)) values[k] = v;
+  }
+
+  if (contract) {
+    // 容量：只核导演显式值与变体值；派生值豁免（见本节开头说明）
+    issues.push(...checkCapacity(contract, explicit, variantParams));
+    // 素材槽：缺料裁决 + skip 清槽 + placeholder 打标记
+    const slots = resolveMissingSlots(contract, values);
+    issues.push(...slots.issues);
+    for (const { slot, bound, filled } of slots.slots) {
+      if (filled.length > 0 || bound.length === 0) continue;
+      if (slot.ifMissing === 'skip') {
+        // 画面相应部分不出现：显式清槽，避免 default 把占位值填回来
+        for (const n of bound) values[n] = '';
+      } else if (slot.ifMissing === 'placeholder' && slot.sample) {
+        for (const n of bound) {
+          values[n] = '';
+          samples.set(n, slot.sample);
+        }
+      }
+      // 'ask' 只报 warn（见 resolveMissingSlots 的口径说明），画面保持既有派生结果
+    }
+  }
+
+  return { values, issues, samples, variantId: vres.variant?.id };
+}
+
+
+
+// ---------------------------------------------------------------------------
 // 契约加载与登记
 // ---------------------------------------------------------------------------
 

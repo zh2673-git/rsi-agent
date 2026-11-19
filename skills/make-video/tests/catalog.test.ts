@@ -21,8 +21,19 @@ import {
   NON_ACTION_PRIMITIVES,
   buildCapability,
 } from '../src/core/catalog.js';
-import { REQUIRED_BY_GRAMMAR, SETTLE_BY_GRAMMAR } from '../src/domain/motion-grammar.js';
-import { ACCENT_PRIMITIVES, CAMERA_MOVES, MOTION_WHITELIST } from '../src/core/validators/scene.js';
+import {
+  REQUIRED_BY_GRAMMAR,
+  REQUIREMENTS_BY_GRAMMAR,
+  SETTLE_BY_GRAMMAR,
+  isRequirementsRegistered,
+} from '../src/domain/motion-grammar.js';
+import {
+  ACCENT_PRIMITIVES,
+  CAMERA_MOVES,
+  LIVENESS_PRIMITIVES,
+  MOTION_WHITELIST,
+  SUSTAINED_PRIMITIVES,
+} from '../src/core/validators/scene.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string): string => readFileSync(path.join(ROOT, rel), 'utf8');
@@ -102,11 +113,95 @@ describe('② 语法 ↔ 骨架/收势登记（钉住新增语法漏登记）', 
     expect(bad, `骨架点名了白名单外的原语或漏了 motifLoop：${bad.join(', ')}`).toEqual([]);
   });
 
+  /**
+   * A1（P13 阶段1）语义表守护：审计发现 REQUIREMENTS_BY_GRAMMAR 在 tests/ 零命中，
+   * 于是「新语法漏写语义表 → 整条动作校验蒸发 → 测试全绿」这条路一直敞着。
+   * 这两条断言把它堵上：语义表必须与语法名单一一对应（双向、无幽灵），
+   * 且 `isRequirementsRegistered` 对真实语法都为真。
+   */
+  it('GRAMMARS 每条语法都在语义需求表 REQUIREMENTS_BY_GRAMMAR 里（A1）', () => {
+    const missing = GRAMMAR_IDS.filter((id) => !REQUIREMENTS_BY_GRAMMAR[id]?.length);
+    expect(
+      missing,
+      `语法没登记动作语义表（它的动作校验会静默蒸发）：${missing.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('语义需求表没有幽灵条目，且 isRequirementsRegistered 与实际一致（A1）', () => {
+    const ghosts = Object.keys(REQUIREMENTS_BY_GRAMMAR).filter((id) => !GRAMMAR_IDS.includes(id));
+    expect(ghosts, `语义表里有不存在的语法：${ghosts.join(', ')}`).toEqual([]);
+    const lying = GRAMMAR_IDS.filter((id) => !isRequirementsRegistered(id));
+    expect(lying, `isRequirementsRegistered 对真实语法返回 false：${lying.join(', ')}`).toEqual([]);
+    expect(isRequirementsRegistered('y9_does_not_exist')).toBe(false);
+  });
+
+  it('语义表的等效原语都在白名单里，且每条要求至少一个候选（A1）', () => {
+    const bad: string[] = [];
+    for (const [gid, reqs] of Object.entries(REQUIREMENTS_BY_GRAMMAR)) {
+      for (const r of reqs) {
+        if (!r.anyOf.length) bad.push(`${gid}/${r.id}→anyOf 为空`);
+        for (const p of r.anyOf) if (!MOTION_WHITELIST.includes(p)) bad.push(`${gid}/${r.id}→${p}`);
+        if (r.skeleton && !r.anyOf.includes(r.skeleton)) {
+          bad.push(`${gid}/${r.id}→skeleton ${r.skeleton} 不在 anyOf 里`);
+        }
+      }
+    }
+    expect(bad, `语义表有白名单外原语或 skeleton 越界：${bad.join(', ')}`).toEqual([]);
+  });
+
+  /**
+   * B1（P13 阶段1）单源化：骨架表已改为从语义表派生。这条断言钉住派生规则本身——
+   * 每个骨架原语必须等于该位置语义要求的 `skeleton ?? anyOf[0]`。任何一方单独手改
+   * （比如有人又把骨架表写回字面量）都会在这里红。
+   */
+  it('骨架表与语义表零漂移（B1 单源化）', () => {
+    const drift: string[] = [];
+    for (const [gid, reqs] of Object.entries(REQUIREMENTS_BY_GRAMMAR)) {
+      const expected = reqs.map((r) => r.skeleton ?? r.anyOf[0]!);
+      const actual = REQUIRED_BY_GRAMMAR[gid] ?? [];
+      if (expected.join(',') !== actual.join(',')) {
+        drift.push(`${gid}: 语义表→[${expected.join('/')}] 骨架表→[${actual.join('/')}]`);
+      }
+    }
+    expect(drift, `骨架表与语义表漂移：${drift.join('；')}`).toEqual([]);
+  });
+
+  it('骨架例外只有具名的 y5 accent（提示词口径 ≠ 校验口径的唯一允许处）', () => {
+    const exceptions: string[] = [];
+    for (const [gid, reqs] of Object.entries(REQUIREMENTS_BY_GRAMMAR)) {
+      for (const r of reqs) {
+        if (r.skeleton && r.skeleton !== r.anyOf[0]) exceptions.push(`${gid}/${r.id}→${r.skeleton}`);
+      }
+    }
+    // 只允许这一条：slam 受 V-MOT-013 重音预算约束，骨架必须是 emphasis。
+    expect(exceptions).toEqual(['y5_kinetic_type/accent→MV.emphasis']);
+  });
+
   it('重音原语都在白名单里（ACCENT_PRIMITIVES 是白名单子集）', () => {
     const stray = (ACCENT_PRIMITIVES as readonly string[]).filter(
       (p) => !MOTION_WHITELIST.includes(p),
     );
     expect(stray).toEqual([]);
+  });
+
+  /**
+   * B3（P13 阶段2）：validator 曾手抄两份白名单子集进正则（V-MOT-010 的持续并列
+   * 清单、V-ACT-005 + scenePulse 的活性清单），新增原语时必然漂移。现在两处正则
+   * 都从数组派生，这三条断言钉住「派生清单是白名单子集」——想加新原语只能先进
+   * 白名单，把三份口径锁在同一扇门后。
+   */
+  it('SUSTAINED_PRIMITIVES 是白名单子集（V-MOT-010 持续并列清单，B3）', () => {
+    const stray = SUSTAINED_PRIMITIVES.filter((p) => !MOTION_WHITELIST.includes(p));
+    expect(stray, `持续并列清单里有白名单外原语：${stray.join(', ')}`).toEqual([]);
+    // 环境母题是环境层，单独豁免（P7 修订），不该混进持续并列清单
+    expect(SUSTAINED_PRIMITIVES.includes('MV.motifLoop')).toBe(false);
+  });
+
+  it('LIVENESS_PRIMITIVES 是白名单子集，且 motifLoop 在场（V-ACT-005 活性清单，B3）', () => {
+    const stray = LIVENESS_PRIMITIVES.filter((p) => !MOTION_WHITELIST.includes(p));
+    expect(stray, `活性清单里有白名单外原语：${stray.join(', ')}`).toEqual([]);
+    // motifLoop 是 P7 认可的活性等价物（「画面里一直有事发生」），不许被删出清单
+    expect(LIVENESS_PRIMITIVES.includes('MV.motifLoop')).toBe(true);
   });
 
   it('机位词表与 motion-lib 的 if 分支一致（拼错会静默 set scale）', () => {
@@ -145,7 +240,7 @@ describe('③ 文档声明 ↔ 实际数量（钉住文档虚标）', () => {
   it('SKILL.md/README 若有「N 个动效原语」，N 必须等于实际原语数', () => {
     const zh: Record<string, number> = {
       一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10, 十一: 11, 十二: 12,
-      十三: 13, 十四: 14, 十五: 15, 二十: 20, 二十四: 24, 二十五: 25, 二十六: 26,
+      十三: 13, 十四: 14, 十五: 15, 二十: 20, 二十四: 24, 二十五: 25, 二十六: 26, 二十七: 27, 二十八: 28,
     };
     for (const doc of ['SKILL.md', 'README.md']) {
       if (!existsSync(path.join(ROOT, doc))) continue;

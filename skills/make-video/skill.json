@@ -1,0 +1,53 @@
+{
+  "name": "make-video",
+  "version": "0.1.0",
+  "status": "active",
+  "description": "自动生成视频技能：输入主题/讲稿/素材，按电影部门制流水线产出成片；P13 表达层升级后含 emotionMap 偏好层、约束登记簿与 CH.* 编舞层。",
+  "triggers": [
+    "自动生成视频",
+    "输入主题或讲稿产出成片",
+    "按风格包产出样片"
+  ],
+  "inputs": [
+    "主题或讲稿",
+    "风格包与 recipe",
+    "可选用户素材"
+  ],
+  "outputs": [
+    "成片 mp4",
+    "motion-audit.json",
+    "outputs/style-samples/baseline.json",
+    "evals/results/*.json"
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "criterion": "4 样片基线数字固化且 eval 回放无旧案例退化",
+      "check": "assert"
+    },
+    {
+      "id": "a2",
+      "criterion": "motion-lib.js 与 choreo-lib.js 均过 new Function 语法冒烟",
+      "check": "assert"
+    },
+    {
+      "id": "a3",
+      "criterion": "意境 judge 盲评，同模型自评不作晋升依据",
+      "check": "rubric"
+    }
+  ],
+  "requires": [],
+  "handoff": [
+    "eval:scorecard",
+    "eval:baseline"
+  ],
+  "verification": "verified",
+  "source_level": "design",
+  "created_at": "2026-11-19",
+  "parent": null,
+  "legacy": false,
+  "source": {
+    "path": "outputs/P13提案-表达层升级计划.md / PLAN.md §13.6",
+    "imported_at": "2026-11-19"
+  }
+}

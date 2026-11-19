@@ -14,7 +14,7 @@ import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR } from '../core/constants.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
 import { atomicWriteText, copyFile, ensureDir, exists } from '../infrastructure/fs-utils.js';
-import { extractKeywords } from '../core/validators/scene.js';
+import { extractKeywords, LIVENESS_RE } from '../core/validators/scene.js';
 import { MAIN_ACTION_PRIMITIVES } from '../core/catalog.js';
 import { copyDir } from './composer-utils.js';
 import { escapeHtml, normalizeSceneHtml } from './scene-forge.js';
@@ -29,6 +29,7 @@ import {
   type TransitionPlan,
 } from './transitions.js';
 import { auditContinuity, parseEnergyCurve, auditEnergyCurve } from './continuity.js';
+import { resolveEmotionVisual } from './style-registry.js';
 import { extractFrameSequence } from '../infrastructure/ffmpeg-utils.js';
 import {
   buildRigScript,
@@ -117,6 +118,9 @@ function toMotionFact(
     minMotifMotionPx: motif.minMotionPx,
     // T3a：切入转场是 continuity → 与上一镜为同一连续长镜的节拍段
     ...(t.transition === 'continuity' ? { continuity: true } : {}),
+    // A5 调度表：intent 进 motion-audit（覆盖率）与 camera-rig.json；staging 供多轨齐动统计
+    ...(shot?.intent ? { intent: shot.intent } : {}),
+    ...(shot?.staging ? { staging: shot.staging } : {}),
   };
 }
 
@@ -186,14 +190,22 @@ export function computeTimeline(project: Project): Timeline {
   const shots: Timeline['shots'] = [];
   const subtitles: Timeline['subtitles'] = [];
   let acc = 0;
+  let prev: { id: string; segmentId: string } | null = null;
   for (const shot of project.shots) {
     const durationMs = shot.voice?.durationMs ?? 0;
     const segment = project.script?.segments.find((x) => x.id === shot.segmentId);
+    // 场编组可缺省（旧项目/测试手搓 IR 都可能没有 scenes 字段），缺省 = 不命中任何场
+    const sceneList = project.scenes ?? [];
+    const p = prev;
+    const inScenes = p !== null && sceneList.some((sc) => sc.shotIds.includes(shot.id) && sc.shotIds.includes(p.id));
     shots.push({
       shotId: shot.id,
       startMs: acc,
       durationMs,
       transition: shot.transition,
+      // P13 阶段2 场域口径（单一计算点）：与前一镜同 segment ⇒ 场内切；
+      // scenes[] 编组存在时改按场成员判定（提案表3），segmentId 口径保留为回退。首镜无切恒 inter。
+      sceneScope: p === null ? 'inter' : inScenes || p.segmentId === shot.segmentId ? 'intra' : 'inter',
       // 剪辑部：覆盖切点在此换算为镜头内绝对毫秒（导演声明始终生效；重音词自动派生需逐镜 opt-in）
       coverage: deriveCoverage(
         shot,
@@ -226,6 +238,7 @@ export function computeTimeline(project: Project): Timeline {
       cueStart = endMs;
     }
     acc += durationMs;
+    prev = { id: shot.id, segmentId: shot.segmentId };
   }
   return { shots, subtitles, bgm: undefined, sfx: [] };
 }
@@ -385,6 +398,7 @@ export async function compose(
   store: ProjectStore,
   project: Project,
   pack: StylePack,
+  recipe?: import('../core/schema.js').Recipe,
 ): Promise<Timeline> {
   const gate = validateReadiness(project);
   // V-STYLE-008：风格声明的素材语言必须真的落到素材上（禁用形态/偏好冲突/3D 母题缺失）
@@ -469,6 +483,14 @@ export async function compose(
         prevShot && curShot && prevShot.colorTemp !== curShot.colorTemp ? '色温变化' : null,
         decision?.motivation ? '切点动机' : null,
       ].filter(Boolean),
+      // P13 A5/A2：入镜的对位模式与机位动机 —— 切点审计第一次能回答「这一刀为什么这么接」
+      counterpoint: curShot?.counterpoint ?? null,
+      prevCounterpoint: prevShot?.counterpoint ?? null,
+      intent: curShot?.intent ?? null,
+      // P13 B（阶段2）：场域口径单一计算点已前移到 computeTimeline
+      // （scenes[] 编组优先，segmentId 回退）。场内切点只许动作/视线/节拍接，
+      // 溶解类只许场间 —— 有了这个字段，规则才可机检。
+      sceneScope: t.sceneScope ?? 'inter',
     };
   });
   // 审计工件是「本次装配的快照」，必须覆盖写（append 会让多次 compose 拼出非法 JSON）
@@ -483,6 +505,8 @@ export async function compose(
       shotId: t.shotId,
       camera: t.camera,
       transition: i === 0 ? '' : (cutDecisions[i]?.plan.kind ?? 'hard-cut'),
+      // A5：机位动机随输入进连续性审计（V-CON-005 断点判据）
+      ...(project.shots[i]?.intent ? { intent: project.shots[i]!.intent } : {}),
     })),
   );
   await atomicWriteText(
@@ -519,7 +543,10 @@ export async function compose(
       html = fixed;
     }
     sceneNorm.set(shot.id, html);
-    scenePulse.set(shot.id, /MV\.idle|MV\.performance|MV\.emphasis|pulse/.test(html));
+    // B3/C2：活性载体判据与 V-ACT-005 共用 LIVENESS_PRIMITIVES 派生正则（不再各写一份）。
+    // 裸 pulse 子串判据删除——pulse 只是 motifLoop 的 kind 值，不是原语；
+    // 统一后 motifLoop 也计入活性载体（warn 级统计，方向是减少「画面明明活着却判哑」的误报）。
+    scenePulse.set(shot.id, LIVENESS_RE.test(html));
     const beats = html.match(/data-beats="(\d+)"/);
     if (beats) {
       sceneBeats.set(shot.id, Number(beats[1]));
@@ -564,12 +591,11 @@ export async function compose(
     grammarByShot.set(shot.id, g.id);
     shot.visual.params['actionSheet'] = actionSheet(shot, g);
   }
+  const motionFacts = timeline.shots.map((t) => toMotionFact(t, project, sceneFacts, grammarByShot));
   const motionIssues = [
-    ...auditOpening(
-      timeline.shots.map((t) => toMotionFact(t, project, sceneFacts, grammarByShot)),
-    ),
+    ...auditOpening(motionFacts),
     ...auditMotionMix(
-      timeline.shots.map((t) => toMotionFact(t, project, sceneFacts, grammarByShot)),
+      motionFacts,
       (() => {
         const lastShot = timeline.shots.at(-1);
         return lastShot ? lastShot.startMs + lastShot.durationMs : 0;
@@ -583,9 +609,76 @@ export async function compose(
       `动效语法校验失败（V-MOT-013~020）:\n${motionErrors.map((i) => `${i.rule}: ${i.message}`).join('\n')}`,
     );
   }
+  // A5 调度表进审计：intent 覆盖率 + 多轨齐动占比 + 五轨逐镜记录（提案 §1.C）
+  const stagingAudit = {
+    intentCoverage: {
+      shots: motionFacts.length,
+      withIntent: motionFacts.filter((f) => f.intent).length,
+      // 覆盖率 100% 是本阶段目标；未达不拦片（统计层永不拦单镜）
+      ratio: motionFacts.length === 0 ? 1 : motionFacts.filter((f) => f.intent).length / motionFacts.length,
+    },
+    // 多轨齐动：同一镜里 ≥3 轨 motion=move —— 全部都在动时，观众没有落点
+    multiTrackMotion: {
+      shots: motionFacts.filter((f) => f.staging).length,
+      crowded: motionFacts.filter((f) => {
+        const s = f.staging;
+        if (!s) return false;
+        return [s.camera, s.subject, s.supporting, s.environment, s.subtitle].filter((t) => t?.motion === 'move').length >= 3;
+      }).length,
+    },
+    byShot: motionFacts.map((f) => ({
+      shotId: f.shotId,
+      intent: f.intent ?? null,
+      staging: f.staging ?? null,
+    })),
+  };
+  // P13 阶段4：V-CAM-005 急推全片上限。上限从风格包 constraints 下沉（默认 2），
+  // 统计来源是场景里真实出现的 MV.punch / cameraPunchOut（不把场景里被降级的算进来）。
+  // 超限只 warn 不拦片：这是全片节奏治理，不是单镜画面错误。
+  const maxPunchOut = pack.constraints?.maxPunchOut ?? 2;
+  const punchByShot = timeline.shots.map((t) => {
+    const sceneHtml = sceneNorm.get(t.shotId) ?? '';
+    const scenePunch = (sceneHtml.match(/\bMV\.punch\s*\(/g) ?? []).length;
+    const shot = project.shots.find((s) => s.id === t.shotId);
+    const cameraPunch = shot ? parseCameraOptions(shot.visual?.params as Record<string, unknown> | undefined).punchOut === true : false;
+    return { shotId: t.shotId, scenePunch, cameraPunch, count: scenePunch + (cameraPunch ? 1 : 0) };
+  });
+  const punchOutAudit = {
+    max: maxPunchOut,
+    total: punchByShot.reduce((sum, s) => sum + s.count, 0),
+    byShot: punchByShot,
+    note: 'V-CAM-005 统计层：急推超上限只 warn 不拦片；上限来自 style.constraints.maxPunchOut',
+  };
+  // P13 阶段3：情绪词典覆盖率。统计层只记 warn 不拦单镜——
+  // 「没有词典」是合法的旧项目形态，词典命中率低只说明偏好层还没铺，不是画面错误。
+  const emotionBySegment = new Map((project.script?.segments ?? []).map((s) => [s.id, s.emotion]));
+  const styleOverrides = project.style?.overrides as Record<string, unknown> | undefined;
+  const emotionByShot = timeline.shots.map((t) => {
+    const shot = project.shots.find((s) => s.id === t.shotId);
+    const emotion = shot ? emotionBySegment.get(shot.segmentId) : undefined;
+    return {
+      shotId: t.shotId,
+      emotion: emotion ?? null,
+      visual: resolveEmotionVisual(pack, emotion, styleOverrides),
+    };
+  });
+  const emotionDeclared = emotionByShot.filter((e) => e.emotion);
+  const emotionAudit = {
+    hasDictionary: !!pack.visuals.emotionMap && Object.keys(pack.visuals.emotionMap).length > 0,
+    declaredShots: emotionDeclared.length,
+    hitShots: emotionByShot.filter((e) => e.visual).length,
+    // 无声明镜不计入分母（没声明情绪 ≠ 词典没覆盖）
+    hitRatio: emotionDeclared.length === 0 ? null : emotionDeclared.filter((e) => e.visual).length / emotionDeclared.length,
+    byShot: emotionByShot,
+    note: '统计层：词典未命中只 warn 不拦片；词典为偏好层，可被 StyleDecision.overrides.emotionMap 覆写',
+  };
   await atomicWriteText(
     path.join(dir, 'logs', 'motion-audit.json'),
-    JSON.stringify({ generatedAt: new Date().toISOString(), issues: motionIssues, grammarByShot: [...grammarByShot] }, null, 2),
+    JSON.stringify(
+      { generatedAt: new Date().toISOString(), issues: motionIssues, grammarByShot: [...grammarByShot], staging: stagingAudit, emotion: emotionAudit, punchOut: punchOutAudit },
+      null,
+      2,
+    ),
   );
   // P10：超预算重音镜的记账。不回写场景文件，但降级这件事必须留痕——
   // 「改了画面又不说」正是本轮取消的机制；说清楚 = 作者知道自己的 slam 在装配期被当成了 enter。
@@ -615,8 +708,14 @@ export async function compose(
     ...V.validateDensity(timeline, pack.pacing.shotLenMs[0], pack.pacing.shotLenMs[1], project.shots),
     ...V.validateBreath(timeline, pack.pacing.breathEvery),
     ...V.validateVisualChange(timeline, sceneBeats),
-    ...V.validateIntraShotMotion(timeline),
+    ...V.validateIntraShotMotion(timeline, { maxStaticRatio: recipe?.pacing.maxStaticRatio }),
     ...V.validateCutMotivation(timeline),
+    // V-CAM-005 急推全片上限（统计层 warn，不拦片）
+    ...(punchOutAudit.total > punchOutAudit.max
+      ? [{ id: 'V-CAM-005', level: 'warn' as const, message: `急推 ${punchOutAudit.total} 次 > 上限 ${punchOutAudit.max}（style.constraints.maxPunchOut）——属全片节奏治理，非单镜画面错误` }]
+      : []),
+  // V-RHY-013 场内/场间转场双规则（P13 阶段2）：sceneScope 单点派生自 computeTimeline
+  ...V.validateSceneTransition(timeline),
     // V-CON-003 出入画矢量 / V-CON-004 软转场节奏（T1b）——已经格式化为 "[warn] V-CON-xxx: …"
     ...continuity.warns.map((message) => ({ id: message.split(':')[0]!, message })),
     // V-CON-002 节奏曲线偏离（T1c）：语法能量均值 vs 声明的 pacing.curve
@@ -727,7 +826,7 @@ async function emitHyperframesProject(
         coverage: t?.coverage ?? [],
         options: parseCameraOptions(shot.visual.params),
       });
-      rigAudit.push(rigSummary(rig));
+      rigAudit.push(rigSummary(rig, shot.intent));
       await atomicWriteText(
         path.join(compDir, `Scene_${shot.id}.html`),
         presenter
@@ -769,7 +868,7 @@ async function emitHyperframesProject(
       coverage: t?.coverage ?? [],
       options: parseCameraOptions(shot.visual.params),
     });
-    rigAudit.push(rigSummary(rig));
+    rigAudit.push(rigSummary(rig, shot.intent));
     // 词级卡点：把本镜字幕里的重音词换算成镜内毫秒，注入场景（见 emphasisRig）。
     // 场景自己写了 MV.emphasis 的不再注入——两道一起上会把 scale 乘成 1.30（读作抖动）。
     // X12：整屏档已废，卡点只落在 data-stress 元素上——场景没有标点元素就不注入
@@ -1693,9 +1792,11 @@ function emphasisRig(pointsMs: number[], shotId: string, peak: number): string {
 }
 
 // 机位审计摘要（logs/camera-rig.json）：分段首尾构图足够定位问题，不必存整份 plan
-function rigSummary(rig: RigPlan): Record<string, unknown> {
+function rigSummary(rig: RigPlan, intent?: string): Record<string, unknown> {
   return {
     shotId: rig.shotId,
+    // A5 调度表：机位为什么动/为什么不动（缺省 = 该镜未做机位决策）
+    ...(intent ? { intent } : {}),
     move: rig.move,
     zoom: rig.zoom,
     durationS: rig.durationS,

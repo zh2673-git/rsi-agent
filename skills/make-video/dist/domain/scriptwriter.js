@@ -1,3 +1,4 @@
+import { ASSET_NEEDS, COUNTERPOINTS } from '../core/schema.js';
 import { MS_PER_CHAR_CN } from '../core/constants.js';
 import { V } from '../core/index.js';
 import { mvError, ERR } from '../core/errors.js';
@@ -112,6 +113,14 @@ export function parseScript(raw) {
         if (seg.mood && !['neutral', 'curious', 'tense', 'awe', 'warm', 'urgent'].includes(seg.mood)) {
             throw mvError(ERR.LLM_SCHEMA, `第 ${i + 1} 段情绪非法: ${seg.mood}`);
         }
+        // P13 阶段1（A2）：四个表达层字段照 mood 的纪律——写了就校验，写错就报错，
+        // 没写就整键不出现（不是往 IR 里塞空串/默认值，否则「未声明」与「声明为空」不可分）。
+        if (seg.assetNeed && !ASSET_NEEDS.includes(seg.assetNeed)) {
+            throw mvError(ERR.LLM_SCHEMA, `第 ${i + 1} 段素材诉求非法: ${seg.assetNeed}`);
+        }
+        if (seg.counterpoint && !COUNTERPOINTS.includes(seg.counterpoint)) {
+            throw mvError(ERR.LLM_SCHEMA, `第 ${i + 1} 段对位模式非法: ${seg.counterpoint}`);
+        }
         return {
             id: seg.id ?? `seg-${i + 1}`,
             text: seg.text,
@@ -123,6 +132,12 @@ export function parseScript(raw) {
             // 且观众失去重音提示——兜底派生而不是判死。
             emphasis: normalizeEmphasis(seg.emphasis, seg.text),
             ...(Array.isArray(seg.pausesMs) ? { pausesMs: seg.pausesMs } : {}),
+            ...(seg.subtext ? { subtext: seg.subtext } : {}),
+            ...(seg.emotion ? { emotion: seg.emotion } : {}),
+            ...(seg.assetNeed ? { assetNeed: seg.assetNeed } : {}),
+            ...(seg.counterpoint
+                ? { counterpoint: seg.counterpoint }
+                : {}),
         };
     });
     return { fullText: obj.fullText, segments };

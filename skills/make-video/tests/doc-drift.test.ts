@@ -176,3 +176,45 @@ describe('④ 模板与规范：文档 ↔ 代码', () => {
     expect(missing, `缺契约的模板：${missing.join(', ')}`).toEqual([]);
   });
 });
+
+describe('⑤ 规则登记簿（docs/12）↔ V-* 双向', () => {
+  it('登记簿引用的 V-* 编号都在 docs/10 有权威定义行', () => {
+    const ledger = read('docs/12-规则登记簿.md');
+    const spec = read('docs/10-视觉与剪辑规范.md');
+    const ids = new Set([...ledger.matchAll(/\bV-[A-Z]+-\d{3}\b/g)].map((m) => m[0]!));
+    expect(ids.size, '登记簿没有引用任何 V-* 编号').toBeGreaterThan(0);
+    const missing = [...ids].filter((id) => !new RegExp(`\\|\\s*${id}\\s*\\|`).test(spec));
+    expect(missing, `登记簿引用了 docs/10 未定义的 V-*：${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('阶段4 核心 V-* 编号都进了登记簿（双向覆盖）', () => {
+    const ledger = read('docs/12-规则登记簿.md');
+    for (const id of ['V-CAM-005', 'V-RHY-010', 'V-MOT-007', 'V-MOT-010']) {
+      expect(ledger, `登记簿缺 ${id} 条目`).toContain(id);
+    }
+  });
+
+  it('登记簿的 10 包盘点表覆盖磁盘全部风格（双向）', () => {
+    const ledger = read('docs/12-规则登记簿.md');
+    const section = ledger.split('## 四、10 包约束盘点')[1]?.split('## 五、')[0] ?? '';
+    expect(section, '登记簿找不到「## 四、10 包约束盘点」段').not.toBe('');
+    const listed = [...section.matchAll(/^\|\s*([a-z0-9-]+)\s*\|/gm)].map((m) => m[1]!);
+    const ids = listed.filter((id) => id !== 'id' && !id.startsWith('-'));
+    const ghosts = ids.filter((id) => !STYLE_IDS.includes(id));
+    expect(ghosts, `登记簿点名了磁盘上不存在的风格：${ghosts.join(', ')}`).toEqual([]);
+    const unlisted = STYLE_IDS.filter((id) => !ids.includes(id));
+    expect(unlisted, `磁盘风格没进登记簿盘点表：${unlisted.join(', ')}`).toEqual([]);
+  });
+
+  it('每个风格包的 provenance 齐全（source/from/absorbedAt）', () => {
+    const bad: string[] = [];
+    for (const f of readdirSync(path.join(ROOT, 'styles')).filter((x) => x.endsWith('.json'))) {
+      const pack = JSON.parse(read(`styles/${f}`));
+      const p = pack.provenance as Record<string, unknown> | undefined;
+      if (!p || !p.source || !p.from || !p.absorbedAt) {
+        bad.push(`${pack.id}: provenance 缺 field`);
+      }
+    }
+    expect(bad, `provenance 缺字段：${bad.join(', ')}`).toEqual([]);
+  });
+});

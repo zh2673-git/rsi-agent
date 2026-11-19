@@ -75,4 +75,41 @@ describe('schema', () => {
     };
     expect(ProjectSchema.parse(project).meta.id).toBe('p1');
   });
+
+  // P13 阶段2：场编组 scenes[]（可缺省，缺省 = 全片单场零回归）
+  it('scenes 可缺省（旧项目零回归）', () => {
+    const minimal = {
+      schemaVersion: 1,
+      meta: { id: 'p2', title: 't', topic: 'topic', aspect: '16:9', durationTier: '0-5', fps: 30, genre: 'science-explainer', assetPolicy: 'auto' },
+      stage: 'init',
+      confirmed: false,
+    };
+    const parsed = ProjectSchema.parse(minimal);
+    expect(parsed.scenes).toBeUndefined();
+  });
+
+  it('scenes 存在时校验结构与成员（shotIds 至少 1，viewportWindows 取景参数有界）', () => {
+    const base = {
+      schemaVersion: 1,
+      meta: { id: 'p3', title: 't', topic: 'topic', aspect: '16:9', durationTier: '0-5', fps: 30, genre: 'science-explainer', assetPolicy: 'auto' },
+      stage: 'init',
+      confirmed: false,
+      scenes: [
+        {
+          id: 'sc-1',
+          canvas: 'share-y7-canvas',
+          shotIds: ['s1', 's2'],
+          viewportWindows: [{ shotId: 's2', x: 72, y: 30, zoom: 1.4, motion: 'MV.drift(1200)' }],
+        },
+      ],
+    };
+    const parsed = ProjectSchema.parse(base);
+    expect(parsed.scenes?.[0]!.viewportWindows[0]!.zoom).toBe(1.4);
+    // 越界取景参数拒收
+    const bad = { ...base, scenes: [{ ...base.scenes[0]!, viewportWindows: [{ shotId: 's2', x: 120 }] }] };
+    expect(ProjectSchema.safeParse(bad).success).toBe(false);
+    // 空场编组拒收（一场至少一镜）
+    const empty = { ...base, scenes: [{ id: 'sc-x', canvas: 'c', shotIds: [] }] };
+    expect(ProjectSchema.safeParse(empty).success).toBe(false);
+  });
 });

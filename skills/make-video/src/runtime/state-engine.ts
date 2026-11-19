@@ -201,7 +201,8 @@ export class StateEngine {
         }
         case 'compose': {
           const pack = this.deps.registry.resolveStyle(p.style!);
-          await compose(this.deps.store, p, pack);
+          const recipe = this.deps.registry.getRecipe(p.meta.genre);
+          await compose(this.deps.store, p, pack, recipe);
           p.stage = 'render';
           this.emit({ type: 'stage-advanced', stage: 'render' });
           break;

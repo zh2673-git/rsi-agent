@@ -1,10 +1,12 @@
 import path from 'node:path';
 import { V } from '../core/index.js';
 import { allocateAccentShots, accentAllowedFor } from './accent-budget.js';
-import { defaultCameraFor } from './motion-grammar.js';
+import { defaultCameraFor, isRequirementsRegistered, unmetRequirements } from './motion-grammar.js';
 import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR, SCENE_LLM_RETRIES } from '../core/constants.js';
 import { atomicWriteText, atomicWriteJson, exists, readJson } from '../infrastructure/fs-utils.js';
+import { assembleContentValues, injectPlaceholders, loadTemplateContracts, sampleMarkup, } from './template-contract.js';
+import { contextForShot, deriveContent } from './template-content.js';
 export function tokensFromPack(pack) {
     const fx = pack.effects;
     return {
@@ -22,6 +24,17 @@ export function tokensFromPack(pack) {
         springDamping: pack.motion.spring.damping,
         maxElements: pack.layout.maxElementsPerShot,
         whitespace: pack.layout.whitespace,
+        // P12 阶段2：信息密度（此前零消费，F7）。口径：密度越高，留白越少。
+        // 风格包同时声明了 layout.whitespace 时以它为准（那是显式声明）；
+        // 没有声明才用 density 派生（0.15 疏 → 0.85 密）。
+        density: pack.layout.density,
+        whitespaceRatio: pack.layout.whitespace > 0 && pack.layout.whitespace <= 1
+            ? pack.layout.whitespace
+            : 1 - pack.layout.density * 0.7,
+        // 舞台内边距（%）：密度越高留白越少。0.15（疏）→ 10%；0.85（密）→ 4%。
+        stagePadding: Math.round((10 - pack.layout.density * 7) * 10) / 10,
+        // P12 阶段2：运动强度（此前零消费，F6）
+        intensity: pack.motion.intensity,
         grain: Number(fx['grain'] ?? 0),
         vignette: Number(fx['vignette'] ?? 0),
         letterbox: Boolean(fx['letterbox'] ?? false),
@@ -90,11 +103,24 @@ export async function drawScene(store, project, shot, pack, llm) {
     // 为什么用镜序号的哈希而不是「每 3 镜一次」：固定节拍就是节拍器，
     // 打散后观众感觉不到规律，但总量仍受预算约束。
     const accentOn = accentBudget(project, shot.id);
+    // 阶段1：模板契约 + 内容派生。契约说明「这个模板要哪些参数」，
+    // 内容派生把旁白落到画面的具体位置（HERO_WORD / STOP1 / LEFT_NUM…）。
+    // 两者合起来才让模板成为「换个文案就能再做一遍」的模板，而不是一次性样片。
+    const contracts = await loadTemplateContracts(store.root);
+    const contract = contracts.get(templateName);
+    const contractGrammar = contract?.grammar ?? [];
+    const content = deriveContent(templateName, contextForShot(project, shot));
+    // 阶段0：契约接线判据（素材槽/容量/变体）在这里承接，随后与场景校验汇流——
+    // 这样「导演填了超长文案」「选了不存在的变体」会以 error 出现在同一条失败信息里。
+    const wiringIssues = [];
     const html = renderTemplate(await readTemplate(templateFile), {
         shot,
         project,
         tokens,
         sceneId: shot.id,
+        contract,
+        content,
+        issues: wiringIssues,
     })
         .replace('{{SCENE_PROGRAM}}', isCanvas ? templateName.slice('canvas:'.length) : '')
         .replace('{{KICKER}}', isCanvas ? escapeHtml(String(shot.visual.params?.['kicker'] ?? '')) : '')
@@ -104,7 +130,16 @@ export async function drawScene(store, project, shot, pack, llm) {
         .replace(/\{\{CANVAS_W\}\}/g, String(project.meta.aspect === '9:16' ? 1080 : 1920))
         .replace(/\{\{CANVAS_H\}\}/g, String(project.meta.aspect === '9:16' ? 1920 : 1080))
         .replace(/\{\{STAR_SEED\}\}/g, String(hashSeed(shot.id)));
-    const issues = validateSceneHtml(html, shot, project, templateName, pack.visuals?.dimension);
+    const issues = [
+        ...wiringIssues,
+        ...validateSceneHtml(html, shot, project, templateName, pack.visuals?.dimension, 
+        // P12 阶段3：**forge 路径也过动作要求校验**。
+        // 口径说明：校验用的是**模板自己声明的语法**（契约里的 grammar 字段），
+        // 而不是分镜选出的语法——因为 forge 的画面就是模板的画面，
+        // 用模板的声明来核对才自洽（分镜选出的语法可能与模板不匹配，
+        // 那属于选型问题，由 V-MOT-024 在别处报）。
+        { enforceActionSheet: true, templateGrammar: contractGrammar }),
+    ];
     if (V.hasError(issues)) {
         throw mvError(ERR.SCENE_INVALID, `场景 ${shot.id} 校验失败:\n${V.formatIssues(issues)}`);
     }
@@ -190,11 +225,28 @@ export async function adoptScene(store, project, shotId, file, pack) {
 }
 /** 场景校验统一入口（LLM 与 forge 共用）；dimension 走 V-STYLE-008 素材语言一致性 */
 function validateSceneHtml(html, shot, project, templateName, dimension, opts = {}) {
+    // V-SCENE-005 豁免词（阶段1）：编剧声明的重音词是「画面有意显示的术语」。
+    // 只豁免**声明式**的（segment.emphasis），启发式抽的词不豁免——
+    // 猜错了就是复述旁白，而声明是有人负责的。
+    // A3 裁决（P13 阶段1）：不再在这里 `.filter(w => w.length >= 4)`——长度门槛是
+    // 「窗口多大算共享」（minLen）的事，不是「哪些词被声明豁免」的事。旧过滤让
+    // 「豁免 GPU」这类 3 字符声明永远到不了校验器，等于声明了也没用。
+    // 声明是人的责任，校验器只负责按声明执行（下限 2 由 findSharedRuns 把守）。
+    const seg = project.script?.segments.find((s) => s.id === shot.segmentId);
+    const exemptTerms = (seg?.emphasis ?? []).filter((w) => w && w.trim().length > 0);
     const issues = V.validateSceneFile(html, {
         narration: shot.narration,
         title: project.meta.title,
         dimension,
+        exemptTerms,
     });
+    // V-SCENE-007（阶段1）：渲染后不许残留未填充的占位符。
+    // 残留 {{X}} 在 <script> 里是非法 JS → 整块 script 抛错 → 该镜动画全灭，
+    // 而既有校验器全绿（它们查原语与构图，不查 JS 能不能跑）。
+    issues.push(...V.validateNoLeftoverPlaceholder(html));
+    // V-CP-006 直译率（P13 阶段1）：画面与旁白的共享片段占旁白内容单位的比例，
+    // 按 genre 分档判上限。这里是唯一同时握有「旁白 + HTML + genre」的地方。
+    issues.push(...V.validateLiteralRate(shot.narration, html, project.meta.genre));
     if (templateName === 'chart') {
         issues.push(...V.validateChartScene(html));
     }
@@ -203,11 +255,48 @@ function validateSceneHtml(html, shot, project, templateName, dimension, opts = 
     // 模板选型（TEMPLATE_CUES）与语法选型（pickGrammar）是两条链，模板自带编舞已由
     // V-MOT-021 等把关，拿语法表硬套模板会把正常流水线整片打回。
     // 既有精修文件（existed 分支）同此豁免——老项目不因 P8 升级而无法续跑。
+    //
+    // P12 阶段3：**forge 路径也过校验**，但口径换成了**动作要求**（等效原语组），
+    // 而不是原语名单。理由：
+    //   ① 模板与语法的对应关系现在由 `templates/scenes/*.meta.json` 的 grammar 字段声明，
+    //      所以 forge 路径能知道「这个模板是给哪个语法用的」——不再是无从校验；
+    //   ② 用**等效组**判（原语名单会误伤：y5 的专属模板用 slam 而不是 emphasis，
+    //      按名单判它永远不合格——这正是本轮之前 y5 机械失败的原因）。
     if (opts.enforceActionSheet && shot.visual.kind === 'code-scene') {
         const sheet = shot.visual.params['actionSheet'];
-        for (const prim of sheet?.requiredPrimitives ?? []) {
-            if (!html.includes(prim)) {
-                issues.push(V.err('V-MOT-023', `场景缺少语法要求的原语 ${prim}（动作谱 requiredPrimitives）：动作谱写了就要做到，否则选型是空话`));
+        // ── ① 语法 ↔ 模板 相容性（V-MOT-024）：本镜选中的语法必须由这个模板承载 ──
+        // 这是 forge 路径最该查的一条：画面来自模板，语法来自选型，
+        // 两者对不上 = 「语法选了 y5，画面却是氛围空镜」——正是本轮要治的病。
+        if (opts.templateGrammar?.length && sheet?.grammar) {
+            if (!opts.templateGrammar.includes(sheet.grammar)) {
+                issues.push(V.warn('V-MOT-024', `本镜语法「${sheet.grammar}」与模板「${templateName}」不匹配` +
+                    `（该模板承载的语法：${opts.templateGrammar.join('/')}）：` +
+                    '画面与动效对不上，整体观感会散'));
+            }
+        }
+        // ── ② 动作要求（V-MOT-023）：本镜选中的语法必须真的做到 ──
+        // 口径：**只判本镜选中的那一个语法**。
+        //   - 选中语法 ∈ 模板声明的语法 → 模板必须满足该语法的动作要求（error）
+        //   - 选中语法 ∉ 模板声明的语法 → 上面的 V-MOT-024 已报不匹配，
+        //     这里不再按模板的其他语法去卡（一个模板承载 3 种语法时，
+        //     它本来就不必同时满足 3 套动作要求——那会必然误伤）。
+        if (sheet?.grammar) {
+            const matches = !opts.templateGrammar?.length || opts.templateGrammar.includes(sheet.grammar);
+            if (matches) {
+                // A1（P13 阶段1）：未注册语法必须显式报错，不能静默通过。
+                // 历史口径是「语义表查不到 → unmetRequirements 返回空 → 校验蒸发」，
+                // 于是新语法漏登记时整条动作校验消失而测试全绿。这里把「查不到」本身报成 error。
+                if (!isRequirementsRegistered(sheet.grammar)) {
+                    issues.push(V.err('V-MOT-025', `语法「${sheet.grammar}」没有登记动作语义表（REQUIREMENTS_BY_GRAMMAR）：` +
+                        '本镜的动作校验因此无法进行。请先在 motion-grammar.ts 语义表里登记该语法，' +
+                        '否则这条语法的「动作谱写了就要做到」永远不被检查'));
+                }
+                const unmet = unmetRequirements(sheet.grammar, html);
+                for (const req of unmet) {
+                    issues.push(V.err('V-MOT-023', `场景缺少语法「${sheet.grammar}」要求的动作「${req.label}」` +
+                        `（可接受的等效原语：${req.anyOf.join(' / ')}）：` +
+                        '动作谱写了就要做到，否则选型是空话'));
+                }
             }
         }
     }
@@ -427,39 +516,72 @@ function sheetGrammar(shot) {
 function renderTemplate(tpl, ctx) {
     const { shot, project, tokens } = ctx;
     const sheet = shot.visual.params['actionSheet'];
-    const vars = {
-        '{{SCENE_ID}}': ctx.sceneId,
-        '{{TITLE}}': escapeHtml(project.meta.title),
+    // 阶段1：参数值分两层来源——
+    //   ① 系统层（token/镜别/机位…）：由风格包与本镜属性决定，模板不可改；
+    //   ② 内容层（HERO_WORD/STOP1…）：由内容派生 + 导演覆盖决定，模板契约里声明过。
+    // 两层分开，是因为它们的**信任级别**不同：系统层是编译期常量，内容层是导演可改的数据。
+    //
+    // 键名是**裸名**（不含 {{}}）——injectPlaceholders 负责按占位符位置决定转义与否，
+    // 所以这里一律给**原始值**，不要提前 escapeHtml（否则会被转义两次）。
+    const system = {
+        SCENE_ID: ctx.sceneId,
+        TITLE: project.meta.title,
         // 导演提示词是给美术的指令，严禁上屏（V-CP-001：画面不得复述指令/旁白）
-        '{{PROMPT}}': '',
-        '{{NARRATION_HINT}}': '',
-        '{{PRIMARY}}': tokens.primary,
-        '{{ACCENT}}': tokens.accent,
-        '{{NEUTRAL_0}}': tokens.neutral[0] ?? '#111111',
-        '{{NEUTRAL_1}}': tokens.neutral[1] ?? '#333333',
-        '{{NEUTRAL_2}}': tokens.neutral[2] ?? '#777777',
-        '{{NEUTRAL_3}}': tokens.neutral[3] ?? '#bbbbbb',
-        '{{NEUTRAL_4}}': tokens.neutral[4] ?? '#f5f5f5',
-        '{{FONT}}': tokens.fontFamily,
-        '{{TITLE_SIZE}}': String(tokens.titleSize),
-        '{{BODY_SIZE}}': String(tokens.bodySize),
-        '{{EASING}}': tokens.easing,
-        '{{DURATION}}': String(tokens.durationMs),
-        '{{STAGGER}}': String(tokens.staggerMs),
-        '{{SPRING_STIFFNESS}}': String(tokens.springStiffness),
-        '{{SPRING_DAMPING}}': String(tokens.springDamping),
-        '{{ZOOM}}': shot.zoom,
+        PROMPT: '',
+        NARRATION_HINT: '',
+        PRIMARY: tokens.primary,
+        ACCENT: tokens.accent,
+        NEUTRAL_0: tokens.neutral[0] ?? '#111111',
+        NEUTRAL_1: tokens.neutral[1] ?? '#333333',
+        NEUTRAL_2: tokens.neutral[2] ?? '#777777',
+        NEUTRAL_3: tokens.neutral[3] ?? '#bbbbbb',
+        NEUTRAL_4: tokens.neutral[4] ?? '#f5f5f5',
+        FONT: tokens.fontFamily,
+        TITLE_SIZE: String(tokens.titleSize),
+        BODY_SIZE: String(tokens.bodySize),
+        EASING: tokens.easing,
+        DURATION: String(tokens.durationMs),
+        STAGGER: String(tokens.staggerMs),
+        SPRING_STIFFNESS: String(tokens.springStiffness),
+        SPRING_DAMPING: String(tokens.springDamping),
+        ZOOM: shot.zoom,
         // V-CAM-006：静态画面必须过相机运动——'none' 落地为该镜语法的机位偏好
         // （不再一律 push-in，I-05：镜头语汇随语法分布，与分镜层兜底同口径）
-        '{{CAMERA}}': shot.camera && shot.camera !== 'none' ? shot.camera : defaultCameraFor(sheet?.grammar),
-        '{{GRAIN}}': String(tokens.grain),
-        '{{VIGNETTE}}': String(tokens.vignette),
-        '{{LETTERBOX}}': tokens.letterbox ? 'block' : 'none',
-        '{{DOF}}': String(tokens.dof),
-        '{{BLOOM}}': String(tokens.bloom),
-        '{{MAX_ELEMENTS}}': String(tokens.maxElements),
+        CAMERA: shot.camera && shot.camera !== 'none' ? shot.camera : defaultCameraFor(sheet?.grammar),
+        GRAIN: String(tokens.grain),
+        VIGNETTE: String(tokens.vignette),
+        LETTERBOX: tokens.letterbox ? 'block' : 'none',
+        DOF: String(tokens.dof),
+        BLOOM: String(tokens.bloom),
+        MAX_ELEMENTS: String(tokens.maxElements),
+        // P12 阶段2：运动强度（风格包的 motion.intensity）——此前零消费，
+        // 10 个风格包声明的「运动有多猛」从来没有兑现过。现在注入给 MV.camera。
+        INTENSITY: String(tokens.intensity),
+        // P12 阶段2：信息密度（风格包的 layout.density）——此前零消费。
+        // 口径：密度越高，留白越少（元素越挤）。0.15 = 克制，0.85 = 密集。
+        DENSITY: String(tokens.density),
+        WHITESPACE: String(tokens.whitespaceRatio),
+        // P12 阶段2：舞台内边距（由 density 派生）——模板用 calc(var(--pad) * 1%) 消费。
+        // 映射：density 0.15（疏）→ 10%；0.85（密）→ 4%。
+        STAGE_PAD: String(tokens.stagePadding),
     };
-    return Object.entries(vars).reduce((acc, [k, v]) => acc.split(k).join(v), tpl);
+    // 内容层：契约声明的参数 + 派生值。导演显式覆盖优先于派生值。
+    // 阶段0（P12 阶段4 接线）：合并、素材槽 ifMissing、容量三条判据统一由
+    // assembleContentValues 裁决——优先级 显式 > 变体 > 派生 > 契约缺省。
+    const explicit = (shot.visual.params ?? {});
+    const wired = assembleContentValues(ctx.contract, explicit, ctx.content ?? {}, explicit['variant']);
+    (ctx.issues ?? []).push(...wired.issues);
+    const contentValues = wired.values;
+    // placeholder 槽：填样例并打 data-film-sample 标记（契约注释里承诺过，此前零实现）
+    for (const [name, sample] of wired.samples) {
+        const spec = ctx.contract?.params.find((p) => p.name === name);
+        // 只对文本上下文打标记：代码位置（JS/CSS）里塞 HTML 会直接语法错误
+        contentValues[name] = spec?.context === 'code' ? sample : sampleMarkup(sample);
+    }
+    const all = { ...system, ...contentValues };
+    // 阶段1：统一走占位符注入器——它按占位符所在位置决定转义与否，
+    // 并且把「没给值的占位符」清成空串（残留 {{X}} 会让 script 块语法错误 → 整镜无动画）。
+    return injectPlaceholders(tpl, all, escapeHtml);
 }
 export function escapeHtml(s) {
     return s

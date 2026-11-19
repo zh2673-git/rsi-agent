@@ -64,6 +64,70 @@ MV.motifLoop('.subject', {kind: 'pulse', amp: 0.6});</script></body>`;
     expect(issues.some((i) => i.id === 'V-SCENE-005')).toBe(false);
   });
 
+  /**
+   * A3（P13 阶段1）英文豁免通道。审计发现 exemptTerms 只作用于中文挖词——
+   * 英文分支独立走 split，从不查豁免表。于是旁白里的 API/GPU/LLM（≥4 字符）
+   * 只要画面显示就被判「复述旁白」，而编剧在 segment.emphasis 里声明豁免完全无效。
+   */
+  it('英文术语命中视作复述（基线：未豁免时确实报错）', () => {
+    const bad = goodScene.replace('hi', 'Kubernetes GPU');
+    const issues = V.validateSceneFile(bad, { narration: '这套 Kubernetes GPU 调度很关键。' });
+    expect(issues.some((i) => i.id === 'V-SCENE-005')).toBe(true);
+  });
+
+  it('英文术语声明豁免后不再报错（A3 英文豁免通道）', () => {
+    const ok = goodScene.replace('hi', 'Kubernetes GPU');
+    const issues = V.validateSceneFile(ok, {
+      narration: '这套 Kubernetes GPU 调度很关键。',
+      exemptTerms: ['Kubernetes', 'GPU'],
+    });
+    expect(issues.filter((i) => i.id === 'V-SCENE-005')).toEqual([]);
+  });
+
+  it('英文豁免大小写不敏感，且只豁免该词本身（A3 边界）', () => {
+    // 大小写不同也应豁免（旁白写 gpu、画面写 GPU）
+    const ok = goodScene.replace('hi', 'GPU');
+    const issues = V.validateSceneFile(ok, {
+      narration: '调度 gpu 资源。',
+      exemptTerms: ['GPU'],
+    });
+    expect(issues.filter((i) => i.id === 'V-SCENE-005')).toEqual([]);
+    // 未豁免的相邻英文词照查：豁免 GPU 不影响 Kubernetes
+    const still = goodScene.replace('hi', 'Kubernetes');
+    const issues2 = V.validateSceneFile(still, {
+      narration: '这套 Kubernetes GPU 调度很关键。',
+      exemptTerms: ['GPU'],
+    });
+    expect(issues2.some((i) => i.id === 'V-SCENE-005')).toBe(true);
+  });
+
+  /**
+   * A3 长度门槛裁决（P13 阶段1）：旧代码英文分支 `word.length < 4 → continue`，
+   * 3 字符的 GPU/API/SDK 根本走不到判断，也走不到豁免表——
+   * 于是上面那条「GPU 豁免生效」的断言其实是空转（两边都不报，测不出东西）。
+   * 这条钉住真实行为：**未豁免的 3 字符词必须被查出来**。
+   */
+  it('未豁免的 3 字符英文词也要被判复述（A3 门槛放宽后不再空转）', () => {
+    const bad = goodScene.replace('hi', 'GPU');
+    const issues = V.validateSceneFile(bad, { narration: '调度 GPU 资源。' });
+    expect(issues.some((i) => i.id === 'V-SCENE-005')).toBe(true);
+  });
+
+  it('中文 3 字重音词声明豁免后不再报错（旧 minLen 门槛曾让它豁免失效）', () => {
+    const ok = goodScene.replace('hi', '三体问题');
+    // 基线：未声明豁免 → 4 字窗口命中，报错
+    expect(
+      V.validateSceneFile(ok, { narration: '三体问题很难解。' }).some((i) => i.id === 'V-SCENE-005'),
+    ).toBe(true);
+    // 声明豁免（3 字，低于 minLen=4）→ 不再报
+    expect(
+      V.validateSceneFile(ok, {
+        narration: '三体问题很难解。',
+        exemptTerms: ['三体'],
+      }).filter((i) => i.id === 'V-SCENE-005'),
+    ).toEqual([]);
+  });
+
   it('图表禁 3D 装饰（Tufte）', () => {
     const bad = '<div>立体饼图 3d 效果</div>';
     expect(V.hasError(V.validateChartScene(bad))).toBe(true);
@@ -529,5 +593,168 @@ describe('运镜词表：提示词/校验器/归一化必须同源（v1.1.2 分�
     // 文案点名了合法值，照着文案写就不会再被打回
     expect(msg).toContain('push-in');
     expect(msg).toContain('whip-pan');
+  });
+});
+
+describe('V-CP-005 对位多样性（P13 阶段1）', () => {
+  const shot = (id: string, counterpoint: string) => ({ id, counterpoint }) as never;
+
+  it('≥6 镜全片同一种对位 → warn', () => {
+    const shots = Array.from({ length: 6 }, (_, i) => shot(`s0${i + 1}`, 'metaphor'));
+    const issues = V.validateCounterpointDiversity(shots);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]!.id).toBe('V-CP-005');
+    expect(issues[0]!.level).toBe('warn');
+  });
+
+  it('5 镜同一种 → 不报（少镜短片没有分布可言）', () => {
+    const shots = Array.from({ length: 5 }, (_, i) => shot(`s0${i + 1}`, 'metaphor'));
+    expect(V.validateCounterpointDiversity(shots)).toEqual([]);
+  });
+
+  it('≥6 镜出现第二种对位 → 不报', () => {
+    const shots = [
+      ...Array.from({ length: 5 }, (_, i) => shot(`s0${i + 1}`, 'metaphor')),
+      shot('s06', 'literal'),
+    ];
+    expect(V.validateCounterpointDiversity(shots)).toEqual([]);
+  });
+
+  it('统计层永不拦单镜：只有 warn，没有 error', () => {
+    const shots = Array.from({ length: 8 }, (_, i) => shot(`s0${i + 1}`, 'emotion'));
+    expect(V.hasError(V.validateCounterpointDiversity(shots))).toBe(false);
+  });
+});
+
+describe('V-CP-006 字面直译率分档（P13 阶段1）', () => {
+  // 旁白 20 个内容单位；画面只出现两段 4 字片段（引力其实 / 苹果落地）
+  // → 共享 8 单位 = 直译率 0.40。落在讲解档（0.45）之下、叙事档（0.30）之上——
+  // 这一对数据正好用来证明「档位不是装饰」：同一画面换个 genre 结论就反了。
+  const narration = '引力其实是一种时空弯曲而苹果落地只是表象';
+  const html = '<div>引力其实</div><div>苹果落地</div>';
+
+  it('讲解类高重合不报（术语上画面是功能）', () => {
+    const issues = V.validateLiteralRate(narration, html, 'science-explainer');
+    expect(issues).toEqual([]);
+  });
+
+  it('story-narrative 同输入报 warn（叙事类字面复述就是插图）', () => {
+    const issues = V.validateLiteralRate(narration, html, 'story-narrative');
+    expect(issues.map((i) => i.id)).toEqual(['V-CP-006']);
+    expect(issues[0]!.level).toBe('warn');
+    expect(issues[0]!.message).toContain('story-narrative');
+  });
+
+  it('连画面整句照搬时讲解档也拦（不是无脑放行）', () => {
+    const heavy = `<div>${narration}</div>`;
+    const issues = V.validateLiteralRate(narration, heavy, 'science-explainer');
+    expect(issues.map((i) => i.id)).toEqual(['V-CP-006']);
+  });
+
+  it('未登记 genre 走兜底档，空串也不绕过（不写 `genre &&` 的坑）', () => {
+    const issues = V.validateLiteralRate(narration, html, '');
+    expect(issues.map((i) => i.id)).toEqual(['V-CP-006']);
+    expect(issues[0]!.message).toContain('默认');
+  });
+
+  it('旁白过短（units<8）直接放行', () => {
+    expect(V.validateLiteralRate('涨了', '<div>涨了</div>', 'story-narrative')).toEqual([]);
+  });
+
+  it('画面不复述旁白 → 不报（低重合是隐喻该有的样子，不判下限）', () => {
+    expect(V.validateLiteralRate(narration, '<div>一条被拉弯的床单</div>', 'story-narrative')).toEqual([]);
+  });
+});
+
+describe('V-CON-006 机位动机断点（P13 阶段1）', () => {
+  it('连续段内 intent 突变 → intentBreaks 有值且 warns 含 V-CON-006', async () => {
+    const { auditContinuity } = await import('../src/domain/continuity.js');
+    const audit = auditContinuity([
+      { id: 's01', segmentId: 'seg-1', zoom: 'MS', camera: 'push-in', transition: 'continuity', intent: 'reveal', colorTemp: 'cool' },
+      { id: 's02', segmentId: 'seg-1', zoom: 'MS', camera: 'pan', transition: 'continuity', intent: 'hold', colorTemp: 'cool' },
+    ] as never);
+    expect(audit.intentBreaks.length).toBeGreaterThan(0);
+    expect(audit.warns.some((w) => w.includes('V-CON-006'))).toBe(true);
+    expect(audit.intentCoverage.withIntent).toBe(2);
+  });
+
+  it('intent 一致 → 不报断点', async () => {
+    const { auditContinuity } = await import('../src/domain/continuity.js');
+    const audit = auditContinuity([
+      { id: 's01', segmentId: 'seg-1', zoom: 'MS', camera: 'push-in', transition: 'continuity', intent: 'reveal', colorTemp: 'cool' },
+      { id: 's02', segmentId: 'seg-1', zoom: 'MS', camera: 'pan', transition: 'continuity', intent: 'reveal', colorTemp: 'cool' },
+    ] as never);
+    expect(audit.intentBreaks).toEqual([]);
+    expect(audit.warns.some((w) => w.includes('V-CON-006'))).toBe(false);
+  });
+});
+
+// P13 阶段2：V-RHY-013 场内/场间转场双规则（sceneScope 由 computeTimeline 单点派生，校验器只读 timeline）
+describe('V-RHY-013 场内/场间转场双规则', () => {
+  const shot = (id: string, over: Record<string, unknown> = {}) => ({
+    shotId: id,
+    startMs: 0,
+    durationMs: 1500,
+    transition: 'hard-cut',
+    motivation: '',
+    audioShiftMs: 0,
+    coverage: [],
+    ...over,
+  });
+  const tl = (shots: ReturnType<typeof shot>[]) => ({ shots, subtitles: [], sfx: [] }) as never;
+
+  it('全 inter → 不告警（缺省 sceneScope 视为场间，保守不收紧旧片）', () => {
+    const issues = V.validateSceneTransition(
+      tl([shot('s1'), shot('s2', { sceneScope: 'inter', motivation: 'emotion', transition: 'dissolve' })]),
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('场内 dissolve → 规则2 warn；场间 dissolve → 沉默', () => {
+    const issues = V.validateSceneTransition(
+      tl([shot('s1', { sceneScope: 'intra' }), shot('s2', { sceneScope: 'intra', transition: 'dissolve', motivation: 'action' })]),
+    );
+    expect(issues.filter((i) => i.id === 'V-RHY-013').length).toBe(1);
+    expect(issues[0]!.message).toContain('溶解');
+  });
+
+  it('场内 emotion 动机 → 规则1 warn（越集）；场内 action → 沉默', () => {
+    const issues = V.validateSceneTransition(
+      tl([shot('s1', { sceneScope: 'intra' }), shot('s2', { sceneScope: 'intra', motivation: 'emotion', transition: 'hard-cut' })]),
+    );
+    expect(issues.filter((i) => i.id === 'V-RHY-013').length).toBe(1);
+    expect(issues[0]!.message).toContain('动机越集');
+  });
+
+  it('oneshot 与 match-cut 是合法场内动机 → 沉默', () => {
+    const issues = V.validateSceneTransition(
+      tl([
+        shot('s1', { sceneScope: 'intra' }),
+        shot('s2', { sceneScope: 'intra', motivation: 'oneshot', transition: 'continuity' }),
+        shot('s3', { sceneScope: 'intra', motivation: 'match-cut', transition: 'hard-cut' }),
+      ]),
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('computeTimeline 派生：同 segment ⇒ intra；scenes 编组优先于 segment 口径', async () => {
+    const { computeTimeline } = await import('../src/domain/composer.js');
+    const base = {
+      schemaVersion: 1,
+      meta: { id: 'p9', title: 't', topic: 'x', aspect: '16:9', durationTier: '0-5', fps: 30, genre: 'science-explainer', assetPolicy: 'auto' },
+      stage: 'compose',
+      confirmed: false,
+      shots: [
+        { id: 's1', segmentId: 'seg-1', zoom: 'MS', camera: 'none', transition: 'auto', narration: '一', counterpoint: {}, coverage: [], gag: false, visual: { kind: 'code', prompt: '', params: {} } },
+        { id: 's2', segmentId: 'seg-2', zoom: 'CU', camera: 'none', transition: 'auto', narration: '二', counterpoint: {}, coverage: [], gag: false, visual: { kind: 'code', prompt: '', params: {} } },
+      ],
+      directorNotes: [],
+      materialDecisions: {},
+    } as never;
+    // 回退口径：不同 segment ⇒ 全 inter
+    expect(computeTimeline(base).shots.map((s) => s.sceneScope)).toEqual(['inter', 'inter']);
+    // scenes 编组把两镜放进同一场 ⇒ 第二镜 intra（编组优先于 segment 口径）
+    const withScene = { ...base, scenes: [{ id: 'sc1', canvas: 'c', shotIds: ['s1', 's2'], viewportWindows: [] }] } as never;
+    expect(computeTimeline(withScene).shots.map((s) => s.sceneScope)).toEqual(['inter', 'intra']);
   });
 });

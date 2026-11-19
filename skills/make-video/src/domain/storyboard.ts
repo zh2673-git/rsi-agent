@@ -1,14 +1,17 @@
 import type { LlmClient } from '../infrastructure/llm-client.js';
 import type {
+  CameraIntent,
   Coverage,
   DirectorNote,
   MaterialDecision,
   Project,
   Recipe,
   Shot,
+  Staging,
   StyleDecision,
   VisualKind,
 } from '../core/schema.js';
+import { CAMERA_INTENTS, StagingSchema } from '../core/schema.js';
 import { V } from '../core/index.js';
 import { PUSH_CAMERAS } from '../core/validators/scene.js';
 
@@ -78,18 +81,40 @@ export async function writeDirectorNotes(
 }
 
 export function decideMaterials(
-  segments: Array<{ id: string; text: string }>,
+  segments: Array<{ id: string; text: string; assetNeed?: string }>,
   index: MaterialIndex,
   policy: Project['meta']['assetPolicy'],
 ): MaterialDecision[] {
   return segments.map((seg) => {
     const hit = matchMaterial(index, seg.text);
+    // A2 assetNeed（P13 阶段1 · 提案 §1.E）：剧本层已声明「这段值不值得用真实素材」。
+    // 优先级：库存命中永远最高（有真素材就用，不因声明弃用）；
+    // 其次看声明——evidence 段即使库存没命中也要去云端找，mood 段即使命中也要倾向代码绘制。
+    if (seg.assetNeed === 'mood' && !hit) {
+      return {
+        kind: 'code-scene' as VisualKind,
+        reason: '剧本声明 assetNeed=mood（情绪段）→ 代码绘制，抽象比实拍更贴',
+      };
+    }
     if (hit) {
       return {
         kind: 'user-material' as VisualKind,
         source: hit.path,
-        reason: `具体指称物命中用户素材（${hit.tags.join('/') || hit.type}）`,
+        reason:
+          seg.assetNeed === 'mood'
+            ? `具体指称物命中用户素材（${hit.tags.join('/') || hit.type}），虽为情绪段但有实物可用`
+            : `具体指称物命中用户素材（${hit.tags.join('/') || hit.type}）`,
       };
+    }
+    if (seg.assetNeed === 'evidence') {
+      // 证据段要的是**真素材**，不是 AI 生图——生图出来的是假证据，且会撞 V-AI-001 授权闸门。
+      // 所以这里只把诉求写进 reason + 保持策略给的路，真正的「去找真素材」由 material-plan
+      // 的需求单兑现（planMaterials 读 assetNeed 决定 need/query）。
+      const base =
+        policy === 'real-first'
+          ? 'real-first 策略且库存无匹配 → 云端生成'
+          : '剧本声明 assetNeed=evidence（证据段）：库存无匹配，需求单要求真素材检索';
+      return { kind: (policy === 'real-first' ? 'cloud' : 'code-scene') as VisualKind, reason: base };
     }
     if (policy === 'code-first' || policy === 'auto') {
       return { kind: 'code-scene' as VisualKind, reason: '抽象概念/数据 → 代码绘制（默认）' };
@@ -156,6 +181,101 @@ export function decideStyle(
   };
 }
 
+/** 静态机位族：这些值意味着「机位这一镜真的没动」，是 hold 动机的事实依据 */
+const STILL_CAMERAS = new Set(['static', 'none', '']);
+
+/**
+ * 由已选语法派生机位动机（P13 阶段1 · A5 生产方）。
+ *
+ * 为什么按语法而不是按内容再判一次：语法选型（pickGrammar）已经把「这段口播在讲什么、
+ * 观众要看什么」判过一遍（GRAMMARS[].when / cues），机位动机是那个判断的**机位结论**，
+ * 再拿旁白判一次等于让两套标准互相打脸。所以这里的映射是 1:11 的确定表。
+ *
+ * 事实优先于声明：camera 已经落定（LLM 给的或兜底选的），若它其实是 static，
+ * 动机就不该是 follow/reveal——那是给运动镜的动机。这一条同时让
+ * motion-audit 的 multiTrackMotion（动轨计数）与 intent 自洽。
+ */
+export function deriveIntent(grammarId: string | undefined, index: number, camera?: string): CameraIntent {
+  const still = STILL_CAMERAS.has(camera ?? '');
+  // 首镜的任务是「这是哪儿」——即使它是空镜或静止，交代环境本身就是动机
+  if (index === 0) return 'setup';
+  if (still) return 'hold';
+  switch (grammarId) {
+    case 'y1_flat_explainer':
+    case 'y6_mechanism':
+    case 'y7_system_map':
+    case 't1_3b1b':
+      return 'reveal';
+    case 'y2_collage':
+    case 'y3_whiteboard':
+    case 't3_finance':
+      return 'follow';
+    case 'y4_story':
+      return 'emotion';
+    case 'y5_kinetic_type':
+    case 't2_keynote':
+      return 'setup';
+    case 'b_roll':
+      return 'hold';
+    default:
+      // 语法缺失（旧项目 / 手写 IR）：机位在动就是在跟随内容，不动就是 hold
+      return 'follow';
+  }
+}
+
+/** 各意图对应的机位动作措辞（写进 staging.camera.what，供调度表读懂） */
+const INTENT_WHAT: Record<CameraIntent, string> = {
+  follow: '机位跟着观众要读的那个对象移动',
+  reveal: '先给全貌，再推进到关键局部',
+  hold: '机位定住不动，靠画面内部元素产生变化',
+  emotion: '机位服务于表情与停顿，不动或极缓',
+  setup: '机位一次到位交代「这是哪儿」，然后停住',
+};
+
+/**
+ * 组装五轨调度表（P13 阶段1 · A5）。
+ *
+ * 机位轨必填（motion + what + why + intent）：机位是唯一「动不动都需要理由」的轨。
+ * 其余四轨只在有实际调度内容时才写——schema 里 optional 的语义是「本轨未单独调度」，
+ * 硬塞默认值会让「没调度」和「调度为静」变得不可分（提案 §1.C 的原始约束）。
+ */
+function buildStaging(
+  shot: Shot,
+  intent: CameraIntent,
+  grammarId: string | undefined,
+  declared: Partial<Staging>,
+  holdConflict: boolean,
+): Staging {
+  const cameraMoving = !STILL_CAMERAS.has(shot.camera ?? '');
+  const why = holdConflict
+    ? `声明 hold 但机位为 ${shot.camera}（运动事实优先），按语法 ${grammarId ?? 'unknown'} 重判为 ${intent}`
+    : declared.camera?.why || `语法 ${grammarId ?? 'unknown'}：${INTENT_WHAT[intent]}`;
+  const staging: Staging = {
+    camera: {
+      motion: cameraMoving ? 'move' : 'still',
+      what: declared.camera?.what || INTENT_WHAT[intent],
+      why,
+      intent,
+    },
+  };
+  // 主体轨：动作谱已写明主体是什么（文字主导 or 具体物件）——有值就落，不另判
+  const subjectWhat = (shot.visual.params['actionSheet'] as { subject?: string } | undefined)?.subject;
+  if (declared.subject) staging.subject = declared.subject;
+  else if (subjectWhat) staging.subject = { motion: cameraMoving ? 'move' : 'still', what: subjectWhat, why: '语法动作谱已指定主体' };
+  if (declared.supporting) staging.supporting = declared.supporting;
+  if (declared.environment) staging.environment = declared.environment;
+  // 字幕轨：这一镜要念的重点词就是上字幕的内容（emphasis 已在剧本层声明）
+  if (declared.subtitle) staging.subtitle = declared.subtitle;
+  else if (shot.narration.trim()) {
+    staging.subtitle = {
+      motion: 'still',
+      what: '与口播同步的字幕（关键词加重）',
+      why: '口播类视频字幕是默认轨，不是可选项',
+    };
+  }
+  return staging;
+}
+
 export async function storyboard(
   store: ProjectStore,
   project: Project,
@@ -178,7 +298,7 @@ export async function storyboard(
   }
   const stylePack = registry.resolveStyle(styleDecision);
   const decisions = decideMaterials(
-    project.script.segments.map((s) => ({ id: s.id, text: s.text })),
+    project.script.segments.map((s) => ({ id: s.id, text: s.text, assetNeed: s.assetNeed })),
     materialIndex,
     project.meta.assetPolicy,
   );
@@ -239,6 +359,12 @@ export async function storyboard(
       enterAnchor: shot.enterAnchor ?? '',
       exitAnchor: shot.exitAnchor ?? '',
       audioShiftMs: typeof shot.audioShiftMs === 'number' ? shot.audioShiftMs : 0,
+      // P13 阶段1 · A5：LLM 声明的机位动机/调度表原样收下（枚举非法就丢，交给下方派生）。
+      // 这里只做「收进来」，不做裁决——矛盾（如 hold + push-in）在派生循环里判，原因可追溯。
+      ...(CAMERA_INTENTS.includes(shot.intent as CameraIntent)
+        ? { intent: shot.intent as CameraIntent }
+        : {}),
+      ...(shot.staging ? { staging: shot.staging } : {}),
       state: 'pending' as const,
     } satisfies Shot;
   });
@@ -384,6 +510,36 @@ export async function storyboard(
     shot.camera = avoidPush(declared?.grammar, candidate) as Shot['camera'];
     // 不同语法的镜也可能选到推镜——同样纳入连续计数
     pushRun = PUSH_WORDS.has(shot.camera) ? pushRun + 1 : 0;
+  }
+  // P13 阶段1 · A5 生产方：机位动机 + 调度表。
+  //
+  // A5 先把 `intent`/`staging` 的**消费方**全接通（motion-audit 的 intentCoverage、
+  // cut-audit 每条、continuity 的 V-CON-006、rigSummary），但全链路没有任何地方
+  // **写**这两个字段——intentCoverage 恒为 0，「覆盖率 100%」永远不可能达成。
+  // 这一段就是缺失的生产方：LLM 给了就收（枚举校验 + 矛盾裁决），没给按已选语法派生。
+  //
+  // 派生口径对齐 GRAMMARS 的 when / cameraBias / motionBeats，不是轮转：
+  //   y1/y6/y7/t1 → reveal   这三条的动作谱都写「定场 → 推进放大 → 拉远」，机位承担揭示
+  //   y2/y3/t3    → follow   材料/推导/数据是观众要跟读的对象，机位跟着它走
+  //   y4          → emotion  情绪镜，机位服务于表情与停顿
+  //   y5/t2       → setup    一屏一件事，机位到位就停
+  //   b_roll      → hold     兜底氛围镜：没有理由就别动机位（Lumet）
+  // 首镜一律 setup——全片第一镜的任务是交代「这是哪儿」，与它选了什么语法无关。
+  for (let i = 0; i < shots.length; i += 1) {
+    const shot = shots[i]!;
+    const grammarId = (shot.visual.params['actionSheet'] as { grammar?: string } | undefined)?.grammar;
+    const derived = deriveIntent(grammarId, i, shot.camera);
+    // LLM 声明的 staging 逐轨校验（整表 safeParse 会因缺 camera 轨而全丢，
+    // 而缺省语义是「该轨未单独调度」，不该连带丢弃已声明的轨）。
+    const parsed = StagingSchema.partial().safeParse(shot.staging);
+    const declared = parsed.success ? parsed.data : {};
+    const declaredIntent = declared.camera?.intent;
+    // hold 与「机位在运动」是硬矛盾：camera 是运动事实，intent 是动机，事实优先。
+    // 声明 hold 却给了 push-in 的镜按机位事实重派生，原因写进 camera.why（不静默改写）。
+    const holdConflict = declaredIntent === 'hold' && !STILL_CAMERAS.has(shot.camera);
+    const intent: CameraIntent = declaredIntent && !holdConflict ? declaredIntent : derived;
+    shot.intent = intent;
+    shot.staging = buildStaging(shot, intent, grammarId, declared, holdConflict);
   }
   // 重跑分镜不该无差别清空已完成产物：旁白原文没变的镜头照旧沿用配音与素材，
   // 否则每次 --script 微调或 storyboard 重进都要重配音（0.6B 模型几分钟起步）。

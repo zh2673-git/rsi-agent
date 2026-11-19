@@ -45,11 +45,12 @@ export function validateCutPoints(shots, timeline) {
 // 专业依据：静止构图 + 镜内表演是成熟的镜头语言（Bordwell《电影艺术》；
 // 小津、北野武、死板喜剧），"幻灯片"的问题是**画面里什么都不动**，而不是没有外层机位。
 // 因此不再逐镜告警，只统计两件事：静止占比过高（>60%）、全片运动式 <2 种（切点必然机械）。
-export function validateIntraShotMotion(timeline) {
+export function validateIntraShotMotion(timeline, opts = {}) {
     const issues = [];
     const total = timeline.shots.length;
     if (total === 0)
         return issues;
+    const maxRatio = opts.maxStaticRatio ?? 0.6;
     const staticIds = [];
     const moves = new Set();
     for (const t of timeline.shots) {
@@ -59,8 +60,8 @@ export function validateIntraShotMotion(timeline) {
         else
             moves.add(move);
     }
-    if (staticIds.length / total > 0.6) {
-        issues.push(warn('V-RHY-010', `静止镜 ${staticIds.length}/${total} 超过 60%（${staticIds.slice(0, 4).join('/')}…）：静止是选择，不该是默认`));
+    if (staticIds.length / total > maxRatio) {
+        issues.push(warn('V-RHY-010', `静止镜 ${staticIds.length}/${total} 超过 ${Math.round(maxRatio * 100)}%（${staticIds.slice(0, 4).join('/')}…）：静止是选择，不该是默认`));
     }
     if (total >= 6 && moves.size < 2) {
         issues.push(warn('V-RHY-010', `全片机位运动单一（仅 ${[...moves].join('/') || '全静止'}），切点必然机械`));
@@ -90,6 +91,49 @@ export function validateCutMotivation(timeline) {
     }
     if (timeline.shots.length >= 6 && kinds.size < 2) {
         issues.push(warn('V-RHY-011', `全片切点动机单一（${[...kinds].join('/') || '无'}）`));
+    }
+    return issues;
+}
+/**
+ * V-RHY-013 场内/场间转场双规则（P13 表达层，提案表3）：
+ *   规则1 场内切点（sceneScope=intra）只许「接」的动机 —— action/eye-line/beat/match-cut/oneshot
+ *         （V-RHY-011 动作词表的场内子集 + 一镜到底）。emotion/zoom-jump 的裁决落地是溶解/甩镜
+ *         类操作（同根因，见规则2），故只许在场间使用；
+ *   规则2 溶解/遮挡类转场词（dissolve/crossfade/wipe/slide/page-turn/fade-black）只许场间 ——
+ *         场内是同一物理空间，观众刚建立的连续性不许被模糊掉（动作接/视线接必须干净利落）。
+ * 只读 timeline 派生字段（sceneScope 由 computeTimeline 单点派生：scenes[] 编组优先，segmentId 回退），
+ * 不依赖项目结构 —— 校验器保持纯函数、core 不反向依赖 domain。
+ * 现状：场内双违规均 warn（统计层永不拦单镜），试点验证后再升 error。
+ */
+const DISSOLVE_LIKE = new Set(['dissolve', 'crossfade', 'wipe', 'slide', 'page-turn', 'fade-black']);
+/** 场内允许的切点动机（V-RHY-011 动作词表的场内子集 + 一镜到底） */
+const INTRA_MOTIVATIONS = new Set(['action', 'eye-line', 'beat', 'match-cut', 'oneshot']);
+export function validateSceneTransition(timeline) {
+    const issues = [];
+    const intraMotive = [];
+    const intraDissolve = [];
+    for (let i = 1; i < timeline.shots.length; i += 1) {
+        const cur = timeline.shots[i];
+        const prev = timeline.shots[i - 1];
+        if ((cur.sceneScope ?? 'inter') !== 'intra')
+            continue;
+        const cut = `${prev.shotId}→${cur.shotId}`;
+        // 规则1：动机必须落在场内允许集（V-RHY-011 子集）
+        const m = cur.motivation ?? '';
+        if (m && !INTRA_MOTIVATIONS.has(m))
+            intraMotive.push(`${cut}（${m}）`);
+        // 规则2：声明/裁决出的有效转场不得是溶解/遮挡类（dissolve 别名在声明层已归一）
+        const kind = DISSOLVE_LIKE.has((cur.transition ?? '').trim().toLowerCase())
+            ? (cur.transition ?? '').trim().toLowerCase()
+            : null;
+        if (kind)
+            intraDissolve.push(`${cut}（${kind}）`);
+    }
+    if (intraMotive.length > 0) {
+        issues.push(warn('V-RHY-013', `场内切点动机越集 ${intraMotive.length} 处（${intraMotive.slice(0, 3).join(' ')}${intraMotive.length > 3 ? ' 等' : ''}）——场内只许 action/eye-line/beat/match-cut/oneshot 接`));
+    }
+    if (intraDissolve.length > 0) {
+        issues.push(warn('V-RHY-013', `场内使用溶解/遮挡类转场 ${intraDissolve.length} 处（${intraDissolve.slice(0, 3).join(' ')}${intraDissolve.length > 3 ? ' 等' : ''}）——溶解只许场间，场内请改 hard-cut/smash-cut/whip-pan`));
     }
     return issues;
 }

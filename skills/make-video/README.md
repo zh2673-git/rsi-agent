@@ -68,7 +68,7 @@
   （`y1` 扁平科普 / `y2` 拼贴 / `y3` 白板 / `y4` 故事快切 / `y5` 动态字 /
   `y6` 机制拆解 / `y7` 系统地图 / `t1` 形变不切 / `t2` 一屏一事 / `t3` 财经图表 /
   `b_roll` 氛围兜底），按旁白语义打分选型
-  并硬排除冲突项；26 个动效原语（`slam` 砸词 / `staggeredIn` 错峰 / `morphTo` 形变 /
+  并硬排除冲突项；28 个动效原语（`slam` 砸词 / `staggeredIn` 错峰 / `morphTo` 形变 /
   `counter` 数字 / `highlight` 荧光笔 / `cards` 卡组 / `punch` 冲击 / `whip` 甩 /
   `drift` 漂移 / `maskReveal` 遮罩 / `bands` 色带 / `motifLoop` 环境母题 / 入场退场与
   机位机架 / 3D 镜头语言等，完整名单跑 `make-video capability`），全是有界

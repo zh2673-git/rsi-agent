@@ -130,6 +130,71 @@ describe('素材需求单（P5-B）', () => {
     expect(briefs[0]!.need).toBe('none');
     expect(briefs[1]!.need).toBe('object');
   });
+
+  // A2（P13 阶段1）：assetNeed 是编剧层的声明，需求单必须能承载它。
+  // 这三条钉的是「声明 → 需求单」的链路，防止 assetNeed 再次变成没人读的字段。
+  it('剧本声明 evidence 而 LLM 判 none：改成 background，不再算「什么都不用」', async () => {
+    const p = makeProject();
+    p.script!.segments[1]!.assetNeed = 'evidence';
+    const llm: LlmClient = {
+      name: 'stub',
+      async generate(_task: LlmTask) {
+        return { briefs: [{ shotId: 's02', need: 'none' }] };
+      },
+    };
+    const briefs = await planMaterials(p, PACK, llm);
+    const s02 = briefs.find((b) => b.shotId === 's02')!;
+    expect(s02.need).toBe('background');
+    // 改成 background 后必须真的可检索：query 不能被 need==='none' 的清空分支吃掉
+    expect(s02.query.length).toBeGreaterThan(0);
+  });
+
+  it('LLM 已经给了具体诉求时不被 assetNeed 覆盖', async () => {
+    const p = makeProject();
+    p.script!.segments[1]!.assetNeed = 'evidence';
+    const llm: LlmClient = {
+      name: 'stub',
+      async generate(_task: LlmTask) {
+        return { briefs: [{ shotId: 's02', need: 'object', query: 'map', type: 'image' }] };
+      },
+    };
+    const briefs = await planMaterials(p, PACK, llm);
+    expect(briefs.find((b) => b.shotId === 's02')!.need).toBe('object');
+  });
+
+  it('未声明 assetNeed 的段保持原判（不让新分支把 none 一律翻成 background）', async () => {
+    const p = makeProject();
+    const llm: LlmClient = {
+      name: 'stub',
+      async generate(_task: LlmTask) {
+        return { briefs: [{ shotId: 's02', need: 'none' }] };
+      },
+    };
+    const briefs = await planMaterials(p, PACK, llm);
+    expect(briefs.find((b) => b.shotId === 's02')!.need).toBe('none');
+  });
+
+  it('assetNeed/subtext/emotion 随需求单进 LLM 上下文（缺省则整键不出现）', async () => {
+    const p = makeProject();
+    p.script!.segments[0]!.assetNeed = 'person';
+    p.script!.segments[0]!.subtext = '他想留下';
+    p.script!.segments[0]!.emotion = 'warm';
+    let seen: unknown;
+    const llm: LlmClient = {
+      name: 'stub',
+      async generate(task: LlmTask) {
+        seen = (task as { payload?: { segments?: unknown[] } }).payload?.segments;
+        return [];
+      },
+    };
+    await planMaterials(p, PACK, llm);
+    const segs = seen as Record<string, unknown>[];
+    expect(segs[0]).toMatchObject({ assetNeed: 'person', subtext: '他想留下', emotion: 'warm' });
+    // 未声明的段：键不存在，而不是空串——「未声明」与「声明为空」必须可区分
+    expect(Object.prototype.hasOwnProperty.call(segs[1]!, 'assetNeed')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(segs[1]!, 'subtext')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(segs[1]!, 'emotion')).toBe(false);
+  });
 });
 
 describe('AI 生图闸门（P5-E V-AI-001）', () => {

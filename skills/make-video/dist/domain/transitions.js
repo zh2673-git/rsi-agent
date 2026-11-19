@@ -19,6 +19,8 @@ const ALIASES = {
     whip: 'whip-pan',
     wipe: 'wipe',
     slide: 'slide',
+    'page-turn': 'page-turn',
+    pageturn: 'page-turn',
     push: 'slide',
     'fade-black': 'fade-black',
     fadeblack: 'fade-black',
@@ -36,6 +38,8 @@ const TIMING = {
     'whip-pan': { durationMs: 360, overlapMs: 300 },
     wipe: { durationMs: 420, overlapMs: 420 },
     slide: { durationMs: 420, overlapMs: 420 },
+    // 翻页：后镜绕 Y 轴翻过盖上前镜。420ms + 全重叠（不留缝）。
+    'page-turn': { durationMs: 480, overlapMs: 480 },
     // 只有明确声明 fade-black 的风格包才走"黑场过渡"；默认风格词表里没有它
     'fade-black': { durationMs: 600, overlapMs: 300 },
     // continuity 是无操作转场：不重叠、不渲染过渡效果（两镜在时间线上直接相接）

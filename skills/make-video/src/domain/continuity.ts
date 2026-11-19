@@ -55,6 +55,10 @@ export interface ContinuityAudit {
   generatedAt: string;
   items: ContinuityCheckItem[];
   softTransitionRuns: Array<{ kind: string; run: number; cuts: string[] }>;
+  /** A5 调度表：机位动机覆盖率（与 motion-audit 的统计口径一致） */
+  intentCoverage: { shots: number; withIntent: number };
+  /** A5 调度表：连续段内机位动机突变（V-CON-006） */
+  intentBreaks: Array<{ cut: string; from: string; to: string }>;
   warns: string[];
 }
 
@@ -63,6 +67,8 @@ export interface ContinuityShotInput {
   camera: string;
   /** 本镜切入所用的转场 kind（cut-audit 的 plan.kind；首镜为空） */
   transition: string;
+  /** A5 调度表：机位动机（缺省 = 未决策），用于连续段内的机位动机断点审计 */
+  intent?: string;
 }
 
 /**
@@ -138,7 +144,31 @@ export function auditContinuity(shots: ContinuityShotInput[]): ContinuityAudit {
     }
   }
   flush();
-  return { generatedAt: new Date().toISOString(), items, softTransitionRuns, warns };
+  // A5 调度表进连续性审计：机位动机覆盖率 + 连续段内的动机断点。
+  // 「一镜到底」段里机位意图突变（follow→hold）比切点反向更伤——观众感到镜头自己改了主意。
+  const intentCoverage = {
+    shots: shots.length,
+    withIntent: shots.filter((s) => s.intent).length,
+  };
+  const intentBreaks: Array<{ cut: string; from: string; to: string }> = [];
+  for (let i = 1; i < shots.length; i += 1) {
+    const prev = shots[i - 1]!;
+    const cur = shots[i]!;
+    if (cur.transition !== 'continuity') continue;
+    if (!prev.intent || !cur.intent) continue;
+    if (prev.intent !== cur.intent) {
+      intentBreaks.push({ cut: `${prev.shotId}→${cur.shotId}`, from: prev.intent, to: cur.intent });
+    }
+  }
+  if (intentBreaks.length > 0) {
+    warns.push(
+      `V-CON-006: ${intentBreaks.length} 处连续段内机位动机突变（${intentBreaks
+        .slice(0, 4)
+        .map((b) => `${b.cut} ${b.from}→${b.to}`)
+        .join(', ')}）——一镜之内镜头自己改主意，要么统一动机要么断成两镜`,
+    );
+  }
+  return { generatedAt: new Date().toISOString(), items, softTransitionRuns, intentCoverage, intentBreaks, warns };
 }
 
 /**

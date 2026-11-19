@@ -1,12 +1,18 @@
 /**
  * 能力清单（单一事实源 / Single Source of Truth）。
  *
- * 为什么需要这个文件：动效原语一共有 5 份引用点——
+ * 为什么需要这个文件：动效原语的手写引用点共 8 份（①-⑤ 为原始盘点，⑥-⑧ 为 P13 阶段2 补录）——
  *   ① `validators/scene.ts` MOTION_WHITELIST（校验器认什么）
  *   ② `templates/motion/motion-lib.js` 的 `MV.x = function`（真的实现了什么）
  *   ③ `composer.ts` 的 `hasMain` 正则（哪些算主动作）
  *   ④ `motion-grammar.ts` 的 REQUIRED_BY_GRAMMAR（语法骨架点名什么）
  *   ⑤ 文档 / SKILL.md 里手写的数字（"九种语法"、"12 个动效原语"）
+ *   ⑥ `validators/scene.ts` 的 SUSTAINED_PRIMITIVES（V-MOT-010 持续并列主体清单，
+ *      P13 阶段2 从 validator 内嵌正则收口为派生数组）
+ *   ⑦ `validators/scene.ts` 的 LIVENESS_PRIMITIVES（V-ACT-005 长镜活性清单，
+ *      P13 阶段2 与 domain/composer.ts 的 scenePulse 合并成一份）
+ *   ⑧ `domain/composer.ts` 的 scenePulse（重音三角 V-MOT-018 主体活性载体，
+ *      P13 阶段2 起与 ⑦ 共用同一正则）
  *
  * 这五份以前各自手写，于是漂移过三次（白名单漏 drift、文档写 9 种语法实为 11、
  * SKILL 风格菜单 16 条实际只有 9 个包）。本文件把「数量与名单」收成唯一出处，

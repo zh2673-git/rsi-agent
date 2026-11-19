@@ -211,6 +211,30 @@ export class StyleRegistry {
   }
 }
 
+/**
+ * P13 阶段3：情绪词典查询（偏好层 + 覆写口子）。
+ * - base 来自风格包 visuals.emotionMap（可缺省 → null）；
+ * - overrides.emotionMap 若声明则**整体替换**同名情绪条目（沿用 StyleDecision.overrides 通道，不造新通道）；
+ * - 只返回默认视觉倾向，不返回机位/动作组合——组合归 A5 调度表。
+ */
+export function resolveEmotionVisual(
+  style: Pick<StylePack, 'visuals'> | undefined,
+  emotion: string | undefined,
+  overrides?: Record<string, unknown>,
+): { temperature?: 'warm' | 'neutral' | 'cool'; light?: 'soft' | 'hard' | 'high-key' | 'low-key'; pace?: 'slow' | 'medium' | 'fast'; note?: string } | null {
+  if (!style || !emotion) return null;
+  const base = style.visuals.emotionMap?.[emotion];
+  const ov = (overrides as { emotionMap?: Record<string, NonNullable<NonNullable<StylePack['visuals']['emotionMap']>[string]>> } | undefined)?.emotionMap?.[emotion];
+  const hit = ov ?? base;
+  if (!hit) return null;
+  return {
+    ...(hit.temperature ? { temperature: hit.temperature } : {}),
+    ...(hit.light ? { light: hit.light } : {}),
+    ...(hit.pace ? { pace: hit.pace } : {}),
+    ...(hit.note ? { note: hit.note } : {}),
+  };
+}
+
 function mergePacks(base: StylePack, donor: StylePack): StylePack {
   return {
     ...base,

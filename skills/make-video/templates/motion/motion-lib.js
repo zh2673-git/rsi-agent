@@ -801,6 +801,102 @@
     return tl;
   };
 
+  /* ---------- 揭示类原语（P13 阶段2：白名单 26→28） ----------
+   * 共同纪律：时间纯函数（有界补间/定点 set，逐帧 seek 可复现）、
+   * 毫秒接口、无 GSAP 时降级为可读静态终态（不空屏、不伪造）。 */
+
+  // 描边画线：SVG 线条按 stroke-dashoffset 从「整条没画」补间到「整条画完」。
+  // 与 maskReveal 分工：mask 是「区域被揭开」（整块一起出现），strokeDraw 是
+  // 「笔迹被画出来」（轨迹沿路径生长）——y7 系统地图的关系线、y3 白板的示意线。
+  // 拿不到路径长度的节点（非 SVG 图形）降级为半透明显示，不伪造描边。
+  MO.stroke = { dur: 0.6, ease: 'power2.inOut' };
+  MV.strokeDraw = function (sel, opts) {
+    opts = opts || {};
+    var nodes = $(sel);
+    var tl = ensureTimeline();
+    if (!tl) {
+      for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i] && nodes[i].style) nodes[i].style.opacity = '0.55';
+      }
+      return tl;
+    }
+    var s = MO.stroke;
+    var dur = num(opts.duration, s.dur * 1000) / 1000;
+    var step = num(opts.stagger, 0) / 1000;
+    var at = num(opts.delay, 0) / 1000;
+    for (var i = 0; i < nodes.length; i += 1) {
+      var el = nodes[i];
+      var len = 0;
+      try {
+        len = el && el.getTotalLength ? el.getTotalLength() : 0;
+      } catch (e) {
+        len = 0;
+      }
+      if (!len || !el.style) {
+        if (el && el.style) el.style.opacity = '0.55';
+        continue;
+      }
+      el.style.strokeDasharray = String(len);
+      tl.fromTo(
+        el,
+        { strokeDashoffset: len },
+        { strokeDashoffset: 0, duration: dur, ease: s.ease },
+        at + i * step,
+      );
+    }
+    return tl;
+  };
+
+  // 打字机：文本按字符逐个显现（信息逐字落地的语汇——引言、结论、字幕条）。
+  // 实现：把纯文本元素在初始化时拆成逐字 span（只动这一处文本节点，样式由
+  // 父元素继承）；已有元素子节点的（场景作者自己预拆的行/词）直接当单元用，不重复拆。
+  // 每个字符是一次定点 set——字符状态是时间轴位置的纯函数，seek 回退也能重现。
+  // opts.cps 每秒字符数（缺省 14 ≈ 70ms/字）；opts.duration 给了就按总时长均分；
+  // opts.stagger 是多个文本元素（多行）之间的间隔（毫秒）。
+  MO.type = { cps: 14 };
+  MV.typewriter = function (sel, opts) {
+    opts = opts || {};
+    var nodes = $(sel);
+    var tl = ensureTimeline();
+    if (!tl) {
+      finalize(nodes, 'none');
+      return tl;
+    }
+    var t = MO.type;
+    var at0 = num(opts.delay, 0) / 1000;
+    var between = num(opts.stagger, 0) / 1000;
+    var splitText = function (el) {
+      // 只拆「单文本子节点」的元素；有元素子节点的结构不碰（防破坏既有选择器）
+      if (el.childNodes.length !== 1 || el.firstChild.nodeType !== 3) return null;
+      var text = el.textContent || '';
+      if (!text.length) return null;
+      var frag = document.createDocumentFragment();
+      var spans = [];
+      for (var i = 0; i < text.length; i += 1) {
+        var sp = document.createElement('span');
+        sp.textContent = text.charAt(i);
+        sp.style.opacity = '0';
+        frag.appendChild(sp);
+        spans.push(sp);
+      }
+      el.removeChild(el.firstChild);
+      el.appendChild(frag);
+      return spans;
+    };
+    for (var i = 0; i < nodes.length; i += 1) {
+      var el = nodes[i];
+      var units = el.children && el.children.length ? el.children : splitText(el);
+      if (!units || !units.length) continue;
+      var total = units.length;
+      var per = opts.duration ? num(opts.duration, total * 70) / 1000 / total : 1 / num(opts.cps, t.cps);
+      var at = at0 + i * between;
+      for (var c = 0; c < total; c += 1) {
+        tl.set(units[c], { opacity: 1 }, at + c * per);
+      }
+    }
+    return tl;
+  };
+
   /* ---------- 3D 原语（素材语言层：风格声明 css3d 时由场景调用） ----------
    * 全部写成「有界 repeat 的 GSAP 补间」而不是 requestAnimationFrame：
    * 渲染器逐帧 seek 时间线，动画必须是时间的纯函数，rAF 会脱离 seek 变成随机画面。

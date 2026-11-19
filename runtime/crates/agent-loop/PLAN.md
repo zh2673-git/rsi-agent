@@ -71,3 +71,68 @@
 - `python -m pytest tests -q`：**428 passed**。
 - 补丁幂等：174 二次执行为 `OK 已收敛`，175 为 `OK 已应用过（applied_marker 命中）`，
   全量 `--dry-run` 的 `FAIL` 计数为 **0**。
+
+## 审计报告 8 项优化再评估（2026-11-19，project-dev 优化模式）
+
+依据 `outputs/实现过程效率与积分消耗审计报告.md`（11-18）的 8 项清单，逐项核实代码现状并
+实测，结论分三类：**已落地 / 代码已实现仅配置关 / 代码未实现**。
+
+### E. 已落地（无需再做）
+- #2 轮末压缩丢 system：`compaction.rs:148-165` 已规范化 sys_pos 并保留。
+- #4 重试责任统一：adapter 独占，`http_attempts` 已暴露（`openai_compat.py:116-147`）。
+- #5 工具结果单次序列化：`tools_exec.rs:262-282` 结果只 `to_string()` 一次、全文不入库。
+- #8 trace 全量重放：`skills.rs:385-386` 已改增量。
+
+### F. 代码已实现、仅配置关（改 config.json 即可，零代码风险）
+- #3 硬预算 + 进展检测：`budget.rs` 的 `StopReason{Tokens,Deadline}`、3 个停车检查点、
+  K508 预算停、`no_progress_repeat_limit` 同参连续重复熔断全部已实现且有 react_mocks 回归
+  （`:1416-1493`、`:2496-2534`）。链路 `config.json → AGENT_ENV_MAP(host/config.rs:347-366)
+  → env → AgentLoopConfig::from_env` 通。断点只在根 `config.json`：`budget_secs=0`、
+  `token_budget=0`、无 `no_progress_repeat_limit`（缺省 0=禁用）。
+  - 注意：`no_progress_repeat_limit` 未进 `AGENT_NUMERIC_KEYS` / `agent_config_view`
+    （host/src/web/api/config.rs:12-23,61-73），Web 设置面板不回显，只能改文件或手工 PUT。
+  - 决策（2026-11-19，经无人值守场景再评估后定稿）：根 `config.json` agent 段——
+    - `compact_trigger 40→80`、`compact_keep 30→10`：**保留**（纯省 token，不影响任务能否跑完）。
+    - `no_progress_repeat_limit` 新增 `4`：**保留**（仅"同工具+完全相同参数连续 4 次"才熔断，
+      不误伤换 offset/pattern/old_string 的真实探索；精准对治参数完全不变的空转）。
+    - `budget_secs`：**保持 0（禁用）**——曾试开 `900` 后撤销。原因：软收敛到点后
+      `chat.rs:1419-1446` 注入 wrap_up 指令、剥掉工具（`chat.rs:835`），要么模型交文本收敛、
+      要么 `chat.rs:891-907` 强制交进度报告，**两者都 finish 且 turn=done，任务就地终结**；
+      而全仓无"收敛后自动续做"机制（ask_user/queue/resume 均需外部再发消息，
+      `chat.rs:1129-1172`/`queue.rs:68-87`/`contract.rs:144-148`）。无人值守下 = 15 分钟
+      腰斩未完成任务且没人续做，与目标冲突。
+    - **回退点**：如需恢复最初行为，`compact_trigger→40`、`compact_keep→30`、删除
+      `no_progress_repeat_limit` 键（`budget_secs` 本就是 0，无需改）。
+    - 验证：JSON 合法；`AGENT_ENV_MAP`(host/config.rs:347-366) 含四键，配置→env 链路通。
+      需**重启 Host** 生效；`no_progress_repeat_limit` 不在 Web 面板回显，只能改文件/手工 PUT。
+
+  - **已评估不做：靠 budget/熔断防「循环烧 token」**。用户担心参数微变式渐进探索
+    （read_file 换 offset、grep 换 pattern、edit 换 old_string）反复烧 token。查证：这类
+    每次 arguments 都不同，**不满足 no_progress 的"完全相同参数"判据**（`chat.rs:1107-1113`），
+    任何阈值都抓不到；强行降低阈值只会误伤真实工作。工具层经审计**无制造循环的设计**
+    （截断带 `[truncated]` 标记、`_raw` 残片防线、offset 提示、SYSTEM.md「同因不重试超过一次」），
+    压缩层 `## PENDING` 强制保留未完成项与放弃路径（`compaction.rs:76-84`），反而是防烧钱的。
+    故：省 token 走 compact 参数，空转走 no_progress 精准熔断，不用 budget 腰斩。
+
+### G. 代码未实现 / 收益需重估（已评估，结论如下）
+- #1 bash 双扫描 —— **已评估不做（收益已由 P6 剪枝兑现）**。
+  - 审计报告 6.3 复测 `per_bash=24.94s`、外推 9,900 次省 68.6h，是 **P6 剪枝之前**的旧数据。
+  - 本次实测（2026-11-19，本工作区 45,638 条目）：
+    `pre(with_content)=0.859s`、`post(stat-only)=0.719s`，**双扫描合计 ≈1.6s**。
+  - `bash.py:112-130` 的 P6 注释亦写明 with_content 11.0→0.50s、stat-only 11.3→0.45s。
+  - 即剩余可省 ≈1.6s/次，9,900 次外推 ≈4.4h，远小于报告的 68.6h；且现有唯一开关
+    `BASH_WRITE_TRACE=off` 关掉追溯可能影响 undo。权衡后**不再投入**（边际收益低、有正确性风险）。
+- #6 bash 与专用工具重叠（78.4% `cd &&`、48.4% 可替代）—— **已评估暂不做**。属使用侧习惯
+  （模型选 bash 而非专用工具），改内核会侵入工具路由语义；优先靠 no_progress 熔断压住重复调用。
+- #7 cache-aware 路由 —— **已评估不做**。全仓无实现痕迹，且需改模型选择策略（与当前
+  auto 组 smart 路由、缓存命中记账 budget.rs:106-168 分属两套机制）；收益不确定性高，
+  优先级低于 F 类配置启用。**若后续要做，应独立立项于 llm_adapter/PLAN.md**。
+
+### 时空闭环复核
+- init/destroy：预算与熔断均为 per-chat 状态（`ChatBudget`/`repeat_streak`），随 chat 结束释放，无泄漏。
+- 主循环死循环：`max_rounds` 上限 + 预算检查点 3 处 + 熔断，启用配置后不可无限循环。
+- 跨层直访：配置经 AGENT_ENV_MAP 单向注入 env，无跨层直访内存。
+
+### 验证
+- 本轮仅追加文档结论，无代码改动；`cargo test -p react-agent-host --lib` 99 passed 仍成立。
+- 实测脚本为临时文件，已删除。

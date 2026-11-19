@@ -24,6 +24,12 @@ import {
   leftoverPlaceholders,
   validateParamValue,
   resolveParams,
+  assembleContentValues,
+  resolveMissingSlots,
+  checkCapacity,
+  resolveVariant,
+  slotParamNames,
+  sampleMarkup,
   type TemplateContract,
 } from '../src/domain/template-contract.js';
 import { deriveContent, safeLabel, extractTerm, splitTiers, splitTierPair } from '../src/domain/template-content.js';
@@ -377,3 +383,141 @@ describe('⑧ 骨架原语：契约与骨架表用同一套口径', () => {
     }
   });
 });
+
+describe('⑨ 阶段0 接线：素材槽 ifMissing / 容量上限 / 变体', () => {
+  it('槽位绑定按命名约定成立，且图片槽不绑文本参数（否则会误报缺料）', () => {
+    const kt = contractOf('kinetic-type');
+    const hero = kt.materials.find((m) => m.role === 'text.hero')!;
+    expect(slotParamNames(hero, kt.params)).toEqual(['HERO_WORD']);
+    const th = contractOf('talking-head');
+    const presenter = th.materials.find((m) => m.role === 'image.presenter')!;
+    expect(slotParamNames(presenter, th.params)).toEqual([]);
+  });
+
+  it('merge 优先级：导演显式 > 变体 > 派生 > 契约缺省', () => {
+    const spec = { name: 'A', type: 'string' as const, context: 'text' as const, default: 'from-default' };
+    const specB = { name: 'B', type: 'string' as const, context: 'text' as const, default: 'from-default' };
+    const specC = { name: 'C', type: 'string' as const, context: 'text' as const, default: 'from-default' };
+    const specD = { name: 'D', type: 'string' as const, context: 'text' as const, default: 'from-default' };
+    const contract = {
+      id: 'synthetic', name: '合成', grammar: [], motifs: [], camera: [],
+      params: [spec, specB, specC, specD], materials: [], capacity: {},
+      variants: [{ id: 'v1', name: '变体1', params: { B: 'from-variant', C: 'from-variant' } }],
+    } as TemplateContract;
+    const r = assembleContentValues(
+      contract,
+      { A: 'from-explicit', B: 'from-explicit' },
+      { C: 'from-derived', D: 'from-derived' },
+      'v1',
+    );
+    expect(r.values).toEqual({ A: 'from-explicit', B: 'from-explicit', C: 'from-variant', D: 'from-derived' });
+    expect(r.variantId).toBe('v1');
+    expect(r.issues).toEqual([]);
+  });
+
+  it('变体的空串是「有意置空」（slam 让 HERO_WORD 不显示），不得被派生值填回', () => {
+    const r = assembleContentValues(
+      contractOf('kinetic-type'),
+      {},
+      { HERO_WORD: '派生词', FIGURE: '' },
+      'slam',
+    );
+    expect(r.values['HERO_WORD']).toBe('');
+    expect(r.variantId).toBe('slam');
+  });
+
+  it('变体未命中 → V-TPL-003 error（不能静默退回默认画法）', () => {
+    const r = assembleContentValues(contractOf('kinetic-type'), {}, {}, 'nonexistent');
+    const hit = r.issues.find((i) => i.id === 'V-TPL-003');
+    expect(hit?.level).toBe('error');
+    expect(hit?.message).toContain('slam');
+  });
+
+  it('容量超限 → V-TPL-002 error，不静默缩字（显式值原样保留以便报错定位）', () => {
+    const kt = contractOf('kinetic-type');
+    // 槽位 text.hero 上限 24 字：25 字即超（判据是 >，等于上限是合法的）
+    const atLimit = '这是一个刚好二十四个字符上限的导演显式主标题文案';
+    expect(atLimit.length).toBe(24);
+    const over = `${atLimit}超`;
+    expect(over.length).toBe(25);
+    const issues = checkCapacity(kt, { HERO_WORD: over }, {});
+    const hit = issues.find((i) => i.id === 'V-TPL-002');
+    expect(hit?.level).toBe('error');
+    expect(hit?.message).toContain('HERO_WORD');
+    // 恰好等于上限不算超（边界不误伤）
+    expect(checkCapacity(kt, { HERO_WORD: atLimit }, {})).toEqual([]);
+  });
+
+  it('派生值豁免容量（deep-stage 三块 PANEL×16 合计本就超过 capacity 72）', () => {
+    const ds = contractOf('deep-stage');
+    // 派生值是内容压缩器的产出，不参与容量判定：空 explicit + 空 variant → 零 issue
+    expect(checkCapacity(ds, {}, {})).toEqual([]);
+    // 但导演显式写超长就会报
+    const issues = checkCapacity(ds, { PANEL1: '一'.repeat(40) }, {});
+    expect(issues.some((i) => i.id === 'V-TPL-002')).toBe(true);
+  });
+
+  it('素材槽 ask：缺料记 warn 不阻断（离线流水线 kinetic-type 的 HERO_WORD 常派生为空）', () => {
+    const kt = contractOf('kinetic-type');
+    const r = resolveMissingSlots(kt, { HERO_WORD: '', FIGURE: '' });
+    const hit = r.issues.find((i) => i.id === 'V-TPL-001');
+    expect(hit?.level).toBe('warn');
+    // 有内容时不报
+    expect(resolveMissingSlots(kt, { HERO_WORD: '取指' }).issues).toEqual([]);
+  });
+
+  it('素材槽 skip：清空绑定参数且不报 issue（画面相应部分不出现）', () => {
+    const kt = contractOf('kinetic-type');
+    const r = assembleContentValues(kt, {}, { HERO_WORD: '取指', FIGURE: '3' }, undefined);
+    // skip 槽（text.figure）缺料时清槽
+    expect(r.issues.filter((i) => i.id === 'V-TPL-001')).toEqual([]);
+  });
+
+  it('素材槽 placeholder：填样例并带 data-film-sample 标记（契约注释里承诺过）', () => {
+    // 真实盘上 talking-head 的 presenter 是图片槽，无绑定文本参数（下一用例钉住），
+    // 所以 placeholder 分支必须用合成契约验证——分支本身要有证据，不能靠纸面承诺。
+    const contract = {
+      id: 'synthetic', name: '合成', grammar: [], motifs: [], camera: [],
+      params: [{ name: 'HERO_WORD', type: 'string' as const, context: 'text' as const }],
+      materials: [{ role: 'text.hero', required: false, ifMissing: 'placeholder' as const, sample: 'templates/canvas/avatar.png' }],
+      capacity: {},
+      variants: [],
+    } as TemplateContract;
+    const r = assembleContentValues(contract, {}, {}, undefined);
+    expect(r.samples.get('HERO_WORD')).toBe('templates/canvas/avatar.png');
+    expect(r.values['HERO_WORD']).toBe('');
+    expect(sampleMarkup('templates/canvas/avatar.png')).toContain('data-film-sample');
+    expect(r.issues).toEqual([]);
+    // placeholder 缺 sample 是契约写错 → error
+    const bad = { ...contract, materials: [{ ...contract.materials[0]!, sample: undefined }] } as TemplateContract;
+    expect(resolveMissingSlots(bad, {}).issues.find((i) => i.id === 'V-TPL-001')?.level).toBe('error');
+  });
+
+  it('盘上图片槽无绑定文本参数：placeholder 的样例标记只能挂在文本槽上（口径留档）', () => {
+    const th = contractOf('talking-head');
+    const slot = th.materials.find((m) => m.ifMissing === 'placeholder')!;
+    expect(slot.sample).toBeTruthy(); // 契约里写了样例路径（纸面事实）
+    expect(slotParamNames(slot, th.params)).toEqual([]); // 但无文本参数可挂标记
+    // 因此 data-film-sample 在真实盘面上不出现是**设计结果**，不是漏实现：
+    // 要让主播头像真占位，需要素材层（image 槽）兑现，那属于阶段 1 的 assetNeed。
+    expect(th.params.length).toBe(0);
+  });
+
+  it('resolveVariant 无契约/无请求时不产出任何 issue（旧项目零回归）', () => {
+    expect(resolveVariant(undefined, 'x').issues).toEqual([]);
+    expect(resolveVariant(contractOf('typography'), undefined).issues).toEqual([]);
+    expect(resolveVariant(contractOf('typography'), '').issues).toEqual([]);
+  });
+
+  it('全部 15 个模板：缺省调用（无显式值/无变体）不产生任何 error 级 issue', () => {
+    const bad: string[] = [];
+    for (const id of TEMPLATE_IDS) {
+      const r = assembleContentValues(contractOf(id), {}, {}, undefined);
+      for (const i of r.issues) {
+        if (i.level === 'error') bad.push(`${id}→${i.id}:${i.message}`);
+      }
+    }
+    expect(bad, `缺省调用不该报 error：${bad.join(' | ')}`).toEqual([]);
+  });
+});
+

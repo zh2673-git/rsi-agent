@@ -18,7 +18,13 @@ export {
   PUSH_CAMERAS,
   CAMERA_MOVES,
 } from './scene.js';
-export { validateStoryboard } from './storyboard.js';
+export {
+  validateStoryboard,
+  validateCounterpointDiversity,
+  validateLiteralRate,
+  LITERAL_RATE_BANDS,
+  LITERAL_RATE_DEFAULT_BAND,
+} from './storyboard.js';
 export {
   validateStyleDecision,
   validateCombination,
@@ -39,5 +45,6 @@ export {
   validateMixPlan,
   validateIntraShotMotion,
   validateCutMotivation,
+  validateSceneTransition,
 } from './composer.js';
 export { validateBeatGrid, type BgmGrid } from './beat-grid.js';

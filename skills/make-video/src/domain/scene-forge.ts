@@ -2,14 +2,17 @@ import path from 'node:path';
 import type { Project, Shot, StylePack } from '../core/schema.js';
 import { V } from '../core/index.js';
 import { allocateAccentShots, accentAllowedFor } from './accent-budget.js';
-import { defaultCameraFor, unmetRequirements } from './motion-grammar.js';
+import { defaultCameraFor, isRequirementsRegistered, unmetRequirements } from './motion-grammar.js';
 import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR, SCENE_LLM_RETRIES } from '../core/constants.js';
 import type { ProjectStore } from '../infrastructure/project-store.js';
 import { atomicWriteText, atomicWriteJson, exists, readJson } from '../infrastructure/fs-utils.js';
 import {
+  assembleContentValues,
   injectPlaceholders,
   loadTemplateContracts,
+  sampleMarkup,
+  type SlotIssue,
   type TemplateContract,
 } from './template-contract.js';
 import { contextForShot, deriveContent } from './template-content.js';
@@ -167,6 +170,9 @@ export async function drawScene(
   const contract = contracts.get(templateName);
   const contractGrammar = contract?.grammar ?? [];
   const content = deriveContent(templateName, contextForShot(project, shot));
+  // 阶段0：契约接线判据（素材槽/容量/变体）在这里承接，随后与场景校验汇流——
+  // 这样「导演填了超长文案」「选了不存在的变体」会以 error 出现在同一条失败信息里。
+  const wiringIssues: V.Issue[] = [];
   const html = renderTemplate(await readTemplate(templateFile), {
     shot,
     project,
@@ -174,6 +180,7 @@ export async function drawScene(
     sceneId: shot.id,
     contract,
     content,
+    issues: wiringIssues,
   })
     .replace('{{SCENE_PROGRAM}}', isCanvas ? templateName.slice('canvas:'.length) : '')
     .replace('{{KICKER}}', isCanvas ? escapeHtml(String(shot.visual.params?.['kicker'] ?? '')) : '')
@@ -183,19 +190,22 @@ export async function drawScene(
     .replace(/\{\{CANVAS_W\}\}/g, String(project.meta.aspect === '9:16' ? 1080 : 1920))
     .replace(/\{\{CANVAS_H\}\}/g, String(project.meta.aspect === '9:16' ? 1920 : 1080))
     .replace(/\{\{STAR_SEED\}\}/g, String(hashSeed(shot.id)));
-  const issues = validateSceneHtml(
-    html,
-    shot,
-    project,
-    templateName,
-    pack.visuals?.dimension,
-    // P12 阶段3：**forge 路径也过动作要求校验**。
-    // 口径说明：校验用的是**模板自己声明的语法**（契约里的 grammar 字段），
-    // 而不是分镜选出的语法——因为 forge 的画面就是模板的画面，
-    // 用模板的声明来核对才自洽（分镜选出的语法可能与模板不匹配，
-    // 那属于选型问题，由 V-MOT-024 在别处报）。
-    { enforceActionSheet: true, templateGrammar: contractGrammar },
-  );
+  const issues = [
+    ...wiringIssues,
+    ...validateSceneHtml(
+      html,
+      shot,
+      project,
+      templateName,
+      pack.visuals?.dimension,
+      // P12 阶段3：**forge 路径也过动作要求校验**。
+      // 口径说明：校验用的是**模板自己声明的语法**（契约里的 grammar 字段），
+      // 而不是分镜选出的语法——因为 forge 的画面就是模板的画面，
+      // 用模板的声明来核对才自洽（分镜选出的语法可能与模板不匹配，
+      // 那属于选型问题，由 V-MOT-024 在别处报）。
+      { enforceActionSheet: true, templateGrammar: contractGrammar },
+    ),
+  ];
   if (V.hasError(issues)) {
     throw mvError(ERR.SCENE_INVALID, `场景 ${shot.id} 校验失败:\n${V.formatIssues(issues)}`);
   }
@@ -318,8 +328,12 @@ function validateSceneHtml(
   // V-SCENE-005 豁免词（阶段1）：编剧声明的重音词是「画面有意显示的术语」。
   // 只豁免**声明式**的（segment.emphasis），启发式抽的词不豁免——
   // 猜错了就是复述旁白，而声明是有人负责的。
+  // A3 裁决（P13 阶段1）：不再在这里 `.filter(w => w.length >= 4)`——长度门槛是
+  // 「窗口多大算共享」（minLen）的事，不是「哪些词被声明豁免」的事。旧过滤让
+  // 「豁免 GPU」这类 3 字符声明永远到不了校验器，等于声明了也没用。
+  // 声明是人的责任，校验器只负责按声明执行（下限 2 由 findSharedRuns 把守）。
   const seg = project.script?.segments.find((s) => s.id === shot.segmentId);
-  const exemptTerms = (seg?.emphasis ?? []).filter((w) => w && w.length >= 4);
+  const exemptTerms = (seg?.emphasis ?? []).filter((w) => w && w.trim().length > 0);
   const issues = V.validateSceneFile(html, {
     narration: shot.narration,
     title: project.meta.title,
@@ -330,6 +344,9 @@ function validateSceneHtml(
   // 残留 {{X}} 在 <script> 里是非法 JS → 整块 script 抛错 → 该镜动画全灭，
   // 而既有校验器全绿（它们查原语与构图，不查 JS 能不能跑）。
   issues.push(...V.validateNoLeftoverPlaceholder(html));
+  // V-CP-006 直译率（P13 阶段1）：画面与旁白的共享片段占旁白内容单位的比例，
+  // 按 genre 分档判上限。这里是唯一同时握有「旁白 + HTML + genre」的地方。
+  issues.push(...V.validateLiteralRate(shot.narration, html, project.meta.genre));
   if (templateName === 'chart') {
     issues.push(...V.validateChartScene(html));
   }
@@ -375,6 +392,19 @@ function validateSceneHtml(
     if (sheet?.grammar) {
       const matches = !opts.templateGrammar?.length || opts.templateGrammar.includes(sheet.grammar);
       if (matches) {
+        // A1（P13 阶段1）：未注册语法必须显式报错，不能静默通过。
+        // 历史口径是「语义表查不到 → unmetRequirements 返回空 → 校验蒸发」，
+        // 于是新语法漏登记时整条动作校验消失而测试全绿。这里把「查不到」本身报成 error。
+        if (!isRequirementsRegistered(sheet.grammar)) {
+          issues.push(
+            V.err(
+              'V-MOT-025',
+              `语法「${sheet.grammar}」没有登记动作语义表（REQUIREMENTS_BY_GRAMMAR）：` +
+                '本镜的动作校验因此无法进行。请先在 motion-grammar.ts 语义表里登记该语法，' +
+                '否则这条语法的「动作谱写了就要做到」永远不被检查',
+            ),
+          );
+        }
         const unmet = unmetRequirements(sheet.grammar, html);
         for (const req of unmet) {
           issues.push(
@@ -649,6 +679,12 @@ interface TplCtx {
   contract?: TemplateContract;
   /** 内容派生值（阶段1 新增）：把旁白落到画面的具体位置 */
   content?: Record<string, string | number>;
+  /**
+   * 阶段0 新增：接线判据的收集器。renderTemplate 是纯字符串函数，
+   * 但素材槽/容量/变体的裁决必须在**组装时**产出 issue——用一个调用方提供的
+   * 数组承接，避免把 renderTemplate 改成抛异常（它的失败应由 drawScene 统一格式化）。
+   */
+  issues?: SlotIssue[];
 }
 
 /** 读本镜动作谱语法（'none' 机位兜底用）；谱未落时返回 undefined → defaultCameraFor 取 static */
@@ -710,27 +746,17 @@ function renderTemplate(tpl: string, ctx: TplCtx): string {
     STAGE_PAD: String(tokens.stagePadding),
   };
   // 内容层：契约声明的参数 + 派生值。导演显式覆盖优先于派生值。
-  const contentValues: Record<string, string | number | boolean> = {};
-  const contractParams = ctx.contract?.params ?? [];
-  const derived = ctx.content ?? {};
+  // 阶段0（P12 阶段4 接线）：合并、素材槽 ifMissing、容量三条判据统一由
+  // assembleContentValues 裁决——优先级 显式 > 变体 > 派生 > 契约缺省。
   const explicit = (shot.visual.params ?? {}) as Record<string, unknown>;
-  for (const spec of contractParams) {
-    const raw = explicit[spec.name];
-    if (raw !== undefined && raw !== null && raw !== '') {
-      contentValues[spec.name] = raw as string | number | boolean;
-      continue;
-    }
-    const d = derived[spec.name];
-    if (d !== undefined && d !== null && d !== '') {
-      contentValues[spec.name] = d;
-      continue;
-    }
-    if (spec.default !== undefined) contentValues[spec.name] = spec.default;
-  }
-  // 导演可能覆盖契约外的参数（如自定义 KICKER）——一并带上，但不做类型校验
-  // （契约外的东西由内容派生层的白名单管，见 template-content.ts）。
-  for (const [k, v] of Object.entries(derived)) {
-    if (!(k in contentValues)) contentValues[k] = v;
+  const wired = assembleContentValues(ctx.contract, explicit, ctx.content ?? {}, explicit['variant']);
+  (ctx.issues ?? []).push(...wired.issues);
+  const contentValues = wired.values;
+  // placeholder 槽：填样例并打 data-film-sample 标记（契约注释里承诺过，此前零实现）
+  for (const [name, sample] of wired.samples) {
+    const spec = ctx.contract?.params.find((p) => p.name === name);
+    // 只对文本上下文打标记：代码位置（JS/CSS）里塞 HTML 会直接语法错误
+    contentValues[name] = spec?.context === 'code' ? sample : sampleMarkup(sample);
   }
   const all = { ...system, ...contentValues };
   // 阶段1：统一走占位符注入器——它按占位符所在位置决定转义与否，

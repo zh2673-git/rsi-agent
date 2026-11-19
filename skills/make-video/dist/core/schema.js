@@ -27,24 +27,14 @@ export const VisualKindSchema = z.enum(['code-scene', 'user-material', 'imported
 //   punch-in = 短推后停住（0.25-0.35s 推 18-32%），是**标点**不是慢推——受 V-MOT-013 预算约束；
 //   whip-pan = 甩镜（0.26-0.30s expo.inOut + 运动模糊），视线突然转移；
 //   drift    = 整镜匀速慢移（1-4%/s），**只给氛围镜/艺术镜**——解说片每镜都慢推就是 PPT。
-export const CAMERA_MOVES = [
-    'push-in',
-    'pull-out',
-    'pan',
-    'pan-left',
-    'tilt-up',
-    'tilt-down',
-    // 2026-11-13 增补：原词表只有 push/pull/pan/tilt/drift 五类运动 + 两个标点，
-    // 16 镜分配下去必然成对重复（实测 v2 里 push-in×4、drift×4、pull-out×3、tilt-down×2），
-    // 观感就是用户说的「很刻意的同质化放大」。dolly 带纵深、crane 带升降，与上面四类可区分。
-    'dolly-in',
-    'dolly-out',
-    'crane-up',
-    'crane-down',
-    'punch-in',
-    'whip-pan',
-    'drift',
-];
+//
+// P12 阶段3（M1 合并）：**词表的唯一事实源在 `validators/scene.ts` 的 CAMERA_MOVES**
+//（那是校验器真正把关的表）。此处只保留别名表——它回答的是
+// 「用户/模型写的这个词，要不要认成词表里的哪个值」，与「哪些词合法」是两件事。
+// 此前两张表各写一遍，漂移过一次（`pan-right` 只在别名表里，词表里没有）。
+import { CAMERA_MOVES as CAMERA_MOVE_TOKENS } from './validators/scene.js';
+/** 合法机位词（不含 static/none —— 那两个是合法选择，不是运动） */
+export const CAMERA_MOVES = CAMERA_MOVE_TOKENS.filter((m) => m !== 'static' && m !== 'none');
 const CAMERA_ALIASES = {
     'push-in': 'push-in',
     pushin: 'push-in',
@@ -89,8 +79,24 @@ export function normalizeCameraToken(raw) {
 export function isCameraToken(raw) {
     return normalizeCameraToken(raw) !== undefined;
 }
-export const CounterpointSchema = z.enum(['metaphor', 'evidence', 'emotion', 'parody']);
+// P13 阶段1 扩枚举（并集，不替换）：旧四值全部保留为合法旧档，新四值对应提案
+// §1.A 的对位细分。理由见执行记录——storyboard 默认值 'metaphor'、7 个 recipe
+// 与 8 个测试文件全用旧值，替换会让旧项目直接解析失败。
+export const COUNTERPOINTS = [
+    'metaphor',
+    'evidence',
+    'emotion',
+    'parody',
+    'literal',
+    'complementary',
+    'ironic',
+    'atmospheric',
+];
+export const CounterpointSchema = z.enum(COUNTERPOINTS);
 export const SegmentFunctionSchema = z.enum(['advance', 'inform', 'emotion']);
+/** 素材诉求（提案 §1.A/§1.E）：证据型段落宜真实素材，情绪段宜抽象 */
+export const ASSET_NEEDS = ['evidence', 'mood', 'none'];
+export const AssetNeedSchema = z.enum(ASSET_NEEDS);
 export const ScriptSegmentSchema = z.object({
     id: z.string(),
     text: z.string().min(1),
@@ -100,12 +106,49 @@ export const ScriptSegmentSchema = z.object({
     mood: z.enum(['neutral', 'curious', 'tense', 'awe', 'warm', 'urgent']).optional(),
     emphasis: z.array(z.string()).optional(),
     pausesMs: z.array(z.number().int().nonnegative()).optional(),
+    // P13 阶段1（A2 声明接线）：以下四字段**全可缺省**，缺省即「本段未声明」，
+    // 与旧项目零差异；声明了才被下游消费（storyboard 写导演笔记 / 对位 / 素材需求单）。
+    subtext: z.string().optional(),
+    emotion: z.string().optional(),
+    assetNeed: AssetNeedSchema.optional(),
+    counterpoint: CounterpointSchema.optional(),
 });
 export const ScriptSchema = z.object({
     fullText: z.string().min(1),
     segments: z.array(ScriptSegmentSchema).min(1),
 });
 export const ZoomSchema = z.enum(['ELS', 'LS', 'MLS', 'MS', 'MCU', 'CU', 'ECU']);
+/**
+ * 机位动机（P13 阶段1 · 提案 §1.C）：导演部在开拍前回答「这一镜的机位为什么动/为什么不动」。
+ *
+ * 为什么必须是一个枚举而不是自由文本：`motivation` 已经能写理由，但它描述的是**切点**
+ * （为什么从上一镜切到这一镜）；机位自己为什么动、动成什么样，此前完全没有字段——
+ * 于是「所有东西同时在动」成为默认，静也从来不是决策。
+ *
+ * hold = 定帧不动，是**合法决策**（Lumet：没有理由就不动机位）。
+ */
+export const CAMERA_INTENTS = ['follow', 'reveal', 'hold', 'emotion', 'setup'];
+export const CameraIntentSchema = z.enum(CAMERA_INTENTS);
+/** 调度表单轨：动/静 + 做什么 + 为什么（三样缺一，这一轨就等于没决策） */
+export const StagingTrackSchema = z.object({
+    motion: z.enum(['move', 'still']),
+    what: z.string().default(''),
+    why: z.string().default(''),
+});
+/**
+ * 调度表（A3 扩展，提案 §1.C）：五轨各一行——机位/主体/配角/环境/字幕。
+ *
+ * 机位轨必填 `intent`（其余四轨可缺省）：机位是唯一「动不动都需要理由」的轨，
+ * 主体/配角/环境/字幕的缺省含义是「本轨未单独调度」，由语法与场景自行决定，
+ * 不硬塞默认值（否则「未调度」与「调度为静」不可分）。
+ */
+export const StagingSchema = z.object({
+    camera: StagingTrackSchema.extend({ intent: CameraIntentSchema }),
+    subject: StagingTrackSchema.optional(),
+    supporting: StagingTrackSchema.optional(),
+    environment: StagingTrackSchema.optional(),
+    subtitle: StagingTrackSchema.optional(),
+});
 export const VisualSpecSchema = z.object({
     kind: VisualKindSchema,
     prompt: z.string().default(''),
@@ -161,6 +204,9 @@ export const ShotSchema = z.object({
     motivation: z.string().default(''),
     counterpoint: CounterpointSchema,
     gag: z.boolean().default(false),
+    // A5 调度表（P13 阶段1）：机位动机 + 五轨动/静决策。全可缺省 —— 旧项目零回归。
+    intent: CameraIntentSchema.optional(),
+    staging: StagingSchema.optional(),
     // V-COL-002 色彩脚本：每镜色温标注（cool/neutral/warm）
     colorTemp: z.enum(['cool', 'neutral', 'warm']).optional(),
     transition: z.string().default('dissolve'),
@@ -212,12 +258,34 @@ export const SubtitleCueSchema = z.object({
 // word=逐词卡拉OK（词按字位比例换算的时间戳逐词点亮，vibe 知识大赏签名形式）；
 // off=不出画面字幕（srt 工件仍全量导出）。风格包声明默认，project 顶层可覆写。
 export const SubtitlePolicySchema = z.enum(['full', 'keyword', 'word', 'off']);
+// 场（scene）：共享空间 + 元素接力的镜头编组（P13 表达层，提案 §1.B）。
+// 全可缺省 —— 旧项目零回归；存在时语义为「这些镜共用同一物理空间」，
+// viewportWindows 描述共享 canvas 内的多视口取景（主画布之外嵌入的取景窗）。
+// 缺省 scenes[] = 全片单场，所有消费方行为与旧版完全一致。
+export const ViewportWindowSchema = z.object({
+    shotId: z.string(),
+    x: z.number().min(0).max(100).default(50),
+    y: z.number().min(0).max(100).default(50),
+    zoom: z.number().min(0.2).max(3).default(1),
+    motion: z.string().default(''),
+});
+export const SceneSchema = z.object({
+    id: z.string(),
+    canvas: z.string(),
+    shotIds: z.array(z.string()).min(1),
+    viewportWindows: z.array(ViewportWindowSchema).default([]),
+});
 export const TimelineSchema = z.object({
     shots: z.array(z.object({
         shotId: z.string(),
         startMs: z.number(),
         durationMs: z.number(),
         transition: z.string(),
+        // P13 阶段2 场域口径（单一计算点）：computeTimeline 派生（同 segment = intra），
+        // 切点校验器与 cut-audit 审计共用这一个来源，不再各算一份。
+        // optional 而非 default：default 会把输出类型变必填，测试手写的 Timeline 字面量会全体报错；
+        // 消费方一律 `?? 'inter'` 兜底，语义 = 缺省即场间（保守，不收紧旧片的切点自由度）。
+        sceneScope: z.enum(['intra', 'inter']).optional(),
         // 剪辑部落地字段（docs/08）：镜头内覆盖切点 / 机位运动 / 切点动机 / J-L cut 音频偏移
         coverage: z.array(CoverageCutSchema).default([]),
         camera: z.string().default('none'),
@@ -269,6 +337,9 @@ export const ProjectSchema = z.object({
     directorNotes: z.array(DirectorNoteSchema).default([]),
     shots: z.array(ShotSchema).default([]),
     materialDecisions: z.record(MaterialDecisionSchema).default({}),
+    // P13 阶段2：场编组（optional 而非 default，理由同 sceneScope——旧字面量零报错；
+    // 缺省 = 全片单场，行为同旧）
+    scenes: z.array(SceneSchema).optional(),
     style: StyleDecisionSchema.optional(),
     timeline: TimelineSchema.optional(),
     continuity: ContinuityReportSchema.optional(),
@@ -306,6 +377,17 @@ export const StyleVisualSchema = z.object({
     note: z.string().default(''),
     /** 真实素材镜的呈现参数（代码绘制镜不读） */
     media: StyleMediaSchema.default({}),
+    /**
+     * P13 阶段3：情绪→视觉参数的偏好层词典。可缺省、可被 StyleDecision.overrides 整体覆写。
+     * 键为情绪名（calm/tension/joy/melancholy/…），值为该情绪下的默认视觉倾向。
+     * 只给默认值，不预设「某情绪必配某机位/动作」——组合仍归调度表。
+     */
+    emotionMap: z.record(z.string(), z.object({
+        temperature: z.enum(['warm', 'neutral', 'cool']).optional(),
+        light: z.enum(['soft', 'hard', 'high-key', 'low-key']).optional(),
+        pace: z.enum(['slow', 'medium', 'fast']).optional(),
+        note: z.string().optional(),
+    })).optional(),
 });
 export const StylePackSchema = z.object({
     id: z.string(),
@@ -360,6 +442,14 @@ export const StylePackSchema = z.object({
     references: z.string().default(''),
     antiPatterns: z.string().default(''),
     subtitlePolicy: SubtitlePolicySchema.default('full'),
+    /**
+     * P13 阶段4：公共笼阈值的「默认 + 可覆写」下沉点。
+     * 只放已有 V-* 规则的可调阈值，不新增规则编号（V-* 笼子只减不增）。
+     */
+    constraints: z.object({
+        /** V-CAM-005 急推全片上限，缺省 2（沿用原硬编码） */
+        maxPunchOut: z.number().int().min(0).max(10).default(2),
+    }).default({}),
     /** 字幕配色（亮调风格必须显式声明，否则暗底字幕在亮画面上糊掉） */
     caption: z
         .object({
@@ -397,6 +487,8 @@ export const RecipeSchema = z.object({
         shotLenMs: z.tuple([z.number(), z.number()]),
         breathEvery: z.number().int().positive(),
         comedyBeat: z.boolean().default(false),
+        /** P13 阶段4：V-RHY-010 静止镜占比上限，缺省 0.6（沿用原硬编码，不新增规则编号） */
+        maxStaticRatio: z.number().min(0).max(1).default(0.6),
     }),
     density: z.enum(['low', 'medium', 'high']),
     subtitles: z.string(),

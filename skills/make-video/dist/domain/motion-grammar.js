@@ -13,6 +13,7 @@
  * 数据归属：语法表是本模块的只读常量；每镜落成的动作谱写 project.json
  * 的 shots[].visual.params.actionSheet（项目独占，人工可改）。
  */
+import { PUSH_CAMERAS } from '../core/validators/scene.js';
 /**
  * 十一种语法（y1-y7 / t1-t3 + b_roll 兜底）。
  * motionBeats 里的箭头 = 动作的先后关系，不是时间刻度——
@@ -28,6 +29,8 @@ export const GRAMMARS = [
         cameraBias: ['push-in', 'dolly-in', 'pull-out'],
         textShare: 0.3,
         motifs: ['float', 'pulse', 'rotate'],
+        sceneForms: ['atmosphere', 'chart', 'depth-layers', 'iso-stage', 'typography'],
+        energy: 0.55,
     },
     {
         id: 'y2_collage',
@@ -38,6 +41,8 @@ export const GRAMMARS = [
         cameraBias: ['pan', 'pan-left', 'push-in'],
         textShare: 0.25,
         motifs: ['shimmer', 'sweep'],
+        sceneForms: ['compare-stage', 'paper-stage'],
+        energy: 0.65,
     },
     {
         id: 'y3_whiteboard',
@@ -48,6 +53,8 @@ export const GRAMMARS = [
         cameraBias: ['pan', 'pan-left', 'dolly-out'],
         textShare: 0.35,
         motifs: ['shimmer', 'scan'],
+        sceneForms: ['paper-stage', 'process-track'],
+        energy: 0.45,
     },
     {
         id: 'y4_story',
@@ -58,6 +65,8 @@ export const GRAMMARS = [
         cameraBias: ['static', 'punch-in', 'tilt-up'],
         textShare: 0.2,
         motifs: ['pulse', 'settle'],
+        sceneForms: ['comic-symbol', 'comparison', 'talking-head'],
+        energy: 0.35,
     },
     {
         id: 'y5_kinetic_type',
@@ -68,6 +77,8 @@ export const GRAMMARS = [
         cameraBias: ['punch-in', 'static', 'drift'],
         textShare: 0.7,
         motifs: ['shimmer', 'float', 'scan'],
+        sceneForms: ['kinetic-type'],
+        energy: 0.85,
     },
     {
         id: 'y6_mechanism',
@@ -78,6 +89,8 @@ export const GRAMMARS = [
         cameraBias: ['push-in', 'crane-up', 'drift'],
         textShare: 0.25,
         motifs: ['float', 'rotate', 'compress'],
+        sceneForms: ['paper-stage'],
+        energy: 0.8,
     },
     {
         id: 'y7_system_map',
@@ -88,6 +101,8 @@ export const GRAMMARS = [
         cameraBias: ['pull-out', 'push-in', 'crane-down'],
         textShare: 0.3,
         motifs: ['float', 'pulse'],
+        sceneForms: ['compare-stage', 'hierarchy-stack'],
+        energy: 0.6,
     },
     {
         id: 't1_3b1b',
@@ -98,6 +113,8 @@ export const GRAMMARS = [
         cameraBias: ['drift', 'push-in', 'dolly-out'],
         textShare: 0.25,
         motifs: ['shimmer', 'breathe'],
+        sceneForms: ['deep-stage', 'iso-stage'],
+        energy: 0.4,
     },
     {
         id: 't2_keynote',
@@ -108,6 +125,8 @@ export const GRAMMARS = [
         cameraBias: ['push-in', 'dolly-in', 'static'],
         textShare: 0.35,
         motifs: ['float', 'pulse'],
+        sceneForms: ['kinetic-type', 'talking-head', 'typography'],
+        energy: 0.6,
     },
     {
         id: 't3_finance',
@@ -118,6 +137,8 @@ export const GRAMMARS = [
         cameraBias: ['push-in', 'pull-out', 'dolly-in'],
         textShare: 0.3,
         motifs: ['shimmer', 'sweep'],
+        sceneForms: ['chart', 'compare-stage'],
+        energy: 0.9,
     },
     {
         id: 'b_roll',
@@ -125,9 +146,15 @@ export const GRAMMARS = [
         when: '无形式可依的氛围/过渡镜',
         avoid: '能用前八种讲清时别用它（它是兜底不是风格）',
         motionBeats: ['主体定场', '→ 环境母题循环（画一直是活的）', '→ 慢漂', '→ 收在可读的静止'],
-        cameraBias: ['drift', 'static', 'slow-drift'],
+        // C1（P13 阶段2）：第三位曾是 'slow-drift'——但 normalizeCameraBias 把
+        // slow-drift 归一为 drift（本文件 :588 附近），cameraBias[2] 永远到不了
+        // 任何词表（actionSheet 只取 cameraBias[0]），是纯幽灵值。删除，防「词表里有
+        // 一个永远不生效的词」式声明腐烂（与 page-turn 事故同类，见 TransitionKind 注）。
+        cameraBias: ['drift', 'static'],
         textShare: 0.15,
         motifs: ['float', 'pulse', 'rotate', 'breathe'],
+        sceneForms: ['atmosphere', 'depth-layers', 'iso-stage'],
+        energy: 0.3,
     },
 ];
 export function getGrammar(id) {
@@ -136,6 +163,41 @@ export function getGrammar(id) {
 }
 const NUMBER_RE = /\d|百分|千|万|亿|倍|成|个点/;
 const COMPARE_RE = /比|相比|而|反而|却|不是|而是|以前|现在|从前/;
+/**
+ * 语法 → 场景模板的相容性判定。
+ *
+ * 判据（按强度排序）：
+ *   ① 语法声明的 sceneForms 与可用的 scenePool **有交集** → 相容；
+ *   ② scenePool 为空（未知） → 相容（不因缺信息而排除）；
+ *   ③ 语法没有声明 sceneForms → 相容（老语法不因新字段被误杀）。
+ *
+ * 为什么是「排除」而不是「加分」：如果语法选出来没有模板能承载，
+ * 那一镜的动效与画面必然对不上——这是结构性错误，不是偏好差异。
+ * 用加分的话，线索词一压就把不相容的语法选回来了。
+ */
+export function grammarFitsScenePool(g, ctx) {
+    const pool = ctx.scenePool;
+    if (!pool || pool.length === 0)
+        return true;
+    if (!g.sceneForms || g.sceneForms.length === 0)
+        return true;
+    return g.sceneForms.some((f) => pool.includes(f));
+}
+/**
+ * 语法 → 风格偏好池的相容性判定（比 scenePool 更软）。
+ *
+ * 与 scenePool 的分工：scenePool 是**能不能**，styleBias 是**像不像**。
+ * styleBias 命中给加分（风格偏好应当被尊重），
+ * 但不命中不排除（风格池与语法池不是同一套，硬排除会把所有风格打死）。
+ */
+export function grammarFitsStyleBias(g, ctx) {
+    const bias = ctx.styleBias;
+    if (!bias || bias.length === 0)
+        return true;
+    if (!g.sceneForms || g.sceneForms.length === 0)
+        return true;
+    return g.sceneForms.some((f) => bias.includes(f));
+}
 /**
  * 语法选型（纯函数：同一输入永远同一语法）。
  *
@@ -147,7 +209,8 @@ const COMPARE_RE = /比|相比|而|反而|却|不是|而是|以前|现在|从前
  *   - 前两镜用过的语法排除（花叔：同一个模板不要连续用两次）
  *   - singleNumber 时排除 t3（花叔兜底二：一个数用大数字，不画图表）
  *   - hasRealMaterial 时排除 y3（白板不贴真实截图）
- * 第二轮打分（在候选内）：线索词命中 + 结构关系；都 0 分 → b_roll。
+ *   - **P12 阶段2**：语法必须有一个 sceneForm 落在可用场景池里（否则画面接不住）
+ * 第二轮打分（在候选内）：线索词命中 + 结构关系 + 风格偏好；都 0 分 → b_roll。
  *
  * 为什么不给「默认语法」：默认就是「每镜都一样」的根源。
  */
@@ -167,15 +230,18 @@ export function pickGrammar(narration, ctx = {}) {
         // 导演声明文字主导或显式降低 y5 权重时，把它移出候选而不是靠扣分（扣分会被线索词淹没）
         if (ctx.suppressTextLed && g.id === 'y5_kinetic_type')
             return true;
+        // P12 阶段2：场景池相容性（硬排除）——选出来的语法必须有模板能承载
+        if (!grammarFitsScenePool(g, ctx))
+            return true;
         // T1c 能量曲线：低能量幕排掉高能量语法（反之亦然）——但只排到「次优候选」层，
         // 全排除会让候选池空转 b_roll（那才是真死板）。b_roll 已在上面按 suppressBroll 处理。
         if (ctx.energy !== undefined) {
-            const id = g.id;
-            const highEnergy = id === 't3_finance' || id === 'y5_kinetic_type' || id === 'y6_mechanism';
-            const lowEnergy = id === 'y4_story' || id === 't1_3b1b';
-            if (ctx.energy >= 0.7 && lowEnergy)
+            // 能量判定改用 GrammarSpec.energy 本体（原先是 continuity.ts 里另立的一张表，
+            // 加语法忘同步就是一次静默漂移）
+            const e = g.energy;
+            if (ctx.energy >= 0.7 && e <= 0.4)
                 return true;
-            if (ctx.energy <= 0.4 && highEnergy)
+            if (ctx.energy <= 0.4 && e >= 0.8)
                 return true;
         }
         return false;
@@ -198,6 +264,15 @@ export function pickGrammar(narration, ctx = {}) {
         // 素材兜底：有真实素材时优先能给材料位置的语法
         if (ctx.hasRealMaterial && (g.id === 't2_keynote' || g.id === 'y2_collage'))
             s += 3;
+        // P12 阶段2：风格偏好加分（不是排除）——「这一派偏好的形态」应当被尊重。
+        // 加 3 分 = 与线索词同级：风格与语义冲突时，语义赢；
+        // 语义无明显倾向时，风格赢（这正是用户要的「整体像同一派」）。
+        if (grammarFitsStyleBias(g, ctx)) {
+            const bias = ctx.styleBias ?? [];
+            const hit = g.sceneForms.filter((f) => bias.includes(f)).length;
+            if (hit > 0)
+                s += 3 + Math.min(2, hit - 1);
+        }
         return s;
     };
     const strict = GRAMMARS.filter((g) => !isExcluded(g) && g.id !== 'b_roll');
@@ -210,44 +285,142 @@ export function pickGrammar(narration, ctx = {}) {
     // 放宽：只有「连用」是软规则（可以放宽一次），singleNumber / hasRealMaterial 是硬规则不放宽。
     // suppressBroll 在放宽轮仍然生效（X2 的目的就是不让 b_roll 成对）——放宽后仍无候选
     // 才落回 b_roll（192 行兜底），此时是「真没有任何语法可讲」而不是「成对偷懒」。
+    // P12 阶段2：场景池相容性在放宽轮仍然生效——放宽的是「连用」，不是「画面接不住」。
     const relaxed = GRAMMARS.filter((g) => !(ctx.suppressBroll && g.id === 'b_roll') &&
         !(ctx.singleNumber && g.id === 't3_finance') &&
         !(ctx.hasRealMaterial && g.id === 'y3_whiteboard') &&
-        !(ctx.suppressTextLed && g.id === 'y5_kinetic_type'))
+        !(ctx.suppressTextLed && g.id === 'y5_kinetic_type') &&
+        grammarFitsScenePool(g, ctx))
         .map((g) => ({ g, score: score(g) - (recent.includes(g.id) ? 1 : 0) }))
         .filter((x) => x.score > 0)
         .sort((a, b) => b.score - a.score);
     return relaxed[0]?.g ?? getGrammar('b_roll');
 }
 /**
- * 语法 → 必选原语（P8-T5 约束表）。
- * 取材于各语法 motionBeats 里点名的动作：动作谱写了什么，场景就必须做什么。
- * motifLoop 全语法必选（阿杜/花叔共同铁律「画面一直是活的」= V-MOT-021）。
+ * 语法 → 动作要求表。
+ *
+ * 与 REQUIRED_BY_GRAMMAR 一一对应，但表达的是「要什么动作」而不是「调哪个函数」。
+ * 两张表并存：前者是给老代码与文档看的名单，后者是校验用的**语义判据**。
  */
-export const REQUIRED_BY_GRAMMAR = {
-    y1_flat_explainer: ['MV.enter', 'MV.motifLoop'],
-    // y2 的动作拍是「材料冲印件落下（错峰）→ 高亮扫过要读那一行 → 红线连接」。
-    // 只强制错峰 + 红线（骨架），高亮要求由导演按镜头取舍：很多 y2 镜只有一个
-    // 待读对象，硬扫一道高亮反而是噪音（本片 8 个 y2 镜里 8 个都没写 highlight，
-    // 若强制则全部打回，等于把主力路径卡死）。
-    y2_collage: ['MV.staggeredIn', 'MV.motifLoop'],
-    y3_whiteboard: ['MV.maskReveal', 'MV.motifLoop'],
-    y4_story: ['MV.enter', 'MV.performance', 'MV.motifLoop'],
-    // y5 的动作拍是「关键词整词砸入 → 主词拉开字距定住 → 辅助词错峰跟上」。
-    // 原来这里点的是 highlight（高亮扫过，那是 y2 的动作），与 motionBeats 不符——
-    // 后果是本片 6 个 y5 镜全被判「缺 highlight」，而语法真正要求的砸入反而没被约束。
+export const REQUIREMENTS_BY_GRAMMAR = {
+    // 主体入场 + 环境一直在动（画面不能死）
+    y1_flat_explainer: [
+        { id: 'enter', label: '主体入场', anyOf: ['MV.enter', 'MV.staggeredIn', 'MV.maskReveal'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 材料落下（错峰）+ 环境母题。高亮可选（很多 y2 镜只有一个待读对象）
+    y2_collage: [
+        { id: 'stagger', label: '材料错峰落下', anyOf: ['MV.staggeredIn', 'MV.cards', 'MV.counter'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 白板擦除揭示 + 环境母题
+    y3_whiteboard: [
+        { id: 'reveal', label: '擦除揭示', anyOf: ['MV.maskReveal', 'MV.staggeredIn'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 主体入场 + 表演微动 + 环境母题
+    y4_story: [
+        { id: 'enter', label: '主体入场', anyOf: ['MV.enter', 'MV.staggeredIn'] },
+        { id: 'perform', label: '表演微动', anyOf: ['MV.performance', 'MV.idle'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 关键词重音（slam 或 emphasis 都算）+ 错峰 + 环境母题
+    // 这一组是「等效组」价值的最好例子：kinetic-type 用 slam，不是 emphasis。
     //
-    // 只强制 emphasis + staggeredIn：slam 是**戏剧标点**，受 V-MOT-013「全片重音镜 ≤1/3」
-    // 约束（16 镜只有 5 个配额，见 accent-budget.ts），强制它必然和预算闸死锁。
-    // 卡点跟随（emphasis）才是每镜都该有的东西，且它不计入重音预算。
-    y5_kinetic_type: ['MV.staggeredIn', 'MV.emphasis', 'MV.motifLoop'],
-    y6_mechanism: ['MV.maskReveal', 'MV.staggeredIn', 'MV.highlight', 'MV.morphTo', 'MV.motifLoop'],
-    y7_system_map: ['MV.maskReveal', 'MV.motifLoop'],
-    t1_3b1b: ['MV.morphTo', 'MV.motifLoop'],
-    t2_keynote: ['MV.staggeredIn', 'MV.motifLoop'],
-    t3_finance: ['MV.counter', 'MV.highlight', 'MV.motifLoop'],
-    b_roll: ['MV.motifLoop'],
+    // skeleton 例外（B1 单源化后唯一一处，见 ActionRequirement.skeleton）：语义首选是 slam，
+    // 但 slam 是**戏剧标点**，受 V-MOT-013「全片重音镜 ≤1/3」约束（16 镜只有 5 个配额，
+    // 见 accent-budget.ts），骨架若点 slam 必然与预算闸死锁。卡点跟随（emphasis）才是每镜
+    // 都该有的东西，且它不计入重音预算。
+    y5_kinetic_type: [
+        {
+            id: 'accent',
+            label: '关键词重音落下',
+            anyOf: ['MV.slam', 'MV.emphasis', 'MV.punch'],
+            skeleton: 'MV.emphasis',
+        },
+        { id: 'stagger', label: '辅助词错峰跟上', anyOf: ['MV.staggeredIn', 'MV.counter'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 拆开 → 部件逐个点亮 → 高亮 → 合拢 + 环境母题
+    y6_mechanism: [
+        { id: 'reveal', label: '外壳擦除揭示', anyOf: ['MV.maskReveal'] },
+        { id: 'stagger', label: '部件逐个点亮', anyOf: ['MV.staggeredIn', 'MV.counter'] },
+        { id: 'highlight', label: '关键部件高亮', anyOf: ['MV.highlight', 'MV.emphasis'] },
+        { id: 'morph', label: '形变合拢', anyOf: ['MV.morphTo'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 关系线描出 + 环境母题
+    y7_system_map: [
+        { id: 'reveal', label: '关系线描出', anyOf: ['MV.maskReveal', 'MV.staggeredIn'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 形变接力 + 环境母题
+    t1_3b1b: [
+        { id: 'morph', label: '连续形变', anyOf: ['MV.morphTo'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 一屏一件事错峰 + 环境母题
+    t2_keynote: [
+        { id: 'stagger', label: '要素错峰就位', anyOf: ['MV.staggeredIn', 'MV.enter', 'MV.counter'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    // 数字生长 + 高亮 + 环境母题
+    t3_finance: [
+        { id: 'counter', label: '数字生长', anyOf: ['MV.counter'] },
+        { id: 'highlight', label: '高亮扫过', anyOf: ['MV.highlight', 'MV.emphasis'] },
+        { id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] },
+    ],
+    b_roll: [{ id: 'alive', label: '环境母题循环', anyOf: ['MV.motifLoop'] }],
 };
+/**
+ * 判定一个场景 HTML 是否满足某语法的全部动作要求。
+ *
+ * @returns 未满足的要求（空数组 = 全部满足；**语法未注册时也为空**，见下方警告）
+ *
+ * ⚠️ 未注册语法返回空数组是历史遗留的静默行为（审计发现 A1）：新语法若漏写语义表，
+ * 调用方拿到的「空数组」与「全部满足」不可区分——整条动作校验就这么蒸发，测试还全绿。
+ * 调用方必须先问 `isRequirementsRegistered()` 再决定怎么解释这个空数组；
+ * tests/catalog.test.ts 另有一层守护，把「每条语法都登记了语义表」钉死。
+ */
+export function unmetRequirements(grammarId, html) {
+    const reqs = REQUIREMENTS_BY_GRAMMAR[grammarId];
+    if (!reqs)
+        return [];
+    return reqs.filter((r) => !r.anyOf.some((p) => html.includes(p)));
+}
+/**
+ * 该语法的语义需求表是否已登记（P13 阶段1 · A1）。
+ *
+ * 为什么单独立一个函数而不是让 `unmetRequirements` 抛错：这个文件的读者有两类——
+ * 校验器（要判「校验是否失效」）与提示词生成（要判「骨架从哪来」），
+ * 让查询保持无副作用、把裁决留给调用方，才不会在提示词路径上意外抛错。
+ */
+export function isRequirementsRegistered(grammarId) {
+    const reqs = REQUIREMENTS_BY_GRAMMAR[grammarId];
+    return Array.isArray(reqs) && reqs.length > 0;
+}
+/** 某语法的动作要求（给提示词与文档用） */
+export function requirementsFor(grammarId) {
+    return REQUIREMENTS_BY_GRAMMAR[grammarId] ?? [];
+}
+/**
+ * 语法 → 必选原语（P8-T5 约束表）**从语义表派生**（P13 阶段1 · B1 单源化）。
+ *
+ * 为什么不再手写：这两张表此前各自维护，于是漂移——y3/y7 骨架点死 `maskReveal`，
+ * 语义表却接受 `maskReveal|staggeredIn`；提示词（`actionSheet.requiredPrimitives`）
+ * 按骨架说「必须调 maskReveal」，校验器按语义组判「maskReveal 或 staggeredIn 都行」，
+ * 两套口径对同一张画面给出不同结论（审计发现 B1）。
+ *
+ * 派生规则：每个动作要求取 `skeleton ?? anyOf[0]`。`motifLoop` 全语法必选
+ * （阿杜/花叔共同铁律「画面一直是活的」= V-MOT-021），由语义表各语法的 `alive` 要求保证。
+ *
+ * 唯一的例外（y5 的 accent → emphasis）写在语义表的 `skeleton` 字段里，有名字可枚举；
+ * tests/catalog.test.ts 断言「骨架表与语义表零漂移」，除了这个具名例外。
+ */
+export const REQUIRED_BY_GRAMMAR = Object.fromEntries(Object.entries(REQUIREMENTS_BY_GRAMMAR).map(([gid, reqs]) => [
+    gid,
+    reqs.map((r) => r.skeleton ?? r.anyOf[0]),
+]));
 /**
  * 机位偏好落成词表值（b_roll 的 slow-drift 是别名 → drift）。
  * 死板清除 X3（2026-11-14）：cameraBias 补上 v3 新机位词（dolly/crane），让语法认领
@@ -318,14 +491,38 @@ export function defaultCameraFor(grammarId) {
  * tilt-down…），观众看到的是「同一动作播两遍」。景别已由 nextZoomIn 变奏，
  * 机位却在照抄。这里在语法机位偏好里取一个与 prev 不同的值（确定性：按
  * bias 顺序取第一个不同的；全同则保持——不同语法镜间不该强行变奏）。
+ *
+ * P12 阶段2：新增 **V-MOT-014 前瞻**（连续 3 镜往里推）。
+ * 此前这里只避开「与上一镜相同」，却不知道「上一镜和上上镜已经是推镜」——
+ * 于是 y5 的偏好首选 `punch-in`（属推镜族）会在三连镜里连撞三次，
+ * 整片在 compose 期被 V-MOT-014 判 error（实测 pipeline 测试红）。
+ *
+ * 修法：当已有连续 2 镜是推镜族时，本镜**不再选推镜**——
+ * 不是报错（那会卡住出片），而是从偏好里退到第一个非推镜值。
+ * V-MOT-014 是「不连三镜往里推」，所以第三镜必须让位。
  */
-export function varyCameraFor(grammarId, prevCamera) {
+export function varyCameraFor(grammarId, prevCamera, opts = {}) {
     const g = grammarId ? GRAMMARS.find((x) => x.id === grammarId) : undefined;
     const bias = (g?.cameraBias ?? ['static']).map(normalizeCameraBias);
     const prev = prevCamera ?? '';
     const other = bias.find((c) => c !== prev);
-    return other ?? bias[0];
+    const pick = other ?? bias[0];
+    // 已有两镜连续推镜 → 本镜让位（V-MOT-014 的前瞻）
+    if ((opts.pushRun ?? 0) >= 2 && PUSH_CAMERA_WORDS.has(pick)) {
+        const safe = bias.find((c) => !PUSH_CAMERA_WORDS.has(c));
+        if (safe)
+            return safe;
+    }
+    return pick;
 }
+/**
+ * 推镜族词表（V-MOT-014 的「往里推」）。
+ *
+ * 唯一事实源在 `core/validators/scene.ts` 的 PUSH_CAMERAS（M3 合并）。
+ * push-in 与 punch-in 都算「往里推」——punch-in 是短促急推，
+ * 观众读到的仍是「画面在推进」。
+ */
+const PUSH_CAMERA_WORDS = new Set(PUSH_CAMERAS);
 /**
  * 新增语法时最容易漏的两处：REQUIRED_BY_GRAMMAR（骨架）与 settleByGrammar（收势）。
  * 以前它们用 `?? 默认值` 静默兜底——漏登记的新语法会得到「只有 motifLoop」的最松骨架，
@@ -361,7 +558,7 @@ function settleText(grammarId) {
  * 「调用了 motifLoop」不等于「画面活着」——动至少 3px 才算活。
  */
 export const MOTIF_MIN_MOTION_PX = 3;
-const PUSH_SET = new Set(['push-in', 'punch-in']);
+const PUSH_SET = PUSH_CAMERA_WORDS;
 /**
  * 混剪审计：把两家「哪些做法被判过坏片」的判据落成能数的比例。
  *
