@@ -255,3 +255,26 @@
   手测通过；`scripts/apply-tool-patches.py --dry-run` 全 DRY 0 FAIL、二次运行全「已应用过」幂等。
 - **结果**：通过。线契约仅追加可选字段（`http_attempts`）与可选声明（`capabilities`），旧 provider /
   旧消费者无感知；README op 契约段 / 新增 provider 步骤 / 选路段同步。
+
+
+### P6：流式瞬态（空流/429）自动重试换号 ✅（2026-11-19）
+
+- **现象**：长任务工作一段时间后报 `LLM工作一段时间后 openai 流式响应正文为空`。
+- **根因**：Magpie 网关把上游 401/429/502 在**流式模式**下吞成 `200 + 空 SSE`
+  （非流式会明确报 401/429）——usage 记录显示 20:15 那一秒 workbuddy 429 额度用尽、
+  qoder 429 credits 0/0、trae 旧号 401、qoder-cn/qwenwork 502/499 几乎同时挂掉，
+  smart 路由选中坏账号即命中空流。v0.0.25 加的 `LLM_EMPTY` 防护只是如实上报，非 bug。
+- **修复**（`openai_compat.py`）：
+  1. `_stream_once` 空流判定**提前到 `sink.end()` 之前**——空流不写 end 事件，外层重试
+     复用同一 sink 不串台；返回 `LLM_EMPTY` + `http_attempts`。
+  2. 429/5xx（`LLM_TRANSIENT`）不再在内层写 `sink.error`，避免重试时前端气泡闪错。
+  3. `_chat_stream` 包**瞬态重试循环**：遇 `LLM_EMPTY`/`LLM_TRANSIENT` 重新请求同一网关
+     （= 网关重新 smart 路由换号），最多 5 次（实测 auto 组 5 成员曾 4 个坏，撞健康号概率
+     从 ~49% 提到 ~67%），退避 1/2/3/4s，`PROVIDER_DEADLINE-15` 总时限守卫防越过内核 K502；
+     确定性错误（401 等 `LLM_ERROR`）不重试。复用同一 sink：start 只写一次、最终失败才写一次 error。
+- **网关侧尝试回滚**：曾摘除 workbuddy/qoder（明确 429），结果剩余 3 成员全超时、端到端 8/8 失败，
+  证明摘除减少冗余反更糟——**已回滚**（5 成员全恢复）。结论：网关池整体故障时只能靠重试撞健康号，
+  代码侧重试是主 remedy，摘成员不可取。
+- **验证**：离线 mock 测试 5 项全过（空流 4 次后成功 / 429 重试成功 / 持续空流 5 次失败 /
+  401 不重试 / 时限守卫提前停）；`py_compile` OK；`cargo test -p react-agent-host --lib` 99 passed。
+  临时测试脚本已删除。

@@ -194,8 +194,38 @@ def _chat_stream(endpoint: dict, body: dict, stream_path: str, sid, provider_lab
     """
     sink = StreamSink(stream_path, sid)
     sink.start()
+    # 瞬态重试：网关把上游 401/429/502 吞成 200+空流（LLM_EMPTY）或直接回 429/5xx
+    # （LLM_TRANSIENT）时，重新请求同一网关 = 网关重新走 smart 路由、换一个账号。
+    # 复用同一 sink：start 行只写一次、空流不写 end、重试不写 error，最终失败才写一次 error，
+    # 前端气泡全程不重开、不闪错。
+    # 尝试次数取 5：网关 auto 组可能多个账号同时故障（实测 5 个成员 4 个坏），
+    # 每次请求 = 网关重新 smart 路由换号，5 次把撞到健康号的概率从 ~49% 提到 ~67%；
+    # 退避递增让网关额度态/健康态有时间刷新。总时限受 PROVIDER_DEADLINE 守卫，不超内核 K502。
+    attempts = 5
+    last: dict | None = None
+    stream_start = time.monotonic()
     try:
-        return _stream_once(endpoint, body, sink, provider_label, include_usage=True)
+        for attempt in range(attempts):
+            out = _stream_once(endpoint, body, sink, provider_label, include_usage=True, http_attempts=attempt + 1)
+            code = (out.get("error") or {}).get("code")
+            if code not in ("LLM_EMPTY", "LLM_TRANSIENT") or attempt == attempts - 1:
+                if not out.get("ok"):
+                    sink.error(out.get("error", {}).get("message", "流式请求失败"))
+                return out
+            last = out
+            # 总时限守卫： retries 累计已接近 PROVIDER_DEADLINE 就停止重试，
+            # 返回最后一次错误（避免越过内核 120s K502 闸导致 guest 线程泄漏）。
+            if time.monotonic() - stream_start > PROVIDER_DEADLINE - 15:
+                break
+            retry_after = 1.0
+            if "429" in out.get("error", {}).get("message", ""):
+                retry_after = min(5.0, max(1.0, retry_after))
+            time.sleep(retry_after * (attempt + 1))  # 1s / 2s 轻微退避，让网关额度态刷新
+        if last is None:
+            last = err("流式重试耗尽", code="LLM_TRANSIENT")
+        if not last.get("ok"):
+            sink.error(last.get("error", {}).get("message", "流式请求失败"))
+        return last
     finally:
         sink.close()
 
@@ -240,7 +270,9 @@ def _stream_once(
                     # P5 观测：降级重放是**真实的第二次** HTTP 请求，尝试数记 2。
                     return _stream_once(endpoint, body, sink, provider_label, False, http_attempts + 1)
                 payload = err_from_resp(provider_label, resp.status_code, resp.text)
-                sink.error(payload["error"]["message"])
+                payload["http_attempts"] = http_attempts
+                # 不在此写 sink.error：LLM_TRANSIENT(429/5xx) 会由 _chat_stream 重试，
+                # 多条 error 事件会让前端气泡闪错；只在最终失败时由外层写一次。
                 return payload
             for raw in resp.iter_lines():
                 # R1：逐帧取消检查——命中立即关流收敛（K499），不再消费剩余增量。
@@ -317,18 +349,20 @@ def _stream_once(
             if not v["name"] and v["arguments"]:
                 named[0]["arguments"] += v["arguments"]
 
+    full_text = "".join(content_parts)
+    full_reasoning = "".join(reasoning_parts)
+    call_list = [{"id": v["id"], "name": v["name"], "arguments": as_object(v["arguments"])} for v in calls.values() if v["name"]]
+    # 流式空正文防护：正文/思考/工具调用全空 → LLM_EMPTY，由 _chat_stream 重试
+    # （网关把上游 401/429/502 吞成 200+空流时会命中；重试=重新请求=网关重新路由）。
+    # 关键：在 sink.end() 之前判定——空流不写 end 事件，外层重试复用同一 sink 不串台。
+    if not full_text.strip() and not call_list and not full_reasoning.strip():
+        out = err(f"{provider_label} 流式响应正文为空（账号额度/登录态/网关异常）", code="LLM_EMPTY")
+        out["http_attempts"] = http_attempts
+        return out
+
     # 未上报 usage → None（前端据此不显示统计条，而不是显示一串 0）
     usage = map_usage(usage_raw) if usage_raw else None
     sink.end(usage, elapsed_ms)
-
-    call_list = [{"id": v["id"], "name": v["name"], "arguments": as_object(v["arguments"])} for v in calls.values() if v["name"]]
-    full_text = "".join(content_parts)
-    full_reasoning = "".join(reasoning_parts)
-    # 流式空正文防护：与 _chat_once 同理，正文/思考/工具调用全空时不能 ok:None
-    # （前端会静默丢弃空 answer，用户看到空白）。流式已外抛增量，不再本地重试，
-    # 交给 agent-loop 的错误/降级路径处理。
-    if not full_text.strip() and not call_list and not full_reasoning.strip():
-        return err(f"{provider_label} 流式响应正文为空（账号额度/登录态/网关异常）", code="LLM_EMPTY")
     return norm(
         full_text or None,
         call_list,
