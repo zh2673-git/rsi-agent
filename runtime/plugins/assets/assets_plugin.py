@@ -111,6 +111,28 @@ def _scan_prompts(root: Path) -> dict:
     return catalog
 
 
+def _skills_signature(root: Path) -> tuple:
+    """目录指纹：目录 mtime + 每个 SKILL.md 的 (mtime_ns, size)。
+    stat 比 read+parse 整份 SKILL.md 便宜一个数量级；用它判断缓存是否过期，
+    既保留「Web CRUD / 自扩展写盘即时可见」，又让启动预热的 18 次连读不重复扫目录。"""
+    try:
+        parts = [root.stat().st_mtime_ns]
+        for d in sorted(root.iterdir()):
+            if not d.is_dir():
+                continue
+            md = d / "SKILL.md"
+            if not md.is_file():
+                continue
+            try:
+                st = md.stat()
+                parts.append((d.name, st.st_mtime_ns, st.st_size))
+            except OSError:
+                parts.append((d.name, -1, -1))
+        return tuple(parts)
+    except OSError:
+        return ()
+
+
 class AssetsPlugin:
     def manifest(self) -> dict:
         return {"id": "assets", "version": "0.1.0", "api_version": "0.1"}
@@ -121,14 +143,24 @@ class AssetsPlugin:
         self._prompts_root = Path(os.environ.get("PROMPTS_DIR") or here / "prompts")
         self._skills_root.mkdir(parents=True, exist_ok=True)
         self._prompts_root.mkdir(parents=True, exist_ok=True)
-        self._skills = _scan_skills(self._skills_root)
+        self._skills = {}
+        self._skills_sig = None
+        self._skills_ensure()
         self._prompts = _scan_prompts(self._prompts_root)
+
+    def _skills_ensure(self) -> dict:
+        """指纹未变直接复用缓存；变了才重扫。写盘后 stat 立即变化，语义等价每次重扫。"""
+        sig = _skills_signature(self._skills_root)
+        if sig != self._skills_sig:
+            self._skills = _scan_skills(self._skills_root)
+            self._skills_sig = sig
+        return self._skills
 
     def on_event(self, envelope: dict) -> dict:
         payload = envelope.get("payload") or {}
         op = payload.get("op")
         if op == "skills.list":
-            self._skills = _scan_skills(self._skills_root)  # 每次重扫：Web CRUD / 自扩展写盘即时可见
+            self._skills = self._skills_ensure()  # 指纹变了才重扫：Web CRUD / 自扩展写盘即时可见
             return {
                 "ok": True,
                 "skills": [
@@ -136,14 +168,14 @@ class AssetsPlugin:
                     # origin 显式回传 preset|user（Phase A，老消费方忽略即兼容）
                     {"name": n, "description": s["description"], "origin": s["origin"],
                      "status": s.get("status", "draft"), "verification": s.get("verification", "unverified"),
-                     **({"tools": True} if s.get("tools") else {})}
+                     **({"tools": True, "tools_manifest_path": str(s["path"].parent / s["tools"])} if s.get("tools") else {})}
                     for n, s in self._skills.items()
                 ],
                 "root": str(self._skills_root),
             }
         if op == "skills.load":
             name = payload.get("name")
-            self._skills = _scan_skills(self._skills_root)  # 读取前重扫：刚写入的技能立即可激活
+            self._skills = self._skills_ensure()  # 指纹变了才重扫：刚写入的技能立即可激活
             entry = self._skills.get(name)
             if entry is None:
                 avail = ", ".join(sorted(self._skills)) or "（无）"
@@ -173,7 +205,7 @@ class AssetsPlugin:
             mode = payload.get("mode") or "full"
             if mode not in ("full", "install"):
                 return _err(f"未知 mode: {mode}（合法值: full, install）", code="K400")
-            self._skills = _scan_skills(self._skills_root)
+            self._skills = self._skills_ensure()
             entry = self._skills.get(name)
             if entry is None:
                 avail = ", ".join(sorted(self._skills)) or "（无）"
@@ -182,7 +214,7 @@ class AssetsPlugin:
         if op == "skills.state":
             # 读取优先；显式 set 走状态迁移表（不允许跳步），写入 state.json。
             name = payload.get("name")
-            self._skills = _scan_skills(self._skills_root)
+            self._skills = self._skills_ensure()
             entry = self._skills.get(name)
             if entry is None:
                 avail = ", ".join(sorted(self._skills)) or "（无）"

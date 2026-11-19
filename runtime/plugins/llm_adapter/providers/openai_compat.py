@@ -400,8 +400,37 @@ def models(payload: dict) -> dict:
     except Exception as exc:
         return err(f"模型列表响应非法 JSON: {exc}")
     items = data.get("data", []) if isinstance(data, dict) else []
-    ids = [m.get("id") for m in items if isinstance(m, dict) and m.get("id")]
-    return {"ok": True, "models": ids}
+    ids: list = []
+    meta: list = []
+    for m in items:
+        if not isinstance(m, dict):
+            continue
+        mid = m.get("id")
+        if not mid:
+            continue
+        ids.append(mid)
+        # 平台归属：网关 /v1/models 每项带 owned_by（多平台聚合时它就是来源平台）；
+        # 通用 OpenAI 兼容站点（DeepSeek/OpenRouter…）也给 owned_by，缺省时退化为 id 前缀。
+        # 前端靠它做「按平台分组折叠」——分组本身不在前端硬编码平台名，纯数据驱动。
+        plat = m.get("owned_by") or (mid.split("/", 1)[0] if "/" in mid else "")
+        ent: dict = {"name": mid}
+        if isinstance(plat, str) and plat:
+            ent["platform"] = plat
+        dn = m.get("display_name")
+        if isinstance(dn, str) and dn and dn != mid:
+            ent["display_name"] = dn
+        ctx = m.get("context_length") or m.get("context_window")
+        if isinstance(ctx, int) and not isinstance(ctx, bool) and ctx > 0:
+            ent["ctx_limit"] = ctx
+        if mid.startswith("auto/"):
+            # 网关路由组模型（auto/<slug>）：UI 单列一个「auto（路由组）」栏，不与平台组混列
+            # （owned_by 只是它默认落到的平台，不是分组归属）
+            ent["route"] = "auto"
+        meta.append(ent)
+    out: dict = {"ok": True, "models": ids}
+    if meta:
+        out["models_meta"] = meta
+    return out
 
 
 PROVIDER = {

@@ -1,0 +1,9 @@
+{
+  "id": "P7M",
+  "order": 189,
+  "description": "llm_adapter README 修正 route 契约：auto/* 单列「auto（路由组）」栏，owned_by 只是默认落点",
+  "file": "runtime/plugins/llm_adapter/README.md",
+  "anchor_file": "blocks/p7m-route-readme-anchor.txt",
+  "patch_file": "blocks/p7m-route-readme.txt",
+  "applied_marker": "//    不与平台组混列——owned_by 只表示它默认落到的平台，不是分组归属。"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "P7C",
+  "order": 179,
+  "description": "app-settings.js：applyModelCatalog 末尾接 mpick 渲染 + 新增 mpick 模块（chips/分组/搜索）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p7c-anchor.txt",
+  "patch_file": "blocks/p7c-mpick-js.txt",
+  "applied_marker": "MPICK_PIN_KEY = \"rsi.llm.pinnedModels\""
+}

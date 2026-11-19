@@ -1,0 +1,1 @@
+const MPICK_PIN_MAX = 24;

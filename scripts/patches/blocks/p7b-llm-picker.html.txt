@@ -1,0 +1,20 @@
+        <!-- P7：模型选择器（常驻 chips + 平台分组折叠 + 搜索）。
+             原生 <select id="llm-model"> 保留在 DOM 里作为唯一真值（curModelName / rgCatalogHas /
+             MutationObserver / 自动同步都读它），但由 CSS 隐藏——152 项平铺下拉正是要解决的问题。 -->
+        <div class="field"><label>model（当前生效）</label>
+          <div class="row" style="gap:8px; flex-wrap:wrap">
+            <span class="mpick-cur" id="llm-model-cur">未选择</span>
+            <button type="button" class="btn ghost" id="llm-fetch-models">拉取模型</button>
+            <select id="llm-model"></select>
+            <input id="llm-model-custom" placeholder="自定义模型名" style="flex:1; display:none">
+          </div>
+        </div>
+        <p class="hint" id="llm-model-sync" hidden style="margin-top:-2px"></p>
+        <div class="field"><label>常用模型（点一下就切换）</label>
+          <div class="chips" id="mpick-pins"></div>
+          <p class="hint" style="margin:6px 0 0">常用清单存在本机浏览器（localStorage），刷新与重启 host 都还在；在下面点 ☆ 加入、点 ✕ 移出，最多 24 个。</p>
+        </div>
+        <div class="field"><label>全部模型（按平台分组，可折叠 / 搜索）</label>
+          <input id="mpick-q" placeholder="搜索：模型名或平台，如 deepseek / trae-cn / auto">
+          <div class="mpick-groups" id="mpick-all"></div>
+        </div>

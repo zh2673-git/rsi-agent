@@ -320,14 +320,16 @@ function applyModelCatalog(models, meta, cur) {
   const sel = $("llm-model");
   modelsMeta = Array.isArray(meta) ? meta : [];
   const ctxByName = new Map(modelsMeta.filter((m) => m.ctx_limit).map((m) => [m.name, m.ctx_limit]));
-  sel.innerHTML = "";
+  // 一次性换选项：逐次 appendChild 会让 childList MutationObserver 收到 N 次回调，
+  // 152 项目录同步时 rgRenderMissing 被反复触发。DocumentFragment 只产生 1 次 childList 变更。
+  const frag = document.createDocumentFragment();
   for (const m of models) {
     const o = document.createElement("option");
     o.value = m;
     o.textContent = ctxByName.has(m) ? `${m} · ${fmtCtx(ctxByName.get(m))}` : m;
-    sel.appendChild(o);
+    frag.appendChild(o);
   }
-  ensureCustomOption(sel);
+  sel.replaceChildren(frag, ...(!models.includes("__custom__") ? [new Option("（自定义…）", "__custom__")] : []));
   const keep = (cur ?? "").trim();
   if (keep && models.includes(keep)) {
     sel.value = keep; $("llm-model-custom").value = "";
@@ -337,7 +339,209 @@ function applyModelCatalog(models, meta, cur) {
     sel.value = models[0] || "__custom__";
   }
   syncModelField();
+  mpickRender(models, modelsMeta, keep);  // P7：常驻 chips + 平台分组折叠 + 搜索
 }
+// ── P7 模型选择器：常驻 chips + 平台分组折叠 + 搜索 ─────────────────────────────
+// 三条既有契约（改前必读，都是上一轮实测换来的）：
+//  ① 唯一真值仍是原生 <select id="llm-model">（现由 style.css 隐藏）：curModelName / rgCatalogHas /
+//     MutationObserver / keepCurrentAsCustom / 保存流程全都读它——换成自定义 DOM 会牵动六处。
+//  ② 「选一个模型」只做一件事：写 select.value 后派发 change。modelPicked、syncModelField、
+//     updateCtxHint、rgRenderMissing 全挂在 change 上，这里不重复实现（否则两处判定会漂）。
+//  ③ 当前模型不在目录里时选中态必须落到 __custom__（不得静默换成第一个，见 applyModelCatalog）。
+const MPICK_PIN_KEY = "rsi.llm.pinnedModels";   // 常用模型（用户自己挑的那一框，跨刷新/重启常驻）
+const MPICK_OPEN_KEY = "rsi.llm.openGroups";    // 平台分组的折叠态
+const MPICK_PIN_MAX = 24;
+const MPICK_ROUTE_GROUP = "auto（路由组）";  // 网关路由组单列一栏：owned_by 只是它默认落到的平台
+let mpickState = { models: [], meta: new Map(), open: null };
+
+function mpickStore(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+function mpickSave(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 隐私模式写不进：只留内存态，不报错 */ } }
+function mpickPins() {
+  const v = mpickStore(MPICK_PIN_KEY);
+  return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+}
+function mpickOpenState() {
+  if (!mpickState.open) {
+    const v = mpickStore(MPICK_OPEN_KEY);
+    mpickState.open = v && typeof v === "object" ? v : {};
+  }
+  return mpickState.open;
+}
+function mpickPlatform(name) {
+  const m = mpickState.meta.get(name) || {};
+  // route 标记来自 adapter 的 models_meta；adapter 未重启（或站点无 meta）时按 id 前缀兜底，
+  // 保证「路由组」栏位在降级态也不与平台栏混在一起。
+  if (m.route === "auto" || (!m.platform && name.indexOf("auto/") === 0)) return MPICK_ROUTE_GROUP;
+  return m.platform || (name.indexOf("/") > 0 ? name.split("/")[0] : "其他");
+}
+function mpickSelect(name) {
+  const sel = $("llm-model");
+  ensureCustomOption(sel);
+  if ([...sel.options].some((o) => o.value === name)) { sel.value = name; $("llm-model-custom").value = ""; }
+  else { sel.value = "__custom__"; $("llm-model-custom").value = name; }
+  syncModelField();
+  updateCtxHint();
+  sel.dispatchEvent(new Event("change"));  // modelPicked / rgRenderMissing / 高亮重画都挂在这上面
+}
+function mpickPaintCur() {
+  const el = $("llm-model-cur");
+  if (!el) return;
+  const n = curModelName();
+  if (!n) { el.className = "mpick-cur"; el.textContent = "未选择"; return; }
+  const m = mpickState.meta.get(n) || {};
+  const miss = mpickState.models.length > 0 && !mpickState.models.includes(n);
+  const tags = [m.platform || "", m.ctx_limit ? fmtCtx(m.ctx_limit) : "", m.route === "auto" ? "路由组" : ""]
+    .filter(Boolean).join(" · ");
+  el.className = "mpick-cur" + (miss ? " warn" : "");
+  el.innerHTML = `<b>${esc(n)}</b>`
+    + (tags ? ` <span class="mpick-tag">${esc(tags)}</span>` : "")
+    + (miss ? ` <span class="mpick-tag">不在当前目录</span>` : "");
+}
+function mpickPaintPins() {
+  const box = $("mpick-pins");
+  if (!box) return;
+  const pins = mpickPins();
+  const cur = curModelName();
+  if (!pins.length) {
+    box.innerHTML = `<span class="hint" style="margin:0">还没有常用模型——在下面「全部模型」里点 ☆ 加入（存在本机浏览器）</span>`;
+    return;
+  }
+  box.innerHTML = pins.map((n) => {
+    const miss = mpickState.models.length > 0 && !mpickState.models.includes(n);
+    const title = (mpickState.meta.get(n) || {}).display_name || n;
+    return `<span class="chip${n === cur ? " on" : ""}${miss ? " miss" : ""}" data-pin-pick="${escAttr(n)}"`
+      + ` title="${escAttr(title + (miss ? "（该模型已不在当前目录）" : ""))}">${esc(n)}`
+      + `<button type="button" class="chip-x" data-unpin="${escAttr(n)}" title="移出常用">✕</button></span>`;
+  }).join("");
+}
+function mpickPaintGroups() {
+  const box = $("mpick-all");
+  if (!box) return;
+  const q = (($("mpick-q") || {}).value || "").trim().toLowerCase();
+  const open = mpickOpenState();
+  const cur = curModelName();
+  const pins = mpickPins();
+  const groups = new Map();
+  for (const n of mpickState.models) {
+    const p = mpickPlatform(n);
+    if (!groups.has(p)) groups.set(p, []);
+    groups.get(p).push(n);
+  }
+  // 平台顺序：路由组置顶（网关特有的选择面），其余按模型数量降序——常用平台先看到
+  const keys = [...groups.keys()].sort((a, b) => {
+    if (a === MPICK_ROUTE_GROUP || b === MPICK_ROUTE_GROUP) return a === MPICK_ROUTE_GROUP ? -1 : 1;
+    return groups.get(b).length - groups.get(a).length || a.localeCompare(b);
+  });
+  const hit = (n) => {
+    if (!q) return true;
+    const m = mpickState.meta.get(n) || {};
+    return n.toLowerCase().includes(q)
+      || mpickPlatform(n).toLowerCase().includes(q)
+      || String(m.display_name || "").toLowerCase().includes(q);
+  };
+  const parts = [];
+  let shown = 0;
+  for (const p of keys) {
+    const names = groups.get(p).filter(hit);
+    if (!names.length) continue;
+    shown += names.length;
+    // 折叠默认：有搜索词全展开（否则搜到了还得点开一层）；平台少（≤4）全展开；
+    // 其余只展开路由组与「当前模型所在平台」——152 项一次摊开正是这轮要解决的乱
+    const isOpen = q ? true
+      : (p in open ? !!open[p] : (keys.length <= 4 || p === MPICK_ROUTE_GROUP || names.indexOf(cur) >= 0));
+    parts.push(`<div class="mpick-group${isOpen ? "" : " shut"}" data-grp="${escAttr(p)}">`
+      + `<div class="mpick-gh"><span class="chev">${isOpen ? "▾" : "▸"}</span>`
+      + `<span class="mpick-gn">${esc(p)}</span><span class="mpick-gc">${names.length}</span></div>`
+      + `<div class="mpick-gb"${isOpen ? "" : " hidden"}>`
+      + names.map((n) => {
+          const m = mpickState.meta.get(n) || {};
+          const pinned = pins.indexOf(n) >= 0;
+          const extra = [m.ctx_limit ? fmtCtx(m.ctx_limit) : "", m.route === "auto" ? "auto" : ""].filter(Boolean).join(" · ");
+          return `<div class="mpick-item${n === cur ? " on" : ""}" data-pick="${escAttr(n)}">`
+            + `<span class="mpick-nm">${esc(n)}</span>`
+            + (m.display_name && m.display_name !== n ? `<span class="mpick-dn">${esc(m.display_name)}</span>` : "")
+            + (extra ? `<span class="mpick-tag">${esc(extra)}</span>` : "")
+            + `<button type="button" class="mpick-star${pinned ? " on" : ""}" data-pin="${escAttr(n)}"`
+            + ` title="${pinned ? "移出常用" : "加入常用"}">${pinned ? "★" : "☆"}</button></div>`;
+        }).join("")
+      + `</div></div>`);
+  }
+  box.innerHTML = parts.length
+    ? (q ? `<p class="hint" style="margin:0 0 6px">匹配 ${shown} / ${mpickState.models.length} 个</p>` : "") + parts.join("")
+    : `<p class="hint" style="margin:0">没有匹配的模型${q ? `（关键词「${esc(q)}」）` : "：目录为空，点上方「拉取模型」"}</p>`;
+}
+function mpickRender(models, meta, cur) {
+  mpickState.models = Array.isArray(models) ? models : [];
+  mpickState.meta = new Map((Array.isArray(meta) ? meta : [])
+    .filter((m) => m && typeof m.name === "string")
+    .map((m) => [m.name, m]));
+  mpickPaintCur();
+  mpickPaintPins();
+  mpickPaintGroups();
+}
+// 只切「当前选中」高亮，不碰 DOM 结构：change 事件高频（每次选模型/自动同步回显都触发），
+// 全量重建 152 项目录树是设置页卡顿的主因。结构只在 mpickRender（目录真变了）时重建。
+function mpickHighlight() {
+  const cur = curModelName();
+  const box = $("mpick-all");
+  if (box) for (const it of box.querySelectorAll(".mpick-item")) {
+    it.classList.toggle("on", it.dataset.pick === cur);
+  }
+  const pins = $("mpick-pins");
+  if (pins) for (const c of pins.querySelectorAll(".chip")) {
+    c.classList.toggle("on", c.dataset.pinPick === cur);
+  }
+}
+(function bindMpick() {
+  const all = $("mpick-all"), pins = $("mpick-pins");
+  if (!all || !pins) return;  // 老页面（未带 P7 结构）直接跳过，不影响既有下拉
+  const q = $("mpick-q");
+  // 搜索输入防抖：连续敲键只在停手 120ms 后重绘一次分组，避免每个字符都重建目录树
+  if (q) {
+    let qTimer = 0;
+    q.addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(mpickPaintGroups, 120); });
+  }
+  pins.addEventListener("click", (e) => {
+    const x = e.target.closest("[data-unpin]");
+    if (x) {   // 移出：点 ✕ 不触发选中
+      e.stopPropagation();
+      mpickSave(MPICK_PIN_KEY, mpickPins().filter((n) => n !== x.dataset.unpin).slice(0, MPICK_PIN_MAX));
+      mpickPaintPins(); mpickPaintGroups();
+      return;
+    }
+    const c = e.target.closest("[data-pin-pick]");
+    if (c) mpickSelect(c.dataset.pinPick);
+  });
+  all.addEventListener("click", (e) => {
+    const st = e.target.closest("[data-pin]");
+    if (st) {  // 星标开合：不能顺带把模型切了
+      e.stopPropagation();
+      const n = st.dataset.pin;
+      const cur = mpickPins();
+      const next = cur.indexOf(n) >= 0 ? cur.filter((x) => x !== n) : cur.concat([n]).slice(0, MPICK_PIN_MAX);
+      mpickSave(MPICK_PIN_KEY, next);
+      mpickPaintPins(); mpickPaintGroups();
+      return;
+    }
+    const gh = e.target.closest(".mpick-gh");
+    if (gh) {
+      const g = gh.parentElement, body = g.querySelector(".mpick-gb");
+      const nowOpen = body.hidden;
+      body.hidden = !nowOpen;
+      mpickOpenState()[g.dataset.grp] = nowOpen;
+      mpickSave(MPICK_OPEN_KEY, mpickOpenState());
+      gh.querySelector(".chev").textContent = nowOpen ? "▾" : "▸";
+      g.classList.toggle("shut", !nowOpen);
+      return;
+    }
+    const it = e.target.closest("[data-pick]");
+    if (it) mpickSelect(it.dataset.pick);
+  });
+  // 模型从别处变化（自动同步、保存回显、自定义输入）→ 只切高亮，目录结构不动
+  $("llm-model").addEventListener("change", () => { mpickPaintCur(); mpickHighlight(); });
+  $("llm-model-custom").addEventListener("input", mpickPaintCur);
+  mpickRender([], [], "");
+})();
 async function fetchModels(silent) {
   const btn = $("llm-fetch-models");
   const prev = btn.textContent;
@@ -350,7 +554,7 @@ async function fetchModels(silent) {
       // 当前模型不在新目录里时同样保留为自定义值——否则「拉取模型」会顺手把用户选的模型
       // 换成第一个，用户再点保存就悄悄换掉了模型。
       applyModelCatalog(v.models, v.models_meta, curModelName());
-      if (!silent) flash("llm-flash", true, `已拉取 ${v.models.length} 个模型，点 model 下拉选择`);
+      if (!silent) flash("llm-flash", true, `已拉取 ${v.models.length} 个模型：在下方「全部模型」里挑，或点 ☆ 加进「常用模型」`);
     } else if (!silent) {
       flash("llm-flash", false, "未返回模型列表：" + (v?.error?.message || "空"));
     }

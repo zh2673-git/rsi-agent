@@ -1,0 +1,5 @@
+function mpickPlatform(name) {
+  const m = mpickState.meta.get(name) || {};
+  if (m.route === "auto") return MPICK_ROUTE_GROUP;   // 路由组：owned_by 是它默认落到的平台，不是它的归属
+  return m.platform || (name.indexOf("/") > 0 ? name.split("/")[0] : "其他");
+}

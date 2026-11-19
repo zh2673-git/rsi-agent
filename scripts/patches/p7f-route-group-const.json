@@ -1,0 +1,8 @@
+{
+  "id": "P7F",
+  "order": 182,
+  "description": "mpick 路由组单列一栏：auto/<slug> 的 owned_by 只代表默认落点，不应混进平台分组",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p7f-const-anchor.txt",
+  "patch_file": "blocks/p7f-const.txt"
+}

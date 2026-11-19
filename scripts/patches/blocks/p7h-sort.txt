@@ -1,0 +1,5 @@
+  // 平台顺序：路由组置顶（网关特有的选择面），其余按模型数量降序——常用平台先看到
+  const keys = [...groups.keys()].sort((a, b) => {
+    if (a === MPICK_ROUTE_GROUP || b === MPICK_ROUTE_GROUP) return a === MPICK_ROUTE_GROUP ? -1 : 1;
+    return groups.get(b).length - groups.get(a).length || a.localeCompare(b);
+  });

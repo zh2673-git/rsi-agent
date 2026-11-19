@@ -1,0 +1,8 @@
+{
+  "id": "P7J",
+  "order": 186,
+  "description": "mpickPlatform 降级兜底：adapter 未重启（无 models_meta）时 auto/<slug> 仍归路由组栏",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p7j-platform-anchor.txt",
+  "patch_file": "blocks/p7j-platform.txt"
+}

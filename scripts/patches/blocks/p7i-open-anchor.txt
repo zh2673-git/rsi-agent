@@ -1,0 +1,4 @@
+    // 折叠默认：有搜索词全展开（否则搜到了还得点开一层）；平台少（≤4）全展开；
+    // 其余只展开 auto 与「当前模型所在平台」——152 项一次摊开正是要解决的乱
+    const isOpen = q ? true
+      : (p in open ? !!open[p] : (keys.length <= 4 || p === "auto" || names.indexOf(cur) >= 0));

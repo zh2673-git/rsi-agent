@@ -1,0 +1,8 @@
+{
+  "id": "P7K",
+  "order": 187,
+  "description": "「拉取模型」成功提示改为指向新的常用/全部模型两框（旧文案说「点 model 下拉」，下拉已隐藏）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p7k-flash-anchor.txt",
+  "patch_file": "blocks/p7k-flash.txt"
+}

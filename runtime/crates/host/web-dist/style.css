@@ -843,3 +843,41 @@
 .bw-group.shut { opacity: .72; }
 .bw-group:hover { color: var(--muted); }
 .bw-filter { margin-bottom: 6px; }
+
+/* ── P7 模型选择器（常驻 chips + 平台分组折叠 + 搜索）────────────────────────────
+   原生 select 仍是唯一真值，只把视觉交给 .mpick-*（见 app-settings.js 的 mpick 模块）。
+   152 个模型平铺成下拉是这轮要解决的问题，故这里必须 !important 压掉行内 display。 */
+#tab-llm #llm-model { display: none !important; }
+.mpick-cur { display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; overflow: hidden;
+  padding: 6px 10px; border-radius: 9px; background: var(--card-2); border: 1px solid var(--border); font-size: 12.5px; }
+.mpick-cur b { font-weight: 600; word-break: break-all; }
+.mpick-cur.warn { border-color: var(--warn); }
+.mpick-tag { color: var(--faint); font-size: 11px; white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px 5px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--card-2); font-size: 12px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip.miss { border-color: var(--warn); }
+.chip.miss .chip-x { color: var(--warn); }
+.chip-x { border: none; background: none; color: var(--faint); font-size: 10px; line-height: 1; padding: 0 0 0 2px; }
+.chip.on .chip-x { color: rgba(255,255,255,.75); }
+.chip-x:hover { color: var(--err); }
+.mpick-groups { max-height: 340px; overflow: auto; padding: 4px 6px;
+  border: 1px solid var(--border); border-radius: 9px; background: var(--card-2); }
+.mpick-group + .mpick-group { border-top: 1px solid var(--border-soft); }
+.mpick-gh { display: flex; align-items: baseline; gap: 8px; padding: 5px 4px; cursor: pointer; user-select: none; }
+.mpick-gh:hover .mpick-gn { color: var(--text); }
+.mpick-gh .chev { width: 10px; font-size: 10px; color: var(--faint); }
+.mpick-gn { font-size: 12px; font-weight: 700; letter-spacing: .4px; color: var(--muted); }
+.mpick-gc { font-size: 11px; color: var(--faint); }
+.mpick-group.shut .mpick-gn { opacity: .78; }
+.mpick-gb { padding: 0 0 6px 18px; }
+.mpick-item { display: flex; align-items: baseline; gap: 8px; padding: 4px 6px; border-radius: 7px;
+  cursor: pointer; font-size: 12.5px; }
+.mpick-item:hover { background: var(--card); }
+.mpick-item.on { background: var(--accent-soft); font-weight: 600; }
+.mpick-nm { font-family: Consolas, monospace; font-size: 12px; word-break: break-all; }
+.mpick-dn { font-size: 11.5px; color: var(--muted); }
+.mpick-star { margin-left: auto; padding: 0 2px; border: none; background: none; color: var(--faint); font-size: 12px; }
+.mpick-star:hover, .mpick-star.on { color: var(--point); }

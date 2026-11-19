@@ -1,0 +1,7 @@
+function mpickPlatform(name) {
+  const m = mpickState.meta.get(name) || {};
+  // route 标记来自 adapter 的 models_meta；adapter 未重启（或站点无 meta）时按 id 前缀兜底，
+  // 保证「路由组」栏位在降级态也不与平台栏混在一起。
+  if (m.route === "auto" || (!m.platform && name.indexOf("auto/") === 0)) return MPICK_ROUTE_GROUP;
+  return m.platform || (name.indexOf("/") > 0 ? name.split("/")[0] : "其他");
+}

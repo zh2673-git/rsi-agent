@@ -1,0 +1,9 @@
+{
+  "id": "P7A",
+  "order": 177,
+  "description": "llm_adapter openai_compat.models() 回传 models_meta（platform/display_name/ctx_limit/route）",
+  "file": "runtime/plugins/llm_adapter/providers/openai_compat.py",
+  "anchor_file": "blocks/p7a-anchor.txt",
+  "patch_file": "blocks/p7a-models-meta.txt",
+  "applied_marker": "ent[\"route\"] = \"auto\""
+}

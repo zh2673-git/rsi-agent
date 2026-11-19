@@ -1,0 +1,1 @@
+      if (!silent) flash("llm-flash", true, `已拉取 ${v.models.length} 个模型，点 model 下拉选择`);

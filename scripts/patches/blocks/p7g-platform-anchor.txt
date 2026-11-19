@@ -1,0 +1,4 @@
+function mpickPlatform(name) {
+  const m = mpickState.meta.get(name) || {};
+  return m.platform || (name.indexOf("/") > 0 ? name.split("/")[0] : "其他");
+}

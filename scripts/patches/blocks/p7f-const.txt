@@ -1,0 +1,2 @@
+const MPICK_PIN_MAX = 24;
+const MPICK_ROUTE_GROUP = "auto（路由组）";  // 网关路由组单列一栏：owned_by 只是它默认落到的平台

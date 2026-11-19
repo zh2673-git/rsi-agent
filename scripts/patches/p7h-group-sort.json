@@ -1,0 +1,8 @@
+{
+  "id": "P7H",
+  "order": 184,
+  "description": "分组排序：路由组栏位置顶",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p7h-sort-anchor.txt",
+  "patch_file": "blocks/p7h-sort.txt"
+}

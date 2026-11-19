@@ -1,0 +1,9 @@
+{
+  "id": "P7G",
+  "order": 183,
+  "description": "mpickPlatform 按 route 判定路由组栏位（不被 owned_by 带偏）",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p7g-platform-anchor.txt",
+  "patch_file": "blocks/p7g-platform.txt",
+  "applied_marker": "name.indexOf(\"auto/\") === 0)) return MPICK_ROUTE_GROUP"
+}

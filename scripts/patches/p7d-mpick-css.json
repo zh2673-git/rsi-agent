@@ -1,0 +1,8 @@
+{
+  "id": "P7D",
+  "order": 180,
+  "description": "style.css：模型选择器（当前条/芯片/平台分组/星标）样式",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/p7d-css-anchor.txt",
+  "patch_file": "blocks/p7d-mpick-css.txt"
+}

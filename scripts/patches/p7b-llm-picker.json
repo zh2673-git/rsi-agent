@@ -1,0 +1,8 @@
+{
+  "id": "P7B",
+  "order": 178,
+  "description": "index.html LLM 页：model 字段改为 当前/常用 chips/全部模型分组 三块",
+  "file": "runtime/crates/host/web-dist/index.html",
+  "anchor_file": "blocks/p7b-anchor.txt",
+  "patch_file": "blocks/p7b-llm-picker.html.txt"
+}

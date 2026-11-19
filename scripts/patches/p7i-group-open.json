@@ -1,0 +1,8 @@
+{
+  "id": "P7I",
+  "order": 185,
+  "description": "分组默认展开规则：路由组与当前模型所在平台默认展开",
+  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+  "anchor_file": "blocks/p7i-open-anchor.txt",
+  "patch_file": "blocks/p7i-open.txt"
+}

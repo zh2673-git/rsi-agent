@@ -1,0 +1,3 @@
+    items = data.get("data", []) if isinstance(data, dict) else []
+    ids = [m.get("id") for m in items if isinstance(m, dict) and m.get("id")]
+    return {"ok": True, "models": ids}

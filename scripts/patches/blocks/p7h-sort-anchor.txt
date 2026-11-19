@@ -1,0 +1,5 @@
+  // 平台顺序：auto 置顶（路由组是网关特有的选择面），其余按模型数量降序——常用的平台先看到
+  const keys = [...groups.keys()].sort((a, b) => {
+    if (a === "auto" || b === "auto") return a === "auto" ? -1 : 1;
+    return groups.get(b).length - groups.get(a).length || a.localeCompare(b);
+  });

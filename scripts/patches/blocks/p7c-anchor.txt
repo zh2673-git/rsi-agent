@@ -1,0 +1,6 @@
+  } else {
+    sel.value = models[0] || "__custom__";
+  }
+  syncModelField();
+}
+async function fetchModels(silent) {

@@ -1,0 +1,1 @@
+      if (!silent) flash("llm-flash", true, `已拉取 ${v.models.length} 个模型：在下方「全部模型」里挑，或点 ☆ 加进「常用模型」`);
