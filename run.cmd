@@ -91,20 +91,22 @@ if exist "%CONFIG_FILE%" (
 if defined NEED_MAGPIE (
   python "%REPO%\scripts\magpie_check.py" --gateway-only --quiet
   if errorlevel 1 (
-    rem -- gateway not running: start one and record its PID --
+    rem -- gateway not running: start one WITHOUT a console window and record its PID --
+    rem -- start /b reuses the (hidden) parent console -> no flashing window on startup.
+    rem -- PID lookup still works: WMI sees the same `magpie.exe serve` command line.
     if exist "%USERPROFILE%\.local\bin\magpie.exe" (
-      echo [rsi] Starting local gateway in a minimized window ...
-      start "magpie serve" /min "%USERPROFILE%\.local\bin\magpie.exe" serve
+      echo [rsi] Starting local gateway in background ...
+      start "" /b "%USERPROFILE%\.local\bin\magpie.exe" serve
     ) else (
       where magpie >nul 2>nul
       if not errorlevel 1 (
-        echo [rsi] Starting local gateway in a minimized window ...
-        start "magpie serve" /min magpie serve
+        echo [rsi] Starting local gateway in background ...
+        start "" /b magpie serve
       ) else (
         echo [rsi] gateway CLI not found; start it manually: magpie serve
       )
     )
-    rem -- WMI lookup of the magpie.exe serve PID we just started (start /min gives no PID) --
+    rem -- WMI lookup of the magpie.exe serve PID we just started (start /b gives no PID) --
     for /f "delims=" %%P in ('python "%REPO%\scripts\magpie_pid.py" find') do set "MAGPIE_PID=%%P"
     rem -- give the gateway a couple of seconds to bind 127.0.0.1:3425 --
     timeout /t 3 /nobreak >nul
