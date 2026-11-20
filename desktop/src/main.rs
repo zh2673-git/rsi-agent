@@ -362,16 +362,21 @@ fn main() {
                     }
                 });
             }
-            // 点 X：隐藏到系统托盘，不清理 host（窗口可再次从托盘打开）。
-            // 真正的完全退出走托盘右键菜单，那里才 cleanup_owned + exit。
+            // 点 X：只有主窗口隐藏到托盘（不清理 host，可再从托盘打开）；子窗口（window.open
+            // 打开的实例窗口）必须真正关闭——否则全局 prevent_close 会拦住子窗口，却转去
+            // 隐藏 main，表现为「关新窗口却关掉了主窗、新窗口反而关不掉」。
             RunEvent::WindowEvent {
+                label,
                 event: WindowEvent::CloseRequested { api, .. },
                 ..
             } => {
-                api.prevent_close();
-                if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.hide();
+                if label == "main" {
+                    api.prevent_close();
+                    if let Some(win) = handle.get_webview_window("main") {
+                        let _ = win.hide();
+                    }
                 }
+                // 子窗口不 prevent_close：交给 Tauri 正常销毁对应窗口。
             }
             // 兜底清理：任何其它退出路径（系统关机、托盘菜单 exit 之后）都确保释放自有 host。
             // OWNED_PID.take() 幂等；复用外部实例时 OWNED_PID=None，完全 no-op。
