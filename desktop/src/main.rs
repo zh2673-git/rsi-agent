@@ -111,20 +111,75 @@ fn navigate(handle: &tauri::AppHandle, url: tauri::Url) {
     }
 }
 
-// 冷启动后让消息流**持续**贴底（Q4 返工）：长会话的 SSE 重放要数秒且分批到达，固定延时
-// 或固定时长的轮询都会在停止后再次漂移。通过 on_page_load 在 Web UI 加载完成后注入一段
-// 常驻脚本：150ms 定时把 #stream 置底（不用 MutationObserver——重放上万次 append 逐次读
-// scrollHeight 会触发强制重排，实测约 6.3s）；用户主动上滚（距底 >600px）暂停贴底，
-// 回到底部自动恢复。脚本幂等（window.__rsiSticky 单例标志），不碰 runtime 源码。
+// 冷启动后让消息流**持续**贴底：长会话的 SSE 重放要数秒且分批到达，固定延时/时长的
+// 轮询都会在停止后再次漂移；重放过程中的程序性滚动还会产生瞬时大 gap，旧逻辑把它误判
+// 为用户上滚，pinned 永久变 false，之后不再贴底（用户反馈「滚动条不是默认在最下方」）。
+// 通过 on_page_load 在 Web UI 加载完成后注入常驻脚本：每 120ms 把 #stream 置底；只有
+// **用户主动**滚轮/触摸/按键上滚才暂停贴底，且暂停 8s 无操作自动恢复，保证加载完仍贴底。
+// 不用 MutationObserver——重放上万次 append 逐次读 scrollHeight 触发强制重排，实测约 6.3s。
+// 脚本幂等（window.__rsiSticky 单例标志），不碰 runtime 源码。
 const STICKY_JS: &str = r#"(function(){
 if(window.__rsiSticky)return;
 var s=document.getElementById('stream');if(!s)return;
 window.__rsiSticky=1;
-var pinned=true,last=0;
-s.addEventListener('scroll',function(){var d=s.scrollHeight-s.scrollTop-s.clientHeight;if(d>600){pinned=false;last=Date.now();}else if(d<64){pinned=true;}},{passive:true});
-function pin(){if(pinned&&s.scrollHeight-s.scrollTop-s.clientHeight>0)s.scrollTop=s.scrollHeight;}
+var userScrollUntil=0;
+function pause(){userScrollUntil=Date.now()+8000;}   // 用户主动上滚 → 暂停贴底 8s
+// 只有用户真实输入才暂停；replay / 程序性置底 / 滚动锚定产生的 scroll 一律忽略。
+s.addEventListener('wheel',function(e){if(e.deltaY<0)pause();},{passive:true});
+s.addEventListener('touchstart',pause,{passive:true});
+s.addEventListener('keydown',function(e){if(e.key==='PageUp'||e.key==='ArrowUp'||e.key==='Home')pause();},{passive:true});
+// 用户滚回底部时立即恢复（gap<64 只可能来自真实回底，程序置底本就 gap=0）。
+s.addEventListener('scroll',function(){
+  if(s.scrollHeight-s.scrollTop-s.clientHeight<64)userScrollUntil=0;
+},{passive:true});
+function pin(){
+  if(Date.now()<userScrollUntil)return;              // 用户阅读历史期内不打扰
+  var gap=s.scrollHeight-s.scrollTop-s.clientHeight;
+  if(gap>0)s.scrollTop=s.scrollHeight;
+}
 pin();
-setInterval(function(){if(pinned||Date.now()-last>8000)pin();},150);
+setInterval(pin,120);
+})();"#;
+
+// 桌面壳补预览：runtime 前端对 md 走页面内 overlay，但对 png/jpg/html/pdf/svg 等
+// native 文件走 window.open("/files/...", "_blank")；Tauri 未注册 on_new_window 时
+// WebView2 直接拒绝，故点图片/网页类产物没反应。这里在 Web UI 加载后覆盖 window.open，
+// 把同源 /files/... 的打开请求改为页面内 overlay 渲染（图片/PDF/HTML 用 <img>/<iframe>），
+// 复用 style.css 已有的 .fp-overlay 样式；外部链接保持新窗口原语义。不碰 runtime 源码。
+const PREVIEW_JS: &str = r#"(function(){
+if(window.__rsiPreviewPatch)return;
+window.__rsiPreviewPatch=1;
+function overlay(url,name){
+  var mask=document.getElementById('rsi-native-preview');
+  if(!mask){
+    mask=document.createElement('div');mask.id='rsi-native-preview';mask.className='fp-overlay';
+    mask.innerHTML='<div class="fp-box"><div class="fp-head"><span class="fp-name"></span><button class="btn ghost fp-close">关闭</button></div><div class="fp-body" style="height:100%;overflow:auto"></div></div>';
+    document.body.appendChild(mask);
+    var close=function(){var b=mask.querySelector('.fp-body');b.innerHTML='';mask.style.display='none';};
+    mask.addEventListener('click',function(e){if(e.target===mask)close();});
+    mask.querySelector('.fp-close').addEventListener('click',close);
+  }
+  mask.querySelector('.fp-name').textContent=name||url;
+  var body=mask.querySelector('.fp-body');body.innerHTML='';
+  var low=url.toLowerCase();
+  var node;
+  if(/\.svg(\?|$)/.test(low)||/\.png(\?|$)/.test(low)||/\.jpe?g(\?|$)/.test(low)||/\.gif(\?|$)/.test(low)||/\.webp(\?|$)/.test(low)){
+    node=document.createElement('img');node.src=url;node.style.cssText='max-width:100%;max-height:100%;display:block;margin:auto;';
+  }else{
+    node=document.createElement('iframe');node.src=url;node.style.cssText='width:100%;height:100%;border:0;background:#fff;';
+  }
+  body.appendChild(node);mask.style.display='flex';
+}
+var orig=window.open;
+window.open=function(u,target,feat){
+  try{
+    if(typeof u==='string'&&/^\/files\//.test(u)){
+      var q=u.indexOf('?');var clean=q>=0?u.slice(0,q):u;
+      if(!/\?download=1/.test(u)){overlay(u,decodeURIComponent(clean.split('/').pop()||u));return null;}
+    }
+  }catch(e){}
+  return orig.apply(window,arguments);
+};
 })();"#;
 
 fn main() {
@@ -140,6 +195,9 @@ fn main() {
             {
                 if let Err(e) = webview.eval(STICKY_JS) {
                     eprintln!("[rsi-desktop] 贴底脚本注入失败: {e}");
+                }
+                if let Err(e) = webview.eval(PREVIEW_JS) {
+                    eprintln!("[rsi-desktop] 预览补丁注入失败: {e}");
                 }
             }
         })

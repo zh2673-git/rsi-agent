@@ -85,6 +85,18 @@ rsi-agent/
     └── Cargo.lock
 ```
 
+## 安装方式总览（先读这里）
+
+rsi-agent 是**源码发行**，不是开箱即用的独立软件。三种上手方式，前置条件依次递增：
+
+| 方式 | 适合谁 | 前置依赖 | 说明 |
+|---|---|---|---|
+| A. Web 端（推荐起步） | 只想用起来 | Rust stable + Node.js 22.6+ + Python 3.10+ + npm，首次联网 | 克隆仓库 → 配 `config.json`（可选）→ 双击 `run.cmd`，自动开 `http://127.0.0.1:8710`。详见下方「快速开始」。 |
+| B. 桌面壳 exe | 想要托盘/无黑窗体验 | 同 A 全套工具链 + 整个仓库（exe 不是独立包） | 桌面壳只是薄壳，自身不含 host；它调用 `run.cmd` 拉起服务，仍需仓库与工具链。Release 附带的 exe 仅省去你自己编译壳这一步。详见「桌面壳」。 |
+| C. 交给 agent 自动装 | 想一句话装好 | 能运行本仓库 agent 的环境 | `run.cmd` 已自动化依赖检查、npm/pip 安装、网关拉起与浏览器打开；Web UI 里可完成全部模型配置。真正的"全自动 bootstrap"目前不是一键功能，需按 A/B 准备一次环境。 |
+
+> 重要：无论 A 还是 B，**首次运行都要联网**（cargo 拉 git 依赖、`npm install`、`pip install grpcio httpx`）。光下载一个 exe 不能直接跑，因为它依赖同仓库的 `runtime/` 与本机工具链。
+
 ## 快速开始（独立运行）
 
 本仓库已内嵌运行时快照（`runtime/`），单独克隆即可启动 agent，无需本地 react-agent / agent-kernel 检出。
@@ -129,6 +141,30 @@ $env:REACT_FRONTEND="web"; cargo run -p react-agent-host   # → http://127.0.0.
 ```
 
 裸跑与 `run.cmd` 的差别只在便利性：`run.cmd` 额外做依赖检查、自动拉起 magpie 网关、自动开浏览器。
+
+## 桌面壳（可选，Windows）
+
+`desktop/` 是一个 Tauri 薄壳，把 Web UI 装进原生窗口：赛博启动页、系统托盘、关闭按钮最小化到托盘（右键托盘「完全退出」才真正退出）、退出无黑窗闪烁。**它不含 host 本身**——启动时若 `127.0.0.1:8710` 没有服务，壳会静默执行 `cmd /C run.cmd` 拉起（因此仍需上一节的全套工具链与仓库）。
+
+构建与运行：
+
+```powershell
+# 1) 编译桌面壳（需要 Rust stable + WebView2；产物被 .gitignore 忽略，不入库）
+cargo build --manifest-path desktop/Cargo.toml
+
+# 2) 运行（任选其一）
+#   a. 直接跑 exe：
+.\desktop\target\debug\rsi-agent-desktop.exe
+#   b. 静默启动器（pythonw 调起，无控制台；exe 缺失时会自动 cargo build）：
+pythonw desktop\start-desktop-silent.pyw
+```
+
+行为说明：
+
+- 首次启动会先显示至少 2 秒赛博启动页，再切到 Web UI；host 已在运行时也一样。
+- 点窗口 X 是**隐藏到托盘**，不是退出；要彻底退出请右键托盘图标 →「完全退出」。
+- Release 页的 `rsi-agent-desktop.exe` 是**预编译的壳**，放到本仓库 `desktop/target/debug/` 下即可用；单独拿走它无法运行。
+- 需要 WebView2 Runtime（Win11 自带；Win10 可能需另装）。
 
 脚本工具（校验 / 评测 / 账本）不依赖 host，可直接运行：
 
