@@ -155,7 +155,7 @@ python -m unittest discover -s tests -v
 
 `runtime/` 是以下版本的运行时代码快照，**请勿直接修改**（升级时按下面的同步流程重放）：
 
-- [react-agent](https://github.com/zh2673-git/react-agent) v0.1.22：`crates/agent-loop`、`crates/host`（含 web-dist）、`plugins`（memory / llm-adapter / tools / assets）。
+- [react-agent](https://github.com/zh2673-git/react-agent) v0.1.22 + 上游 commit `948badd`（retry 默认值 2→1 已回灌；该改动源自 rsi-agent 补丁退役）：`crates/agent-loop`、`crates/host`（含 web-dist）、`plugins`（memory / llm-adapter / tools / assets）。
 - [agent-kernel](https://github.com/zh2673-git/agent-kernel) v0.1.8：`bindings/python`、`bindings/typescript`、`schema/kernel.proto`。
 
 快照仅做 4 处适配：

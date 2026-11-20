@@ -54,11 +54,11 @@
 
 ## 8. 补丁退役 / 回灌路径
 
-- 本轮三个 `pf-retry-*-default-1.json` 仍是**在役**补丁（agent-loop/host-web/example 的 retry 默认值 2→1）。
-- 回灌产物已生成：`scripts/patches/upstream/react-agent-retry-default-1.patch`（面向 react-agent 上游 `crates/` 路径，可 `git am`；`git apply --check` 已通过）。
-- 退役闸门（四条全真才退役，缺一不可）：
-  1. 上述 patch 已在 `zh2673-git/react-agent` 上游 main 落地并 push；
-  2. rsi-agent 重新拷贝 `runtime/` 快照到该上游版本；
-  3. 三个 pf-retry JSON 对新快照 dry-run 全部报「已应用过 / 幂等跳过」；
-  4. 把三个 JSON 移入 `scripts/patches/retired/`，在 README 更新快照版本，并在此表登记上游 commit。
-- 当前状态：**闸门未全部满足**，三个补丁保持在役——工作区外的上游仓库不可直接写入，回灌以可应用 patch 交付。退役后新克隆才不会缺改动。
+- 本轮三个 `pf-retry-*-default-1.json` 原为**在役**补丁（agent-loop/host-web/example 的 retry 默认值 2→1），**现已退役**，移入 `scripts/patches/retired/*.retired`。
+- 回灌产物：`scripts/patches/upstream/react-agent-retry-default-1.patch`（面向 react-agent 上游 `crates/` 路径）。
+- 退役闸门（四条全真才退役，缺一不可）——**已全部满足**：
+  1. ✅ patch 已在 `zh2673-git/react-agent` 上游 main 落地并 push：commit `948badd fix(llm): reduce agent-loop retry default to 1 (provider layer already retries)`（`d4fedb3..948badd`）。
+  2. ✅ rsi-agent `runtime/` 快照已含该默认值：agent-loop / host-web / config.example 的 `retry_attempts` 均为 1（本仓库早前由补丁应用，值与上游一致；快照另带 RSI 专属适配，故未整树覆盖）。
+  3. ✅ `python scripts/apply-tool-patches.py --dry-run` 对三份 pf-retry JSON 全部报「已应用过（幂等跳过）」，无 FAIL。
+  4. ✅ 三份 JSON 已移入 `scripts/patches/retired/`，README 已登记上游 commit，本表即为退役记录。
+- 当前状态：**四闸门全绿，补丁已退役**。新克隆从 `runtime/` 快照直接得到 retry=1，无需重放这三份补丁。上游 commit：`948badd`。
