@@ -86,6 +86,44 @@ pub fn ensure_ready() -> Result<Option<(Child, u32)>, String> {
     Ok(Some((child, pid)))
 }
 
+/// 退出时彻底释放本壳拉起的 host：
+/// 1) 按端口找到真正的监听进程（react-agent-host.exe）并结束，避免 cmd /T 在
+///    子进程脱离父子链后失效、留下孤儿 host 占着端口；
+/// 2) 再回收 run.cmd 外壳（校验进程名后杀）。
+/// 只在 OWNED_PID=Some（本壳自己拉起）时调用；复用外部实例绝不触碰。
+pub fn stop_owned_tree(pid: u32, addr: &str) {
+    stop_listener_on_port(addr);
+    stop_owned(pid);
+}
+
+/// 结束监听 addr 的 react-agent-host.exe（带进程名校验，防 PID 复用误杀）。
+fn stop_listener_on_port(addr: &str) {
+    #[cfg(windows)]
+    {
+        // 从 netstat 取监听该端口的 PID；再校验进程名必须是 host exe。
+        let ps = format!(
+            "$p=(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue).OwningProcess; if($p){{ $n=(Get-CimInstance Win32_Process -Filter \"ProcessId=$p\").Name; if($n -eq 'react-agent-host.exe'){{ Write-Output $p }} }}",
+            port = addr.rsplit(':').next().unwrap_or("")
+        );
+        let out = Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps])
+            .output();
+        if let Ok(o) = out {
+            let pid = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if !pid.is_empty() && pid.chars().all(|c| c.is_ascii_digit()) {
+                eprintln!("[rsi-desktop] 退出：结束本壳拉起的 host (pid={pid}) 释放端口 {addr}");
+                let _ = Command::new("taskkill")
+                    .args(["/PID", &pid, "/T", "/F"])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = addr;
+}
+
 /// 校验进程名后回收，防 PID 复用误杀。只接受 cmd.exe（run.cmd 的外壳）。
 pub fn stop_owned(pid: u32) {
     #[cfg(windows)]

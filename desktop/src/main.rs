@@ -3,10 +3,19 @@
 mod host;
 
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 // 本壳拥有的 run.cmd 进程 pid（Some = 自己拉起并负责回收；None = 复用外部实例）。
 static OWNED_PID: Mutex<Option<u32>> = Mutex::new(None);
+
+// 退出时统一清理：只回收本壳拉起的 host（按端口 + 进程名校验），复用实例不碰。
+// 点 X 与 Exit 事件都会调用，Mutex::take 保证只执行一次。
+fn cleanup_owned() {
+    let owned = OWNED_PID.lock().unwrap().take();
+    if let Some(pid) = owned {
+        host::stop_owned_tree(pid, &host::addr());
+    }
+}
 
 // 赛博风启动/错误页：纯本地 data URL，无 host 也能秒开。
 // 全部样式内联、零外部依赖；percent_encode 会把 # 等编码，避免被当作 URL fragment。
@@ -134,11 +143,20 @@ fn main() {
         }
     });
 
-    app.run(|_handle, event| {
-        if matches!(event, tauri::RunEvent::Exit) {
-            if let Some(pid) = OWNED_PID.lock().unwrap().take() {
-                host::stop_owned(pid);
+    app.run(|handle, event| {
+        match event {
+            // 点窗口 X：先同步清理本壳拉起的 host/端口，再退出，确保任务栏图标一起消失。
+            RunEvent::WindowEvent {
+                event: WindowEvent::CloseRequested { api, .. },
+                ..
+            } => {
+                api.prevent_close();
+                cleanup_owned();
+                handle.exit(0);
             }
+            // 其它退出路径（如 Alt+F4 之外的系统退出）兜底再清理一次（take 幂等）。
+            RunEvent::Exit => cleanup_owned(),
+            _ => {}
         }
     });
 }
