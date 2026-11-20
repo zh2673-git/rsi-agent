@@ -111,24 +111,38 @@ fn navigate(handle: &tauri::AppHandle, url: tauri::Url) {
     }
 }
 
-// 冷启动全量重放结束后，把消息流拉到底部最新信息（Q4）。
-// 延时两次覆盖长短历史；若用户已主动上滚看历史（距底 >600px）则不打扰。
-fn scroll_to_bottom_later(handle: &tauri::AppHandle) {
-    let h = handle.clone();
-    std::thread::spawn(move || {
-        const JS: &str = "var s=document.getElementById('stream');if(s){if(s.scrollHeight-s.scrollTop-s.clientHeight<600){s.scrollTop=s.scrollHeight;}}";
-        for delay in [1000, 2600] {
-            std::thread::sleep(std::time::Duration::from_millis(delay));
-            if let Some(win) = h.get_webview_window("main") {
-                let _ = win.eval(JS);
-            }
-        }
-    });
-}
+// 冷启动后让消息流**持续**贴底（Q4 返工）：长会话的 SSE 重放要数秒且分批到达，固定延时
+// 或固定时长的轮询都会在停止后再次漂移。通过 on_page_load 在 Web UI 加载完成后注入一段
+// 常驻脚本：150ms 定时把 #stream 置底（不用 MutationObserver——重放上万次 append 逐次读
+// scrollHeight 会触发强制重排，实测约 6.3s）；用户主动上滚（距底 >600px）暂停贴底，
+// 回到底部自动恢复。脚本幂等（window.__rsiSticky 单例标志），不碰 runtime 源码。
+const STICKY_JS: &str = r#"(function(){
+if(window.__rsiSticky)return;
+var s=document.getElementById('stream');if(!s)return;
+window.__rsiSticky=1;
+var pinned=true,last=0;
+s.addEventListener('scroll',function(){var d=s.scrollHeight-s.scrollTop-s.clientHeight;if(d>600){pinned=false;last=Date.now();}else if(d<64){pinned=true;}},{passive:true});
+function pin(){if(pinned&&s.scrollHeight-s.scrollTop-s.clientHeight>0)s.scrollTop=s.scrollHeight;}
+pin();
+setInterval(function(){if(pinned||Date.now()-last>8000)pin();},150);
+})();"#;
 
 fn main() {
     // 立即建窗口显示启动页；host 准备放后台线程，避免「先阻塞再开窗」。
     let app = tauri::Builder::default()
+        // Q4：在 Web UI 页面加载完成后注入贴底脚本（此回调在 Tauri 事件循环上执行，
+        // eval 才可靠命中已挂载的 DOM；后台线程定时 eval 实测静默失败）。data: 启动页
+        // 无 #stream，直接跳过；只有 http(s) 的 Web UI 需要贴底。
+        .on_page_load(|webview, payload| {
+            use tauri::webview::PageLoadEvent;
+            if payload.event() == PageLoadEvent::Finished
+                && matches!(payload.url().scheme(), "http" | "https")
+            {
+                if let Err(e) = webview.eval(STICKY_JS) {
+                    eprintln!("[rsi-desktop] 贴底脚本注入失败: {e}");
+                }
+            }
+        })
         .build(tauri::generate_context!())
         .expect("构建 Tauri 应用失败（检查 desktop/tauri.conf.json）");
 
@@ -177,6 +191,7 @@ fn main() {
                     return;
                 }
                 // 先显示赛博启动页（此时 WebView 已就绪，navigate 生效）。
+                let splash_at = std::time::Instant::now();
                 navigate(handle, splash_url());
 
                 let h = handle.clone();
@@ -201,12 +216,16 @@ fn main() {
                                     return;
                                 }
                             }
+                            // 启动页至少停留 2s：host 已存活时 ensure_ready 立即返回，
+                            // 之前会瞬间跳过 splash 直接进 Web UI（用户反馈「直接进界面」）。
+                            if let Some(rest) = std::time::Duration::from_secs(2)
+                                .checked_sub(splash_at.elapsed())
+                            {
+                                std::thread::sleep(rest);
+                            }
                             // 导航到 Web UI。后台线程的 navigate 由 Tauri dispatch 到主事件循环，
                             // 此时循环已在运行，能正确提交（修复白屏的关键）。
                             navigate(&h, target_url);
-                            // Q4：冷启动全量重放会异步填充 #stream，程序性滚动可能把 feedPinned 误判为
-                            // 上滚，导致停在中间。导航后延时注入两次置底脚本（覆盖长短重放），不碰 runtime。
-                            scroll_to_bottom_later(&h);
                         }
                         Err(e) => {
                             navigate(&h, error_url(&format!("host 启动失败: {e}")));
