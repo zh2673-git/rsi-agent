@@ -1,0 +1,7 @@
+{
+  "id": "PF-RETRY-EXAMPLE-DEFAULT-1",
+  "description": "config.example.json 默认 retry_attempts 2→1，与 README magpie 档一致（避免重试叠加）",
+  "file": "config.example.json",
+  "anchor": "    \"retry_attempts\": 2,",
+  "patch": "    \"retry_attempts\": 1,"
+}

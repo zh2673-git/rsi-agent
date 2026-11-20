@@ -1,0 +1,7 @@
+{
+  "id": "PF-RETRY-HOST-WEB-DEFAULT-1",
+  "description": "host web 配置回显默认 retry_attempts 2→1，与 agent-loop/README magpie 档一致",
+  "file": "runtime/crates/host/src/web/api/config.rs",
+  "anchor": "        \"retry_attempts\": env_num(\"LLM_RETRY_ATTEMPTS\", 2),",
+  "patch": "        // P1 收敛：与 agent-loop 默认及 README magpie 档一致（retry_attempts=1）。\n        \"retry_attempts\": env_num(\"LLM_RETRY_ATTEMPTS\", 1),"
+}

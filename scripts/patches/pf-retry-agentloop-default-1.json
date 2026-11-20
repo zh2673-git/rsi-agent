@@ -1,0 +1,7 @@
+{
+  "id": "PF-RETRY-AGENTLOOP-DEFAULT-1",
+  "description": "agent-loop 默认瞬态重试 2→1：避免与 provider 网关换号重试叠加；README magpie 档已建议 retry_attempts=1",
+  "file": "runtime/crates/agent-loop/src/config.rs",
+  "anchor": "            retry_attempts: env_num(\"LLM_RETRY_ATTEMPTS\", 2u32, \"瞬态重试次数\").min(6),",
+  "patch": "            // P1 收敛：provider(openai_compat) 已有网关换号重试层；agent-loop 整轮重试默认降到 1，\n            // 与 README magpie 档 retry_attempts=1 一致，避免 3×5=15 次上游叠加把 CPU/风扇打满。\n            retry_attempts: env_num(\"LLM_RETRY_ATTEMPTS\", 1u32, \"瞬态重试次数\").min(6),"
+}

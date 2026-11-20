@@ -29,7 +29,7 @@
     "tool_result_limit": 4000,
     "budget_secs": 0,
     "token_budget": 0,
-    "retry_attempts": 2,
+    "retry_attempts": 1,
     "retry_base_ms": 500
   }
 }
