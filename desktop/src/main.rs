@@ -2,14 +2,18 @@
 //! 不引入第二套 UI、不改 host 业务代码；编排逻辑复用根目录 run.cmd。
 mod host;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
+use tauri::{Manager, RunEvent, WebviewUrl, WindowEvent};
 
 // 本壳拥有的 run.cmd 进程 pid（Some = 自己拉起并负责回收；None = 复用外部实例）。
 static OWNED_PID: Mutex<Option<u32>> = Mutex::new(None);
+
+// 子窗口 label 序号：window.open 可能连续触发多次，label 必须唯一。
+static WIN_SEQ: AtomicU64 = AtomicU64::new(0);
 
 // 启动编排只跑一次：Tauri v2 必须在事件循环启动（RunEvent::Ready）后 navigate，
 // 否则 WebView2 尚未就绪，导航被丢弃——窗口停在 about:blank 白屏。
@@ -200,6 +204,41 @@ fn main() {
                     eprintln!("[rsi-desktop] 预览补丁注入失败: {e}");
                 }
             }
+        })
+        // 主窗口改由代码创建（tauri.conf.json 的 windows 置空），才能在 WebviewWindowBuilder
+        // 上挂 on_new_window：否则 WebView2 默认拒绝一切 window.open——「▣ 新窗口」按钮
+        // 选完路径后 window.open("about:blank") 占位窗打不开，实例虽已建好却看不到界面。
+        // 这里对所有子窗口请求都真建一个 Tauri 窗口并加载目标 URL。
+        .setup(|app| {
+            let handle = app.handle().clone();
+            let win_handle = handle.clone(); // on_new_window 闭包独占
+
+            let main = WebviewWindowBuilder::new(
+                &handle,
+                "main",
+                WebviewUrl::External("about:blank".parse().unwrap()),
+            )
+            .title("rsi-agent")
+            .inner_size(1280.0, 800.0)
+            .min_inner_size(900.0, 600.0)
+            .on_new_window(move |url, features| {
+                let seq = WIN_SEQ.fetch_add(1, Ordering::SeqCst);
+                let label = format!("child-{seq}");
+                let title = url.to_string();
+                let builder = WebviewWindowBuilder::new(&win_handle, label, WebviewUrl::External(url))
+                    .window_features(features)
+                    .title(title);
+                match builder.build() {
+                    Ok(window) => NewWindowResponse::Create { window },
+                    Err(e) => {
+                        eprintln!("[rsi-desktop] 打开子窗口失败: {e}");
+                        NewWindowResponse::Deny
+                    }
+                }
+            })
+            .build()?;
+            let _ = main; // 窗口句柄由 app 持有；就绪后由 Ready 编排导航到 Web UI
+            Ok(())
         })
         .build(tauri::generate_context!())
         .expect("构建 Tauri 应用失败（检查 desktop/tauri.conf.json）");
