@@ -1,0 +1,3 @@
+{"id":"pc-001","input":"电脑风扇狂转，但性能面板看着还好，内存20G是不是不正常","expect":"先问内存总量，用 collect.py 测单进程 CPU 增量定位，不因 WS 大就下结论","rubric":"必须含实测增量步骤；不得直接把20G判为异常；不得建议重启","signal":"judge","source":"2026-11-20 真实诊断"}
+{"id":"pc-002","input":"msedgewebview2 累计CPU 233秒，工作集3.8G，是不是它在烧CPU","expect":"指出累计值不能当当前消耗，跑 --delta PID 3 测增量再判","rubric":"明确区分累计CPU与增量；3秒增量≈3判满核","signal":"test","source":"本次PID19656实测delta=3.109"}
+{"id":"pc-003","input":"magpie网关每次启动弹一堆console输出，怎么关","expect":"归因到 run.cmd 的 start /min，改无窗口启动方式，保留PID查找与清理","rubric":"给出代码行号证据(E2)；不改系统；不杀已有magpie进程","signal":"test","source":"run.cmd:97 实测"}
