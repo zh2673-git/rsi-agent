@@ -2,6 +2,7 @@
 //! 不引入第二套 UI、不改 host 业务代码；编排逻辑复用根目录 run.cmd。
 mod host;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -9,6 +10,10 @@ use tauri::{Manager, RunEvent, WindowEvent};
 
 // 本壳拥有的 run.cmd 进程 pid（Some = 自己拉起并负责回收；None = 复用外部实例）。
 static OWNED_PID: Mutex<Option<u32>> = Mutex::new(None);
+
+// 启动编排只跑一次：Tauri v2 必须在事件循环启动（RunEvent::Ready）后 navigate，
+// 否则 WebView2 尚未就绪，导航被丢弃——窗口停在 about:blank 白屏。
+static BOOTED: AtomicBool = AtomicBool::new(false);
 
 // 退出时统一清理：只回收本壳拉起的 host（按端口 + 进程名校验），复用实例不碰。
 // 点 X 与 Exit 事件都会调用，Mutex::take 保证只执行一次。
@@ -162,44 +167,53 @@ fn main() {
         .build(&handle)
         .expect("创建系统托盘失败");
 
-    // 初始窗口 URL 是 about:blank，这里立即导航到赛博启动页，避免加载 8710 失败的错误页闪现。
-    navigate(&handle, splash_url());
-
-    std::thread::spawn(move || {
-        let addr = host::addr();
-        let target_url = match tauri::Url::parse(&format!("http://{addr}/")) {
-            Ok(u) => u,
-            Err(e) => {
-                navigate(&handle, error_url(&format!("地址非法: {e}")));
-                return;
-            }
-        };
-
-        // ensure_ready 可能拉起 run.cmd（异步返回，不再同步等 180s）。
-        match host::ensure_ready() {
-            Ok(owned) => {
-                if let Some((_child, pid)) = owned {
-                    *OWNED_PID.lock().unwrap() = Some(pid);
-                    // 自己拉起的：等端口真正就绪。
-                    if !host::wait_ready(&addr, 180) {
-                        navigate(&handle, error_url("host 在 180s 内未就绪，请手动运行 run.cmd"));
-                        return;
-                    }
-                }
-                // 复用分支：端口已开，直接导航。
-                navigate(&handle, target_url);
-                // Q4：冷启动全量重放会异步填充 #stream，程序性滚动可能把 feedPinned 误判为
-                // 上滚，导致停在中间。导航后延时注入两次置底脚本（覆盖长短重放），不碰 runtime。
-                scroll_to_bottom_later(&handle);
-            }
-            Err(e) => {
-                navigate(&handle, error_url(&format!("host 启动失败: {e}")));
-            }
-        }
-    });
-
     app.run(|handle, event| {
         match event {
+            // 启动编排：Tauri v2 的 WebView2 在事件循环启动后才就绪；在此之前的 navigate
+            // 会被静默丢弃，窗口永远停在 about:blank（白屏）。因此必须在 Ready 里导航。
+            // 用 BOOTED 保证只跑一次（Ready 可能随事件循环恢复再次触发）。
+            RunEvent::Ready => {
+                if BOOTED.swap(true, Ordering::SeqCst) {
+                    return;
+                }
+                // 先显示赛博启动页（此时 WebView 已就绪，navigate 生效）。
+                navigate(handle, splash_url());
+
+                let h = handle.clone();
+                std::thread::spawn(move || {
+                    let addr = host::addr();
+                    let target_url = match tauri::Url::parse(&format!("http://{addr}/")) {
+                        Ok(u) => u,
+                        Err(e) => {
+                            navigate(&h, error_url(&format!("地址非法: {e}")));
+                            return;
+                        }
+                    };
+
+                    // ensure_ready 可能拉起 run.cmd（异步返回，不再同步等 180s）。
+                    match host::ensure_ready() {
+                        Ok(owned) => {
+                            if let Some((_child, pid)) = owned {
+                                *OWNED_PID.lock().unwrap() = Some(pid);
+                                // 自己拉起的：等端口真正就绪。
+                                if !host::wait_ready(&addr, 180) {
+                                    navigate(&h, error_url("host 在 180s 内未就绪，请手动运行 run.cmd"));
+                                    return;
+                                }
+                            }
+                            // 导航到 Web UI。后台线程的 navigate 由 Tauri dispatch 到主事件循环，
+                            // 此时循环已在运行，能正确提交（修复白屏的关键）。
+                            navigate(&h, target_url);
+                            // Q4：冷启动全量重放会异步填充 #stream，程序性滚动可能把 feedPinned 误判为
+                            // 上滚，导致停在中间。导航后延时注入两次置底脚本（覆盖长短重放），不碰 runtime。
+                            scroll_to_bottom_later(&h);
+                        }
+                        Err(e) => {
+                            navigate(&h, error_url(&format!("host 启动失败: {e}")));
+                        }
+                    }
+                });
+            }
             // 点 X：隐藏到系统托盘，不清理 host（窗口可再次从托盘打开）。
             // 真正的完全退出走托盘右键菜单，那里才 cleanup_owned + exit。
             RunEvent::WindowEvent {
