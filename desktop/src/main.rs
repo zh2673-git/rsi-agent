@@ -3,6 +3,8 @@
 mod host;
 
 use std::sync::Mutex;
+use tauri::menu::MenuBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, RunEvent, WindowEvent};
 
 // 本壳拥有的 run.cmd 进程 pid（Some = 自己拉起并负责回收；None = 复用外部实例）。
@@ -104,6 +106,21 @@ fn navigate(handle: &tauri::AppHandle, url: tauri::Url) {
     }
 }
 
+// 冷启动全量重放结束后，把消息流拉到底部最新信息（Q4）。
+// 延时两次覆盖长短历史；若用户已主动上滚看历史（距底 >600px）则不打扰。
+fn scroll_to_bottom_later(handle: &tauri::AppHandle) {
+    let h = handle.clone();
+    std::thread::spawn(move || {
+        const JS: &str = "var s=document.getElementById('stream');if(s){if(s.scrollHeight-s.scrollTop-s.clientHeight<600){s.scrollTop=s.scrollHeight;}}";
+        for delay in [1000, 2600] {
+            std::thread::sleep(std::time::Duration::from_millis(delay));
+            if let Some(win) = h.get_webview_window("main") {
+                let _ = win.eval(JS);
+            }
+        }
+    });
+}
+
 fn main() {
     // 立即建窗口显示启动页；host 准备放后台线程，避免「先阻塞再开窗」。
     let app = tauri::Builder::default()
@@ -111,6 +128,41 @@ fn main() {
         .expect("构建 Tauri 应用失败（检查 desktop/tauri.conf.json）");
 
     let handle = app.handle().clone();
+
+    // 系统托盘：点 X 只是隐藏到托盘，右键托盘图标 → 完全退出。
+    let tray_menu = MenuBuilder::new(&handle)
+        .text("quit", "完全退出")
+        .build()
+        .expect("创建托盘菜单失败");
+    let _tray = TrayIconBuilder::new()
+        .icon(app.default_window_icon().cloned().expect("缺少窗口图标"))
+        .tooltip("rsi-agent")
+        .menu(&tray_menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| {
+            if event.id() == "quit" {
+                cleanup_owned();
+                app.exit(0);
+            }
+        })
+        .on_tray_icon_event(|_tray, event| {
+            // 左键单击托盘图标：显示并聚焦窗口。
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                if let Some(win) = _tray.app_handle().get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
+        })
+        .build(&handle)
+        .expect("创建系统托盘失败");
+
+    // 初始窗口 URL 是 about:blank，这里立即导航到赛博启动页，避免加载 8710 失败的错误页闪现。
     navigate(&handle, splash_url());
 
     std::thread::spawn(move || {
@@ -136,6 +188,9 @@ fn main() {
                 }
                 // 复用分支：端口已开，直接导航。
                 navigate(&handle, target_url);
+                // Q4：冷启动全量重放会异步填充 #stream，程序性滚动可能把 feedPinned 误判为
+                // 上滚，导致停在中间。导航后延时注入两次置底脚本（覆盖长短重放），不碰 runtime。
+                scroll_to_bottom_later(&handle);
             }
             Err(e) => {
                 navigate(&handle, error_url(&format!("host 启动失败: {e}")));
@@ -145,16 +200,19 @@ fn main() {
 
     app.run(|handle, event| {
         match event {
-            // 点窗口 X：先同步清理本壳拉起的 host/端口，再退出，确保任务栏图标一起消失。
+            // 点 X：隐藏到系统托盘，不清理 host（窗口可再次从托盘打开）。
+            // 真正的完全退出走托盘右键菜单，那里才 cleanup_owned + exit。
             RunEvent::WindowEvent {
                 event: WindowEvent::CloseRequested { api, .. },
                 ..
             } => {
                 api.prevent_close();
-                cleanup_owned();
-                handle.exit(0);
+                if let Some(win) = handle.get_webview_window("main") {
+                    let _ = win.hide();
+                }
             }
-            // 其它退出路径（如 Alt+F4 之外的系统退出）兜底再清理一次（take 幂等）。
+            // 兜底清理：任何其它退出路径（系统关机、托盘菜单 exit 之后）都确保释放自有 host。
+            // OWNED_PID.take() 幂等；复用外部实例时 OWNED_PID=None，完全 no-op。
             RunEvent::Exit => cleanup_owned(),
             _ => {}
         }

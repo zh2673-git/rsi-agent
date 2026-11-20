@@ -11,6 +11,9 @@ use std::process::{Child, Command, Stdio};
 use std::os::windows::process::CommandExt;
 use std::time::{Duration, Instant};
 
+#[cfg(windows)]
+const NO_WINDOW: u32 = 0x08000000; // CREATE_NO_WINDOW：避免 spawn 控制台子进程时闪黑框
+
 const DEFAULT_ADDR: &str = "127.0.0.1:8710";
 
 pub fn addr() -> String {
@@ -107,6 +110,7 @@ fn stop_listener_on_port(addr: &str) {
         );
         let out = Command::new("powershell")
             .args(["-NoProfile", "-Command", &ps])
+            .creation_flags(NO_WINDOW)
             .output();
         if let Ok(o) = out {
             let pid = String::from_utf8_lossy(&o.stdout).trim().to_string();
@@ -114,6 +118,7 @@ fn stop_listener_on_port(addr: &str) {
                 eprintln!("[rsi-desktop] 退出：结束本壳拉起的 host (pid={pid}) 释放端口 {addr}");
                 let _ = Command::new("taskkill")
                     .args(["/PID", &pid, "/T", "/F"])
+                    .creation_flags(NO_WINDOW)
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
                     .status();
@@ -136,6 +141,7 @@ pub fn stop_owned(pid: u32) {
                     "(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}' -ErrorAction SilentlyContinue).Name"
                 ),
             ])
+            .creation_flags(NO_WINDOW)
             .output()
             .ok()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_ascii_lowercase())
@@ -146,6 +152,7 @@ pub fn stop_owned(pid: u32) {
         }
         let _ = Command::new("taskkill")
             .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .creation_flags(NO_WINDOW)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
