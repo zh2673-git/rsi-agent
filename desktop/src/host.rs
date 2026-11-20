@@ -11,7 +11,11 @@ use std::process::{Child, Command, Stdio};
 use std::os::windows::process::CommandExt;
 use std::time::{Duration, Instant};
 
-const ADDR: &str = "127.0.0.1:8710";
+const DEFAULT_ADDR: &str = "127.0.0.1:8710";
+
+pub fn addr() -> String {
+    std::env::var("RSI_DESKTOP_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.into())
+}
 
 fn repo_root() -> PathBuf {
     // 从 exe 所在目录或 cwd 上溯到含 run.cmd 的仓库根（最多 6 层）。
@@ -27,25 +31,27 @@ fn repo_root() -> PathBuf {
     PathBuf::from(".")
 }
 
-fn port_open() -> bool {
-    TcpStream::connect(ADDR).is_ok()
+fn port_open(addr: &str) -> bool {
+    TcpStream::connect(addr).is_ok()
 }
 
-fn wait_ready(secs: u64) -> bool {
+/// 等待 host 端口就绪；返回 None 表示超时。
+pub fn wait_ready(addr: &str, secs: u64) -> bool {
     let limit = Instant::now() + Duration::from_secs(secs);
     while Instant::now() < limit {
-        if port_open() {
+        if port_open(addr) {
             return true;
         }
         std::thread::sleep(Duration::from_millis(500));
     }
-    port_open()
+    port_open(addr)
 }
 
 /// 确保服务可用。返回 Some((Child, pid)) 表示本壳拥有该进程树；None 表示复用外部实例。
 pub fn ensure_ready() -> Result<Option<(Child, u32)>, String> {
-    if port_open() {
-        eprintln!("[rsi-desktop] 复用已运行的 host ({ADDR})，不拉起、不回收。");
+    let addr = addr();
+    if port_open(&addr) {
+        eprintln!("[rsi-desktop] 复用已运行的 host ({addr})，不拉起、不回收。");
         return Ok(None);
     }
     let root = repo_root();
@@ -61,6 +67,7 @@ pub fn ensure_ready() -> Result<Option<(Child, u32)>, String> {
         .args(["/C"])
         .arg(&run_cmd)
         .env("RSI_NO_BROWSER", "1")
+        .env("WEB_ADDR", &addr)
         .creation_flags(0x08000000)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -68,18 +75,14 @@ pub fn ensure_ready() -> Result<Option<(Child, u32)>, String> {
     #[cfg(not(windows))]
     let child = Command::new(&run_cmd)
         .env("RSI_NO_BROWSER", "1")
+        .env("WEB_ADDR", &addr)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn();
 
     let child = child.map_err(|e| format!("spawn run.cmd 失败: {e}"))?;
     let pid = child.id();
-    if !wait_ready(180) {
-        // 超时：只回收自己刚拉起、且确实还在的这棵树。
-        stop_owned(pid);
-        return Err("host 在 180s 内未就绪，请手动运行 run.cmd".into());
-    }
-    eprintln!("[rsi-desktop] host 已就绪（自有进程树 pid={pid}）。");
+    eprintln!("[rsi-desktop] 已拉起 run.cmd（自有进程树 pid={pid}），等待 host 就绪...");
     Ok(Some((child, pid)))
 }
 
