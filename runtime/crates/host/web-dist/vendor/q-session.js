@@ -105,7 +105,12 @@ function restoreSessionFeed(sid) {
   turnFcBox = c.fcBox ?? null;
   turnSourceBox = c.srcBox ?? null;
   turnArtifacts = c.artifacts || [];
-  const box = $("stream"); if (box) box.scrollTop = c.scrollTop || 0;
+    const box = $("stream");
+  if (box) {
+    // CS1：恢复会话后默认贴底到最新信息（用户不必每次手动下拉）。
+    // 等 DOM 挂载/布局完成后再置底，避免被随后的增量重放覆盖。
+    requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+  }
   return c;
 }
 

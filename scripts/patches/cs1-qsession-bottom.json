@@ -1,0 +1,8 @@
+{
+  "id": "CS1-QSESSION-BOTTOM",
+  "description": "恢复会话后默认贴底到最新信息：原先把 scrollTop 恢复到缓存位置，用户每次都要手动下拉到底部；改为 DOM 挂载后强制置底",
+  "file": "runtime/crates/host/web-dist/vendor/q-session.js",
+  "anchor_file": "blocks/cs1-qsession-bottom-anchor.txt",
+  "patch_file": "blocks/cs1-qsession-bottom-patch.txt",
+  "applied_marker": "CS1"
+}
