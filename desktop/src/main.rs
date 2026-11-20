@@ -145,6 +145,35 @@ pin();
 setInterval(pin,120);
 })();"#;
 
+// 桌面壳性能保护：runtime 前端给每个"进行中"工具卡的 .statedot::after 挂了
+// `animation: pulse 1.3s infinite`。会话历史重放时大量 tool_call 未配对 tool_result，
+// 卡片停在"进行中"状态，累积上千个无限 CSS 动画 → WebView2 renderer 被动画合成吃满
+// （实测 1375 个 pulse 动画，暂停后 CPU 从 1.26 核降到 0.02 核）。这里在极端堆积时
+// 注入降级 CSS：去掉脉冲扩散动画，用静态外圈保留"进行中"视觉（颜色仍在），不碰 runtime 源码。
+// 阈值 50 + 滞回（<=5 恢复），正常会话（几个并发工具）不受影响。
+const ANIM_GUARD_JS: &str = r#"(function(){
+if(window.__rsiAnimGuard)return;
+window.__rsiAnimGuard=1;
+var THRESH=50, down=false, css=null;
+setInterval(function(){
+  try{
+    var n=0, all=document.getAnimations();
+    for(var i=0;i<all.length;i++){
+      var a=all[i];
+      if(a.playState==='running'&&a.animationName==='pulse')n++;
+    }
+    if(n>THRESH&&!down){
+      down=true;
+      css=document.createElement('style');css.id='rsi-anim-guard';
+      css.textContent='.statedot::after{animation:none!important;box-shadow:0 0 0 3px var(--accent);opacity:.55}';
+      document.head.appendChild(css);
+    }else if(n<=5&&down){
+      down=false;if(css){css.remove();css=null;}
+    }
+  }catch(e){}
+},800);
+})();"#;
+
 // 桌面壳补预览：runtime 前端对 md 走页面内 overlay，但对 png/jpg/html/pdf/svg 等
 // native 文件走 window.open("/files/...", "_blank")；Tauri 未注册 on_new_window 时
 // WebView2 直接拒绝，故点图片/网页类产物没反应。这里在 Web UI 加载后覆盖 window.open，
@@ -202,6 +231,9 @@ fn main() {
                 }
                 if let Err(e) = webview.eval(PREVIEW_JS) {
                     eprintln!("[rsi-desktop] 预览补丁注入失败: {e}");
+                }
+                if let Err(e) = webview.eval(ANIM_GUARD_JS) {
+                    eprintln!("[rsi-desktop] 动画保护注入失败: {e}");
                 }
             }
         })
