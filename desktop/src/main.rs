@@ -115,29 +115,29 @@ fn navigate(handle: &tauri::AppHandle, url: tauri::Url) {
     }
 }
 
-// 冷启动后让消息流**持续**贴底：长会话的 SSE 重放要数秒且分批到达，固定延时/时长的
-// 轮询都会在停止后再次漂移；重放过程中的程序性滚动还会产生瞬时大 gap，旧逻辑把它误判
-// 为用户上滚，pinned 永久变 false，之后不再贴底（用户反馈「滚动条不是默认在最下方」）。
-// 通过 on_page_load 在 Web UI 加载完成后注入常驻脚本：每 120ms 把 #stream 置底；只有
-// **用户主动**滚轮/触摸/按键上滚才暂停贴底，且暂停 8s 无操作自动恢复，保证加载完仍贴底。
-// 不用 MutationObserver——重放上万次 append 逐次读 scrollHeight 触发强制重排，实测约 6.3s。
-// 脚本幂等（window.__rsiSticky 单例标志），不碰 runtime 源码。
+// 冷启动后让消息流默认贴底：长会话的 SSE 重放分批到达，固定延时轮询会漂移，所以保留常驻
+// pin。语义：打开/加载时贴底；**用户主动上滚后交出控制权**，不再定时强制拉回；用户自己滚回
+// 底部才恢复贴底。用 pinned 布尔标志替代旧的 userScrollUntil 时间窗——旧逻辑 8s 后自动
+// 恢复贴底，正是用户「往上拉还是被拽回最下方」的根因。
+// 通过 on_page_load 在 Web UI 加载完成后注入常驻脚本；只有**用户真实输入**（wheel/touch/key）
+// 才 unpin，replay / 程序性置底产生的 scroll 不会误交权。不用 MutationObserver——重放上万次
+// append 逐次读 scrollHeight 触发强制重排，实测约 6.3s。脚本幂等（window.__rsiSticky 单例）。
 const STICKY_JS: &str = r#"(function(){
 if(window.__rsiSticky)return;
 var s=document.getElementById('stream');if(!s)return;
 window.__rsiSticky=1;
-var userScrollUntil=0;
-function pause(){userScrollUntil=Date.now()+8000;}   // 用户主动上滚 → 暂停贴底 8s
-// 只有用户真实输入才暂停；replay / 程序性置底 / 滚动锚定产生的 scroll 一律忽略。
-s.addEventListener('wheel',function(e){if(e.deltaY<0)pause();},{passive:true});
-s.addEventListener('touchstart',pause,{passive:true});
-s.addEventListener('keydown',function(e){if(e.key==='PageUp'||e.key==='ArrowUp'||e.key==='Home')pause();},{passive:true});
-// 用户滚回底部时立即恢复（gap<64 只可能来自真实回底，程序置底本就 gap=0）。
+var pinned=true;
+function unpin(){pinned=false;}    // 用户主动上滚 → 交出控制权，不再自动贴底
+// 只有用户真实输入才 unpin；replay / 程序性置底 / 滚动锚定产生的 scroll 一律忽略。
+s.addEventListener('wheel',function(e){if(e.deltaY<0)unpin();},{passive:true});
+s.addEventListener('touchstart',unpin,{passive:true});
+s.addEventListener('keydown',function(e){if(e.key==='PageUp'||e.key==='ArrowUp'||e.key==='Home')unpin();},{passive:true});
+// 用户自己滚回底部时恢复贴底（gap<64 只可能来自真实回底，程序置底本就 gap=0）。
 s.addEventListener('scroll',function(){
-  if(s.scrollHeight-s.scrollTop-s.clientHeight<64)userScrollUntil=0;
+  if(s.scrollHeight-s.scrollTop-s.clientHeight<64)pinned=true;
 },{passive:true});
 function pin(){
-  if(Date.now()<userScrollUntil)return;              // 用户阅读历史期内不打扰
+  if(!pinned)return;               // 用户已接管，不再打扰
   var gap=s.scrollHeight-s.scrollTop-s.clientHeight;
   if(gap>0)s.scrollTop=s.scrollHeight;
 }
