@@ -1,0 +1,35 @@
+    // external_channels 段 merge（外部通道通用配置）：只接受已知键，类型严格校验，
+    // 任一非法 → 400 不落盘；空串/null = 不修改（与 media 同规则）。
+    const IM_BOOL_KEYS: &[&str] = &["enabled", "enable_dingtalk", "enable_qq"];
+    const IM_STR_KEYS: &[&str] = &["host_base", "dingtalk_client_id", "dingtalk_client_secret", "qq_appid", "qq_token", "allow_users", "allow_chats"];
+    const IM_NUM_KEYS: &[&str] = &["max_reply_chars", "chat_timeout_secs"];
+    if let Some(ec) = external_channels.and_then(|v| v.get("im")).filter(|v| v.is_object()) {
+        for (k, v) in ec.as_object().unwrap() {
+            if v.is_null() { continue; }
+            if IM_BOOL_KEYS.contains(&k.as_str()) && !v.is_boolean() {
+                return json_resp(stream, 400, bad_request(format!("external_channels.im.{k} 需为布尔"), Some("external_channels"))).await;
+            }
+            if IM_STR_KEYS.contains(&k.as_str()) && !v.is_string() {
+                return json_resp(stream, 400, bad_request(format!("external_channels.im.{k} 需为字符串"), Some("external_channels"))).await;
+            }
+            if IM_NUM_KEYS.contains(&k.as_str()) && !v.is_number() && v.as_str().map(|s| s.trim().parse::<f64>().is_ok()).unwrap_or(false) == false {
+                return json_resp(stream, 400, bad_request(format!("external_channels.im.{k} 需为数字"), Some("external_channels"))).await;
+            }
+        }
+        let mut cur = cfg.get("external_channels").cloned().unwrap_or_else(|| json!({}));
+        let mut im = cur.get("im").cloned().unwrap_or_else(|| json!({}));
+        let im_obj = im.as_object_mut().unwrap();
+        for (k, v) in ec.as_object().unwrap() {
+            let empty = v.as_str().map(str::is_empty).unwrap_or(false);
+            if !v.is_null() && !empty {
+                im_obj.insert(k.clone(), v.clone());
+            }
+        }
+        cur["im"] = im;
+        cfg["external_channels"] = cur;
+    }
+    match config::persist_config(&cfg) {
+        Ok(()) => json_resp(
+            stream,
+            200,
+            json!({"ok": true, "persisted": config::config_file().to_string_lossy()}),

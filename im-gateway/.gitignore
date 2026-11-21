@@ -1,0 +1,5 @@
+# 本地凭据配置，含密钥，绝不入库
+config.local.json
+__pycache__/
+*.pyc
+.pytest_cache/

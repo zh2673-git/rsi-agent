@@ -1,0 +1,6 @@
+# 钉钉 Stream 官方 SDK
+dingtalk-stream
+# QQ 官方机器人 SDK
+qq-botpy
+# host HTTP / SSE
+httpx

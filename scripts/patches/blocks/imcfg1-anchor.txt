@@ -1,0 +1,3 @@
+/// GET /api/config：llm 视图（config.json > env 缺省；key 只回 key_set + 尾 4 位，绝不回明文）
+/// + tools 全集视图（list all=true，含未启用项，各项附 enabled）+ skills 计数。
+pub(crate) async fn get_config(stream: &mut TcpStream, kernel: &Kernel) -> anyhow::Result<()> {

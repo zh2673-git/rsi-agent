@@ -1,0 +1,26 @@
+/// external_channels 段回显视图：敏感字段（client_secret/token/key/password）
+/// 只回 key_set + key_tail，绝不回明文；非敏感字段原样回显。
+fn external_channels_view(cfg: &Value) -> Value {
+    let mut im = cfg.get("external_channels")
+        .and_then(|v| v.get("im"))
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    const SECRET_FIELDS: &[&str] = &["client_secret", "token", "key", "api_key", "password"];
+    for k in SECRET_FIELDS {
+        if let Some(v) = im.get(*k).and_then(Value::as_str) {
+            let redacted = if v.is_empty() {
+                json!({"key_set": false})
+            } else {
+                let tail: String = v.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
+                json!({"key_set": true, "key_tail": tail})
+            };
+            im.insert((*k).to_string(), redacted);
+        }
+    }
+    json!({"im": im})
+}
+
+/// GET /api/config：llm 视图（config.json > env 缺省；key 只回 key_set + 尾 4 位，绝不回明文）
+/// + tools 全集视图（list all=true，含未启用项，各项附 enabled）+ skills 计数。
+pub(crate) async fn get_config(stream: &mut TcpStream, kernel: &Kernel) -> anyhow::Result<()> {

@@ -1,0 +1,4 @@
+                "agent": agent_config_view(),
+                "media": media_config_view(&cfg),
+                "external_channels": external_channels_view(&cfg),
+                "instance_name": std::env::var("REACT_INSTANCE_NAME").unwrap_or_default(),

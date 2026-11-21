@@ -1,0 +1,5 @@
+    match config::persist_config(&cfg) {
+        Ok(()) => json_resp(
+            stream,
+            200,
+            json!({"ok": true, "persisted": config::config_file().to_string_lossy()}),

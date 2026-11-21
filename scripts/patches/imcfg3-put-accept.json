@@ -1,0 +1,1 @@
+{"id": "IMCFG3-PUT-ACCEPT", "description": "config.rs：PUT /api/config 接收并校验 external_channels 对象", "file": "runtime/crates/host/src/web/api/config.rs", "anchor_file": "blocks/imcfg3-anchor.txt", "patch_file": "blocks/imcfg3-patch.txt", "applied_marker": "let external_channels = req.get(\"external_channels\")"}

@@ -1,0 +1,2 @@
+    <div id="tab-publish" hidden>
+      <p class="hint">内容分发：一份稿件发到多个平台。

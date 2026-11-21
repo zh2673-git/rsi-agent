@@ -1,0 +1,1 @@
+{"id": "IMCFG4-PUT-MERGE", "description": "config.rs：PUT /api/config 合并 external_channels.im 到 config.json（字段类型校验 + 空串不改）", "file": "runtime/crates/host/src/web/api/config.rs", "anchor_file": "blocks/imcfg4-anchor.txt", "patch_file": "blocks/imcfg4-patch.txt", "applied_marker": "external_channels 段 merge"}

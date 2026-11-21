@@ -1,0 +1,1 @@
+{"id": "IMUI4-LOAD", "description": "app-settings.js：loadConfig 回填 IM 通道字段（secret 只显掩码）", "file": "runtime/crates/host/web-dist/vendor/app-settings.js", "anchor_file": "blocks/imui4-anchor.txt", "patch_file": "blocks/imui4-patch.txt", "applied_marker": "const im = c.external_channels?.im"}

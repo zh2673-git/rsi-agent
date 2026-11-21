@@ -1,0 +1,25 @@
+$("media-img-save").onclick = () => saveMedia("image", "media-img-flash");
+$("media-vid-save").onclick = () => saveMedia("video", "media-vid-flash");
+// ── IM 通道配置保存： PUT external_channels.im，密码留空不提交（后端空串不改）──
+$("im-save").onclick = async () => {
+  const im = {};
+  for (const [key, el] of Object.entries({
+    enabled: "im-enabled", enable_dingtalk: "im-enable-dingtalk", enable_qq: "im-enable-qq",
+  })) im[key] = $(el).checked;
+  for (const [key, el] of Object.entries({
+    host_base: "im-host-base", dingtalk_client_id: "im-dt-id", qq_appid: "im-qq-appid",
+    allow_users: "im-allow-users", allow_chats: "im-allow-chats",
+  })) { const v = $(el).value.trim(); if (v) im[key] = v; }
+  for (const [key, el] of Object.entries({
+    max_reply_chars: "im-max-chars", chat_timeout_secs: "im-timeout",
+  })) { const v = $(el).value.trim(); if (v) im[key] = Number(v); }
+  const secret = $("im-dt-secret").value.trim();
+  if (secret) im.dingtalk_client_secret = secret;   // 留空 = 不修改
+  const token = $("im-qq-token").value.trim();
+  if (token) im.qq_token = token;                    // 留空 = 不修改
+  try {
+    await api("PUT", "/api/config", { external_channels: { im } });
+    flash("im-flash", true, "已保存落盘（启动 im-gateway 后生效）");
+    loadConfig();
+  } catch (e) { flash("im-flash", false, e.message); }
+};

@@ -1,0 +1,1 @@
+{"id": "IMUI5-SAVE", "description": "app-settings.js：IM 通道保存按钮（PUT external_channels.im，密码留空不提交）", "file": "runtime/crates/host/web-dist/vendor/app-settings.js", "anchor_file": "blocks/imui5-anchor.txt", "patch_file": "blocks/imui5-patch.txt", "applied_marker": "$(\"im-save\").onclick"}

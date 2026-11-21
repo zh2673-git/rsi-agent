@@ -1,0 +1,3 @@
+    <button data-tab="agent">Agent</button>
+    <button data-tab="im" title="手机 IM 远程控制：钉钉 / QQ 机器人把消息转给本机 Agent（需先启动 im-gateway）">IM 通道</button>
+    <button data-tab="publish" title="内容分发：一份稿件发到小红书 / B站 / 视频号 / 公众号">分发</button>

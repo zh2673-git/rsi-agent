@@ -7,7 +7,7 @@ $("gear").onclick = () => { drawer.classList.add("open"); loadConfig(); loadSkil
 $("dclose").onclick = () => drawer.classList.remove("open");
 document.querySelectorAll("#drawer .tabs button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("#drawer .tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  for (const t of ["llm", "tools", "skills", "memory", "agent", "publish"]) $("tab-" + t).hidden = t !== b.dataset.tab;
+  for (const t of ["llm", "tools", "skills", "memory", "agent", "im", "publish"]) $("tab-" + t).hidden = t !== b.dataset.tab;
   // 分发面板按需拉取就绪状态：每次都重新探（用户可能刚在终端装好 sau / 登录完）
   if (b.dataset.tab === "publish") loadPublish();
 });
@@ -144,6 +144,20 @@ async function loadConfig() {
       ["agent-llm-context-tokens", a.llm_context_tokens],
     ]) $(id).value = v ?? "";
     $("agent-system-prompt").value = a.system_prompt ?? "";
+    // IM 通道回显（external_channels.im）：凭据只回 key_set + key_tail，留空 = 不修改
+    const im = c.external_channels?.im ?? {};
+    for (const [el, v] of [
+      ["im-enabled", im.enabled], ["im-enable-dingtalk", im.enable_dingtalk], ["im-enable-qq", im.enable_qq],
+    ]) $(el).checked = !!v;
+    for (const [el, v] of [
+      ["im-host-base", im.host_base], ["im-dt-id", im.dingtalk_client_id], ["im-qq-appid", im.qq_appid],
+      ["im-allow-users", im.allow_users], ["im-allow-chats", im.allow_chats],
+      ["im-max-chars", im.max_reply_chars], ["im-timeout", im.chat_timeout_secs],
+    ]) $(el).value = v ?? "";
+    $("im-dt-secret").value = "";
+    $("im-dt-secret").placeholder = im.dingtalk_client_secret?.key_set ? `已设置（尾号 ${im.dingtalk_client_secret.key_tail}，留空不修改）` : "未设置";
+    $("im-qq-token").value = "";
+    $("im-qq-token").placeholder = im.qq_token?.key_set ? `已设置（尾号 ${im.qq_token.key_tail}，留空不修改）` : "未设置";
   } catch (e) { flash("llm-flash", false, "加载失败: " + e.message); }
 }
 
@@ -886,6 +900,29 @@ async function saveMedia(kind, flashId) {
 }
 $("media-img-save").onclick = () => saveMedia("image", "media-img-flash");
 $("media-vid-save").onclick = () => saveMedia("video", "media-vid-flash");
+// ── IM 通道配置保存： PUT external_channels.im，密码留空不提交（后端空串不改）──
+$("im-save").onclick = async () => {
+  const im = {};
+  for (const [key, el] of Object.entries({
+    enabled: "im-enabled", enable_dingtalk: "im-enable-dingtalk", enable_qq: "im-enable-qq",
+  })) im[key] = $(el).checked;
+  for (const [key, el] of Object.entries({
+    host_base: "im-host-base", dingtalk_client_id: "im-dt-id", qq_appid: "im-qq-appid",
+    allow_users: "im-allow-users", allow_chats: "im-allow-chats",
+  })) { const v = $(el).value.trim(); if (v) im[key] = v; }
+  for (const [key, el] of Object.entries({
+    max_reply_chars: "im-max-chars", chat_timeout_secs: "im-timeout",
+  })) { const v = $(el).value.trim(); if (v) im[key] = Number(v); }
+  const secret = $("im-dt-secret").value.trim();
+  if (secret) im.dingtalk_client_secret = secret;   // 留空 = 不修改
+  const token = $("im-qq-token").value.trim();
+  if (token) im.qq_token = token;                    // 留空 = 不修改
+  try {
+    await api("PUT", "/api/config", { external_channels: { im } });
+    flash("im-flash", true, "已保存落盘（启动 im-gateway 后生效）");
+    loadConfig();
+  } catch (e) { flash("im-flash", false, e.message); }
+};
 // LLM tab 三区折叠（与工具池 poolhead 同款交互；静态 HTML，加载时绑定一次）
 document.querySelectorAll("#tab-llm .poolhead.collapsible").forEach((head) => {
   const body = head.nextElementSibling;

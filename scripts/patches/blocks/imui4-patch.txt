@@ -1,0 +1,16 @@
+    $("agent-system-prompt").value = a.system_prompt ?? "";
+    // IM 通道回显（external_channels.im）：凭据只回 key_set + key_tail，留空 = 不修改
+    const im = c.external_channels?.im ?? {};
+    for (const [el, v] of [
+      ["im-enabled", im.enabled], ["im-enable-dingtalk", im.enable_dingtalk], ["im-enable-qq", im.enable_qq],
+    ]) $(el).checked = !!v;
+    for (const [el, v] of [
+      ["im-host-base", im.host_base], ["im-dt-id", im.dingtalk_client_id], ["im-qq-appid", im.qq_appid],
+      ["im-allow-users", im.allow_users], ["im-allow-chats", im.allow_chats],
+      ["im-max-chars", im.max_reply_chars], ["im-timeout", im.chat_timeout_secs],
+    ]) $(el).value = v ?? "";
+    $("im-dt-secret").value = "";
+    $("im-dt-secret").placeholder = im.dingtalk_client_secret?.key_set ? `已设置（尾号 ${im.dingtalk_client_secret.key_tail}，留空不修改）` : "未设置";
+    $("im-qq-token").value = "";
+    $("im-qq-token").placeholder = im.qq_token?.key_set ? `已设置（尾号 ${im.qq_token.key_tail}，留空不修改）` : "未设置";
+  } catch (e) { flash("llm-flash", false, "加载失败: " + e.message); }

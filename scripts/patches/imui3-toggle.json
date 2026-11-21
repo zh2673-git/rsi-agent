@@ -1,0 +1,1 @@
+{"id": "IMUI3-TOGGLE", "description": "app-settings.js：标签切换序列补 im", "file": "runtime/crates/host/web-dist/vendor/app-settings.js", "anchor_file": "blocks/imui3-anchor.txt", "patch_file": "blocks/imui3-patch.txt", "applied_marker": "\"agent\", \"im\", \"publish\""}

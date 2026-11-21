@@ -1,0 +1,3 @@
+  for (const t of ["llm", "tools", "skills", "memory", "agent", "publish"]) $("tab-" + t).hidden = t !== b.dataset.tab;
+  // 分发面板按需拉取就绪状态：每次都重新探（用户可能刚在终端装好 sau / 登录完）
+  if (b.dataset.tab === "publish") loadPublish();

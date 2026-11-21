@@ -1,0 +1,1 @@
+{"id": "IMCFG1-GET-VIEW", "description": "config.rs：新增 external_channels_view（secret 只回 key_set+key_tail，绝不回明文）", "file": "runtime/crates/host/src/web/api/config.rs", "anchor_file": "blocks/imcfg1-anchor.txt", "patch_file": "blocks/imcfg1-patch.txt", "applied_marker": "fn external_channels_view"}

@@ -1,0 +1,1 @@
+{"id": "IMUI2-PANEL", "description": "index.html：新增 tab-im 面板（钉钉/QQ 凭据表单，密码留空不改）", "file": "runtime/crates/host/web-dist/index.html", "anchor_file": "blocks/imui2-anchor.txt", "patch_file": "blocks/imui2-patch.txt", "applied_marker": "id=\"tab-im\""}

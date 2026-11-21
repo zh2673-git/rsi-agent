@@ -1,0 +1,1 @@
+{"id": "IMCFG2-GET-FIELD", "description": "config.rs：GET /api/config 响应增加 external_channels 字段", "file": "runtime/crates/host/src/web/api/config.rs", "anchor_file": "blocks/imcfg2-anchor.txt", "patch_file": "blocks/imcfg2-patch.txt", "applied_marker": "\"external_channels\": external_channels_view"}

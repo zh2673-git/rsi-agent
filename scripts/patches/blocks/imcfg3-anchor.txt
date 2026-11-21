@@ -1,0 +1,9 @@
+    let mcp_servers = req.get("mcp_servers").filter(|v| v.is_object());
+    if llm.is_none() && tools.is_none() && agent.is_none() && mcp_servers.is_none() && media.is_none() {
+        return json_resp(
+            stream,
+            400,
+            bad_request("body 需含 llm / tools / agent / mcp_servers / media 对象", None),
+        )
+        .await;
+    }

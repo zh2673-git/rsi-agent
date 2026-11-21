@@ -3,5 +3,6 @@
  "description": "app-settings.js：tab 切换列表加 publish，切到时拉取就绪状态",
  "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
  "anchor_file": "blocks/i07-js-tabs-anchor.txt",
- "patch_file": "blocks/i07-js-tabs-patch.txt"
+ "patch_file": "blocks/i07-js-tabs-patch.txt",
+ "applied_marker": "if (b.dataset.tab === \"publish\") loadPublish();"
 }

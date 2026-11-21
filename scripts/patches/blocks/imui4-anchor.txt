@@ -1,0 +1,2 @@
+    $("agent-system-prompt").value = a.system_prompt ?? "";
+  } catch (e) { flash("llm-flash", false, "加载失败: " + e.message); }

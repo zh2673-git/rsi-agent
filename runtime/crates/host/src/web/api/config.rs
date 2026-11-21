@@ -179,6 +179,29 @@ fn media_config_view(cfg: &Value) -> Value {
     })
 }
 
+/// external_channels 段回显视图：敏感字段（client_secret/token/key/password）
+/// 只回 key_set + key_tail，绝不回明文；非敏感字段原样回显。
+fn external_channels_view(cfg: &Value) -> Value {
+    let mut im = cfg.get("external_channels")
+        .and_then(|v| v.get("im"))
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    const SECRET_FIELDS: &[&str] = &["client_secret", "token", "key", "api_key", "password"];
+    for k in SECRET_FIELDS {
+        if let Some(v) = im.get(*k).and_then(Value::as_str) {
+            let redacted = if v.is_empty() {
+                json!({"key_set": false})
+            } else {
+                let tail: String = v.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
+                json!({"key_set": true, "key_tail": tail})
+            };
+            im.insert((*k).to_string(), redacted);
+        }
+    }
+    json!({"im": im})
+}
+
 /// GET /api/config：llm 视图（config.json > env 缺省；key 只回 key_set + 尾 4 位，绝不回明文）
 /// + tools 全集视图（list all=true，含未启用项，各项附 enabled）+ skills 计数。
 pub(crate) async fn get_config(stream: &mut TcpStream, kernel: &Kernel) -> anyhow::Result<()> {
@@ -339,6 +362,7 @@ pub(crate) async fn get_config(stream: &mut TcpStream, kernel: &Kernel) -> anyho
                 "skills_count": skills_count,
                 "agent": agent_config_view(),
                 "media": media_config_view(&cfg),
+                "external_channels": external_channels_view(&cfg),
                 "instance_name": std::env::var("REACT_INSTANCE_NAME").unwrap_or_default(),
             },
         }),
@@ -361,11 +385,12 @@ pub(crate) async fn put_config(stream: &mut TcpStream, kernel: &Kernel, body: &[
     // §八 MCP：仅持久通道（server 子进程生命周期归 tools 插件 init/destroy，无热通道）。
     // PUT 落盘 config.json mcp_servers，改后需重启 host 生效。
     let mcp_servers = req.get("mcp_servers").filter(|v| v.is_object());
-    if llm.is_none() && tools.is_none() && agent.is_none() && mcp_servers.is_none() && media.is_none() {
+    let external_channels = req.get("external_channels").filter(|v| v.is_object());
+    if llm.is_none() && tools.is_none() && agent.is_none() && mcp_servers.is_none() && media.is_none() && external_channels.is_none() {
         return json_resp(
             stream,
             400,
-            bad_request("body 需含 llm / tools / agent / mcp_servers / media 对象", None),
+            bad_request("body 需含 llm / tools / agent / mcp_servers / media / external_channels 对象", None),
         )
         .await;
     }
@@ -491,6 +516,36 @@ pub(crate) async fn put_config(stream: &mut TcpStream, kernel: &Kernel, body: &[
             }
         }
         cfg["mcp_servers"] = cur;
+    }
+    // external_channels 段 merge（外部通道通用配置）：只接受已知键，类型严格校验，
+    // 任一非法 → 400 不落盘；空串/null = 不修改（与 media 同规则）。
+    const IM_BOOL_KEYS: &[&str] = &["enabled", "enable_dingtalk", "enable_qq"];
+    const IM_STR_KEYS: &[&str] = &["host_base", "dingtalk_client_id", "dingtalk_client_secret", "qq_appid", "qq_token", "allow_users", "allow_chats"];
+    const IM_NUM_KEYS: &[&str] = &["max_reply_chars", "chat_timeout_secs"];
+    if let Some(ec) = external_channels.and_then(|v| v.get("im")).filter(|v| v.is_object()) {
+        for (k, v) in ec.as_object().unwrap() {
+            if v.is_null() { continue; }
+            if IM_BOOL_KEYS.contains(&k.as_str()) && !v.is_boolean() {
+                return json_resp(stream, 400, bad_request(format!("external_channels.im.{k} 需为布尔"), Some("external_channels"))).await;
+            }
+            if IM_STR_KEYS.contains(&k.as_str()) && !v.is_string() {
+                return json_resp(stream, 400, bad_request(format!("external_channels.im.{k} 需为字符串"), Some("external_channels"))).await;
+            }
+            if IM_NUM_KEYS.contains(&k.as_str()) && !v.is_number() && v.as_str().map(|s| s.trim().parse::<f64>().is_ok()).unwrap_or(false) == false {
+                return json_resp(stream, 400, bad_request(format!("external_channels.im.{k} 需为数字"), Some("external_channels"))).await;
+            }
+        }
+        let mut cur = cfg.get("external_channels").cloned().unwrap_or_else(|| json!({}));
+        let mut im = cur.get("im").cloned().unwrap_or_else(|| json!({}));
+        let im_obj = im.as_object_mut().unwrap();
+        for (k, v) in ec.as_object().unwrap() {
+            let empty = v.as_str().map(str::is_empty).unwrap_or(false);
+            if !v.is_null() && !empty {
+                im_obj.insert(k.clone(), v.clone());
+            }
+        }
+        cur["im"] = im;
+        cfg["external_channels"] = cur;
     }
     match config::persist_config(&cfg) {
         Ok(()) => json_resp(

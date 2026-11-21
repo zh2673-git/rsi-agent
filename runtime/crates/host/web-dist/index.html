@@ -62,6 +62,7 @@
     <button data-tab="skills">技能</button>
     <button data-tab="memory" title="画像与记忆：agent 对「你是谁」「这个域怎么做事」的结论">记忆</button>
     <button data-tab="agent">Agent</button>
+    <button data-tab="im" title="手机 IM 远程控制：钉钉 / QQ 机器人把消息转给本机 Agent（需先启动 im-gateway）">IM 通道</button>
     <button data-tab="publish" title="内容分发：一份稿件发到小红书 / B站 / 视频号 / 公众号">分发</button>
   </div>
   <div class="body">
@@ -239,6 +240,22 @@
         <button class="btn ghost" id="mem-reveal" title="在文件管理器中定位 profile.json">📂 源文件</button>
       </div>
       <div id="mem-body"></div>
+    </div>
+    <div id="tab-im" hidden>
+      <p class="hint">手机 IM 远程控制本机 Agent。在钉钉/QQ 里 @机器人 发消息，消息转到本机会话并回复。凭据只保存在本机 config.json；密码框留空 = 不修改，回显只显尾 4 位。配置保存后需启动 <code>im-gateway</code>（见 README）才会真正连上平台。</p>
+      <div class="field"><label><input type="checkbox" id="im-enabled"> 启用外部 IM 通道</label></div>
+      <div class="field"><label>Host 地址（im-gateway 回调本机的地址）</label><input id="im-host-base" placeholder="http://127.0.0.1:8710"></div>
+      <div class="field"><label><input type="checkbox" id="im-enable-dingtalk"> 启用钉钉 Stream 机器人</label></div>
+      <div class="field"><label>钉钉 Client ID（AppKey）</label><input id="im-dt-id" placeholder="ding..."></div>
+      <div class="field"><label>钉钉 Client Secret（AppSecret，留空不修改）</label><input id="im-dt-secret" type="password" placeholder="留空不修改"></div>
+      <div class="field"><label><input type="checkbox" id="im-enable-qq"> 启用 QQ 官方机器人</label></div>
+      <div class="field"><label>QQ Bot AppID</label><input id="im-qq-appid" placeholder="数字 AppID"></div>
+      <div class="field"><label>QQ Bot Token（留空不修改）</label><input id="im-qq-token" type="password" placeholder="留空不修改"></div>
+      <div class="field"><label>允许的用户 ID（逗号分隔，空 = 不限制；生产建议配置）</label><input id="im-allow-users" placeholder="user1,user2"></div>
+      <div class="field"><label>允许的会话/群 ID（逗号分隔，空 = 不限制）</label><input id="im-allow-chats" placeholder="chat1,chat2"></div>
+      <div class="field"><label>单条回复最大字符数</label><input id="im-max-chars" type="number" min="1" placeholder="4000"></div>
+      <div class="field"><label>单轮最长等待秒数</label><input id="im-timeout" type="number" min="1" step="0.5" placeholder="300"></div>
+      <div class="row"><button class="btn" id="im-save">保存 IM 配置</button><span class="flash" id="im-flash"></span></div>
     </div>
     <div id="tab-publish" hidden>
       <p class="hint">内容分发：一份稿件发到多个平台。这里的开关是「允许发到哪里」；真正发出前还会干跑一次让你看清单。</p>
