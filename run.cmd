@@ -115,6 +115,13 @@ if defined NEED_MAGPIE (
   )
 )
 
+rem -- IM gateway supervisor: auto start/reload IM adapters from saved config. --
+rem -- Runs inside this cmd tree so desktop-shell exit (taskkill /T) cleans it up. --
+rem -- Single-instance pidfile makes repeated run.cmd calls idempotent. --
+if exist "%REPO%\im-gateway\supervise.py" (
+  start "" /b python "%REPO%\im-gateway\supervise.py" run
+)
+
 echo [rsi] Starting host ^(release=%REACT_FRONTEND%; workspace=%WORKSPACE_ROOT%^)
 rem -- web frontend: open the browser only ONCE the host is actually serving --
 rem -- no fixed sleep (I-20261109-01 "web page hangs after restart"): release exe needs no compile,
@@ -129,7 +136,13 @@ if /i "%REACT_FRONTEND%"=="web" if "%~1"=="" if not "%RSI_NO_BROWSER%"=="1" (
 )
 "%HOST_EXE%" %*
 
-set "EXIT_CODE=%errorlevel%"
+set "HOST_EXIT=%errorlevel%"
+
+rem -- stop IM gateway supervisor (sends stop request; it stops all platform gateways) --
+if exist "%REPO%\im-gateway\supervise.py" (
+  python "%REPO%\im-gateway\supervise.py" stop >nul 2>nul
+)
+set "EXIT_CODE=%HOST_EXIT%"
 
 rem -- clean up ONLY the gateway started by this run.cmd (incl. bun children), never touch user instances --
 if defined MAGPIE_PID (

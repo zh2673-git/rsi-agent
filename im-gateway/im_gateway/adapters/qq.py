@@ -35,4 +35,4 @@ def build(cfg: GatewayConfig, core: GatewayCore) -> object:
 def run(cfg: GatewayConfig, core: GatewayCore) -> None:
     """阻塞运行 QQ 机器人（client.run）。"""
     client = build(cfg, core)
-    client.run(appid=cfg.qq_appid, token=cfg.qq_token)
+    client.run(appid=cfg.qq_appid, secret=cfg.qq_token)

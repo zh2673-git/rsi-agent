@@ -24,7 +24,7 @@
 
 三种来源，优先级 **环境变量 > 宿主设置面板 > 本地文件 > 默认值**：
 
-1. **宿主设置面板（推荐）**：打开 Agent 界面的齿轮设置 → 「IM」标签页，填钉钉/QQ 凭据并保存。配置落在工作区根 `config.json` 的 `external_channels.im`，密码框留空 = 不修改，回显只显尾 4 位。保存后启动网关即生效。
+1. **宿主设置面板（推荐）**：打开 Agent 界面的齿轮设置 → 「IM」标签页，填钉钉/QQ 凭据并保存。配置落在工作区根 `config.json` 的 `external_channels.im`，密码框留空 = 不修改，回显只显尾 4 位。**保存后监管进程会自动对账：新增凭据自动拉起、改了凭据自动重载、关掉开关自动停止**——不需要手动敲启动命令。
 2. **环境变量**（最高优先级，适合临时覆盖）：见下表。
 3. **本地文件**：复制模板填写（已被 .gitignore 忽略，绝不入库）：
 
@@ -46,17 +46,27 @@ copy im-gateway\config.example.json im-gateway\config.local.json
 
 钉钉凭据在钉钉开放平台创建 Stream 模式机器人获取；QQ 凭据在 QQ 开放平台创建机器人获取。**不要把密钥贴到对话里**；用上面的设置面板、环境变量或本地文件。
 
-## 启动
+## 启动与监管
 
-在仓库根目录：
+正常使用时**不需要手动启动**：桌面壳启动 host 时会通过 `run.cmd` 拉起监管进程，host 退出时自动停掉它。保存设置面板后，监管每 2 秒对账一次配置：
+
+- 开关打开且凭据齐全 → 拉起该平台独立进程；
+- 凭据/白名单等变化 → 自动重载该平台；
+- 开关关闭或凭据清空 → 停止该平台；
+- 平台意外崩溃且稳定运行 ≥30 秒后才重连（无效凭据不会高频重启）。
+
+每个平台是独立进程（`run.py --platform <p>`），避免钉钉/QQ SDK 各自的事件循环互相冲突。
+
+手动调试命令：
 
 ```bash
-python im-gateway/run.py                       # 按配置开关启动所有启用平台
-python im-gateway/run.py --platform dingtalk    # 只起钉钉
-python im-gateway/run.py --platform qq          # 只起 QQ
+python im-gateway/supervise.py start    # 后台启动监管（幂等）
+python im-gateway/supervise.py status   # 查看监管与各平台状态
+python im-gateway/supervise.py stop     # 停止监管及其管理的平台
+python im-gateway/run.py --platform qq  # 前台单平台直跑（调试用）
 ```
 
-启动日志打印脱敏配置（不打印密钥值）。
+监管状态写 `gateway-status.json`，网关日志写 `gateway.log`（均已 .gitignore）。密钥不会写进日志。
 
 ## 测试
 
@@ -69,11 +79,13 @@ python -m pytest tests -q
 
 ```
 im-gateway/
-  run.py                   # 入口
+  run.py                   # 单平台/调试入口
+  supervise.py             # 监管进程 CLI（start/status/stop/run）
   config.example.json      # 配置模板（复制为 config.local.json）
   requirements.txt
   im_gateway/
     config.py              # 配置读取 + 脱敏视图
+    supervisor.py          # 配置对账：拉起/重载/停止/重连
     envelope.py            # 平台消息归一化
     session.py             # 安全 session key + 幂等 + 串行
     host_client.py         # POST /api/chat + SSE /api/events

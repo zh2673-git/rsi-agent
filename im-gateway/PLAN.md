@@ -16,9 +16,10 @@
 
 ## 迭代记录
 - R1 2026-11-21：修 correctness blocker（SSE cursor gate），15 passed。
-- R2 待办：host external_channels GET/PUT + IM tab + 网关读取。
-- R3 待办：补丁验证 + react-agent 回灌。
-- R4 待办：双仓 commit/push/tag/release。
+- R2 2026-11-21：host external_channels GET/PUT + IM tab + 网关读取 host 配置。
+- R3 2026-11-21：补丁 dry-run/apply/verify + react-agent 通用能力回灌。
+- R4 2026-11-21：双仓 commit/push/tag/release（rsi-agent v0.1.12 / react-agent v0.1.27）。
+- R5 2026-11-22：自动连接——新增监管进程（`supervisor.py` + `supervise.py`），由 `run.cmd` 随 host 启停，配置变化自动拉起/重载/停止各平台网关，崩溃 ≥30s 后重连；修 `run.py` 子线程事件循环（botpy/dingtalk SDK 必须在主线程）、`qq.py` botpy `secret=` 参数、`supervisor.py` Windows `os.kill(pid,0)` → `OpenProcess/GetExitCodeProcess`；新增 5 个监管测试（23 passed），实机冒烟确认 QQ 网关推进到平台登录并报 `code=100016 invalid appid or secret`（凭据无效，需用户去开放平台核对）；文档与 .gitignore 同步。
 
 ## 回退点
 - 补丁：`.patchbak` / `apply-tool-patches.py --revert`。

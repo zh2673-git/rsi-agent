@@ -4,11 +4,15 @@
     python im-gateway/run.py                # 按 config.local.json / 环境变量开关启动
     python im-gateway/run.py --platform dingtalk
     python im-gateway/run.py --platform qq
+
+注意：botpy / dingtalk_stream 的 run() 会在本色线程创建自己的事件循环（botpy 构造时
+就调 asyncio.get_event_loop()），因此必须在主线程同步运行，不能放进 asyncio.to_thread。
+多平台时用独立子进程并发，各进程各跑一个主线程。
 """
 from __future__ import annotations
 
 import argparse
-import asyncio
+import multiprocessing
 import sys
 from pathlib import Path
 
@@ -20,25 +24,19 @@ from im_gateway.core import GatewayCore  # noqa: E402
 from im_gateway.host_client import HostClient  # noqa: E402
 
 
-async def _run_platform(platform: str, cfg: GatewayConfig, core: GatewayCore) -> None:
+def _run_platform(platform: str) -> None:
+    """在当前线程同步运行单个平台（阻塞直到该平台客户端退出）。"""
+    cfg = GatewayConfig.load()
+    core = GatewayCore(cfg, HostClient(cfg.host_base, cfg.chat_timeout_secs))
+    print(f"[gw] start {platform}:", cfg.redacted(), flush=True)
     if platform == "dingtalk":
         from im_gateway.adapters import dingtalk
-        await asyncio.to_thread(dingtalk.run, cfg, core)
+        dingtalk.run(cfg, core)
     elif platform == "qq":
         from im_gateway.adapters import qq
-        await asyncio.to_thread(qq.run, cfg, core)
+        qq.run(cfg, core)
     else:
         raise ValueError(f"未知平台: {platform}")
-
-
-async def amain(cfg: GatewayConfig, platforms: list[str]) -> None:
-    core = GatewayCore(cfg, HostClient(cfg.host_base, cfg.chat_timeout_secs))
-    print("[gw] config:", cfg.redacted(), flush=True)
-    if len(platforms) == 1:
-        await _run_platform(platforms[0], cfg, core)
-        return
-    # 多平台并发运行
-    await asyncio.gather(*(_run_platform(p, cfg, core) for p in platforms))
 
 
 def main() -> None:
@@ -58,7 +56,15 @@ def main() -> None:
         parser.error("没有启用任何平台：设置 GW_ENABLE_DINGTALK/GW_ENABLE_QQ 或用 --platform 指定")
 
     try:
-        asyncio.run(amain(cfg, platforms))
+        if len(platforms) == 1:
+            _run_platform(platforms[0])
+        else:
+            procs = [multiprocessing.Process(target=_run_platform, args=(p,), daemon=True)
+                     for p in platforms]
+            for p in procs:
+                p.start()
+            for p in procs:
+                p.join()
     except KeyboardInterrupt:
         print("[gw] stopped", flush=True)
 

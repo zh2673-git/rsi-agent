@@ -3,3 +3,9 @@ config.local.json
 __pycache__/
 *.pyc
 .pytest_cache/
+# 网关监管运行时产物（日志含平台事件、状态含 pid）
+gateway.log
+gateway-status.json
+.supervisor.pid
+.stop-request
+botpy.log
