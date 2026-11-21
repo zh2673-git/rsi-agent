@@ -35,8 +35,14 @@ def build(cfg: GatewayConfig, core: GatewayCore) -> object:
             print(f"[qq] 群@ msg={env.msg_id} chat={env.chat_id} user={env.user_id} text={env.text[:40]!r}", flush=True)
 
             async def reply(chat_id: str, answer: str) -> None:
-                # 群消息必须用 post_group_message + group_openid 回复
-                await self.api.post_group_message(group_openid=message.group_openid, content=answer)
+                # 群消息必须用 post_group_message + group_openid 回复；
+                # msg_id 关联被回复的 @ 消息、msg_type=0 文本，均为官方 demo 要求。
+                await self.api.post_group_message(
+                    group_openid=message.group_openid,
+                    msg_type=0,
+                    msg_id=message.id,
+                    content=answer,
+                )
 
             await core.handle(env, reply)
 
