@@ -22,7 +22,11 @@
 
 ## 配置
 
-复制模板并填凭据（或直接用环境变量，环境变量优先）：
+三种来源，优先级 **环境变量 > 宿主设置面板 > 本地文件 > 默认值**：
+
+1. **宿主设置面板（推荐）**：打开 Agent 界面的齿轮设置 → 「IM」标签页，填钉钉/QQ 凭据并保存。配置落在工作区根 `config.json` 的 `external_channels.im`，密码框留空 = 不修改，回显只显尾 4 位。保存后启动网关即生效。
+2. **环境变量**（最高优先级，适合临时覆盖）：见下表。
+3. **本地文件**：复制模板填写（已被 .gitignore 忽略，绝不入库）：
 
 ```bash
 copy im-gateway\config.example.json im-gateway\config.local.json
@@ -40,7 +44,7 @@ copy im-gateway\config.example.json im-gateway\config.local.json
 | `GW_MAX_REPLY_CHARS` | 单条回复最大字符数，默认 4000 |
 | `GW_CHAT_TIMEOUT` | 单轮最长等待秒数，默认 300 |
 
-钉钉凭据在钉钉开放平台创建 Stream 模式机器人获取；QQ 凭据在 QQ 开放平台创建机器人获取。
+钉钉凭据在钉钉开放平台创建 Stream 模式机器人获取；QQ 凭据在 QQ 开放平台创建机器人获取。**不要把密钥贴到对话里**；用上面的设置面板、环境变量或本地文件。
 
 ## 启动
 

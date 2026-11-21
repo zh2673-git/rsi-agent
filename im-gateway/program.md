@@ -1,7 +1,10 @@
-# im-gateway program.md — 探索
+# im-gateway program.md — 探索 → 已交付（v0.1.12）
 
 > 首个落地平台：钉钉 Stream 机器人 + QQ 官方机器人（用户 2026-11-21 拍板）。
-> 首行声明：探索（精简方案 + 代码，不铺完整文档树）。
+> 交付形态：本仓以 `scripts/patches/*.json` 外挂补丁接入宿主配置/设置面板（不改受保护核心）；
+> 通用 `external_channels` 扩展点已回灌 `react-agent v0.1.27`。
+> 发布：rsi-agent `v0.1.12`（2026-11-21）、react-agent `v0.1.27`（2026-11-21），均已 push/tag/release。
+> 待办：上游能力同步进本仓运行时快照后退休对应补丁；真平台 E2E 需用户提供凭据（走设置面板/环境变量，不贴对话）。
 
 ## 目标
 把手机 IM 消息桥接到本仓库 host 的 agent，让用户在钉钉/QQ 里发一句话就能拿到 agent 回复。agent 侧零改动，不碰受保护的 `runtime/crates/**`。
@@ -49,6 +52,6 @@ im-gateway/
 
 ## 约束
 - 网关不写任何 `runtime/**`、`config.json`、受保护 plugin 目录。
-- 凭据只从环境变量或 `im-gateway/config.local.json`（.gitignore）读。
+- 凭据只从环境变量、`im-gateway/config.local.json`（.gitignore）或宿主设置面板写入的工作区根 `config.json` 的 `external_channels.im` 读；优先级 env > host > local > 默认；密钥不进日志/不进 git。
 - session key 只用 ascii 字母数字 + `-_.`：前缀 `dt-`（钉钉）/ `qq-`（QQ）+ 平台会话标识的 sha256 前 12 位。
 - 长回复按平台单条上限分段（钉钉/QQ 保守取 4000 字符/段，QQ markdown 更短再降）。
