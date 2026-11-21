@@ -55,6 +55,11 @@ class GatewayCore:
                 answer = await self.host.chat(key, env.text)
                 text = self._clip(answer) if answer else "（agent 未返回文本）"
             except Exception as exc:  # noqa: BLE001 网关层兜底，不泄漏堆栈/凭据
+                # 记录异常类型与消息到网关日志，便于定位（不写堆栈/凭据）。
+                try:
+                    print(f"[gw] chat 失败 session={key} {type(exc).__name__}: {exc}", flush=True)
+                except Exception:  # noqa: BLE001 日志失败不影响兜底回复
+                    pass
                 text = f"抱歉，处理失败：{type(exc).__name__}"
             await reply(chat_id, text)
             return text

@@ -1,0 +1,5 @@
+/* IML-LANES-STICKY：车道条钉在消息区顶部，不随聊天记录贴底滚动被带走。
+   #lanes 是滚动容器 #stream 的首子元素；历史记录自动置底会把整条滚到视口上方
+   （实测 top=-4995），含 QQ 车道在内的整排按钮全部不可见。sticky + top:0 让它
+   始终停在 #stream 可视区顶部；不透明 --panel 背景遮住下方滚过的消息。 */
+#lanes { display: flex; gap: 6px; align-items: center; padding: 6px 14px; overflow-x: auto; flex: 0 0 auto; border-bottom: 1px solid var(--line, #2a2f3a); position: sticky; top: 0; z-index: 5; background: var(--panel, #f7f7f4); }

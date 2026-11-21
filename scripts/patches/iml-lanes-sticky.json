@@ -1,0 +1,8 @@
+{
+  "id": "IML-LANES-STICKY",
+  "description": "style.css：车道条 sticky 固定在消息区顶部——#lanes 作为 #stream 首子元素，被聊天贴底滚动带到视口上方（top=-4995），含 QQ 车道的整排按钮不可见；加 position:sticky/top:0/z-index/不透明背景让它常驻可见",
+  "file": "runtime/crates/host/web-dist/style.css",
+  "anchor_file": "blocks/iml-lanes-sticky-anchor.txt",
+  "patch_file": "blocks/iml-lanes-sticky-patch.txt",
+  "applied_marker": "position: sticky; top: 0; z-index: 5; background: var(--panel"
+}

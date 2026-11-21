@@ -826,7 +826,11 @@
 /* 车道条（I-20261108-14）：一个任务一条车道，车道 = session（内核按 session_id 上闸，
    并行只可能跨 session）。单车道时整条隐藏——多任务才有意义，单任务多一栏只是噪音。
    横向滚动而非换行：任务多时宁可挤着滑，也不让 header 长高把对话区压窄。 */
-#lanes { display: flex; gap: 6px; align-items: center; padding: 6px 14px; overflow-x: auto; flex: 0 0 auto; border-bottom: 1px solid var(--line, #2a2f3a); }
+/* IML-LANES-STICKY：车道条钉在消息区顶部，不随聊天记录贴底滚动被带走。
+   #lanes 是滚动容器 #stream 的首子元素；历史记录自动置底会把整条滚到视口上方
+   （实测 top=-4995），含 QQ 车道在内的整排按钮全部不可见。sticky + top:0 让它
+   始终停在 #stream 可视区顶部；不透明 --panel 背景遮住下方滚过的消息。 */
+#lanes { display: flex; gap: 6px; align-items: center; padding: 6px 14px; overflow-x: auto; flex: 0 0 auto; border-bottom: 1px solid var(--line, #2a2f3a); position: sticky; top: 0; z-index: 5; background: var(--panel, #f7f7f4); }
 #lanes[hidden] { display: none; }
 .lane { flex: 0 0 auto; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; line-height: 1.5; padding: 3px 10px; border: 1px solid var(--line, #2a2f3a); border-radius: 999px; background: var(--card-2, transparent); color: var(--muted); cursor: pointer; }
 .lane:hover { color: var(--text); border-color: var(--accent); }
