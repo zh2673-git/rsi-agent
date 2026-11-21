@@ -39,3 +39,26 @@ def test_from_qq():
     assert env.chat_id == "chan-7"
     assert env.user_id == "user-9"
     assert env.text == "hi there"
+
+
+def test_from_qq_group_message():
+    """群消息：group_openid / author.member_openid，且对象是 __slots__。"""
+    class Author:
+        __slots__ = ("member_openid",)
+        def __init__(self):
+            self.member_openid = " member-u-3 "
+
+    class GroupMsg:
+        __slots__ = ("id", "group_openid", "content", "author")
+        def __init__(self):
+            self.id = "qq-group-msg-1"
+            self.group_openid = "grp-42"
+            self.content = "  群里的消息  "
+            self.author = Author()
+
+    env = from_qq(GroupMsg())
+    assert env.platform == "qq"
+    assert env.msg_id == "qq-group-msg-1"
+    assert env.chat_id == "grp-42"
+    assert env.user_id == "member-u-3"
+    assert env.text == "群里的消息"

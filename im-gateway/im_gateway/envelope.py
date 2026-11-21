@@ -34,15 +34,28 @@ def from_dingtalk(data: dict[str, Any], msg_id: str, text: str) -> Envelope:
 
 
 def from_qq(message: Any) -> Envelope:
-    """QQ botpy Message 归一化。channel_id 定位会话，author.id 定位用户。"""
-    data = getattr(message, "__dict__", {}) or {}
+    """QQ botpy 消息归一化：频道用 channel_id/author.id，群用 group_openid/author.member_openid。
+
+    botpy 消息对象是 __slots__ 而非 __dict__，故全部按属性读取。
+    """
     author = getattr(message, "author", None)
-    user_id = str(getattr(author, "id", "") or "").strip()
+    # 频道消息 author.id；群消息 author.member_openid
+    user_id = str(
+        getattr(author, "id", None)
+        or getattr(author, "member_openid", None)
+        or ""
+    ).strip()
+    # 频道消息 channel_id；群消息 group_openid
+    chat_id = str(
+        getattr(message, "channel_id", None)
+        or getattr(message, "group_openid", None)
+        or ""
+    ).strip()
     return Envelope(
         platform="qq",
         msg_id=str(getattr(message, "id", "") or ""),
-        chat_id=str(getattr(message, "channel_id", "") or ""),
+        chat_id=chat_id,
         user_id=user_id,
         text=str(getattr(message, "content", "") or "").strip(),
-        raw=data,
+        raw={},
     )
