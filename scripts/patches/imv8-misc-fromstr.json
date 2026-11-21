@@ -1,0 +1,10 @@
+{
+  "id": "IMV-MISC-FROMSTR",
+  "description": "修复 im_sessions 中 read_to_string 返回 String 与 serde_json::from_str 期望 &str 的类型不匹配",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor_file": "blocks/imv8-fix-anchor.txt",
+  "patch_file": "blocks/imv8-fix-patch.txt",
+  "applied_marker": "IMV-MISC-FROMSTR",
+  "repair": true,
+  "order": 8
+}

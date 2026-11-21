@@ -1,0 +1,9 @@
+{
+  "id": "IMV-ROUTE",
+  "description": "host 路由表新增 GET /api/im/sessions",
+  "file": "runtime/crates/host/src/web/mod.rs",
+  "anchor_file": "blocks/imv-route-anchor.txt",
+  "patch_file": "blocks/imv-route-patch.txt",
+  "applied_marker": "IMV-ROUTE",
+  "order": 3
+}

@@ -37,7 +37,7 @@ class HostClient:
         url = f"{self.base}/api/events?session={session_id}&after={after}"
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream("GET", url) as resp:
-                await resp.raise_for_status()
+                resp.raise_for_status()
                 async for line in resp.aiter_lines():
                     if not line:
                         continue
@@ -103,46 +103,58 @@ class HostClient:
         取舍：重放历史很多时需读完已有历史才提交（trace 一般几十到几百条，毫秒级）。
         """
         deadline = asyncio.get_running_loop().time() + self.timeout_secs
-        gen = self._iter_events(session_id, after)
+        # 重放是批量推送：历史事件一次性刷出，刷完后 host 进入 300ms 轮询且无帧。
+        # 连续 idle 无帧即认为重放已 catch up。不能用「读到 assistant 就停」，
+        # 多轮历史是 user/assistant/chat_summary 交替，第一条 assistant 只是第一轮，
+        # 提前停会把后续历史 assistant 当成新回复返回（stale answer）。
+        replay_idle = 0.6
 
+        # 阶段1：独立连接消费历史重放，取最大 cursor 作为 gate。
+        # 持续读到连续 idle 无新帧（历史已全部重放）才提交；无历史会话等 idle 即提交。
+        # 用独立 gen 且显式 aclose，避免与 submit 后新连接共用导致 StreamClosed。
         gate = 0
-        async for evt in gen:
-            if asyncio.get_running_loop().time() > deadline:
-                await gen.aclose()
-                raise TimeoutError("等待 SSE 就绪超时")
-            cur = self._cursor(evt)
-            if cur is not None:
-                gate = max(gate, cur)
-            # SSE 是持续长连接；读到「空批」后 host 才进入实时阶段，但帧本身无显式标记。
-            # 稳妥做法：读到第一条 assistant 后即认为历史重放已覆盖（历史最后一条就是
-            # assistant），再往后提交；若会话无历史则等首个非 assistant 帧或超时。
-            if self._is_assistant(evt):
-                break
+        replay = self._iter_events(session_id, after)
+        try:
+            while True:
+                try:
+                    evt = await asyncio.wait_for(
+                        anext(replay),
+                        timeout=min(replay_idle, max(0.1, deadline - asyncio.get_running_loop().time())),
+                    )
+                except (StopAsyncIteration, asyncio.TimeoutError):
+                    break
+                if asyncio.get_running_loop().time() > deadline:
+                    raise TimeoutError("等待 SSE 就绪超时")
+                cur = self._cursor(evt)
+                if cur is not None:
+                    gate = max(gate, cur)
+        finally:
+            await replay.aclose()
 
         ok = await self.submit(session_id, message)
         if not ok:
-            await gen.aclose()
             raise RuntimeError("host 拒绝消息")
 
-        return await self._consume_after_gate(gen, gate, deadline)
+        # 阶段2：新连接从 gate 之后读本轮 assistant（cursor > gate）。
+        return await self._wait_answer(session_id, gate, deadline)
 
-    async def _consume_after_gate(
-        self,
-        gen: AsyncIterator[dict],
-        gate: int,
-        deadline: float,
-    ) -> str:
-        """继续迭代已有 SSE 生成器，只接受 cursor > gate 的 assistant。"""
+    async def _wait_answer(self, session_id: str, gate: int, deadline: float) -> str:
+        """新 SSE 连接，只接受 cursor > gate 的 assistant 作为本轮回复。"""
         loop = asyncio.get_running_loop()
-        async for evt in gen:
-            if loop.time() > deadline:
-                raise TimeoutError("等待 agent 回复超时")
-            if not self._is_assistant(evt):
-                continue
-            cursor = self._cursor(evt)
-            if cursor is None or cursor <= gate:
-                continue
-            answer = evt.get("answer")
-            if isinstance(answer, str) and answer:
-                return answer
+        ask = self._iter_events(session_id, gate)
+        try:
+            async for evt in ask:
+                if loop.time() > deadline:
+                    raise TimeoutError("等待 agent 回复超时")
+                if not self._is_assistant(evt):
+                    continue
+                cursor = self._cursor(evt)
+                if cursor is None or cursor <= gate:
+                    continue
+                answer = evt.get("answer")
+                if isinstance(answer, str) and answer:
+                    return answer
+        finally:
+            await ask.aclose()
         return ""
+

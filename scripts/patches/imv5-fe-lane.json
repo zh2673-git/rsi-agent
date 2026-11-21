@@ -1,0 +1,9 @@
+{
+  "id": "IMV-FE-LANE",
+  "description": "app-core.js：laneList() 合并 IM 会话，按平台（QQ/钉钉）分组排序 + 前缀标签展示",
+  "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+  "anchor_file": "blocks/imv-lane-anchor.txt",
+  "patch_file": "blocks/imv-lane-patch.txt",
+  "applied_marker": "IMV-FE-LANE",
+  "order": 5
+}

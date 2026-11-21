@@ -1,0 +1,1 @@
+        ("GET", "/api/session-exists") => api::session_exists(&mut stream, query).await,

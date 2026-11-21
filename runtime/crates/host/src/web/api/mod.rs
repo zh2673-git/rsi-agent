@@ -22,6 +22,7 @@ pub(super) use misc::{
     reveal_target, self_update_start, self_update_status, session_exists, upstream_accounts,
     upstream_checkin, upstream_login, upstream_providers, upstream_start, upstream_status,
 };
+pub(super) use misc::im_sessions;
 pub(super) use git_auth::get_git_auth;
 pub(super) use profile::{get_profile, post_profile};
 pub(super) use publish::{get_publish_config, post_publish_config};

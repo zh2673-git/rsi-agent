@@ -1,0 +1,9 @@
+{
+  "id": "IMV-REEXPORT",
+  "description": "api/mod.rs 重导出 misc::im_sessions，供 host 路由表调用",
+  "file": "runtime/crates/host/src/web/api/mod.rs",
+  "anchor_file": "blocks/imv-reexport-anchor.txt",
+  "patch_file": "blocks/imv-reexport-patch.txt",
+  "applied_marker": "IMV-REEXPORT",
+  "order": 2
+}

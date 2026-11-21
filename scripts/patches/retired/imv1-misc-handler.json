@@ -1,0 +1,9 @@
+{
+  "id": "IMV-MISC (retired: 锚点写法有误，由 IMV-MISC-REPAIR 修正后本条退出 loader)",
+  "description": "原 misc.rs 新增 GET /api/im/sessions handler 的补丁；因 anchor/patch 写反误删 session_exists 的 return 与右括号，已由 IMV-MISC-REPAIR 补回，本条退役",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor_file": "blocks/imv-misc-anchor.txt",
+  "patch_file": "blocks/imv-misc-handler.txt",
+  "applied_marker": "IMV-MISC",
+  "order": 1
+}

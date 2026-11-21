@@ -3,11 +3,20 @@ import asyncio
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from im_gateway import core as core_mod  # noqa: E402
 from im_gateway.config import GatewayConfig  # noqa: E402
 from im_gateway.core import GatewayCore  # noqa: E402
 from im_gateway.envelope import Envelope  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_real_meta(monkeypatch):
+    """core.handle 写会话元数据到展示文件；测试不应污染真实 im-gateway/data。"""
+    monkeypatch.setattr(core_mod, "record_session_meta", lambda env: "test-sid")
 
 
 class FakeHost:

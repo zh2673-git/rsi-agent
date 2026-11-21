@@ -1,0 +1,3 @@
+        ("GET", "/api/session-exists") => api::session_exists(&mut stream, query).await,
+        // IM 会话元数据（网关写 <repo>/im-gateway/data/im-sessions.json）；只读，缺失即空。
+        ("GET", "/api/im/sessions") => api::im_sessions(&mut stream).await,

@@ -1,0 +1,5 @@
+        .unwrap_or(false);
+    json_resp(stream, 200, json!({ "ok": true, "exists": exists })).await
+}
+
+/// GET /api/im/sessions：只读 IM 会话元数据

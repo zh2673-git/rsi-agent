@@ -13,7 +13,7 @@ class _Resp:
     def __init__(self, lines):
         self._lines = lines
 
-    async def raise_for_status(self):
+    def raise_for_status(self):
         return None
 
     async def aiter_lines(self):
@@ -77,15 +77,18 @@ def test_stream_answer_accepts_when_no_gate(monkeypatch):
 
 
 def test_chat_uses_replayed_cursor_as_gate(monkeypatch):
-    lines = []
-    lines += _frame({"type": "user", "text": "上一轮问题", "cursor": 2})
-    lines += _frame({"type": "assistant", "answer": "上一轮答案", "cursor": 3})
-    lines += _frame({"type": "assistant", "answer": "本轮答案", "cursor": 8})
+    # replay 历史只到 cursor=3；本轮答案 cursor=8 在阶段2 连接才出现。
+    history = []
+    history += _frame({"type": "user", "text": "上一轮问题", "cursor": 2})
+    history += _frame({"type": "assistant", "answer": "上一轮答案", "cursor": 3})
+    answer = _frame({"type": "assistant", "answer": "本轮答案", "cursor": 8})
 
     submitted = {}
+    calls = {"n": 0}
 
     def fake_client(*a, **kw):
-        return _Client(lines)
+        calls["n"] += 1
+        return _Client(history if calls["n"] == 1 else history + answer)
 
     monkeypatch.setattr("httpx.AsyncClient", fake_client)
 
@@ -97,4 +100,47 @@ def test_chat_uses_replayed_cursor_as_gate(monkeypatch):
 
     client = HostClient("http://x")
     assert asyncio.run(client.chat("s", "本轮问题")) == "本轮答案"
+    assert submitted["ok"] is True
+
+
+def test_chat_gate_is_last_replay_cursor_not_first_assistant(monkeypatch):
+    """多轮历史：gate 必须取到最后一条事件 cursor，否则旧 assistant 被当新回复。"""
+    # 模拟 3 轮历史；每轮 user/assistant/chat_summary，cursor 连续到 9。
+    lines = []
+    for i, (kind, ans) in enumerate(
+        [
+            ("user", "问题1"),
+            ("assistant", "答案1"),
+            ("chat_summary", ""),
+            ("user", "问题2"),
+            ("assistant", "答案2"),
+            ("chat_summary", ""),
+            ("user", "问题3"),
+            ("assistant", "答案3"),
+            ("chat_summary", ""),
+        ],
+        start=1,
+    ):
+        lines += _frame({"type": kind, "answer": ans, "text": ans, "cursor": i})
+
+    submitted = {}
+    calls = {"n": 0}
+
+    # 阶段1 replay 只返回历史(c<=9)，阶段2 返回历史 + 新答案(cursor=10)。
+    def fake_client(*a, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _Client(lines)
+        return _Client(lines + _frame({"type": "assistant", "answer": "真正的本轮答案", "cursor": 10}))
+
+    monkeypatch.setattr("httpx.AsyncClient", fake_client)
+
+    async def fake_submit(self, session_id, message):
+        submitted["ok"] = True
+        return True
+
+    monkeypatch.setattr(HostClient, "submit", fake_submit)
+
+    client = HostClient("http://x")
+    assert asyncio.run(client.chat("s", "本轮问题")) == "真正的本轮答案"
     assert submitted["ok"] is True

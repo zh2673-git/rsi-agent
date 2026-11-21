@@ -1,0 +1,10 @@
+{
+  "id": "IMV-MISC-REPAIR",
+  "description": "修复 IMV-MISC 锚点误删 session_exists 的 return + 右括号，补回两行",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor_file": "blocks/imv7-fix-anchor.txt",
+  "patch_file": "blocks/imv7-fix-patch.txt",
+  "applied_marker": "IMV-MISC-REPAIR",
+  "repair": true,
+  "order": 7
+}

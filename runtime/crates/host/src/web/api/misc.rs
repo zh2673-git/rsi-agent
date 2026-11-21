@@ -31,6 +31,20 @@ pub(crate) async fn session_exists(stream: &mut TcpStream, query: &str) -> anyho
     json_resp(stream, 200, json!({ "ok": true, "exists": exists })).await
 }
 
+/// GET /api/im/sessions：只读 IM 会话元数据（网关写在 <repo>/im-gateway/data/im-sessions.json）。
+/// 电脑端据此把 QQ/钉钉会话合并进左侧车道；不写任何状态，文件缺失/损坏一律空列表。
+pub(crate) async fn im_sessions(stream: &mut TcpStream) -> anyhow::Result<()> {
+    let path = config::config_file()
+        .parent()
+        .map(|p| p.join("im-gateway").join("data").join("im-sessions.json"));
+    let sessions = path
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .filter(|v| v.is_object())
+        .unwrap_or_else(|| json!({}));
+    json_resp(stream, 200, json!({ "ok": true, "sessions": sessions })).await
+}
+
 /// GET /api/presets：转发 llm-adapter `presets.list`（OpenAI 兼容站点预设清单，
 /// 数据源 plugins/llm_adapter/presets.py——切换站点 = configure 热应用，零重启）。
 pub(crate) async fn get_presets(stream: &mut TcpStream, kernel: &Kernel) -> anyhow::Result<()> {

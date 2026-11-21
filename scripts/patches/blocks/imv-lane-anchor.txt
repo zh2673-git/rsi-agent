@@ -1,0 +1,1 @@
+  const out = [{ sid: LANE_MAIN, label: "对话", title: "主车道：不属于任何任务的一般对话" }];

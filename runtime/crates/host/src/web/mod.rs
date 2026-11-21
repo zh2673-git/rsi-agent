@@ -394,6 +394,8 @@ async fn handle_conn(mut stream: TcpStream, kernel: Arc<Kernel>) -> anyhow::Resu
         ("GET", "/api/tree") => files::list_workspace_tree(&mut stream, query).await,
         ("GET", "/api/fc-snapshot") => files::serve_undo_snapshot(&mut stream, query).await,
         ("GET", "/api/session-exists") => api::session_exists(&mut stream, query).await,
+        // IM 会话元数据（网关写 <repo>/im-gateway/data/im-sessions.json）；只读，缺失即空。
+        ("GET", "/api/im/sessions") => api::im_sessions(&mut stream).await,
         ("GET", r) if r.starts_with("/files/") => {
             files::serve_workspace_file(&mut stream, r.trim_start_matches("/files/"), query).await
         }

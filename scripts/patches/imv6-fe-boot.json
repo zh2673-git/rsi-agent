@@ -1,0 +1,9 @@
+{
+  "id": "IMV-FE-BOOT",
+  "description": "app-core.js：启动时拉取 IM 会话 + 15s 兜底刷新",
+  "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+  "anchor_file": "blocks/imv-boot-anchor.txt",
+  "patch_file": "blocks/imv-boot-patch.txt",
+  "applied_marker": "IMV-FE-BOOT",
+  "order": 6
+}

@@ -1,0 +1,2 @@
+        .unwrap_or(false);
+/// GET /api/im/sessions：只读 IM 会话元数据

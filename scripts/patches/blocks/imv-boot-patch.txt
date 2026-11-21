@@ -1,0 +1,3 @@
+lanePollStart();
+imSessionsRefresh();
+setInterval(imSessionsRefresh, 15000); // IMV：IM 会话元数据低频兜底刷新

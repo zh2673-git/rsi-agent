@@ -1,0 +1,15 @@
+const laneBusy = new Map();
+// IMV：IM 会话元数据缓存。网关低频追加，页面启动时拉一次 + 定时兜底刷新。
+// 只存 laneList 渲染所需的最小视图；拉取失败保持上次已知值（不闪空）。
+let imSessions = {};
+async function imSessionsRefresh() {
+  try {
+    const r = await fetch("/api/im/sessions");
+    const v = await r.json();
+    const next = v && v.sessions && typeof v.sessions === "object" && !Array.isArray(v.sessions) ? v.sessions : {};
+    if (JSON.stringify(next) !== JSON.stringify(imSessions)) {
+      imSessions = next;
+      renderLanes();
+    }
+  } catch (_) { /* 断线：保持上次已知值 */ }
+}

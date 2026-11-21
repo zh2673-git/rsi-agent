@@ -52,6 +52,23 @@ function laneOfTask(id) {
 // 看板数据晚于本文件加载，故此处只声明函数、调用时才解析 boardData（与既有跨文件约定一致）。
 function laneList() {
   const out = [{ sid: LANE_MAIN, label: "对话", title: "主车道：不属于任何任务的一般对话" }];
+  // IMV：合并 IM 网关上报的会话（QQ/钉钉），按平台分组排在任务车道之前。
+  // 元数据来自 GET /api/im/sessions（网关写 <repo>/im-gateway/data/im-sessions.json）。
+  // 不写 board 账本、不改 session 切分——sid 仍是 qq-/dt- 前缀的原 session key。
+  {
+    const rank = { qq: 0, dingtalk: 1 };
+    const labelOf = { qq: "QQ", dingtalk: "钉钉" };
+    const rows = Object.entries(imSessions)
+      .filter(([sid, m]) => sid && m && m.platform)
+      .sort((a, b) => (rank[a[1].platform] ?? 9) - (rank[b[1].platform] ?? 9) || (b[1].last_ts || 0) - (a[1].last_ts || 0));
+    for (const [sid, m] of rows) {
+      if (out.some((l) => l.sid === sid)) continue;
+      const tag = labelOf[m.platform] || m.platform;
+      const who = String(m.chat_id || "").slice(-6) || String(m.user_id || "").slice(-6);
+      const when = m.last_ts ? new Date(m.last_ts).toLocaleString() : "";
+      out.push({ sid, label: `${tag}·${who}`, title: `${tag} 会话 ${sid}${when ? " · " + when : ""}` });
+    }
+  }
   const bd = typeof boardData !== "undefined" ? boardData : null;
   const tasks = bd && bd.board && Array.isArray(bd.board.tasks) ? bd.board.tasks : [];
   for (const t of tasks) {
@@ -91,6 +108,20 @@ function renderLanes() {
 // 只显示「运行中」这一种事实（来源 /api/chat/status 的 status.running），不臆造「未读」：
 // 未读要比对每条车道 trace 的游标，为此轮询整份 trace 不值当，切过去自然就看得到。
 const laneBusy = new Map();
+// IMV：IM 会话元数据缓存。网关低频追加，页面启动时拉一次 + 定时兜底刷新。
+// 只存 laneList 渲染所需的最小视图；拉取失败保持上次已知值（不闪空）。
+let imSessions = {};
+async function imSessionsRefresh() {
+  try {
+    const r = await fetch("/api/im/sessions");
+    const v = await r.json();
+    const next = v && v.sessions && typeof v.sessions === "object" && !Array.isArray(v.sessions) ? v.sessions : {};
+    if (JSON.stringify(next) !== JSON.stringify(imSessions)) {
+      imSessions = next;
+      renderLanes();
+    }
+  } catch (_) { /* 断线：保持上次已知值 */ }
+}
 let laneTimer = null;
 function lanePollTick() {
   for (const l of laneList()) {
@@ -127,6 +158,8 @@ function switchSession(sid) {
 refreshSessionTag();
 renderLanes();
 lanePollStart();
+imSessionsRefresh();
+setInterval(imSessionsRefresh, 15000); // IMV：IM 会话元数据低频兜底刷新
 $("toggle").onclick = () => $("sidebar").classList.toggle("collapsed");
 function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
 

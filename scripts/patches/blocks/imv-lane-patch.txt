@@ -1,0 +1,18 @@
+  const out = [{ sid: LANE_MAIN, label: "对话", title: "主车道：不属于任何任务的一般对话" }];
+  // IMV：合并 IM 网关上报的会话（QQ/钉钉），按平台分组排在任务车道之前。
+  // 元数据来自 GET /api/im/sessions（网关写 <repo>/im-gateway/data/im-sessions.json）。
+  // 不写 board 账本、不改 session 切分——sid 仍是 qq-/dt- 前缀的原 session key。
+  {
+    const rank = { qq: 0, dingtalk: 1 };
+    const labelOf = { qq: "QQ", dingtalk: "钉钉" };
+    const rows = Object.entries(imSessions)
+      .filter(([sid, m]) => sid && m && m.platform)
+      .sort((a, b) => (rank[a[1].platform] ?? 9) - (rank[b[1].platform] ?? 9) || (b[1].last_ts || 0) - (a[1].last_ts || 0));
+    for (const [sid, m] of rows) {
+      if (out.some((l) => l.sid === sid)) continue;
+      const tag = labelOf[m.platform] || m.platform;
+      const who = String(m.chat_id || "").slice(-6) || String(m.user_id || "").slice(-6);
+      const when = m.last_ts ? new Date(m.last_ts).toLocaleString() : "";
+      out.push({ sid, label: `${tag}·${who}`, title: `${tag} 会话 ${sid}${when ? " · " + when : ""}` });
+    }
+  }

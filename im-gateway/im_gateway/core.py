@@ -7,6 +7,7 @@ from .config import GatewayConfig
 from .envelope import Envelope
 from .host_client import HostClient
 from .session import SessionManager, safe_session_key
+from .session_meta import record as record_session_meta
 
 # 回复回调：platform chat_id, 回复文本
 ReplyFn = Callable[[str, str], Awaitable[None]]
@@ -43,6 +44,11 @@ class GatewayCore:
 
         key = safe_session_key(env.platform, env.chat_id, env.user_id)
         chat_id = env.chat_id
+        # 记录会话可读元数据供电脑端侧栏展示；失败不影响消息处理主流程。
+        try:
+            record_session_meta(env)
+        except Exception:  # noqa: BLE001 展示增强，永不阻塞入站
+            pass
 
         async def task() -> str:
             try:

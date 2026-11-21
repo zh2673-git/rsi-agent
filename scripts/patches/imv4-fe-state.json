@@ -1,0 +1,9 @@
+{
+  "id": "IMV-FE-STATE",
+  "description": "app-core.js：新增 imSessions 缓存 + 只读刷新函数（失败保持上次值）",
+  "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+  "anchor_file": "blocks/imv-state-anchor.txt",
+  "patch_file": "blocks/imv-state-patch.txt",
+  "applied_marker": "IMV-FE-STATE",
+  "order": 4
+}
