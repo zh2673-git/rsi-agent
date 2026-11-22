@@ -21,6 +21,9 @@ class HostClient:
     def __init__(self, base: str, timeout_secs: float = 300.0) -> None:
         self.base = base.rstrip("/")
         self.timeout_secs = timeout_secs
+        # K409（同会话旧任务未释放）退避重试参数：默认 5 次、起始 1s（1/2/4/8/8 ≈ 23s）
+        self._k409_retries = 5
+        self._k409_backoff = 1.0
 
     async def submit(self, session_id: str, message: str) -> bool:
         """提交用户消息。返回 host 是否接受。
@@ -29,15 +32,37 @@ class HostClient:
         长任务（多轮工具调用）可能耗时数分钟。这里必须用 chat_timeout_secs
         作为读超时，不能用固定短超时，否则长任务会在提交阶段被 ReadTimeout
         打断，被 core 兜底成「处理失败」（agent 其实仍在后台继续跑完）。
+
+        K409（同会话已有进行中的 chat）不直接判失败：网关重启会丢掉本侧会话锁，
+        而 host 侧旧任务可能仍在跑；此时立即报 RuntimeError 会让用户看到
+        「处理失败」。改为有限退避重试，等旧任务释放并发闸后再提交本条消息。
         """
-        async with httpx.AsyncClient(timeout=self.timeout_secs) as client:
-            resp = await client.post(
-                f"{self.base}/api/chat",
-                json={"session_id": session_id, "message": message},
+        deadline = asyncio.get_running_loop().time() + self.timeout_secs
+        attempt = 0
+        while True:
+            async with httpx.AsyncClient(timeout=self.timeout_secs) as client:
+                resp = await client.post(
+                    f"{self.base}/api/chat",
+                    json={"session_id": session_id, "message": message},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+            if data.get("ok"):
+                return True
+            err = data.get("error") if isinstance(data.get("error"), dict) else {}
+            if err.get("code") != "K409" or attempt >= self._k409_retries:
+                return False
+            attempt += 1
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return False
+            delay = min(self._k409_backoff * (2 ** (attempt - 1)), 8.0, remaining)
+            print(
+                f"[gw] submit K409，旧任务未释放会话闸，{delay:.1f}s 后重试 "
+                f"session={session_id} attempt={attempt}/{self._k409_retries}",
+                flush=True,
             )
-            resp.raise_for_status()
-            data = resp.json()
-            return bool(data.get("ok"))
+            await asyncio.sleep(delay)
 
     async def _iter_events(self, session_id: str, after: int = 0) -> AsyncIterator[dict]:
         url = f"{self.base}/api/events?session={session_id}&after={after}"

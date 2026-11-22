@@ -103,6 +103,75 @@ def test_chat_uses_replayed_cursor_as_gate(monkeypatch):
     assert submitted["ok"] is True
 
 
+def test_submit_retries_on_k409_then_accepts(monkeypatch):
+    """网关重启竞态：host 返回 K409（旧任务未释放闸）时应退避重试，而非判失败。"""
+    posts = {"n": 0}
+
+    class _R:
+        def __init__(self, ok, code=None):
+            self._d = {"ok": ok}
+            if code:
+                self._d["error"] = {"code": code, "message": "busy"}
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._d
+
+    class _C:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+        async def post(self, *a, **kw):
+            posts["n"] += 1
+            # 前两次 K409，第三次接受
+            return _R(False, "K409") if posts["n"] < 3 else _R(True)
+
+    monkeypatch.setattr("httpx.AsyncClient", _C)
+    client = HostClient("http://x", timeout_secs=30.0)
+    client._k409_backoff = 0.01  # 测试加速
+    assert asyncio.run(client.submit("s", "msg")) is True
+    assert posts["n"] == 3
+
+
+def test_submit_gives_up_when_non_k409(monkeypatch):
+    """非 K409 的 ok=false（如 K400/K500）不重试，直接判失败。"""
+    posts = {"n": 0}
+
+    class _R:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"ok": False, "error": {"code": "K400", "message": "bad"}}
+
+    class _C:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+        async def post(self, *a, **kw):
+            posts["n"] += 1
+            return _R()
+
+    monkeypatch.setattr("httpx.AsyncClient", _C)
+    client = HostClient("http://x", timeout_secs=30.0)
+    assert asyncio.run(client.submit("s", "msg")) is False
+    assert posts["n"] == 1
+
+
 def test_submit_timeout_uses_configured_chat_timeout(monkeypatch):
     """submit 必须用 chat_timeout_secs 作为读超时，不能用固定 15s——
     否则长任务在 POST /api/chat 阻塞阶段就被 ReadTimeout 打断。"""
