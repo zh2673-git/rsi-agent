@@ -103,6 +103,75 @@ def test_chat_uses_replayed_cursor_as_gate(monkeypatch):
     assert submitted["ok"] is True
 
 
+def test_submit_timeout_uses_configured_chat_timeout(monkeypatch):
+    """submit 必须用 chat_timeout_secs 作为读超时，不能用固定 15s——
+    否则长任务在 POST /api/chat 阻塞阶段就被 ReadTimeout 打断。"""
+    captured = {}
+
+    class _FakeClient:
+        def __init__(self, *a, **kw):
+            captured["timeout"] = kw.get("timeout")
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+        async def post(self, *a, **kw):
+            class R:
+                def raise_for_status(self):
+                    return None
+
+                def json(self):
+                    return {"ok": True}
+
+            return R()
+
+    monkeypatch.setattr("httpx.AsyncClient", _FakeClient)
+    client = HostClient("http://x", timeout_secs=300.0)
+    assert asyncio.run(client.submit("s", "长任务")) is True
+    assert captured["timeout"] == 300.0
+
+
+def test_chat_reset_deadline_after_blocking_submit(monkeypatch):
+    """submit 阻塞到 agent 收敛（耗时超过一个 timeout 窗口）后，
+    读答案阶段必须重起 deadline，不能刚提交完就假超时。"""
+    calls = {"n": 0}
+
+    def fake_client(*a, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _Client([])  # replay 阶段无历史
+        # 阶段2：新答案在 gate 之后
+        return _Client(_frame({"type": "assistant", "answer": "长任务终于完成", "cursor": 5}))
+
+    monkeypatch.setattr("httpx.AsyncClient", fake_client)
+
+    # submit 模拟长任务：把可控时钟推进到远超初始 deadline（timeout_secs=1）。
+    state = {"t": 0.0, "loop": None}
+
+    async def fake_submit(self, session_id, message):
+        state["loop"].time = lambda: 1.0 + 10**6  # 初始 deadline=0+1，此处已远超
+        return True
+
+    monkeypatch.setattr(HostClient, "submit", fake_submit)
+
+    async def scenario():
+        loop = asyncio.get_running_loop()
+        orig_time = loop.time
+        state["loop"] = loop
+        loop.time = lambda: state["t"]
+        try:
+            # timeout_secs=1：初始 deadline=1；submit 把 loop.time 推到 1e6；
+            # 若 chat 未在 submit 后重算 deadline，_wait_answer 第一行即假超时。
+            return await HostClient("http://x", timeout_secs=1.0).chat("s", "长任务")
+        finally:
+            loop.time = orig_time
+
+    assert asyncio.run(scenario()) == "长任务终于完成"
+
+
 def test_chat_gate_is_last_replay_cursor_not_first_assistant(monkeypatch):
     """多轮历史：gate 必须取到最后一条事件 cursor，否则旧 assistant 被当新回复。"""
     # 模拟 3 轮历史；每轮 user/assistant/chat_summary，cursor 连续到 9。

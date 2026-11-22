@@ -1,0 +1,8 @@
+{
+  "id": "WQ5-RANK-ONCE",
+  "description": "ranked_by 复用单次重排结果，避免 cross_encoder 路径重复打分（保留去重+heuristic 排序）",
+  "file": "runtime/plugins/tools/tools/web.py",
+  "anchor": "    ranked = _rerank(query, all_results)[:max_results]\n    return {\n        \"query\": query,\n        \"variants\": _query_variants(query),\n        \"engine\": \"+\".join(engines),\n        \"region\": _region(),\n        \"ranked_by\": \"cross_encoder\" if _cross_encoder_rank(query, ranked) is not None else \"heuristic\",\n        \"results\": ranked,\n    }\n",
+  "patch": "    deduped = _dedup_results(all_results)\n    ce = _cross_encoder_rank(query, deduped)\n    ranked = (ce if ce is not None else _heuristic_rank(query, deduped))[:max_results]\n    return {\n        \"query\": query,\n        \"variants\": _query_variants(query),\n        \"engine\": \"+\".join(engines),\n        \"region\": _region(),\n        \"ranked_by\": \"cross_encoder\" if ce is not None else \"heuristic\",\n        \"results\": ranked,\n    }\n",
+  "applied_marker": "ranked = (ce if ce is not None else _heuristic_rank(query, deduped))[:max_results]"
+}

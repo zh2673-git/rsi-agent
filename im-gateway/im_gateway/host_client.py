@@ -23,8 +23,14 @@ class HostClient:
         self.timeout_secs = timeout_secs
 
     async def submit(self, session_id: str, message: str) -> bool:
-        """提交用户消息。返回 host 是否接受。"""
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        """提交用户消息。返回 host 是否接受。
+
+        注意：host 的 POST /api/chat 是「阻塞到 agent 整轮收敛」才返回，
+        长任务（多轮工具调用）可能耗时数分钟。这里必须用 chat_timeout_secs
+        作为读超时，不能用固定短超时，否则长任务会在提交阶段被 ReadTimeout
+        打断，被 core 兜底成「处理失败」（agent 其实仍在后台继续跑完）。
+        """
+        async with httpx.AsyncClient(timeout=self.timeout_secs) as client:
             resp = await client.post(
                 f"{self.base}/api/chat",
                 json={"session_id": session_id, "message": message},
@@ -135,6 +141,10 @@ class HostClient:
         if not ok:
             raise RuntimeError("host 拒绝消息")
 
+        # host POST /api/chat 阻塞到 agent 收敛才返回：submit 期间答案已写入 trace，
+        # 且 submit 自身可能耗尽初始 deadline。这里为「读答案」重起一个独立窗口，
+        # 避免长任务刚提交完就被判定为等待回复超时。
+        deadline = asyncio.get_running_loop().time() + self.timeout_secs
         # 阶段2：新连接从 gate 之后读本轮 assistant（cursor > gate）。
         return await self._wait_answer(session_id, gate, deadline)
 

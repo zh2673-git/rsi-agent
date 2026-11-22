@@ -1,0 +1,8 @@
+{
+  "id": "WQ4-SPLIT-FIX",
+  "description": "发散判据修正：过短片段丢弃而非连坐整组，修复『A 和 B 对比』不发散",
+  "file": "runtime/plugins/tools/tools/web.py",
+  "anchor": "    parts = [p.strip() for p in _SPLIT_RE.split(query) if p.strip()]\n    parts = [p for p in parts if p.lower() not in _STOP]\n    # 单片段或过短不发散\n    if len(parts) < 2 or any(len(p) < 3 for p in parts):\n        return [query]\n",
+  "patch": "    parts = [p.strip() for p in _SPLIT_RE.split(query) if p.strip()]\n    parts = [p for p in parts if len(p) >= 3 and p.lower() not in _STOP]\n    # 有效片段 <2 不发散；过短片段直接丢弃而非连坐整组\n    if len(parts) < 2:\n        return [query]\n",
+  "applied_marker": "过短片段直接丢弃而非连坐整组"
+}
