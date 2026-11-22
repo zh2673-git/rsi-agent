@@ -1,0 +1,49 @@
+// 车道 id 由任务 id **确定性推导**，不写进 board：host 的 /api/board 刻意不提供
+// task 写 op（任务只由 agent 经 board.py 推进）。若车道 id 必须落库，前端点 ▶ 就得
+// 先写板——那会打破「用户在 UI 不能改任务」这条既有边界。确定性推导让前后端各自算
+// 出同一个 sid：零写面、零新端点。字符集与 agent-loop `trace.rs::stream_file_for`
+// 的校验对齐（ascii 字母数字 + `-_.`）；`#` 是子代理会话分隔符，绝不可进车道 id。
+const LANE_MAIN = SESSION_ID;
+function laneOfTask(id) {
+  return String(id ?? "").trim().toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
+}
+// 车道清单 = 主车道（不属任何任务的一般对话）+ 看板里未收口的任务。
+// 收口（done/cancelled）的任务不再占车道，但**当前所在车道永不消失**——否则用户正
+// 看着一条已完成任务的对话，刷新后脚下的车道被抽走。
+// 看板数据晚于本文件加载，故此处只声明函数、调用时才解析 boardData（与既有跨文件约定一致）。
+function laneList() {
+  const out = [{ sid: LANE_MAIN, label: "对话", title: "主车道：不属于任何任务的一般对话" }];
+  // IMV：合并 IM 网关上报的会话（QQ/钉钉），按平台分组排在任务车道之前。
+  // 元数据来自 GET /api/im/sessions（网关写 <repo>/im-gateway/data/im-sessions.json）。
+  // 不写 board 账本、不改 session 切分——sid 仍是 qq-/dt- 前缀的原 session key。
+  {
+    const rank = { qq: 0, dingtalk: 1 };
+    const labelOf = { qq: "QQ", dingtalk: "钉钉" };
+    const rows = Object.entries(imSessions)
+      .filter(([sid, m]) => sid && m && m.platform)
+      .sort((a, b) => (rank[a[1].platform] ?? 9) - (rank[b[1].platform] ?? 9) || (b[1].last_ts || 0) - (a[1].last_ts || 0));
+    for (const [sid, m] of rows) {
+      if (out.some((l) => l.sid === sid)) continue;
+      const tag = labelOf[m.platform] || m.platform;
+      const who = String(m.chat_id || "").slice(-6) || String(m.user_id || "").slice(-6);
+      const when = m.last_ts ? new Date(m.last_ts).toLocaleString() : "";
+      out.push({ sid, label: `${tag}·${who}`, title: `${tag} 会话 ${sid}${when ? " · " + when : ""}` });
+    }
+  }
+  const bd = typeof boardData !== "undefined" ? boardData : null;
+  const tasks = bd && bd.board && Array.isArray(bd.board.tasks) ? bd.board.tasks : [];
+  for (const t of tasks) {
+    if (!t || !t.id) continue;
+    const sid = laneOfTask(t.id);
+    if (!sid || sid === LANE_MAIN) continue;
+    const st = String(t.status ?? "");
+    if ((st === "done" || st === "cancelled") && sid !== session) continue;
+    out.push({ sid, label: t.id, title: `${t.id} · ${t.title ?? ""}`.trim() });
+  }
+  // 兜底：当前所在车道必须出现。board 未加载、任务已收口未刷新、或任务被删时，
+  // 它都会不在上面的列表里——但用户脚下正站着这条车道，抽走它等于让人失去方向。
+  if (!out.some((l) => l.sid === session)) {
+    out.push({ sid: session, label: session === LANE_MAIN ? "对话" : session, title: `车道 ${session}` });
+  }
+  return out;

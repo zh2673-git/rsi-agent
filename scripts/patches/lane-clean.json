@@ -1,0 +1,8 @@
+{
+  "id": "LANE-CLEAN",
+  "description": "app-core.js laneList()：不再为每个未收口任务自动生成空白任务车道（那些 sid 没有 trace、点进去全空）。车道只保留主车道 + 真实会话（QQ/钉钉）+ 当前所在车道兜底；兜底标签用任务标题而非裸 id。",
+  "file": "runtime/crates/host/web-dist/vendor/app-core.js",
+  "anchor_file": "blocks/lane-clean-anchor.txt",
+  "patch_file": "blocks/lane-clean-patch.txt",
+  "applied_marker": "任务侧不再自动列出空车道，但用户脚下正站着的那条"
+}
