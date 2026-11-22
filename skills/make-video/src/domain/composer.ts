@@ -768,6 +768,8 @@ async function emitHyperframesProject(
   await ensureDir(compDir);
   await copyDir(path.join(store.root, TEMPLATES_DIR, 'motion'), path.join(hfDir, 'motion'));
   await copyDir(path.join(store.root, TEMPLATES_DIR, 'canvas'), path.join(hfDir, 'canvas'));
+  // WebGL 原语层（docs/15）：与 motion/canvas 同构，随 composer 复制进 remotion 供场景 import。
+  await copyDir(path.join(store.root, TEMPLATES_DIR, 'webgl'), path.join(hfDir, 'webgl'));
   // 项目专属画布叠加在预置之上：projects/<id>/canvas 与项目同生共死，不污染 templates
   await copyDir(path.join(dir, 'canvas'), path.join(hfDir, 'canvas'));
 
@@ -1610,6 +1612,22 @@ function wrapComposition(
   // HyperFrames 契约：GSAP 必须先于 motion-lib 加载；时间线注册到 window.__timelines[compositionId]
   if (!out.includes('gsap.min.js')) {
     out = out.replace('</head>', '<script src="../motion/gsap.min.js"></script>\n</head>');
+  }
+  // WebGL 原语层（docs/15）：场景引用 webgl-lib 时，注册确定性 seek 钩子。
+  // webgl-lib 是 ESM 且具名导出 + 挂 window.WGL；场景自己 import 并调用 WGL.register(id,...)。
+  // 这里补一个全局钩子兜底 __renderFrames，并打标记让 uses3d/审计能识别。
+  const usesWebGL = /WGL\.|webgl-lib\.js/.test(out);
+  if (usesWebGL && !out.includes('data-mv-webgl')) {
+    out = out.replace(
+      '<body',
+      '<body data-mv-webgl="1"',
+    );
+    if (!/window\.__renderFrames\s*=/.test(out)) {
+      out = out.replace(
+        '</body>',
+        '<script>window.__renderFrames = window.__renderFrames || {};</script>\n</body>',
+      );
+    }
   }
   // 防重判断必须看「属性形态」（<div data-composition-id="…"）——LLM 场景常把本文件的教学注释
   // 原样抄进 HTML 注释或 querySelector 选择器字符串，裸 includes 会被这些文本骗过，

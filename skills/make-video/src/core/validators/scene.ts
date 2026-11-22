@@ -121,9 +121,10 @@ export const CAMERA_MOVES: readonly string[] = [
   'none',
 ];
 
-/** 3D 痕迹：透视/三轴旋转/景深原语任一出现即视为用了立体素材 */
+/** 3D 痕迹：透视/三轴旋转/景深原语/WebGL 原语任一出现即视为用了立体素材 */
+// WGL\. 识别 WebGL 原语层（docs/15）：WebGL 场景必须被判为 3D，V-STYLE-008 才能对账。
 const HAS_3D =
-  /perspective\s*:|preserve-3d|rotate3d\(|rotate[XY]\(|translateZ\(|rotation[XY]\s*:|transformPerspective|MV\.(depth|tilt3d|orbit|card3d|spin3d)/i;
+  /perspective\s*:|preserve-3d|rotate3d\(|rotate[XY]\(|translateZ\(|rotation[XY]\s*:|transformPerspective|MV\.(depth|tilt3d|orbit|card3d|spin3d)|WGL\.|data-mv-webgl|webgl-lib\.js/i;
 
 export function uses3d(html: string): boolean {
   return HAS_3D.test(html);

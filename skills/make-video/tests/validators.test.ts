@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { V } from '../src/core/index.js';
-import { MOTION_WHITELIST } from '../src/core/validators/scene.js';
+import { MOTION_WHITELIST, uses3d } from '../src/core/validators/scene.js';
 import { parseScript, validateCharBudget } from '../src/domain/scriptwriter.js';
 import type { Project } from '../src/core/schema.js';
 
@@ -26,6 +26,21 @@ describe('V-STYLE-003 组合确认门', () => {
     expect(
       V.hasError(gate({ ...decision, source: 'recipe-recommended', lineage: {} }, false)),
     ).toBe(false);
+  });
+});
+
+describe('WebGL 原语的 3D 识别（docs/15）', () => {
+  it('WGL.* 调用被判为 3D', () => {
+    expect(uses3d('<script>WGL.renderFrame(stage, t, frames);</script>')).toBe(true);
+  });
+  it('webgl-lib import 被判为 3D（命名导入无 WGL. 字面量）', () => {
+    expect(uses3d('<script type="module">import { createStage } from "../webgl/webgl-lib.js";</script>')).toBe(true);
+  });
+  it('compose 注入的 data-mv-webgl 标记被判为 3D', () => {
+    expect(uses3d('<body data-mv-webgl="1"><div class="subject">hi</div></body>')).toBe(true);
+  });
+  it('纯 2D 场景仍判为非 3D（不误伤）', () => {
+    expect(uses3d('<div class="subject">hi</div><script>MV.enter(".subject", {});</script>')).toBe(false);
   });
 });
 

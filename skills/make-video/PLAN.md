@@ -1379,3 +1379,22 @@ C3 actionSheet.main 恒取第二拍。修复全部走现有 catalog.test.ts/单�
 | 2026-11-19 | 阶段3 | **情绪词典 + 五轨审计 + 对拍样本**（详见提案 §7 同日条）。`visuals.emotionMap` optional 入 schema，bright-paper 4 条示例（calm/awe/warm/tense），`resolveEmotionVisual` 走既有 overrides 通道；`motion-audit.json` 增 `emotion` 段（统计层只记不拦）；对拍 5 断言 + 样本报告，judge 留阶段5。**Q**：定向 5 绿 + doc-drift 10 绿 + tsc CLEAN。**I**：无词典包零回归，词典不预设情绪→机位组合。 |
 | 2026-11-19 | 阶段4 | **规则登记簿 + 约束下沉 + 消融对拍**（详见提案 §7 同日条）。`docs/12-规则登记簿.md` 落盘（五问卡/10 条重审/双向映射/10 包 provenance）；V-* 净零新增，V-CAM-005/V-RHY-010 改「默认+可覆写」：`constraints.maxPunchOut`（风格包，默认 2）/ `pacing.maxStaticRatio`（recipe，默认 0.6），validator 参数化、compose 收 recipe、两处调用点传 `getRecipe`；`motion-audit.json` 增 `punchOut` 段 + 超限 warn。消融 3 断言（0.6 报警/0.9 不报警/文案），doc-drift 14 绿。**Q**：tsc CLEAN、定向全绿。**I**：全 optional + 默认值零回归，登记簿只文档+测试不做规则引擎。 |
 | 2026-11-19 | 阶段5 | **skill-eval 案例库 + 4 样片基线固化 + 阿杜编舞对拍 + 转正证据链**（详见提案 §7 同日条）。`evals/cases.jsonl` 6 条覆盖基线/judge/语法冒烟/编舞消融/情绪消融/约束消融，来源可追溯、judge 无外部裁判保持 pending；`outputs/style-samples/baseline.json` 固化 4 样片实测数字；父仓 `run_evals.py` 三跑（建基线/复核/0.1.0）均 5 decided/1 pending、pass_rate 1.0、regressions=[]/degraded=false。单变量 CH.* 对拍 6 vs 0 调用、双版 `new Function` 通过。`skill_validate.py` full ok、`skill_state.py` E2 信号 draft→candidate→active（ledger work-20261119-001），`skill.json` 契约补齐；docs/10 V-CAM-005/V-RHY-010 权威行同步为默认+可覆写+warn。**Q**：eval 零退化 + validate ok + promote 成功 + **最终全量 gate：vitest 20/297 全绿、tsc CLEAN、doc-drift 14 绿（详见提案 §7 同日条末尾）**。**I**：CH.* 不进 MV 白名单、编舞层随 make-video 转正；judge 不自评晋升。 |
+
+## 14. WebGL/three.js 原语层：可行性反转（2026-11-22，T-20261122-12）
+
+> 完整方案与契约见 `docs/15-WebGL原语层.md`。本节是执行视图。
+
+**前提反转**：§13 起点处把 WebGL 列为拒绝选项，理由是「快照不稳定」。`T-20261122-11`
+可行性实验（three.js 0.160 + Chromium，证据 `outputs/webgl-feasibility-evidence.json`）实测证伪：
+同一 t 乱序/重复 `renderFrame(t)` 画面 SHA256 一致、4 个 t 四张不同非空白画面、零 pageError。
+结论——不确定性来自 rAF 自然推进的写法，不来自 WebGL；显式 `renderFrame(t)` 纯函数即可复现。
+
+**边界（不动契约）**：dimension 枚举不变、V-STYLE-008 语义不变（逐镜 warn 非禁 3D）、P13 表达层不碰。
+WebGL 是 css3d/mixed 的可选渲染实现，与 canvas-lib 对等的 vendor 原语层。
+
+**实施**：`templates/webgl/`（本地 three.min.js + webgl-lib.js，暴露 `window.WGL.createStage/renderFrame/dispose`）
+随 composer 复制进 remotion；`uses3d()` 增 `WGL\.` 识别；detetminism 测试纳入 vitest。
+
+| 日期 | 阶段 | 记录 |
+|---|---|---|
+| 2026-11-22 | 立项 | 可行性实验证伪「快照不稳定」；方案落 `docs/15-WebGL原语层.md`；本任务 L 档执行中 |
