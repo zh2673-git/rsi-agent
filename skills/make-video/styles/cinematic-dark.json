@@ -13,9 +13,9 @@
     ],
     "vibe": "深空暗调，高对比剪影，程序化粒子宇宙，胶片暗角与宽幅黑边",
     "bestFor": [
-      "science-explainer",
       "documentary-mood",
-      "cosmos-cinematic"
+      "cosmos-cinematic",
+      "story-narrative"
     ]
   },
   "anatomy": {
@@ -81,9 +81,10 @@
     "dof": 0,
     "bloom": 0.2
   },
-  "transitions": [
-    "dissolve"
-  ],
+    "transitions": [
+      "dissolve",
+      "fade-black"
+    ],
   "shotScaleBias": [
     "MS",
     "CU"
@@ -109,7 +110,11 @@
       "atmosphere",
       "typography"
     ],
-    "sceneDeny": [],
+    "sceneDeny": [
+      "comic-symbol",
+      "paper-stage",
+      "iso-stage"
+    ],
     "texture": [
       "grain",
       "halation",

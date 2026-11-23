@@ -6,3 +6,5 @@ export * from './asset-sourcing.js';
 export * from './voice.js';
 export * from './composer.js';
 export * from './composer-utils.js';
+export * from './manifest.js';
+export * from './template-pack.js';

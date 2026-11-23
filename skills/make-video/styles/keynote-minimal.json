@@ -15,7 +15,8 @@
     "bestFor": [
       "product-promo",
       "tutorial-howto",
-      "opinion-essay"
+      "science-explainer",
+      "short-vibe"
     ]
   },
   "anatomy": {
@@ -81,9 +82,10 @@
     "dof": 0,
     "bloom": 0
   },
-  "transitions": [
-    "fade-black"
-  ],
+    "transitions": [
+      "fade-black",
+      "hard-cut"
+    ],
   "shotScaleBias": [
     "MS",
     "CU"

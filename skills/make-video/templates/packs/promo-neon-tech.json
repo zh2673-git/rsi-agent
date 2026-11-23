@@ -1,0 +1,19 @@
+{
+  "id": "promo-neon-tech",
+  "name": "产品宣传·霓虹科技感",
+  "description": "产品宣传题材：深色背景 + 高对比霓虹主体 + 文字卖点，镜头切换利落、强调频繁。",
+  "recipe": "product-promo",
+  "style": "neon-tech-cinematic",
+  "elementHints": [
+    { "kind": "image", "role": "subject", "hint": "产品主视觉作为画面中心，抠图干净、边缘带轻微辉光" },
+    { "kind": "text", "role": "caption", "hint": "卖点短句，大字、高对比，放在产品侧方" },
+    { "kind": "shape", "role": "env", "hint": "深色渐变背景配几何网格/光线" },
+    { "kind": "particle", "role": "deco", "hint": "光斑/光轨粒子增强科技氛围" }
+  ],
+  "actionHints": [
+    { "layer": "subject", "hint": "产品做轻微旋转/浮起或局部特写推拉" },
+    { "layer": "emphasis", "hint": "卖点文字出现时产品局部高亮或描边脉冲" },
+    { "layer": "camera", "hint": "镜头快速切换与短促推拉配合节奏" },
+    { "layer": "ambient", "hint": "光斑粒子持续缓慢漂浮" }
+  ]
+}

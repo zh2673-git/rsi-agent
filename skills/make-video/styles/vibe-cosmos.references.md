@@ -10,7 +10,7 @@
 ## 适用场景
 
 - short-vibe
-- science-explainer
+- story-narrative
 
 ## 用户会怎么叫它
 

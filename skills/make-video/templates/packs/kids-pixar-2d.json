@@ -1,0 +1,19 @@
+{
+  "id": "kids-pixar-2d",
+  "name": "儿童教育·皮克斯式手绘",
+  "description": "少儿教育题材：圆润手绘角色 + 明亮环境 + 大号文字提示，动作活泼、镜头温和。",
+  "recipe": "kids-education",
+  "style": "pixar-2d",
+  "elementHints": [
+    { "kind": "shape", "role": "subject", "hint": "圆润可爱的主角轮廓，色块明快" },
+    { "kind": "text", "role": "caption", "hint": "大号粗体提示词，配色鲜艳，出现时带弹跳" },
+    { "kind": "image", "role": "env", "hint": "明亮的手绘场景插画作为环境层" },
+    { "kind": "particle", "role": "deco", "hint": "彩色星星/气泡点缀" }
+  ],
+  "actionHints": [
+    { "layer": "subject", "hint": "主角做弹跳/摇摆等活泼动画，节奏偏快" },
+    { "layer": "emphasis", "hint": "关键提示词出现时主角做夸张反应（放大/眨眼）" },
+    { "layer": "camera", "hint": "镜头温和跟随，偶尔轻微缩放" },
+    { "layer": "ambient", "hint": "星星气泡缓慢漂浮" }
+  ]
+}

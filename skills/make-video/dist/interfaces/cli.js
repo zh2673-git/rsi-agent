@@ -14,6 +14,8 @@ import { buildCapability } from '../core/catalog.js';
 import { V } from '../core/index.js';
 import { mvError, ERR } from '../core/errors.js';
 import { exists, readJson } from '../infrastructure/fs-utils.js';
+import { exportManifestReport, materializeManifests, backfillAndSave, validateManifests, queryTimeSlice, } from '../application/manifest-app.js';
+import { applyTemplate, loadTemplatePacks } from '../domain/template-pack.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 function out(data) {
     process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
@@ -161,9 +163,9 @@ program
             const { validateScript, validateCharBudget } = await import('../domain/scriptwriter.js');
             const parsed = JSON.parse(await readFile(opts['script'], 'utf8'));
             const script = ScriptSchema.parse(parsed);
-            // 注入讲稿同样过编剧部校验（V-SCP-001/003/004/007 + 字数档位），不因注入路径而豁免
+            // 注入讲稿同样过编剧部校验（V-SCP-001 + 字数档位）；结构/beat/钩子不再校验
             const recipe = registry.getRecipe(project.meta.genre);
-            const issues = [...validateScript(script, recipe), ...validateCharBudget(script, recipe, project.meta.durationTier)];
+            const issues = [...validateScript(script), ...validateCharBudget(script, recipe, project.meta.durationTier)];
             const errs = issues.filter((i) => i.level === 'error');
             for (const w of issues.filter((i) => i.level === 'warn'))
                 info(`⚠ ${w.message}`);
@@ -391,6 +393,7 @@ program
     .description('全自动推进（默认在确认点暂停；--yes 自动确认）')
     .option('--project <id>', '项目 id')
     .option('--style <id>', '指定风格包 id')
+    .option('--template <id>', '整包应用 TemplatePack（题材×风格×元素/动作谱系一次注入）')
     .option('--yes', '自动确认分镜表（跳过暂停）')
     .action(async (opts) => {
     try {
@@ -398,6 +401,19 @@ program
         await loadRegistry(registry);
         const id = await engine.deps.store.resolveProjectId(opts['project']);
         await engine.init(id);
+        if (opts['template']) {
+            const packs = await loadTemplatePacks(ROOT);
+            const pack = packs.get(String(opts['template']));
+            if (!pack) {
+                throw mvError(ERR.SCHEMA, `未知的模板包 ${opts['template']}（可用：${[...packs.keys()].join(', ') || '(无)'}, 用 make-video template list 查看）`);
+            }
+            const project = engine.getProject();
+            const result = applyTemplate(project, pack, {
+                forceStyle: Boolean(opts['style']),
+            });
+            await engine.deps.store.save(project);
+            info(`已应用模板包 ${pack.id}：${result.filled.join('/')}`);
+        }
         const events = await runProject(engine, {
             autoConfirm: Boolean(opts['yes']),
             ...(opts['style'] ? { userStyleId: String(opts['style']) } : {}),
@@ -408,8 +424,8 @@ program
             stage: p.stage,
             events: events.map((e) => e.type),
             ...(last?.type === 'done' ? { outFile: last.outFile } : {}),
-            ...(p.stage === 'storyboard' && !p.confirmed
-                ? { hint: '已停在确认点：审阅 confirmation 后，编辑 project.json 的 confirmed=true 或用 --yes 重跑 run' }
+            ...((p.stage === 'materialize' || p.stage === 'storyboard') && !p.confirmed
+                ? { hint: '已停在确认点：审阅 manifest 预览 + 风格/元素/动作三体后，用 make-video confirm 确认或 --yes 重跑 run' }
                 : {}),
         });
         // P8-T0：run 收尾释放常驻 TTS worker（防止 CLI 退出后 worker 变僵尸占 GPU）
@@ -808,6 +824,118 @@ program
         const id = await store.resolveProjectId(opts['project']);
         const result = await store.clean(id);
         out(result);
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+const templateCmd = program.command('template').description('TemplatePack：风格×配方×元素/动作谱系的跨维度整包（方案 P4）');
+templateCmd
+    .command('list')
+    .description('列出已注册的模板包')
+    .action(async () => {
+    try {
+        const packs = await loadTemplatePacks(ROOT);
+        const list = [...packs.values()].map((p) => ({
+            id: p.id,
+            name: p.name,
+            recipe: p.recipe,
+            style: p.style,
+            elementHints: p.elementHints.length,
+            actionHints: p.actionHints.length,
+            description: p.description,
+        }));
+        out({ count: list.length, templates: list });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+templateCmd
+    .command('apply')
+    .description('对一个已有项目整包应用模板（只填空缺，用户显式选择优先）')
+    .option('--project <id>', '项目 id')
+    .option('--template <id>', '模板包 id')
+    .action(async (opts) => {
+    try {
+        if (!opts['template'])
+            throw mvError(ERR.SCHEMA, 'template apply 需要 --template <id>');
+        const { store } = makeEngine();
+        const id = await store.resolveProjectId(opts['project']);
+        const project = await store.load(id);
+        const packs = await loadTemplatePacks(ROOT);
+        const pack = packs.get(opts['template']);
+        if (!pack)
+            throw mvError(ERR.SCHEMA, `未知的模板包 ${opts['template']}（用 make-video template list 查看）`);
+        const result = applyTemplate(project, pack);
+        await store.save(project);
+        out({ applied: result.applied, packId: result.packId, filled: result.filled, stage: project.stage });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+const manifestCmd = program.command('manifest').description('元素/动作两清单：反向抽取、导出、备齐、时间切片（方案 P1-P3）');
+manifestCmd
+    .command('export')
+    .description('P1 只读导出：从场景 HTML 反向抽取两清单 → preview/manifest.html + manifest.json（不改流水线）')
+    .option('--project <id>', '项目 id')
+    .option('--frames', '若已有整片，附首/中/末三帧静帧')
+    .action(async (opts) => {
+    try {
+        const { store } = makeEngine();
+        const id = await store.resolveProjectId(opts['project']);
+        const project = await store.load(id);
+        const r = await exportManifestReport(store, project, { withFrames: Boolean(opts['frames']) });
+        out({ html: r.html, json: r.json, issues: r.issues, shots: project.shots.length });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+manifestCmd
+    .command('materialize')
+    .description('P2 备齐：把两清单写入 project.json（仅填缺省字段，不覆盖人工精修）')
+    .option('--project <id>', '项目 id')
+    .action(async (opts) => {
+    try {
+        const { store } = makeEngine();
+        const id = await store.resolveProjectId(opts['project']);
+        const project = await store.load(id);
+        const r = await materializeManifests(store, project);
+        out({ filled: r.filled, issues: validateManifests(r.project) });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+manifestCmd
+    .command('backfill')
+    .description('P3 时间回填：由 timeline 的配音时长回填 visibility/timing')
+    .option('--project <id>', '项目 id')
+    .action(async (opts) => {
+    try {
+        const { store } = makeEngine();
+        const id = await store.resolveProjectId(opts['project']);
+        const project = await store.load(id);
+        const next = await backfillAndSave(store, project);
+        out({ backfilled: next.shots.filter((s) => s.elements || s.actions).length });
+    }
+    catch (e) {
+        fail(e);
+    }
+});
+manifestCmd
+    .command('time')
+    .description('P3 时间切片：输入毫秒，反查当刻可见元素 + 在跑动作')
+    .option('--project <id>', '项目 id')
+    .option('--at <ms>', '时间点（毫秒）', '0')
+    .action(async (opts) => {
+    try {
+        const { store } = makeEngine();
+        const id = await store.resolveProjectId(opts['project']);
+        const project = await store.load(id);
+        out(queryTimeSlice(project, Number(opts['at'])));
     }
     catch (e) {
         fail(e);

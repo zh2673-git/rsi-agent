@@ -1,0 +1,62 @@
+{
+  "id": "mtv-beat",
+  "name": "MV 卡点混剪",
+  "grade": "B",
+  "status": "registered",
+  "userFacing": {
+    "name": "MV 卡点混剪",
+    "aliases": ["MV", "卡点", "混剪", "频闪", "分屏快切", "节奏蒙太奇"],
+    "vibe": "强节拍切点 + 频闪 + 分屏 + 速度渐变；画面跟着鼓点呼吸的快节奏蒙太奇",
+    "bestFor": ["short-vibe"]
+  },
+  "anatomy": {
+    "script": "节奏驱动：hook 即律动→主歌铺陈→副歌爆发→急停收尾；文案让位节拍",
+    "directing": "对位=beat；每个切点绑定鼓点/小节线；副歌用分屏与频闪升级，急停处留白",
+    "art": "高对比撞色 + 涂鸦式图形 + 光斑；多风格快切拼贴靠统一色板收住，避免乱",
+    "camera": "快切与速度渐变（speed ramp）；分屏并置多视角；机位服务节拍而非叙事连续",
+    "performance": "元素随 BPM 脉冲、频闪、逐拍出现；动作碎片化但落点精确在拍",
+    "sourcing": "assetPolicy=auto 全代码绘制；图形层按节拍驱动，禁止真实素材打断统一节奏视觉",
+    "sound": "强节拍 bed 为主；切点吸附小节线/拍点；音效 hit 落在重拍",
+    "editing": "快切（0.8-2s）严格卡拍；切点落点 ±0.5 拍；急停收势 power2.out；全片重音 ≤1/3 镜（V-MOT-013）"
+  },
+  "palette": {
+    "primary": "#FF1744",
+    "accent": "#00E5FF",
+    "neutral": ["#FFFFFF", "#FFD600", "#7C4DFF", "#212121", "#0A0A0A"],
+    "colorArc": "黑场蓄势 → 撞色爆发 → 频闪高潮 → 单色急停 → 光斑收尾"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC','Arial Black',sans-serif"],
+    "scale": {"title": 0.14, "body": 0.04},
+    "tracking": {"title": -0.02}
+  },
+  "layout": {"density": 0.6, "maxElementsPerShot": 4, "whitespace": 0.2},
+  "motion": {
+    "easing": "power4.out",
+    "intensity": 0.9,
+    "staggerMs": 45,
+    "spring": {"stiffness": 320, "damping": 12}
+  },
+  "pacing": {"curve": "beat-grid", "shotLenMs": [800, 2000], "breathEvery": 8},
+  "effects": {"grain": 0.12, "vignette": 0.2, "letterbox": false, "dof": 0, "bloom": 0.4},
+  "transitions": ["smash-cut", "whip-pan", "hard-cut"],
+  "shotScaleBias": ["CU", "MS"],
+  "provenance": {
+    "source": "manual",
+    "from": "MV 卡点混剪的节奏蒙太奇语法（强拍切点/频闪/分屏/速度渐变）公开拆解",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "未对拍：B 级节拍网格/频闪/分屏代码可达，多风格拼贴统一性与速度渐变工艺有边界，产出首条成片对拍后按 V-STYLE-005 结论升级"
+  },
+  "references": "mtv-beat.references.md",
+  "antiPatterns": "mtv-beat.anti-patterns.md",
+  "subtitlePolicy": "word",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["beat-pulse", "strobe-flash", "split-screen", "speed-ramp"],
+    "sceneBias": ["kinetic-type", "typography", "comparison"],
+    "sceneDeny": ["atmosphere", "paper-stage", "flow"],
+    "texture": ["grain", "glow"],
+    "note": "切点严格吸附 BPM；频闪与分屏服务节拍，多风格快切靠统一色板收住，2D 禁立体"
+  }
+}

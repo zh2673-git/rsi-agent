@@ -1,0 +1,62 @@
+{
+  "id": "classical-continuity",
+  "name": "古典连续性剪辑",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "古典连续性剪辑",
+    "aliases": ["古典剪辑", "连续性剪辑", "180度线", "正反打", "匹配剪辑", "好莱坞语法"],
+    "vibe": "180°轴线 + 正反打 + 视线匹配 + 动作中切；透明不露痕迹的叙事语法",
+    "bestFor": ["story-narrative", "documentary-mood"]
+  },
+  "anatomy": {
+    "script": "因果驱动的三幕场景：建立→对峙→解决；每场有明确目标与障碍，时空连续可trace",
+    "directing": "对位=evidence；先定轴线再分镜；正反打守 180°，越轴必须有动机（角色移动/转场）",
+    "art": "自然低调配色，无强调色跳跃；美术服务于空间连贯（同一场景道具/光线一致）",
+    "camera": "景别阶梯（LS→MS→CU）按对话节奏推进；机位动机明确，禁无理由推拉；切点收势 power2.out",
+    "performance": "表演连续（进出画方向与视线一致）；动作被切分时用 match on action 缝合",
+    "sourcing": "assetPolicy=auto 全代码绘制；场景图元保持跨镜方位一致，越轴由分镜显式声明",
+    "sound": "对白/旁白为主，环境声连续（J-cut 保持空间感）；音乐低调不抢对白",
+    "editing": "动作中切（match-cut）为主，轴线不破；切点动机字段必填，审计落 cut-audit.json"
+  },
+  "palette": {
+    "primary": "#8D6E63",
+    "accent": "#4FC3F7",
+    "neutral": ["#ECEFF1", "#CFD8DC", "#90A4AE", "#546E7A", "#263238"],
+    "colorArc": "建立自然 → 对峙略冷 → 解决回稳 → 收束留白"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC',sans-serif"],
+    "scale": {"title": 0.075, "body": 0.035},
+    "tracking": {"title": 0}
+  },
+  "layout": {"density": 0.35, "maxElementsPerShot": 3, "whitespace": 0.35},
+  "motion": {
+    "easing": "power2.out",
+    "intensity": 0.35,
+    "staggerMs": 90,
+    "spring": {"stiffness": 180, "damping": 25}
+  },
+  "pacing": {"curve": "three-act", "shotLenMs": [2000, 4000], "breathEvery": 5},
+  "effects": {"grain": 0.06, "vignette": 0.12, "letterbox": false, "dof": 4, "bloom": 0},
+  "transitions": ["hard-cut", "dissolve"],
+  "shotScaleBias": ["MS", "MCU"],
+  "provenance": {
+    "source": "manual",
+    "from": "古典好莱坞连续性剪辑语法（180°线/正反打/视线匹配/动作中切）的公开电影语法教材要点",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "未对拍：A 级剪辑与机位语法可由 coverage/camera rig/切点审计表达，演员表演连续性不在代码范围；产出首条成片对拍后归档"
+  },
+  "references": "classical-continuity.references.md",
+  "antiPatterns": "classical-continuity.anti-patterns.md",
+  "subtitlePolicy": "off",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["shot-reverse-shot", "match-cut", "eyeline", "axis-180"],
+    "sceneBias": ["compare-stage", "process-track"],
+    "sceneDeny": ["comic-symbol", "kinetic-type", "chart"],
+    "texture": ["grain"],
+    "note": "这是剪辑语法包，不是美术包；180°轴线与切点动机写进分镜与审计，画面保持透明连贯"
+  }
+}

@@ -66,8 +66,8 @@
     }
   ],
   "style": {
-    "recommended": ["vibe-cosmos", "keynote-minimal"],
-    "rationale": "深底金线粒子聚字是赛道签名；keynote-minimal 作无风格化退路"
+    "recommended": ["vibe-cosmos", "keynote-minimal", "mtv-beat", "talking-head-punch"],
+    "rationale": "深底金线粒子聚字是赛道签名；keynote-minimal 作无风格化退路，mtv-beat 给强拍卡点混剪，talking-head-punch 给逐词弹出的口播大字幕"
   },
   "pacing": {
     "curve": "beat-grid",

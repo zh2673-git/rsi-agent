@@ -19,5 +19,5 @@
 ## 三、这一派特有的坑
 
 - **转场**：本风格只允许 hard-cut / smash-cut / dissolve；用词表外的词会被显式报错（不静默回退）
-- **母题**：本风格声明的母题是 heroic-low-angle / smash-zoom / freeze-frame / comic-symbol / punch-line-3d；风格声明的母题必须在某个模板里真的被用到，否则是空话
+- **母题**：本风格声明的母题是 heroic-low-angle / smash-zoom / freeze-frame / comic-symbol / punch-line-3d；当前母题命名空间只保证语义边界；除 depth-layers/comic-symbol（模板硬兑现）与 silhouette（canvas 局部兑现）外，其余为 prompt 表达约束，禁止宣称未落到模板即空话。
 - **弹性**：spring stiffness=260 damping=12——阻尼低则回弹久，高则一下就停；不传就是默认手感

@@ -10,7 +10,6 @@
 ## 适用场景
 
 - product-promo
-- documentary-mood
 - science-explainer
 
 ## 用户会怎么叫它
@@ -54,7 +53,7 @@
 | 镜头长度 | 1500-3200ms |
 | 素材维度 | 2d |
 | 偏好场景 | kinetic-type / paper-stage / typography / comparison / chart |
-| 禁用场景 | - |
+| 禁用场景 | iso-stage / depth-layers |
 | 母题 | paper-grain / ink-structure / soft-haze |
 | 纹理 | paper / soft-haze |
 | 转场 | hard-cut / smash-cut / dissolve / wipe |

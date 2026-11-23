@@ -68,9 +68,11 @@
   "style": {
     "recommended": [
       "kurzgesagt-explainer",
-      "keynote-minimal"
+      "keynote-minimal",
+      "bright-paper",
+      "vox-explainer"
     ],
-    "rationale": "科普需要复杂系统可视化 + 故事化人格，explainer 系色板与图表模板最成熟：kurzgesagt-explainer 给扁平色块与流程图，keynote-minimal 给克制排版与清晰层级"
+    "rationale": "科普需要复杂系统可视化 + 故事化人格：kurzgesagt-explainer 给扁平色块与流程图，keynote-minimal 给克制排版与清晰层级，bright-paper 给纸面结构和清晰的证据层次，vox-explainer 给单一强调色编码与层级缩放的信息图"
   },
   "pacing": {
     "curve": "three-act",

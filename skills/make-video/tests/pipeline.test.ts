@@ -115,13 +115,13 @@ describe('端到端（template 模式，silent TTS）', () => {
     }
   }, 120000);
 
-  it('确认门：未确认时停在 storyboard', async () => {
+  it('确认门：未确认时停在 materialize（三体合一门）', async () => {
     const { engine, store } = makeEngine();
     const project = await store.initProject({ topic: '测试确认门', genre: 'news-brief' });
     await engine.init(project.meta.id);
     const events = await engine.run({ autoConfirm: false });
     expect(events.map((e) => e.type)).toContain('confirm-required');
-    expect(engine.getProject().stage).toBe('storyboard');
+    expect(engine.getProject().stage).toBe('materialize');
   }, 60000);
 
   it('断点续跑：二次 run 不重复已完成工作', async () => {

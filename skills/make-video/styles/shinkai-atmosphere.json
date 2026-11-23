@@ -1,0 +1,62 @@
+{
+  "id": "shinkai-atmosphere",
+  "name": "新海诚氛围",
+  "grade": "B",
+  "status": "registered",
+  "userFacing": {
+    "name": "新海诚氛围",
+    "aliases": ["新海诚", "你的名字", "天空之城感", "唯美天空", "青春光影", "日系治愈"],
+    "vibe": "高饱和天光渐变 + 逆光光斑 + 悬浮微粒；少年少女仰望天空的青春瞬间",
+    "bestFor": ["story-narrative"]
+  },
+  "anatomy": {
+    "script": "青春叙事：日常→悸动→离别/奇迹→回望；独白与瞬间凝固，一支片只留一个心悸时刻",
+    "directing": "对位=emotion 为主；天空与光承担未说出口的情绪；高潮落在仰角大晴天与花瓣/雨滴",
+    "art": "青→橙天光渐变 + 逆光光晕，高频高光斑点；粒子/光斑/金线承担结构，通透阴影",
+    "camera": "长焦仰拍天空、缓摇与微推；光斑随镜头缓移；禁无理由快切（no-zoom 硬规则内）",
+    "performance": "微动作（发梢/衣角/睫毛）与静默对望；情绪靠画面不靠台词堆叠",
+    "sourcing": "assetPolicy=auto 全代码绘制；天空/云/粒子用 canvas 原生绘制，避免照片质感漂移",
+    "sound": "钢琴+弦乐青春弧；雨声/风声环境层；转折对齐 BGM 小节线",
+    "editing": "长镜呼吸（3.5-6s），情绪镜不切；切点吸附 BGM 小节线（±0.5 拍）"
+  },
+  "palette": {
+    "primary": "#4FC3F7",
+    "accent": "#FFB74D",
+    "neutral": ["#FFFFFF", "#B3E5FC", "#81D4FA", "#37474F", "#0D1B2A"],
+    "colorArc": "清晨青蓝 → 正午通透 → 黄昏橙金 → 雨后澄澈 → 星空深蓝"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC',sans-serif"],
+    "scale": {"title": 0.085, "body": 0.038},
+    "tracking": {"title": 0.06}
+  },
+  "layout": {"density": 0.3, "maxElementsPerShot": 2, "whitespace": 0.55},
+  "motion": {
+    "easing": "sine.inOut",
+    "intensity": 0.45,
+    "staggerMs": 140,
+    "spring": {"stiffness": 120, "damping": 22}
+  },
+  "pacing": {"curve": "slow-burn", "shotLenMs": [3500, 6000], "breathEvery": 4},
+  "effects": {"grain": 0.04, "vignette": 0.12, "letterbox": false, "dof": 8, "bloom": 0.45},
+  "transitions": ["dissolve", "whip-pan"],
+  "shotScaleBias": ["LS", "MS"],
+  "provenance": {
+    "source": "manual",
+    "from": "新海诚作品视觉语法（天光/光斑/微粒/青春凝视）的公开拆解与导演访谈要点",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "未对拍：B 级调性可复现，手绘云层笔触与背景极致细节为工艺天花板，产出首条成片对拍后按 V-STYLE-005 结论升级"
+  },
+  "references": "shinkai-atmosphere.references.md",
+  "antiPatterns": "shinkai-atmosphere.anti-patterns.md",
+  "subtitlePolicy": "full",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["god-ray", "lens-bloom", "sky-gradient", "reflective-puddle"],
+    "sceneBias": ["atmosphere", "depth-layers"],
+    "sceneDeny": ["chart", "hierarchy-stack"],
+    "texture": ["bloom", "grain"],
+    "note": "天光渐变与逆光光斑承担情绪；2D 纵深用层叠光效，不用于机械立体字"
+  }
+}

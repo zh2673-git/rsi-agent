@@ -11,6 +11,7 @@
 
 - science-explainer
 - kids-education
+- cosmos-cinematic
 
 ## 用户会怎么叫它
 

@@ -1,0 +1,62 @@
+{
+  "id": "ghibli-painterly",
+  "name": "吉卜力纸感",
+  "grade": "B",
+  "status": "registered",
+  "userFacing": {
+    "name": "吉卜力纸感",
+    "aliases": ["吉卜力", "宫崎骏", "水彩手绘", "治愈系", "自然纸感", "龙猫感"],
+    "vibe": "水彩晕染底 + 手绘云与风 + 暖纸白；自然与日常里的温柔奇迹",
+    "bestFor": ["story-narrative", "kids-education"]
+  },
+  "anatomy": {
+    "script": "日常奇迹：平凡开端→自然异象→小小冒险→温暖归家；以好奇与善意驱动",
+    "directing": "对位=emotion；风与云是角色的呼吸；不靠反派冲突，靠观察与发现推进",
+    "art": "低饱和自然色（草绿/土黄/天蓝）+ 暖纸白；水彩晕染与柔边色块，云用蓬松分层",
+    "camera": "平视与轻微俯仰、缓慢横移跟随；风让万物轻微摆动；禁机械推拉",
+    "performance": "小动作与停顿（眨眼/回头/驻足），夸张保留在儿童式惊喜里",
+    "sourcing": "assetPolicy=auto 全代码绘制；纸纹与晕染用滤镜，避免引入真实素材破坏统一手绘感",
+    "sound": "木管+弦乐自然弧；风声/虫鸣/雨声环境层；情绪随自然节律起伏",
+    "editing": "舒缓长镜（3-5s），场景转换用溶解；留白呼吸多于信息密度"
+  },
+  "palette": {
+    "primary": "#7CB342",
+    "accent": "#F9A825",
+    "neutral": ["#FFF8E1", "#DCE775", "#AED581", "#6D4C41", "#3E2723"],
+    "colorArc": "晨光米白 → 草绿生机 → 暖金黄昏 → 雨夜深蓝 → 归家暖灯"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC',sans-serif"],
+    "scale": {"title": 0.08, "body": 0.036},
+    "tracking": {"title": 0.02}
+  },
+  "layout": {"density": 0.32, "maxElementsPerShot": 3, "whitespace": 0.5},
+  "motion": {
+    "easing": "sine.inOut",
+    "intensity": 0.5,
+    "staggerMs": 130,
+    "spring": {"stiffness": 140, "damping": 20}
+  },
+  "pacing": {"curve": "slow-burn", "shotLenMs": [3000, 5000], "breathEvery": 4},
+  "effects": {"grain": 0.1, "vignette": 0.1, "letterbox": false, "dof": 0, "bloom": 0.12},
+  "transitions": ["dissolve", "whip-pan"],
+  "shotScaleBias": ["MS", "LS"],
+  "provenance": {
+    "source": "manual",
+    "from": "吉卜力作品视觉语法（水彩纸感/手绘云/风与自然光）的公开美术拆解与制片访谈要点",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "未对拍：B 级纸感与色块调性可复现，逐帧手绘笔触与角色表演为工艺天花板，产出首条成片对拍后按 V-STYLE-005 结论升级"
+  },
+  "references": "ghibli-painterly.references.md",
+  "antiPatterns": "ghibli-painterly.anti-patterns.md",
+  "subtitlePolicy": "full",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["watercolor-wash", "soft-sky", "hand-drawn-line", "cozy-interior"],
+    "sceneBias": ["atmosphere", "process-track", "compare-stage"],
+    "sceneDeny": ["chart", "hierarchy-stack"],
+    "texture": ["paper", "grain"],
+    "note": "纸纹与水彩晕染是地基；云与风用柔边色块层，2D 画面禁止任何透视/立体痕迹"
+  }
+}

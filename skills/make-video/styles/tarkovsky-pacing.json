@@ -1,0 +1,62 @@
+{
+  "id": "tarkovsky-pacing",
+  "name": "塔可夫斯基极慢节奏",
+  "grade": "C",
+  "status": "registered",
+  "userFacing": {
+    "name": "塔可夫斯基极慢节奏",
+    "aliases": ["塔可夫斯基", "极慢长镜", "诗性电影", "冥想节奏", "自然元素诗"],
+    "vibe": "极慢长镜 + 自然元素（雨/水/风/火）+ 诗性凝视；时间本身成为主角",
+    "bestFor": ["documentary-mood"]
+  },
+  "anatomy": {
+    "script": "诗性段落而非情节：时间→自然→记忆→升华；一行旁白配一个长镜，留白多于言说",
+    "directing": "对位=emotion；不制造戏剧冲突，靠元素变形与光的变化推进；拒绝信息倾倒",
+    "art": "低饱和自然色（灰蓝/土褐/暗金）；雨丝/水波/烟雾/火光作为画面主体；高对比低调光",
+    "camera": "极慢推拉或静止长镜（6-12s），微幅运动；水与烟的流动承担画面生命",
+    "performance": "无角色表演；自然元素的物理运动即表演（雨落/涟漪/烟散）",
+    "sourcing": "assetPolicy=auto 全代码绘制；元素动画用粒子/流体参数化，禁止摆拍感素材",
+    "sound": "环境声主导（雨/水/风）+ 极简音乐；声音与画面不同步（J-cut 留白）",
+    "editing": "极慢长镜为主，切点极少且诗意；呼吸镜占比高，拒绝节拍网格"
+  },
+  "palette": {
+    "primary": "#90A4AE",
+    "accent": "#B0A48A",
+    "neutral": ["#ECEFF1", "#B0BEC5", "#607D8B", "#37474F", "#212121"],
+    "colorArc": "雾灰 → 冷蓝雨幕 → 暖褐火光 → 灰烬 → 深色留白"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC',sans-serif"],
+    "scale": {"title": 0.07, "body": 0.032},
+    "tracking": {"title": 0.04}
+  },
+  "layout": {"density": 0.18, "maxElementsPerShot": 1, "whitespace": 0.7},
+  "motion": {
+    "easing": "sine.inOut",
+    "intensity": 0.25,
+    "staggerMs": 220,
+    "spring": {"stiffness": 80, "damping": 26}
+  },
+  "pacing": {"curve": "slow-burn", "shotLenMs": [6000, 12000], "breathEvery": 2},
+  "effects": {"grain": 0.18, "vignette": 0.35, "letterbox": true, "dof": 6, "bloom": 0.1},
+  "transitions": ["dissolve"],
+  "shotScaleBias": ["LS"],
+  "provenance": {
+    "source": "manual",
+    "from": "塔可夫斯基诗性长镜与自然元素影像语言的公开影评与拍摄札记要点",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "C 级：仅 pacing 曲线（极慢长镜/呼吸结构/切点稀少）可用，画面工艺与作者性不在代码可达范围；不声称复现作者风格"
+  },
+  "references": "tarkovsky-pacing.references.md",
+  "antiPatterns": "tarkovsky-pacing.anti-patterns.md",
+  "subtitlePolicy": "off",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["rain-field", "water-ripple", "smoke-drift", "ember-glow"],
+    "sceneBias": ["atmosphere", "deep-stage"],
+    "sceneDeny": ["chart", "comparison", "kinetic-type", "comic-symbol", "paper-stage"],
+    "texture": ["grain", "vignette"],
+    "note": "只用 pacing 与元素氛围；一镜一元素，禁信息图/字幕/快切；letterbox 宽银幕，真实素材镜走低饱和冷调"
+  }
+}

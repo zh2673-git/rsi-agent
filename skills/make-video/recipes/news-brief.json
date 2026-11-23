@@ -68,9 +68,10 @@
   "style": {
     "recommended": [
       "bass-graphic",
-      "neon-tech-cinematic"
+      "neon-tech-cinematic",
+      "vox-explainer"
     ],
-    "rationale": "新闻需要高密度卡片与快节奏，图形/霓虹的硬切节奏最适配：bass-graphic 给大色块与粗字，neon-tech-cinematic 给冷色数据光与硬边转场"
+    "rationale": "新闻需要高密度卡片与快节奏，图形/霓虹的硬切节奏最适配，解释型新闻另需色码信息图：bass-graphic 给大色块与粗字，neon-tech-cinematic 给冷色数据光与硬边转场，vox-explainer 给单一强调色编码与分步揭示"
   },
   "pacing": {
     "curve": "rapid",

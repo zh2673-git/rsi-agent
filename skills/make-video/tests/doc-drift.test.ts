@@ -194,10 +194,10 @@ describe('⑤ 规则登记簿（docs/12）↔ V-* 双向', () => {
     }
   });
 
-  it('登记簿的 10 包盘点表覆盖磁盘全部风格（双向）', () => {
+  it('登记簿的盘点表覆盖磁盘全部风格（双向）', () => {
     const ledger = read('docs/12-规则登记簿.md');
-    const section = ledger.split('## 四、10 包约束盘点')[1]?.split('## 五、')[0] ?? '';
-    expect(section, '登记簿找不到「## 四、10 包约束盘点」段').not.toBe('');
+    const section = ledger.split('## 四、')[1]?.split('## 五、')[0] ?? '';
+    expect(section, '登记簿找不到「## 四、…包约束盘点」段').not.toBe('');
     const listed = [...section.matchAll(/^\|\s*([a-z0-9-]+)\s*\|/gm)].map((m) => m[1]!);
     const ids = listed.filter((id) => id !== 'id' && !id.startsWith('-'));
     const ghosts = ids.filter((id) => !STYLE_IDS.includes(id));

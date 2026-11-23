@@ -9,8 +9,6 @@
 
 ## 适用场景
 
-- science-explainer
-- story-narrative
 - kids-education
 
 ## 用户会怎么叫它

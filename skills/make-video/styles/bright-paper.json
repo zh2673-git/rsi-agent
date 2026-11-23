@@ -16,7 +16,6 @@
     "vibe": "米白纸面，墨蓝结构线，青×琥珀双强调，柔光渗染；宽幅遮幅保留胶片骨架",
     "bestFor": [
       "product-promo",
-      "documentary-mood",
       "science-explainer"
     ]
   },
@@ -121,7 +120,10 @@
       "comparison",
       "chart"
     ],
-    "sceneDeny": [],
+    "sceneDeny": [
+      "iso-stage",
+      "depth-layers"
+    ],
     "texture": [
       "paper",
       "soft-haze"

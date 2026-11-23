@@ -56,9 +56,13 @@
   "style": {
     "recommended": [
       "cinematic-dark",
-      "noir-contrast"
+      "noir-contrast",
+      "anderson-symmetry",
+      "tarkovsky-pacing",
+      "wongkar-wai",
+      "classical-continuity"
     ],
-    "rationale": "纪录氛围依赖大气层调性与剪影光影（B 级预期）+ 极慢 pacing（借 slow-burn 曲线）：cinematic-dark 给深色空间与体积光，noir-contrast 给剪影与硬光"
+    "rationale": "纪录氛围依赖大气层调性与剪影光影 + 极慢 pacing：cinematic-dark 给深色空间与体积光，noir-contrast 给剪影与硬光，anderson-symmetry 给正面平面构图作温柔对照，tarkovsky-pacing 给极慢长镜与自然元素（C 级仅 pacing），wongkar-wai 给霓虹暧昧，classical-continuity 给透明轴线叙事"
   },
   "pacing": {
     "curve": "tarkovsky",

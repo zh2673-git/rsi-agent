@@ -1398,3 +1398,41 @@ WebGL 是 css3d/mixed 的可选渲染实现，与 canvas-lib 对等的 vendor �
 | 日期 | 阶段 | 记录 |
 |---|---|---|
 | 2026-11-22 | 立项 | 可行性实验证伪「快照不稳定」；方案落 `docs/15-WebGL原语层.md`；本任务 L 档执行中 |
+
+## 15. 表达层解放：移除讲稿结构硬门（2026-11-23）
+
+**用户裁决**：文本层不受固定模板约束——编剧/导演必须按主题实例自由谱写，系统不该用「钩子前置 / beat 覆盖 / 连续 inform」这类条条框框限制创作，反而要逼他们多思考、产出高质量文本。
+
+**P**：`scriptwriter.ts` / `llm-client.ts` / `cli.ts` / 反套话内容门（`validators/content.ts`）已读，测试依赖面已核（无测试依赖旧结构门）。
+**Q**：
+- 删 `validateScript` 的 V-SCP-003（beat 覆盖）/ V-SCP-004（钩子前置）/ V-SCP-007（连续 inform），签名由 `(script, recipe)` 简化为 `(script)`，两个调用点同步；
+- 编剧/导演系统提示词改为「结构由你按主题定、beats 仅参考视角、对位按创作意图选」；
+- 保留 V-SCP-001（function 必填，下游依赖）、内容门 V-SCP-011/012/013/015（反套话/扣题，正是「逼多想」的机器侧兑现）、物理门字数/emphasis；
+- 新增 `tests/script-freedom.test.ts`（4 例）；`tsc --noEmit` 通过；定向测试 `script-freedom + validators` **76/76 绿**、`storyboard-intent` **9/9 绿**。
+**I**：无测试回归；`ScriptSegment.beat` 本就 optional，下游 `storyboard.ts` 容忍缺省，数据契约不变。
+**方案文档**：`outputs/make-video-元素可见性与采购定位改造方案.md` 升 v2.2（§5.8 ⑥ 创作自由红线、§5.4 确认模型修正为三体合一单次确认）。
+**已知限制**：全量 vitest 在本机因 `pipeline.test.ts` 等待超时未完成（非本次改动面，未触碰管线编排）。
+
+## 16. 元素/动作可见可控 + 三体合一确认门（2026-11-23，T-20261123-04）
+
+**方案文档**：`outputs/元素动作可见可控方案.md`（本节的上游设计；§15 提到的
+`outputs/make-video-元素可见性与采购定位改造方案.md` 在本工作区不存在，以本文件为准）。
+
+**P**：渲染后端整片 render；ffmpeg `extractFrame/sliceClip` 仅服务预览；场景在 `scenes/Scene_<id>.html`；
+`MV.*` 可正则反抽；状态/schema 在 `schema.ts`/`state-engine.ts`。
+
+**Q（已落地）**：
+- schema：`ElementEntry/ActionEntry`、`Shot.elements/actions`、`Stage.materialize`、`Project.templateId`。
+- `domain/manifest.ts`：反向抽取（剥外层容器再抽内层）、四层分类、target 完整性、预算 warn、时间切片、HTML 导出、回填。
+- `template-pack.ts`：`templates/packs/*.json` 加载与整包默认值注入；3 个示例包（科普/产品宣传/儿童教育），
+  `template list|apply`、`run --template` 可用。
+- `state-engine.ts`：`materialize` 插入**唯一**确认门，一次 confirm 同时放行风格组合门与三体门；
+  门到达始终发 `confirm-required` 事件（含 autoConfirm），暂停前同步回填结果避免清单被覆盖。
+- CLI：`manifest export|materialize|backfill|time`、`template list|apply`、`run --template`。
+- 文本层自由红线沿用 §15：Recipe beats/directorialNotes 仅参考，不设结构门。
+
+**Q（验收）**：`tsc --noEmit` 与 `tsc -p` 均绿；vitest 全量 **332 tests 全绿**
+（manifest 9 / state-machine 2 / pipeline 3 / engineering 3 / script-freedom 4 / template-contract 39 / 其余无回归）；
+`template list` 实测列出 3 包。
+
+**I**：渲染模型未改；确认门统一到 materialize 一处，不再双门串行；模板包只填空缺、不覆盖人工精修。

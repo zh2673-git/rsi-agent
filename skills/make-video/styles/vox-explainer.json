@@ -1,0 +1,62 @@
+{
+  "id": "vox-explainer",
+  "name": "Vox 解释型科普",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "Vox 解释型科普",
+    "aliases": ["Vox", "解释型新闻", "扁平信息图", "单一强调色", "层级缩放科普"],
+    "vibe": "扁平图标 + 单一强调色编码 + 层级缩放 + 分步揭示；把复杂议题拆成可视信息结构",
+    "bestFor": ["science-explainer", "news-brief"]
+  },
+  "anatomy": {
+    "script": "钩子→背景→机制→案例→结论；一次只讲一个因果链，术语首次出现即上屏定义",
+    "directing": "对位=evidence 为主；每步揭示一个信息块，颜色编码全片一致（同一概念永远同色）",
+    "art": "中性浅底 + 单一品牌强调色（严格色码）+ 少量辅助色编码；扁平矢量图标与图表主导",
+    "camera": "图形层缩放（zoom hierarchy）代替机位运动；层级进入与退出靠缩放与淡入",
+    "performance": "元素按逻辑顺序分步揭示（step reveal），无角色表演；动效克制且服务因果",
+    "sourcing": "assetPolicy=auto 全代码绘制；图标/图表用矢量绘制，颜色编码写进 IR 审计",
+    "sound": "中性说明性 bed；信息块落点配极轻音效；旁白为主不抢戏",
+    "editing": "中速（2-3.5s）按信息块分段；块间用硬切或短溶解；切点对齐语义边界"
+  },
+  "palette": {
+    "primary": "#E53935",
+    "accent": "#1E88E5",
+    "neutral": ["#FAFAFA", "#E0E0E0", "#9E9E9E", "#424242", "#212121"],
+    "colorArc": "中性开场 → 强调色立论 → 辅助色分叉 → 编码收敛 → 结论回主色"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC',sans-serif"],
+    "scale": {"title": 0.085, "body": 0.036},
+    "tracking": {"title": -0.01}
+  },
+  "layout": {"density": 0.55, "maxElementsPerShot": 4, "whitespace": 0.28},
+  "motion": {
+    "easing": "power2.out",
+    "intensity": 0.4,
+    "staggerMs": 65,
+    "spring": {"stiffness": 200, "damping": 24}
+  },
+  "pacing": {"curve": "three-act", "shotLenMs": [2000, 3500], "breathEvery": 5},
+  "effects": {"grain": 0, "vignette": 0, "letterbox": false, "dof": 0, "bloom": 0},
+  "transitions": ["hard-cut", "dissolve"],
+  "shotScaleBias": ["MS"],
+  "provenance": {
+    "source": "manual",
+    "from": "Vox 解释型新闻的扁平矢量信息图语法（单一强调色编码/层级缩放/分步揭示）公开拆解",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "未对拍：A 级图表/流程/层级模板与平面矢量代码完全可达，按 V-STYLE-005 产出首条成片对拍后归档"
+  },
+  "references": "vox-explainer.references.md",
+  "antiPatterns": "vox-explainer.anti-patterns.md",
+  "subtitlePolicy": "keyword",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["flat-icon", "color-code", "zoom-hierarchy", "step-reveal"],
+    "sceneBias": ["chart", "hierarchy-stack", "flow", "process-track"],
+    "sceneDeny": ["atmosphere", "comic-symbol", "paper-stage"],
+    "texture": ["clean"],
+    "note": "单一强调色编码贯穿全片；信息图/流程/层级可视化主导，2D 禁立体与氛围空镜"
+  }
+}

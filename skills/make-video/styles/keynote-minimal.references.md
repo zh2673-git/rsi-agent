@@ -11,7 +11,8 @@
 
 - product-promo
 - tutorial-howto
-- opinion-essay
+- science-explainer
+- short-vibe
 
 ## 用户会怎么叫它
 
@@ -55,7 +56,7 @@
 | 禁用场景 | comic-symbol / iso-stage / depth-layers |
 | 母题 | flat-typography / single-subject / hairline-grid |
 | 纹理 | - |
-| 转场 | fade-black |
+| 转场 | fade-black / hard-cut |
 | 景别偏好 | MS / CU |
 
 ## 来历

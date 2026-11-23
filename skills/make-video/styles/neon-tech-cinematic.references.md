@@ -9,8 +9,8 @@
 
 ## 适用场景
 
+- news-brief
 - product-promo
-- tech-product-story
 
 ## 用户会怎么叫它
 
@@ -54,7 +54,7 @@
 | 禁用场景 | iso-stage / css3d |
 | 母题 | data-stream / grid-scan / ticker / evidence-card / presenter-card |
 | 纹理 | grain / vignette / scanline |
-| 转场 | dissolve |
+| 转场 | dissolve / hard-cut |
 | 景别偏好 | MS / CU |
 
 ## 来历

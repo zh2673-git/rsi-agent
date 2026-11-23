@@ -67,10 +67,13 @@
   ],
   "style": {
     "recommended": [
-      "bass-graphic",
-      "comedy-pop"
+      "kurzgesagt-explainer",
+      "anderson-symmetry",
+      "comedy-pop",
+      "ghibli-painterly",
+      "pixar-2d"
     ],
-    "rationale": "儿童内容依赖形体语言（圆=友善）与慢速清晰节奏；3D 工艺不可（B 级预期）：bass-graphic 给大色块与粗字，comedy-pop 给圆润图形与轻快节拍"
+    "rationale": "儿童内容依赖扁平色块、圆润形体与慢速清晰节奏：kurzgesagt-explainer 给扁平矢量与糖果色，anderson-symmetry 给对称玩具盒构图，comedy-pop 给轻快节拍，ghibli-painterly 给水彩绘本的温柔奇迹，pixar-2d 给圆润形体与夸张表演"
   },
   "pacing": {
     "curve": "gentle",

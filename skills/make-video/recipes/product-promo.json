@@ -79,9 +79,11 @@
   ],
   "style": {
     "recommended": [
-      "keynote-minimal"
+      "keynote-minimal",
+      "neon-tech-cinematic",
+      "bright-paper"
     ],
-    "rationale": "产品片的工业标杆是发布会极简：一屏一事、留白、唯一强调色"
+    "rationale": "产品片以一屏一事、留白和唯一强调色建立高级感；霓虹科技承接数据与真实界面证据，明亮纸感承接发布会中的清爽结构"
   },
   "pacing": {
     "curve": "beat-pause",

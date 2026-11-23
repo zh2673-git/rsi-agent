@@ -18,10 +18,62 @@ export const ShotStateSchema = z.enum([
 ]);
 export type ShotState = z.infer<typeof ShotStateSchema>;
 
+// ── 元素/动作可见性改造（方案 §5.1/§5.2）：两清单都是一等工件 ──
+// 全部字段可缺省/可空数组，旧项目零回归；时间由 timeline 回填而非生成时写死。
+export const ElementRoleSchema = z.enum(['subject', 'env', 'deco', 'caption']);
+export type ElementRole = z.infer<typeof ElementRoleSchema>;
+
+export const ElementKindSchema = z.enum(['shape', 'text', 'image', 'video', 'particle', 'container']);
+export type ElementKind = z.infer<typeof ElementKindSchema>;
+
+export const ElementSourceSchema = z.enum(['code', 'user-material', 'imported', 'cloud']);
+export type ElementSource = z.infer<typeof ElementSourceSchema>;
+
+/** 元素清单条目（每镜一份）：画面上「有什么」 */
+export const ElementEntrySchema = z.object({
+  id: z.string(),
+  kind: ElementKindSchema,
+  role: ElementRoleSchema,
+  source: ElementSourceSchema.default('code'),
+  /** CSS 选择器 / 素材路径 / 文案，给预览热区与定位用 */
+  visual: z.object({
+    selector: z.string().default(''),
+    text: z.string().default(''),
+    src: z.string().default(''),
+    color: z.string().default(''),
+  }).default({}),
+  /** 由时间线回填；不填表示全程可见 */
+  visibility: z.object({
+    startMs: z.number().nonnegative().optional(),
+    endMs: z.number().nonnegative().optional(),
+  }).default({}),
+});
+export type ElementEntry = z.infer<typeof ElementEntrySchema>;
+
+export const ActionLayerSchema = z.enum(['subject', 'ambient', 'camera', 'emphasis']);
+export type ActionLayer = z.infer<typeof ActionLayerSchema>;
+
+/** 动作清单条目（每镜一份）：画面「怎么动」，通过 target 关联元素 id，非元素属性 */
+export const ActionEntrySchema = z.object({
+  id: z.string(),
+  target: z.string(),
+  layer: ActionLayerSchema,
+  /** MV.* 原语名（如 MV.strokeDraw），复用现有 28 原语，不新增 */
+  primitive: z.string(),
+  params: z.record(z.unknown()).default({}),
+  /** 由时间线回填；durMs 可缺省表示跟随镜头时长 */
+  timing: z.object({
+    atMs: z.number().nonnegative().optional(),
+    durMs: z.number().nonnegative().optional(),
+  }).default({}),
+});
+export type ActionEntry = z.infer<typeof ActionEntrySchema>;
+
 export const StageSchema = z.enum([
   'init',
   'script',
   'storyboard',
+  'materialize',
   'sourcing',
   'voice',
   'compose',
@@ -271,6 +323,9 @@ export const ShotSchema = z.object({
   asset: AssetRefSchema.optional(),
   voice: VoiceRefSchema.optional(),
   failReason: z.string().optional(),
+  /** 元素/动作清单：materialize 阶段产出，optional 保证旧项目零回归 */
+  elements: z.array(ElementEntrySchema).optional(),
+  actions: z.array(ActionEntrySchema).optional(),
 });
 export type Shot = z.infer<typeof ShotSchema>;
 
@@ -424,6 +479,8 @@ export const ProjectSchema = z.object({
   // 缺省 = 全片单场，行为同旧）
   scenes: z.array(SceneSchema).optional(),
   style: StyleDecisionSchema.optional(),
+  /** 应用的 TemplatePack id（跨维度打包来源，方案 §4.4）；旧项目无此字段 */
+  templateId: z.string().optional(),
   timeline: TimelineSchema.optional(),
   continuity: ContinuityReportSchema.optional(),
   mixPlan: MixPlanSchema.optional(),

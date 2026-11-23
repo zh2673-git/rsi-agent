@@ -1,0 +1,62 @@
+{
+  "id": "talking-head-punch",
+  "name": "口播大字幕梗",
+  "grade": "A",
+  "status": "registered",
+  "userFacing": {
+    "name": "口播大字幕梗",
+    "aliases": ["口播大字幕", "梗图字幕", "大字报", "重点锤", "逐词弹出", "知识口播"],
+    "vibe": "关键词逐词弹出 + 字号强调缩放 + 与语音同步的字幕节拍；字就是画面主角",
+    "bestFor": ["short-vibe"]
+  },
+  "anatomy": {
+    "script": "口播金句结构：钩子断言→三点展开→金句收束；一句一屏，字少而重",
+    "directing": "对位=emotion；每个重音词配一个字面动作（弹出/放大/砸下）；禁止整段文字平铺",
+    "art": "深底亮字高对比 + 单一强调色标重点；文字即图形，背景只做节奏衬底",
+    "camera": "固定或微动衬底； presenter 可选（头像角标）；文字层独立于背景层",
+    "performance": "逐词 stagger 弹入、关键词 scale-punch；拟声词/梗图贴纸按节奏点缀",
+    "sourcing": "assetPolicy=auto 全代码绘制；字体与字幕层用 kinetic-type 模板，梗图贴纸为矢量绘制",
+    "sound": "人声为主；重音词配打击音效（hit）；BGM 低混不抢字",
+    "editing": "严格跟语速（1-2.5s/词块）；词块落点即切点；全片 slam/punch ≤1/3 镜（V-MOT-013）"
+  },
+  "palette": {
+    "primary": "#FFEB3B",
+    "accent": "#FF5252",
+    "neutral": ["#FFFFFF", "#B0BEC5", "#546E7A", "#263238", "#0F1419"],
+    "colorArc": "深底开场 → 亮字断言 → 强调色重点 → 反差翻转 → 金句定格"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC','Arial Black',sans-serif"],
+    "scale": {"title": 0.15, "body": 0.05},
+    "tracking": {"title": -0.03}
+  },
+  "layout": {"density": 0.45, "maxElementsPerShot": 2, "whitespace": 0.3},
+  "motion": {
+    "easing": "back.out(2.6)",
+    "intensity": 0.8,
+    "staggerMs": 55,
+    "spring": {"stiffness": 300, "damping": 13}
+  },
+  "pacing": {"curve": "beat-grid", "shotLenMs": [1000, 2500], "breathEvery": 6},
+  "effects": {"grain": 0, "vignette": 0.08, "letterbox": false, "dof": 0, "bloom": 0.05},
+  "transitions": ["hard-cut", "smash-cut"],
+  "shotScaleBias": ["CU"],
+  "provenance": {
+    "source": "manual",
+    "from": "知识口播与动态排版（kinetic typography）的逐词强调语法公开拆解",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "未对拍：A 级文字形态与运动（动态排版分类法）+ 卡点同步代码完全可达，产出首条成片对拍后归档"
+  },
+  "references": "talking-head-punch.references.md",
+  "antiPatterns": "talking-head-punch.anti-patterns.md",
+  "subtitlePolicy": "word",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["punch-subtitle", "word-pop", "kinetic-word", "emphasis-scale"],
+    "sceneBias": ["kinetic-type", "typography"],
+    "sceneDeny": ["deep-stage", "atmosphere", "paper-stage"],
+    "texture": ["clean"],
+    "note": "字是主体：逐词弹出与重音放大；背景只做节奏衬底，2D 禁立体、禁氛围空镜抢戏"
+  }
+}

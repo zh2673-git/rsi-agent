@@ -114,8 +114,7 @@ cd skills/make-video && npm test && git add -A && git commit -m "fix: ..." && gi
 
 用户说不出参数，只会说名字和感觉。命中即用；未命中走沉淀（见下）。
 
-**下表是唯一可选项**（`styles/` 里真实存在的 style 包，共 10 个：9 个 grade A / registered，
-vibe-cosmos 为 grade B 试产包——产出首条对拍成片并过 V-STYLE-005 后升 A）。
+**下表是唯一可选项**（`styles/` 里真实存在的 style 包，共 19 个）。
 菜单里没有的风格就是没有——不要照记忆或旧版本文档点名，`getStyle` 会以 `STYLE_UNKNOWN` 拦下。
 
 | 用户可能说 | style id | 一句话气质 | 适合 | 维度 |
@@ -130,16 +129,20 @@ vibe-cosmos 为 grade B 试产包——产出首条对拍成片并过 V-STYLE-00
 | 周星驰/无厘头/星爷 | `comedy-pop` | 庄重形式×trivial 内容，破功有真心 | comedy/科普(辅) | css3d |
 | 亮调/纸感/清爽 | `bright-paper` | 高调纸面，柔和投影，留白呼吸 | tutorial/科普 | 2d |
 | 电影感/纪录/暗调质感 | `cinematic-dark` | 低照度纵深，真实素材承担证据 | story/纪录 | mixed |
-
-**规划中（尚无风格包，点名会 `STYLE_UNKNOWN`，只能走沉淀）**：
-Vox 解释类、新海诚氛围、吉卜力手绘、皮克斯卡通、塔可夫斯基极慢、古典连续性剪辑、
-口播大字幕梗图、王家卫抽帧、MV 卡点混剪。这些是方向记录，不是可选项——
-真要用就按「参考风格沉淀」现做包，不要假装菜单里有。
+| 新海诚/天光/青春/光斑微粒 | `shinkai-atmosphere` | 通透天光×光斑微粒，凝视与留白 | story/纪录 | 2d |
+| 吉卜力/手绘/水彩纸感/自然光 | `ghibli-painterly` | 水彩纸感手绘云，风与自然光 | story/kids | 2d |
+| 皮克斯/卡通/角色表演 | `pixar-2d` | 圆润形体，夸张表演，暖调 | story/kids | 2d |
+| Vox/解释型新闻/单一强调色 | `vox-explainer` | 扁平矢量信息图，单一强调色编码 | science-explainer/news | 2d |
+| 塔可夫斯基/极慢/诗性长镜 | `tarkovsky-pacing` | 长镜凝视自然元素，极慢节奏 | documentary-mood | 2d |
+| 古典剪辑/连续性/正反打 | `classical-continuity` | 180°线/视线匹配，无痕叙事 | story/interview | 2d |
+| 口播/大字幕/梗图/逐词强调 | `talking-head-punch` | 动态排版逐词击打，梗卡强调 | short-vibe/news-brief | 2d |
+| 王家卫/抽帧/慢门/霓虹 | `wongkar-wai` | 浓艳霓虹×慢门拖影，偏心构图 | documentary-mood/short-vibe | 2d |
+| MV/卡点/混剪/强拍切 | `mtv-beat` | 强拍切点×频闪分屏，速度渐变 | short-vibe/promo | 2d |
 
 菜单未命中 → 先按六轴找最近 recipe+style（匹配优先），差异大才走沉淀。
 **素材语言速查**：`comedy-pop`=css3d（立体字/转台卡阵只在梗落点）；`cinematic-dark`=mixed
-（纵深合成）；`keynote-minimal`/`kurzgesagt-explainer`/`anderson-symmetry`/`noir-contrast`/
-`bass-graphic`/`bright-paper`/`neon-tech-cinematic`=2d，并禁用立体舞台/纵深模板。用户点名「要 3D/立体/空间感」而所选风格是 2d 时，
+（纵深合成）；其余 17 个包=2d（含新海诚/吉卜力/皮克斯/Vox/塔可夫斯基/古典连续性/口播/王家卫/MV），
+并禁用立体舞台/纵深模板。用户点名「要 3D/立体/空间感」而所选风格是 2d 时，
 先建议换到 css3d/mixed 包或走风格沉淀，不要私自越维。
 **新需求组装公式：成品 = recipe（结构）× style（部门指令）× override（参数覆写）**
 （示例：迪士尼童话 = story-narrative × 高亮彩插 + 借纸感 override）。

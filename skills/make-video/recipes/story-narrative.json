@@ -80,9 +80,13 @@
   "style": {
     "recommended": [
       "cinematic-dark",
-      "vibe-cosmos"
+      "vibe-cosmos",
+      "shinkai-atmosphere",
+      "ghibli-painterly",
+      "wongkar-wai",
+      "classical-continuity"
     ],
-    "rationale": "故事需要情绪弧与氛围层；B 级预期：调性可复现，手绘/照片级工艺不可——cinematic-dark 给深色空间与体积光，vibe-cosmos 给暖光与粒子氛围"
+    "rationale": "故事需要情绪弧与氛围层；cinematic-dark 给深色空间与体积光，shinkai-atmosphere 给天光与青春凝视，wongkar-wai 给霓虹暧昧与抽帧，ghibli-painterly 给水彩绘本的温柔奇迹，classical-continuity 给透明轴线叙事，vibe-cosmos 给暖光粒子氛围；手绘/照片级工艺为 B/C 级天花板"
   },
   "pacing": {
     "curve": "story-arc",

@@ -9,7 +9,6 @@
 
 ## 适用场景
 
-- story-narrative
 - opinion-essay
 - documentary-mood
 

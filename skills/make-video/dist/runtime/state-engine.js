@@ -4,7 +4,6 @@ import { CONCURRENCY } from '../core/constants.js';
 import { mvError, ERR } from '../core/errors.js';
 import { renderSpecFor } from '../infrastructure/hyperframes-renderer.js';
 import { probeDurationMs } from '../infrastructure/ffmpeg-utils.js';
-import { V } from '../core/index.js';
 import { writeScript } from '../domain/scriptwriter.js';
 import { storyboard, buildConfirmation } from '../domain/storyboard.js';
 import { ensureAssets } from '../domain/asset-sourcing.js';
@@ -103,15 +102,24 @@ export class StateEngine {
                         /* 无素材库 */
                     }
                     await storyboard(this.deps.store, p, this.deps.llm, recipe, this.deps.registry, index, opts.userStyleId);
+                    // 三体合一确认门统一在 materialize 阶段（方案 §5.4 修正）：
+                    // 风格自由组合门（V-STYLE-003）与元素/动作门共用一次 confirm，不设两道串行门。
+                    // storyboard 只产出决策，不在这里暂停。
+                    p.stage = 'materialize';
+                    this.emit({ type: 'stage-advanced', stage: 'materialize' });
+                    break;
+                }
+                case 'materialize': {
+                    // P2/P3：备齐元素与动作两清单（只读反向抽取写回，不覆盖人工精修）。
+                    const { materializeManifests } = await import('../application/manifest-app.js');
+                    const mat = await materializeManifests(this.deps.store, p);
+                    // 回填结果同步回本地 p，否则暂停时 save(p) 会把刚写的清单覆盖掉
+                    p.shots = mat.project.shots;
+                    // 三体（风格×元素×动作）合一确认门：预览持续可见，用户满意后 confirm 一次放行。
+                    // 先发事件（run.log 记录门已到达），autoConfirm/跳过开关决定是否真的停。
                     this.emit({ type: 'confirm-required' });
-                    // V-STYLE-003 组合确认门：自由组合（非 recipe 预绑）必须用户显式确认，
-                    // autoConfirm（--yes）不能代替——先停在这里，confirm 后重跑放行
-                    const styleGate = V.validateStyleGate(p);
-                    if (V.hasError(styleGate)) {
-                        await this.deps.store.save(p);
-                        return this.events;
-                    }
-                    if (!p.confirmed && !opts.autoConfirm) {
+                    const gateDisabled = process.env['MV_SKIP_MATERIAL_GATE'] === '1';
+                    if (!gateDisabled && !p.confirmed && !opts.autoConfirm) {
                         await this.deps.store.save(p);
                         return this.events;
                     }

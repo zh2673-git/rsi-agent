@@ -26,7 +26,7 @@ export async function writeScript(store, project, llm, recipe, topic) {
     });
     const script = parseScript(raw);
     const issues = [
-        ...validateScript(script, recipe),
+        ...validateScript(script),
         ...validateCharBudget(script, recipe, tier),
         // 内容门（v1.1.1）：形式校验全绿不代表讲稿有内容——套话循环必须在这里被拦住
         ...V.validateScriptContent(script, topic ?? project.meta.topic),
@@ -142,33 +142,17 @@ export function parseScript(raw) {
     });
     return { fullText: obj.fullText, segments };
 }
-export function validateScript(script, recipe) {
+export function validateScript(script) {
     const issues = [];
+    // 表达层解放：结构、beat、钩子、信息节奏全部交还编剧/导演按主题实例判断。
+    // 引擎只守一条硬底线：每段必须声明 function（下游分镜/剪辑的依赖，不是创作框架）。
+    // 曾有过 V-SCP-003（beat 覆盖）/V-SCP-004（钩子前置）/V-SCP-007（连续 inform）
+    // 三条 error/warn 门，实测它们把「结构」误当「质量」，按主题自由谱写的好稿会被
+    // 因为「第一段不是钩子」直接拒稿——这是用死结构替代创作判断，已移除。
     for (const seg of script.segments) {
         if (!seg.function) {
             issues.push(V.err('V-SCP-001', `段落 ${seg.id} 未标功能`));
         }
-    }
-    const beats = new Set(script.segments.map((s) => s.beat).filter(Boolean));
-    const keyBeats = recipe.beats.filter((b) => b.id === 'hook' || b.function);
-    for (const kb of keyBeats) {
-        if (!beats.has(kb.id)) {
-            issues.push(V.err('V-SCP-003', `beats 未覆盖关键节点 ${kb.id}(${kb.name})`));
-        }
-    }
-    let informStreak = 0;
-    for (const seg of script.segments) {
-        informStreak = seg.function === 'inform' ? informStreak + 1 : 0;
-        if (informStreak >= 3) {
-            issues.push(V.warn('V-SCP-007', `连续三段 inform（信息倾倒）至 ${seg.id}`));
-            informStreak = 0;
-        }
-    }
-    // V-SCP-004 钩子前置：第一段必须落在 hook beat（三段式结构的硬起点）
-    const hookBeat = recipe.beats[0];
-    const first = script.segments[0];
-    if (hookBeat && first && (!first.beat || first.beat !== hookBeat.id)) {
-        issues.push(V.err('V-SCP-004', `第一段 ${first.id} 未落在钩子 beat「${hookBeat.id}」（钩子必须前置）`));
     }
     return issues;
 }

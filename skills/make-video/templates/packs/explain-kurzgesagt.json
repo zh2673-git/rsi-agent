@@ -1,0 +1,19 @@
+{
+  "id": "explain-kurzgesagt",
+  "name": "科普解释· Kurzgesagt 式",
+  "description": "科学讲解题材：扁平矢量图形主体 + 简洁图示 + 少量粒子点缀，镜头以主体强调和缓慢推拉为主。",
+  "recipe": "science-explainer",
+  "style": "kurzgesagt-explainer",
+  "elementHints": [
+    { "kind": "shape", "role": "subject", "hint": "用简洁几何形拼出科普主体（细胞/星球/分子等），边缘干净" },
+    { "kind": "text", "role": "caption", "hint": "关键术语短标签，字号克制，跟随主体出现" },
+    { "kind": "shape", "role": "env", "hint": "纯色或渐变的干净背景层，不抢主体" },
+    { "kind": "particle", "role": "deco", "hint": "少量点状粒子示意微观粒子/数据流" }
+  ],
+  "actionHints": [
+    { "layer": "subject", "hint": "主体做缓慢位移/缩放或结构分解，解释概念时逐步展开" },
+    { "layer": "emphasis", "hint": "关键术语出现时轻微放大或高亮主体局部" },
+    { "layer": "camera", "hint": "镜头缓慢推近或拉远配合讲解节奏" },
+    { "layer": "ambient", "hint": "粒子缓慢漂浮作为背景氛围" }
+  ]
+}

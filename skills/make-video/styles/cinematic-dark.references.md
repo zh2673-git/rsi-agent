@@ -9,9 +9,9 @@
 
 ## 适用场景
 
-- science-explainer
 - documentary-mood
 - cosmos-cinematic
+- story-narrative
 
 ## 用户会怎么叫它
 
@@ -52,10 +52,10 @@
 | 镜头长度 | 1500-3200ms |
 | 素材维度 | mixed |
 | 偏好场景 | depth-layers / atmosphere / typography |
-| 禁用场景 | - |
+| 禁用场景 | comic-symbol / paper-stage / iso-stage |
 | 母题 | depth-layers / volumetric-particle / silhouette |
 | 纹理 | grain / halation / vignette |
-| 转场 | dissolve |
+| 转场 | dissolve / fade-black |
 | 景别偏好 | MS / CU |
 
 ## 来历

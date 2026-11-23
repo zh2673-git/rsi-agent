@@ -1,0 +1,62 @@
+{
+  "id": "pixar-2d",
+  "name": "皮克斯 2D 卡通",
+  "grade": "B",
+  "status": "registered",
+  "userFacing": {
+    "name": "皮克斯 2D 卡通",
+    "aliases": ["皮克斯", "卡通", "圆润角色", "夸张弹性", "十二原则", "玩具总动员感"],
+    "vibe": "圆润友善形体 + 挤压拉伸与预备动作 + 夸张表情；角色即情绪",
+    "bestFor": ["kids-education"]
+  },
+  "anatomy": {
+    "script": "角色弧线：愿望→伙伴→试炼→归来；情绪外化为形体的弹性与夸张",
+    "directing": "对位=emotion 为主；每个情绪点配一个明确的形体动作（ anticipation→action→reaction）",
+    "art": "明亮原色 + 暖中性；圆形=友善、尖角=对立；形体外轮廓清晰、边缘柔和",
+    "camera": "中景/中近景为主（看清表情），机位配合动作节奏轻微跟随；禁无理由炫技推拉",
+    "performance": "挤压拉伸、预备动作、跟随重叠、夸张表情；全身反应而不仅是字幕强调",
+    "sourcing": "assetPolicy=auto 全代码绘制；角色用 SVG/canvas 参数化形体，避免真实素材混淆卡通语言",
+    "sound": "管弦乐弹跳弧；角色动作配打击乐落点；音效夸张卡通化",
+    "editing": "中快节奏（1.5-3s）卡动作节拍；动作完整留在一个镜内，匹配剪辑优先"
+  },
+  "palette": {
+    "primary": "#FF7043",
+    "accent": "#29B6F6",
+    "neutral": ["#FFFDE7", "#FFE0B2", "#AED581", "#5D4037", "#263238"],
+    "colorArc": "明亮开场 → 兴奋高饱和 → 试炼偏冷 → 归来回暖 → 定格高光"
+  },
+  "type": {
+    "families": ["'Microsoft YaHei','PingFang SC',sans-serif"],
+    "scale": {"title": 0.11, "body": 0.038},
+    "tracking": {"title": -0.01}
+  },
+  "layout": {"density": 0.4, "maxElementsPerShot": 3, "whitespace": 0.3},
+  "motion": {
+    "easing": "back.out(2.4)",
+    "intensity": 0.85,
+    "staggerMs": 75,
+    "spring": {"stiffness": 280, "damping": 11}
+  },
+  "pacing": {"curve": "three-act", "shotLenMs": [1500, 3000], "breathEvery": 5},
+  "effects": {"grain": 0.02, "vignette": 0.08, "letterbox": false, "dof": 0, "bloom": 0.08},
+  "transitions": ["hard-cut", "dissolve"],
+  "shotScaleBias": ["MCU", "MS"],
+  "provenance": {
+    "source": "manual",
+    "from": "皮克斯动画十二原则与角色形体语言的公开教学与制作特辑要点",
+    "version": "1.0",
+    "absorbedAt": "2026-11-23",
+    "review": "未对拍：B 级位移类原则（squash/stretch/anticipation/overshoot）可复现，角色表情 rig 与表演节奏为工艺天花板，产出首条成片对拍后按 V-STYLE-005 结论升级"
+  },
+  "references": "pixar-2d.references.md",
+  "antiPatterns": "pixar-2d.anti-patterns.md",
+  "subtitlePolicy": "full",
+  "visuals": {
+    "dimension": "2d",
+    "motifs": ["squash-stretch", "anticipation", "round-form", "expressive-face"],
+    "sceneBias": ["paper-stage", "comparison"],
+    "sceneDeny": ["deep-stage", "iso-stage", "chart"],
+    "texture": ["clean"],
+    "note": "形体弹性与夸张表演是核心；2D 圆润形体，禁止 3D 痕迹与机械版式"
+  }
+}

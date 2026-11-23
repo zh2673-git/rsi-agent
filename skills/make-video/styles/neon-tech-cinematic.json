@@ -13,8 +13,8 @@
     ],
     "vibe": "深色底 + 青色数据光 + 琥珀证据点，真实界面与程序化数据流同权混合",
     "bestFor": [
-      "product-promo",
-      "tech-product-story"
+      "news-brief",
+      "product-promo"
     ]
   },
   "anatomy": {
@@ -80,9 +80,10 @@
     "dof": 0,
     "bloom": 0.32
   },
-  "transitions": [
-    "dissolve"
-  ],
+    "transitions": [
+      "dissolve",
+      "hard-cut"
+    ],
   "shotScaleBias": [
     "MS",
     "CU"
