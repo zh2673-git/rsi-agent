@@ -22,18 +22,64 @@ SR = 44100
 BPM = 84.0
 BEAT = 60.0 / BPM
 
+# 和弦进行库：按 audioPlan.progression 选；每套是 (根音, pad 声部, 拨弦可选音) 的 4 小节。
+# 不同进行 = 不同情绪底色，是「配乐不固定」的第一层。
+PROGRESSIONS = {
+    # 原默认：Am7→Fmaj7→Cmaj7→G6，暖好奇科普
+    "warm-jazzy": [
+        {"bass": 45, "pad": [57, 60, 64, 67], "arp": [69, 72, 76, 79, 81]},
+        {"bass": 41, "pad": [53, 57, 60, 64], "arp": [65, 69, 72, 76, 77]},
+        {"bass": 48, "pad": [55, 59, 60, 64], "arp": [72, 76, 79, 83, 84]},
+        {"bass": 43, "pad": [55, 59, 62, 64], "arp": [67, 71, 74, 76, 79]},
+    ],
+    # 悬疑：小调半音下行 + 挂留，暗色
+    "mysterious": [
+        {"bass": 45, "pad": [57, 60, 63, 67], "arp": [69, 72, 75, 79]},
+        {"bass": 44, "pad": [56, 59, 63, 66], "arp": [68, 71, 75, 78]},
+        {"bass": 43, "pad": [55, 58, 62, 65], "arp": [67, 70, 74, 77]},
+        {"bass": 41, "pad": [53, 56, 60, 63], "arp": [65, 68, 72, 75]},
+    ],
+    # 明快大调：C→G→Am→F，上扬
+    "bright-major": [
+        {"bass": 48, "pad": [60, 64, 67, 72], "arp": [72, 76, 79, 84]},
+        {"bass": 43, "pad": [55, 59, 62, 67], "arp": [67, 71, 74, 79]},
+        {"bass": 45, "pad": [57, 60, 64, 69], "arp": [69, 72, 76, 81]},
+        {"bass": 41, "pad": [53, 57, 60, 65], "arp": [65, 69, 72, 77]},
+    ],
+    # 宏大：小调开放五度 + 宽 pad
+    "epic-minor": [
+        {"bass": 38, "pad": [50, 57, 62, 65], "arp": [62, 69, 74, 77]},
+        {"bass": 41, "pad": [53, 60, 65, 69], "arp": [65, 72, 77, 81]},
+        {"bass": 36, "pad": [48, 55, 60, 64], "arp": [60, 67, 72, 76]},
+        {"bass": 43, "pad": [55, 62, 67, 71], "arp": [67, 74, 79, 83]},
+    ],
+    # 极简持续：两个和弦来回转，少事件
+    "minimal-drone": [
+        {"bass": 45, "pad": [57, 64, 67], "arp": [72, 79]},
+        {"bass": 45, "pad": [57, 64, 67], "arp": [72, 79]},
+        {"bass": 48, "pad": [55, 60, 67], "arp": [72, 76]},
+        {"bass": 48, "pad": [55, 60, 67], "arp": [72, 76]},
+    ],
+    # 俏皮拨弦：短促跳跃
+    "playful-pluck": [
+        {"bass": 48, "pad": [60, 64, 67], "arp": [72, 76, 79, 81, 84]},
+        {"bass": 50, "pad": [62, 65, 69], "arp": [74, 77, 81, 86]},
+        {"bass": 45, "pad": [57, 60, 64], "arp": [69, 72, 76, 81]},
+        {"bass": 43, "pad": [55, 59, 62], "arp": [67, 71, 74, 79]},
+    ],
+    # 紧张：半音 + 挂留四度
+    "tense-sus": [
+        {"bass": 45, "pad": [57, 60, 62, 67], "arp": [69, 72, 74, 79]},
+        {"bass": 46, "pad": [58, 62, 65, 70], "arp": [70, 74, 77, 82]},
+        {"bass": 45, "pad": [57, 60, 62, 67], "arp": [69, 72, 74, 79]},
+        {"bass": 44, "pad": [56, 60, 63, 68], "arp": [68, 72, 75, 80]},
+    ],
+}
+PROG = PROGRESSIONS["warm-jazzy"]  # 默认，main() 里按参数覆盖
+
 
 def mtof(m):
     return 440.0 * 2 ** ((m - 69) / 12.0)
-
-
-# 和弦：根音(贝斯) / pad 声部 / 拨弦可选取音
-PROG = [
-    {"bass": 45, "pad": [57, 60, 64, 67], "arp": [69, 72, 76, 79, 81]},      # Am7
-    {"bass": 41, "pad": [53, 57, 60, 64], "arp": [65, 69, 72, 76, 77]},      # Fmaj7
-    {"bass": 48, "pad": [55, 59, 60, 64], "arp": [72, 76, 79, 83, 84]},      # Cmaj7
-    {"bass": 43, "pad": [55, 59, 62, 64], "arp": [67, 71, 74, 76, 79]},      # G6
-]
 
 
 def env_exp(n, tau, attack=0.004):
@@ -150,7 +196,21 @@ def main():
                     help="覆盖内置 BPM（0=用内置 84）；网格 sidecar 同步使用该值")
     ap.add_argument("--grid-out", default="",
                     help="BPM 网格 sidecar 输出路径（json：bpm/beatMs/barMs/beats/bars）；缺省不写")
+    ap.add_argument("--progression", default="warm-jazzy",
+                    help="和弦进行：" + "/".join(PROGRESSIONS.keys()))
+    ap.add_argument("--texture", default="warm-pad",
+                    help="织体：warm-pad/sparse/pluck-lead/drone/percussive")
+    ap.add_argument("--brightness", type=float, default=1.0,
+                    help="拨弦/钟琴亮度 0.5~1.5；越低越暗、越高越清亮")
+    ap.add_argument("--mood", default="awe",
+                    help="情绪标签，仅写入网格 sidecar 供复盘；不直接改变合成")
     a = ap.parse_args()
+
+    # 按 audioPlan 选进行；未知名字安全回退默认
+    global PROG
+    PROG = PROGRESSIONS.get(a.progression, PROGRESSIONS["warm-jazzy"])
+    texture = a.texture if a.texture in ("warm-pad", "sparse", "pluck-lead", "drone", "percussive") else "warm-pad"
+    bright = float(np.clip(a.brightness, 0.5, 1.5))
 
     bpm = a.bpm if a.bpm > 0 else BPM
     beat = 60000.0 / bpm  # ms
@@ -201,35 +261,39 @@ def main():
                 break
             shift = lift
             pad_f = [mtof(m + shift) for m in ch["pad"]]
-            # pad 铺满两小节
-            add(buf, pad(pad_f, 2 * bar + 1.2, 0.16), t0, pan=0.5, wet=0.55)
-            # 贝斯：每小节一下，第 3 拍再补一下
-            add(buf, bass(mtof(ch["bass"] + shift), 1.6 * bar / 2 + 0.5, 0.34), t0, wet=0.05)
-            if fullness > 0.5:
+            # pad 铺满两小节（drone 织体更厚，pluck-lead 更薄）
+            pad_gain = 0.22 if texture == "drone" else (0.10 if texture == "pluck-lead" else 0.16)
+            add(buf, pad(pad_f, 2 * bar + 1.2, pad_gain), t0, pan=0.5, wet=0.55)
+            # 贝斯：每小节一下，第 3 拍再补一下（sparse/drone 不补）
+            add(buf, bass(mtof(ch["bass"] + shift), 1.6 * bar / 2 + 0.5, 0.34 if texture != "drone" else 0.18), t0, wet=0.05)
+            if fullness > 0.5 and texture not in ("sparse", "drone"):
                 add(buf, bass(mtof(ch["bass"] + shift + 12), 0.9, 0.16), t0 + 2 * bar - 1.0, wet=0.05)
-            # 拨弦琶音：八分音符网格，留白 25%，立体声左右摆
+            # 拨弦琶音：八分音符网格，留白随织体变化，立体声左右摆
             arp = [m + shift for m in ch["arp"]]
+            arp_skip = 0.55 if texture == "drone" else (0.12 if texture == "pluck-lead" else (0.34 if texture == "sparse" else 0.18))
+            arp_gain = 0.28 if texture == "pluck-lead" else 0.20
             for step in range(16):  # 2 小节 = 16 个八分
-                if rng.random() < (0.30 if fullness < 0.5 else 0.18):
+                if rng.random() < arp_skip:
                     continue
                 at = t0 + step * BEAT / 2
                 if at > total:
                     continue
                 idx = [0, 2, 1, 3, 2, 4, 1, 3][step % 8]
                 note = arp[idx % len(arp)]
-                vel = 0.20 + 0.08 * rng.random() + (0.05 if step % 4 == 0 else 0.0)
+                vel = arp_gain + 0.08 * rng.random() + (0.05 if step % 4 == 0 else 0.0)
                 pan = 0.34 if step % 2 == 0 else 0.66
-                add(buf, pluck(mtof(note), 1.1, vel, bright=1.05), at, pan=pan, wet=0.65)
+                add(buf, pluck(mtof(note), 1.1, vel, bright=bright), at, pan=pan, wet=0.65)
                 # 钟琴点缀：每两拍的强拍加一个高八度音，补 2–6k 空气感（很轻，不抢人声）
                 if step % 8 == 0 or step % 8 == 6:
-                    if fullness > 0.4:
-                        add(buf, bell(mtof(note + 12), 1.6, 0.085, seed=step), at, pan=0.5, wet=0.75)
-            # 节奏层
-            if fullness > 0.5:
+                    if fullness > 0.4 and texture != "drone":
+                        add(buf, bell(mtof(note + 12), 1.6, 0.085 * bright, seed=step), at, pan=0.5, wet=0.75)
+            # 节奏层：sparse/drone 不用；percussive 更密
+            if fullness > 0.5 and texture not in ("sparse", "drone"):
+                kick_steps = (0, 2, 4, 6) if texture == "percussive" else (0, 4)
                 for step in range(8):
-                    if step in (0, 4):
+                    if step in kick_steps:
                         add(buf, kick(0.30), t0 + step * BEAT / 2, wet=0.02)
-                    add(buf, shaker(0.030, rng), t0 + step * BEAT / 2 + BEAT / 4, pan=0.6, wet=0.10)
+                    add(buf, shaker(0.040 if texture == "percussive" else 0.030, rng), t0 + step * BEAT / 2 + BEAT / 4, pan=0.6, wet=0.10)
 
     # 混响（左右独立 IR，得到宽而不糊的空间）
     mixL, mixR = L, R
@@ -280,6 +344,10 @@ def main():
             "barMs": round(bar_ms, 3),
             "beats": beats,
             "bars": bars,
+            "progression": a.progression,
+            "texture": texture,
+            "brightness": round(bright, 3),
+            "mood": a.mood,
             "generatedAt": datetime.now().isoformat(timespec="seconds"),
         }
         os.makedirs(os.path.dirname(os.path.abspath(a.grid_out)), exist_ok=True)

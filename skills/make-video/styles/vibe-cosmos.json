@@ -82,6 +82,15 @@
     "dof": 0,
     "bloom": 0.38
   },
+  "audio": {
+    "rationale": "深空知识科普：冷调稀疏底床 + 清亮粒子点缀，让金线定格与重音词有空气感，不抢旁白",
+    "mood": "warm-curious",
+    "bpm": 84,
+    "progression": "warm-jazzy",
+    "texture": "bell-air",
+    "brightness": 0.68,
+    "sfxPalette": "glassy"
+  },
   "transitions": [
     "dissolve",
     "whip-pan",
