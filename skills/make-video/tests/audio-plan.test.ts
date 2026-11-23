@@ -47,4 +47,26 @@ describe('audioPlan：配乐/音效差异化方案的 IR 契约', () => {
     expect(text).toContain('glassy');
     expect(text).toContain('三角函数从旋转到波形');
   });
+
+  it('确认表每次都展示编剧结构方案，且绝非钩子/模板强制', () => {
+    const base = ProjectSchema.parse({ meta: { id: 'p', title: 'T', topic: 'X' } });
+    const noScript = buildConfirmation(base);
+    expect(noScript).toContain('【编剧结构方案（结构独创，不套钩子/八股）】');
+    expect(noScript).toContain('钩子只是可选项');
+
+    const withScript = ProjectSchema.parse({
+      meta: { id: 'p', title: 'T', topic: 'X' },
+      script: {
+        fullText: '甲先铺陈全景。乙逐层深入。丙收束回扣。',
+        segments: [
+          { id: 's1', text: '甲先铺陈全景。', function: 'inform' },
+          { id: 's2', text: '乙逐层深入。', function: 'advance' },
+          { id: 's3', text: '丙收束回扣。', function: 'emotion' },
+        ],
+      },
+    });
+    const text = buildConfirmation(withScript);
+    expect(text).toContain('s1 [inform] 甲先铺陈全景');
+    expect(text).toContain('开头/展开/收束由编剧按主题定');
+  });
 });
