@@ -17,7 +17,6 @@ export async function writeScript(store, project, llm, recipe, topic) {
         kind: 'script',
         payload: {
             topic: topic ?? project.meta.topic,
-            beats: recipe.beats,
             wordsPerMin,
             targetSegments,
             genre: recipe.id,

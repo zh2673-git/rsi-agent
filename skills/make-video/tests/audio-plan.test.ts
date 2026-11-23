@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AudioPlanSchema, ProjectSchema, StylePackSchema } from '../src/core/schema.js';
 import { buildConfirmation } from '../src/domain/storyboard.js';
+import { buildScriptSystemPrompt } from '../src/infrastructure/llm-client.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,11 +49,11 @@ describe('audioPlan：配乐/音效差异化方案的 IR 契约', () => {
     expect(text).toContain('三角函数从旋转到波形');
   });
 
-  it('确认表每次都展示编剧结构方案，且绝非钩子/模板强制', () => {
+  it('确认表每次都展示本片实际编剧结构，不提任何预设结构模板词', () => {
     const base = ProjectSchema.parse({ meta: { id: 'p', title: 'T', topic: 'X' } });
     const noScript = buildConfirmation(base);
-    expect(noScript).toContain('【编剧结构方案（结构独创，不套钩子/八股）】');
-    expect(noScript).toContain('钩子只是可选项');
+    expect(noScript).toContain('【编剧结构方案（按本片主题独创）】');
+    expect(noScript).not.toMatch(/钩子|beats?/i);
 
     const withScript = ProjectSchema.parse({
       meta: { id: 'p', title: 'T', topic: 'X' },
@@ -67,6 +68,14 @@ describe('audioPlan：配乐/音效差异化方案的 IR 契约', () => {
     });
     const text = buildConfirmation(withScript);
     expect(text).toContain('s1 [inform] 甲先铺陈全景');
-    expect(text).toContain('开头/展开/收束由编剧按主题定');
+    expect(text).toContain('以上为本片实际结构');
+    expect(text).not.toMatch(/钩子|beats?/i);
+  });
+
+  it('编剧系统提示词不含 beats/钩子/格子等任何预设结构锚点', () => {
+    const prompt = buildScriptSystemPrompt();
+    expect(prompt).toMatch(/结构纪律/);
+    expect(prompt).not.toMatch(/钩子|beats?|格子|节拍表/i);
+    expect(prompt).toContain('没有预设结构');
   });
 });
