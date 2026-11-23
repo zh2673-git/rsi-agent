@@ -174,6 +174,7 @@ class LaneBehavior(unittest.TestCase):
             "let session = SESSION_ID;",
             "const LANE_MAIN = SESSION_ID;",
             "let boardData = null;",
+            "const imSessions = {};",
             _extract_fn(core, "laneOfTask"),
             _extract_fn(core, "laneList"),
             "function setSession(s) { session = s; }",
@@ -217,8 +218,8 @@ class LaneBehavior(unittest.TestCase):
             '{id:"T-C",status:"cancelled"},{id:"main",status:"doing"}]}});'
             'setSession("main");console.log(JSON.stringify(laneList().map(l=>l.sid)));'
         )
-        self.assertEqual(json.loads(out), ["main", "t-a"],
-                         "清单 = 主车道 + 未收口任务；done/cancelled 与撞主车道的任务都不占车道")
+        self.assertEqual(json.loads(out), ["main"],
+                         "清单只列主车道与真实会话；不按看板任务状态生成空车道（空任务 id 已清理）")
 
     def test_current_lane_never_vanishes(self):
         """站在一条已收口任务的车道上时，刷新/重绘不能把它抽走。"""
