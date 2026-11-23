@@ -13,8 +13,22 @@ from __future__ import annotations
 
 import argparse
 import multiprocessing
+import os
 import sys
 from pathlib import Path
+
+# botpy 在 Windows 下 import 时会执行 logging.py 的 os.system("") 以启用 ANSI；
+# 该空命令会拉起一个 cmd.exe + conhost.exe（控制台闪窗）。空命令实际无副作用，
+# 这里在 import botpy 之前 patch 掉，避免网关崩溃重启时每 30s 闪一次窗口。
+if os.name == "nt":
+    _os_system = os.system
+
+    def _system_no_empty(command):
+        if command == "":
+            return 0
+        return _os_system(command)
+
+    os.system = _system_no_empty
 
 # 让 `python im-gateway/run.py` 能 import im_gateway 包
 sys.path.insert(0, str(Path(__file__).resolve().parent))
