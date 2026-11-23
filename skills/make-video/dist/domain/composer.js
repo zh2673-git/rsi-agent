@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
-import { normalizeCameraToken } from '../core/schema.js';
+import { normalizeCameraToken, AudioPlanSchema } from '../core/schema.js';
 import { V } from '../core/index.js';
 import { mvError, ERR } from '../core/errors.js';
 import { TEMPLATES_DIR } from '../core/constants.js';
@@ -347,11 +347,18 @@ export async function compose(store, project, pack, recipe) {
     const dir = store.projectDir(project.meta.id);
     const audioDir = path.join(dir, 'audio', 'mix');
     const voTrack = await buildVoTrack(project, timeline, audioDir);
+    // 配乐/音效方案：项目 audioPlan（开工确认门写入）优先；否则用风格包 audio 兜底。
+    // 两者都没有时 buildBgm/buildSfx 走旧默认，老项目行为不变。
+    const audioPlan = project.audioPlan
+        ? AudioPlanSchema.parse(project.audioPlan)
+        : pack.audio
+            ? AudioPlanSchema.parse(pack.audio)
+            : undefined;
     // BGM 网格 sidecar（v1.4 V-RHY-012 卡点）：拍/小节时间表落 logs/，剪辑吸附与审计共用
     const gridPath = path.join(dir, 'logs', 'bgm-grid.json');
-    const bgmRaw = await buildBgm(timeline.shots.at(-1).startMs + timeline.shots.at(-1).durationMs, audioDir, { gridOut: gridPath });
+    const bgmRaw = await buildBgm(timeline.shots.at(-1).startMs + timeline.shots.at(-1).durationMs, audioDir, { gridOut: gridPath, audioPlan });
     const bgm = await duckBgm(bgmRaw, voTrack, audioDir);
-    const sfxFiles = await buildSfx(path.join(audioDir, 'sfx'));
+    const sfxFiles = await buildSfx(path.join(audioDir, 'sfx'), audioPlan?.sfxPalette);
     timeline.bgm = path.relative(dir, bgm).split(path.sep).join('/');
     timeline.sfx = planMix(project, timeline, audioDir, transitionPlans).sfxCues;
     // A9 混音计划工件

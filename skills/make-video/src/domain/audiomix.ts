@@ -2,7 +2,7 @@
 // V-SND-001 三层各司其职 / V-SND-003 落点对齐 / V-SND-005 ducking / V-CMP-004
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import type { MixPlan, Project, Timeline } from '../core/schema.js';
+import type { AudioPlan, MixPlan, Project, Timeline } from '../core/schema.js';
 import { runFfmpeg, detectSilences } from '../infrastructure/ffmpeg-utils.js';
 import { ensureDir, exists } from '../infrastructure/fs-utils.js';
 import { DUCK_RATIO } from '../core/constants.js';
@@ -56,19 +56,51 @@ export async function buildVoTrack(
   return out;
 }
 
+// 音效音色：AudioPlan.sfxPalette（展示名）→ 合成器实现名。
+const SFX_HIT: Record<string, string> = {
+  glassy: 'chime', woody: 'soft', metallic: 'glitch', soft: 'soft', punchy: 'impact',
+};
+const SFX_WHOOSH: Record<string, string> = {
+  glassy: 'digital', woody: 'silk', metallic: 'digital', soft: 'silk', punchy: 'air',
+};
+
+// AudioPlan 的展示名 → bgm_synth.py 的实现名；未识别的名字安全回退暖默认。
+function textureToSynth(t: string): string {
+  const map: Record<string, string> = {
+    'pluck-pad': 'warm-pad', 'pad-only': 'drone', 'arp-drive': 'pluck-lead',
+    'bell-air': 'sparse', 'drone-pulse': 'drone', 'full-band': 'percussive',
+  };
+  return map[t] ?? 'warm-pad';
+}
+
 // 程序化配乐：scripts/bgm_synth.py 合成"有编排的极简科技 bed"。
 // 旧实现是 10 路纯正弦叠加再低通 —— 那会得到 20–120Hz 占 71% 能量的 drone：
 // 笔记本/手机扬声器放不出这段低频，只露出谐波与拍频，听感就是"刺啦"。
 // 现实现骨架 Am7→Fmaj7→Cmaj7→G6（84BPM），拨弦琶音 + 暖 pad + 贝斯 + 轻节奏，
 // 并带循环渐进的情绪弧线；中高频有音乐性内容，人声区 150–500Hz 交给 duckBgm 让位。
-export async function buildBgm(totalMs: number, dir: string, opts?: { bpm?: number; gridOut?: string }): Promise<string> {
+// audioPlan 把「配乐不固定」落到参数：进行/织体/亮度/BPM 全由开工确认门定下的方案驱动；
+// 未传 plan 时用 warm-jazzy + warm-pad（旧默认），保证老项目行为不变。
+// 风格/主题不同 → 确认门写不同 plan → 这里产出真正不同的 BGM。
+export async function buildBgm(
+  totalMs: number,
+  dir: string,
+  opts?: { bpm?: number; gridOut?: string; audioPlan?: AudioPlan },
+): Promise<string> {
   await ensureDir(dir);
   const out = path.join(dir, 'bgm-raw.wav');
   const script = path.join(ROOT_DIR, 'scripts', 'bgm_synth.py');
   const py = process.env['MV_PYTHON'] ?? 'python';
+  const plan = opts?.audioPlan;
   const args = [script, '--ms', String(Math.round(totalMs)), '--out', out];
-  if (opts?.bpm && opts.bpm > 0) args.push('--bpm', String(opts.bpm));
+  const bpm = plan && plan.bpm > 0 ? plan.bpm : opts?.bpm;
+  if (bpm && bpm > 0) args.push('--bpm', String(bpm));
   if (opts?.gridOut) args.push('--grid-out', opts.gridOut);
+  if (plan) {
+    args.push('--progression', plan.progression || 'warm-jazzy');
+    args.push('--texture', textureToSynth(plan.texture));
+    args.push('--brightness', String(0.5 + (plan.brightness || 0.5))); // 0..1 → 0.5..1.5
+    args.push('--mood', plan.mood || 'warm-curious');
+  }
   try {
     await execFileP(py, args, {
       maxBuffer: 32 * 1024 * 1024,
@@ -95,15 +127,18 @@ export async function duckBgm(bgm: string, voTrack: string, dir: string): Promis
     '-filter_complex',
     '[0:a]highpass=f=95,' +
       'equalizer=f=110:t=q:w=0.9:g=-5.0,' +   // 收掉次低频/贝斯尾巴：小扬声器放不出，只会露出拍频与谐波
-      'equalizer=f=260:t=q:w=1.1:g=-6.5,' +   // 人声基频区让位
-      'equalizer=f=700:t=q:w=1.4:g=-2.0,' +   // 胸声/鼻音区轻让
-      'equalizer=f=3200:t=q:w=1.2:g=-2.5,' +  // 齿音区轻让（保清晰度）
+      'equalizer=f=260:t=q:w=1.1:g=-4.5,' +   // 人声基频区让位（少挖一档，避免配乐失去厚度而显单薄生硬）
+      'equalizer=f=700:t=q:w=1.4:g=-1.5,' +   // 胸声/鼻音区轻让
+      'equalizer=f=3200:t=q:w=1.2:g=-2.0,' +  // 齿音区轻让（保清晰度）
       'equalizer=f=9000:t=h:w=2000:g=+1.5,' + // 极轻空气感（不参与人声辨识）
-      'volume=-9dB,aformat=channel_layouts=stereo[bed];' +
+      // -9dB 时配乐在停顿处几乎听不见、一进来又突兀，听感是"一段一段"的；
+      // -5dB 让 bed 保持连续存在感，配合更温和的侧链，不再有开关式的忽大忽小。
+      'volume=-5dB,aformat=channel_layouts=stereo[bed];' +
       '[1:a]aformat=channel_layouts=stereo[sc];' +
-      // 侧链阈值/比率按短旁白（≤20s、停顿稀疏）标定：旧 threshold=0.05 时
-      // 旁白几乎连续的短片只压出 ~1dB，V-SND-006 的「确实在让人声」判据会失守。
-      '[bed][sc]sidechaincompress=threshold=0.02:ratio=9:attack=15:release=280[out]',
+      // 侧链放宽（threshold 0.02→0.035 / ratio 9→4.5 / release 280→200）：
+      // 旧参数压得过深、恢复过慢，旁白一停配乐像被"掰开"再慢慢合上，是生硬的主因。
+      // 放宽后仍满足 V-SND-006 的 ducking 判据（旁白处确有让位），但过渡自然得多。
+      '[bed][sc]sidechaincompress=threshold=0.035:ratio=4.5:attack=20:release=200[out]',
     '-map', '[out]', out,
   ]);
   return out;
@@ -114,12 +149,14 @@ export async function duckBgm(bgm: string, voTrack: string, dir: string): Promis
 // 前者在小扬声器上放不出来只会露功放失真与谐波拍频（就是"刺啦"的来源，每片 11–14 个），
 // 后者被压成没有方向感的"沙沙"。新版 hit 由 body/click/noise 三层错开起音拼成，
 // whoosh 做真实带通扫频（380→3200Hz），听感是"有冲击"而不是"有噪声"。
-export async function buildSfx(dir: string): Promise<{ whoosh: string; hit: string }> {
+export async function buildSfx(dir: string, palette?: string): Promise<{ whoosh: string; hit: string }> {
   await ensureDir(dir);
   const script = path.join(ROOT_DIR, 'scripts', 'sfx_synth.py');
   const py = process.env['MV_PYTHON'] ?? 'python';
+  const hitPalette = SFX_HIT[palette ?? ''] ?? 'impact';
+  const whooshPalette = SFX_WHOOSH[palette ?? ''] ?? 'air';
   try {
-    await execFileP(py, [script, '--dir', dir], { maxBuffer: 32 * 1024 * 1024 });
+    await execFileP(py, [script, '--dir', dir, '--hit-palette', hitPalette, '--whoosh-palette', whooshPalette], { maxBuffer: 32 * 1024 * 1024 });
   } catch (e) {
     throw mvError(
       ERR.PROBE,

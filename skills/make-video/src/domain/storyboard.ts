@@ -592,12 +592,25 @@ function nextZoomIn(zoom: string): (typeof ZOOM_LADDER)[number] {
 
 export function buildConfirmation(project: Project): string {
   const lines: string[] = [];
-  lines.push('=== 分镜前确认表（素材决策 + 风格决策 + 导演批注摘要）===');
+  lines.push('=== 开工前双向确认表（素材决策 + 风格 + 配乐/音效方案 + 导演批注摘要）===');
+  lines.push('【请用户确认后再进入采购/写场景/合成音频；修改请编辑 project.json 或回复调整。】');
   if (project.style) {
     lines.push(
       `风格：${project.style.id}（${project.style.source}）—— ${project.style.rationale}`,
     );
   }
+  // 配乐/音效方案：用户确认的核心对象。没有 audioPlan 时提示需补，避免默认万能 bed 悄悄通过。
+  if (project.audioPlan) {
+    const a = project.audioPlan;
+    lines.push('【配乐/音效方案】');
+    lines.push(`  立意：${a.rationale || '（未写理由，需在 directorNotes 补充说明为何这样配）'}`);
+    lines.push(`  气质=${a.mood} BPM=${a.bpm || '风格默认'} 和弦=${a.progression} 织体=${a.texture} 亮度=${a.brightness}`);
+    lines.push(`  音效音色=${a.sfxPalette}（转场/重音按此音色生成，不是全片同一条 whoosh）`);
+  } else {
+    lines.push('【配乐/音效方案】⚠ 尚未写 project.audioPlan：将退化为风格默认/通用默认，可能听感生硬。请补充后再确认。');
+  }
+  lines.push('');
+  lines.push('【逐镜素材与视觉提示词】');
   for (const shot of project.shots) {
     const dec = project.materialDecisions[shot.id];
     const note = project.directorNotes.find((n) => n.segmentId === shot.segmentId);

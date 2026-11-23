@@ -467,6 +467,29 @@ export const MixPlanSchema = z.object({
 });
 export type MixPlan = z.infer<typeof MixPlanSchema>;
 
+/**
+ * 音频方案（开工确认门写进 IR）：配乐/音效不再全片固定，而是随主题/风格/元素/动效变化。
+ * 字段是可读字符串 + 可选数值，合成器侧按名字做枚举兜底，未知值退到默认而不是报错。
+ * 见 SKILL.md 工作规则 0 / 9。
+ */
+export const AudioPlanSchema = z.object({
+  /** 主题/情绪一句话，写清为什么这样配（进确认表给用户看） */
+  rationale: z.string().default(''),
+  /** 配乐气质枚举：warm-curious（好奇科普）/ mysterious（悬疑）/ bright-pulse（明快）/ epic（宏大）/ calm（沉静）/ playful（俏皮）/ tense（紧张） */
+  mood: z.string().default('warm-curious'),
+  /** BPM；0 = 用风格默认 */
+  bpm: z.number().min(0).max(220).default(0),
+  /** 和弦进行名：warm-jazzy / epic-minor / bright-major / minimal-drone / tense-sus / playful-pluck */
+  progression: z.string().default('warm-jazzy'),
+  /** 织体名：pluck-pad / pad-only / arp-drive / bell-air / drone-pulse / full-band */
+  texture: z.string().default('pluck-pad'),
+  /** 音色亮度 0..1，影响拨弦泛音与空气感 */
+  brightness: z.number().min(0).max(1).default(0.5),
+  /** 转场/重音音效音色：glassy / woody / metallic / soft / punchy */
+  sfxPalette: z.string().default('glassy'),
+});
+export type AudioPlan = z.infer<typeof AudioPlanSchema>;
+
 export const ProjectSchema = z.object({
   schemaVersion: z.number().default(SCHEMA_VERSION),
   meta: ProjectMetaSchema,
@@ -484,6 +507,8 @@ export const ProjectSchema = z.object({
   timeline: TimelineSchema.optional(),
   continuity: ContinuityReportSchema.optional(),
   mixPlan: MixPlanSchema.optional(),
+  /** 开工确认门定下的配乐/音效方案；compose 据此参数化合成 */
+  audioPlan: AudioPlanSchema.optional(),
   subtitlePolicy: SubtitlePolicySchema.optional(),
   confirmed: z.boolean().default(false),
 });
@@ -575,6 +600,8 @@ export const StylePackSchema = z.object({
     breathEvery: z.number().int().positive(),
   }),
   effects: z.record(z.union([z.number(), z.boolean()])),
+  /** 风格默认音频方案（无项目 audioPlan 时用它；字段与 AudioPlanSchema 同源但可选） */
+  audio: AudioPlanSchema.partial().optional(),
   visuals: StyleVisualSchema.default({}),
   transitions: z.array(z.string()).min(1),
   shotScaleBias: z.array(ZoomSchema).min(1),
