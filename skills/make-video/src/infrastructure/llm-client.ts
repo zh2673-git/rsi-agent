@@ -84,7 +84,7 @@ function buildPrompt(task: LlmTask): Array<{ role: string; content: string }> {
     task.kind === 'scene'
       ? buildSceneSystemPrompt()
       : task.kind === 'script'
-        ? SCRIPT_SYSTEM_PROMPT
+        ? buildScriptSystemPrompt()
         : task.kind === 'storyboard'
           ? STORYBOARD_SYSTEM_PROMPT
           : task.kind === 'material-plan'
@@ -193,8 +193,10 @@ const STORYBOARD_SYSTEM_PROMPT = `你是视频编译器的导演部（导演+分
 /**
  * 讲稿系统提示词（docs/04 编剧部）：这是全片唯一的「内容来源」，
  * 讲稿写虚了后面六个部门全是空转——因此把「必须讲具体机制」写成硬条款。
+ * 结构完全交给编剧按主题独创：提示词里不放任何模板词（钩子/beats/格子），
+ * 免得模型把「可选参考」当成默认骨架照抄。
  */
-const SCRIPT_SYSTEM_PROMPT = `你是视频编译器的编剧部。根据主题与节拍表写一份**口播讲稿**。只输出合法 JSON：{"fullText":"...","segments":[...]}。
+const SCRIPT_SYSTEM_PROMPT = `你是视频编译器的编剧部。根据主题写一份**口播讲稿**。只输出合法 JSON：{"fullText":"...","segments":[...]}。
 
 内容纪律（最重要的三条）：
 1. **每段必须推进具体信息**：讲清一个机制、一个因果、一个数字、一个对比、一个具体例子。禁止写「它比看起来更有意思」「把镜头拉近，细节开始显形」「回到最初的问题」这类**可以套在任何主题上的空话**——遇到主题专有名词就写它，遇到抽象就举实例。
@@ -203,11 +205,11 @@ const SCRIPT_SYSTEM_PROMPT = `你是视频编译器的编剧部。根据主题�
 
 分段纪律：
 - 段数必须等于 targetSegments，一段一句话意单元。每段长度由你按主题与讲述节奏定（口播约 3-6 秒一段是常见尺度，不是硬上限——该长则长，该短则短）。
-- 每段标 function：advance（推进新信息）| inform（解释）| emotion（情绪/悬念）。连续几段同类完全由你按内容的自然节奏决定，引擎不预设「信息倾倒」之类的结构禁令。
-- **结构由你定**：怎么开头、怎么展开、怎么收束，取决于这个主题最有力的讲法。可能需要一个反直觉的钩子，也可能需要先铺陈全景再逐层深入，还可能一个贯穿的比喻就够了——不要机械套用 beats 列表。
-- beats（若输入里有）只是类型配方的**参考视角**，不是必须覆盖的检查表。你可以完全不用、 reorder、或自己发明结构。beat 字段可填其中某个 id，也可以不填。真正决定质量的是「这一段有没有推进具体内容」，不是「它落在哪个格子里」。
+- 每段标 function：advance（推进新信息）| inform（解释）| emotion（情绪/悬念）。连续几段同类完全由你按内容的自然节奏决定，引擎不预设任何结构禁令。
 
-结构之上的追求：写完之后回头问自己——「这个讲法是不是把主题讲透了？有没有更聪明的切入？有没有哪段是凑数？」。宁可多推敲一遍结构，也不要填格子交差。
+结构纪律（最重要）：
+- 没有预设结构，没有必须先做什么、也没有必须逐项覆盖的清单。怎么开头、怎么展开、怎么收束，只取决于这个主题最有力的讲法——可能是先抛一个具体场景，可能是一路铺陈再逐层揭开，也可能一个贯穿始终的比喻就够了。你不必对齐任何模板，也不要为了「像讲稿」去凑某种起承转合。
+- 判断标准只有一条：这一段有没有推进具体内容。写完回头问自己——这个讲法是不是把主题讲透了？有没有更聪明的切入？有没有哪段是凑数？宁可多推敲一遍结构，也不要套框架交差。
 
 重音纪律（V-RHY-004 硬约束，漏了会让剪辑部整片打回）：
 - 每段必须给 emphasis：**该段里 1-3 个要重读的词**，从本段原文中原样摘取（不得改写、不得给整句）。
@@ -216,7 +218,11 @@ const SCRIPT_SYSTEM_PROMPT = `你是视频编译器的编剧部。根据主题�
 
 输出 schema（emphasis 必填）：
 {"fullText":"所有段落文字按顺序拼接",
- "segments":[{"id":"seg-1","text":"该段旁白原文","function":"advance|inform|emotion","beat":"beats 里的 id","mood":"neutral|curious|tense|awe|warm|urgent","emphasis":["本段重读词1","本段重读词2"]}]}`;
+ "segments":[{"id":"seg-1","text":"该段旁白原文","function":"advance|inform|emotion","mood":"neutral|curious|tense|awe|warm|urgent","emphasis":["本段重读词1","本段重读词2"]}]}`;
+
+export function buildScriptSystemPrompt(): string {
+  return SCRIPT_SYSTEM_PROMPT;
+}
 
 /**
  * 素材需求单系统提示词（P5-B）：只做「这一镜需要什么样的真实素材」，不负责找、不负责画。

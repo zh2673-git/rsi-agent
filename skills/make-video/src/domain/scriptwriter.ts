@@ -28,7 +28,6 @@ export async function writeScript(
     kind: 'script',
     payload: {
       topic: topic ?? project.meta.topic,
-      beats: recipe.beats,
       wordsPerMin,
       targetSegments,
       genre: recipe.id,

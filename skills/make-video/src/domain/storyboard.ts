@@ -594,19 +594,19 @@ export function buildConfirmation(project: Project): string {
   const lines: string[] = [];
   lines.push('=== 开工前双向确认表（编剧结构 + 素材决策 + 风格 + 配乐/音效方案 + 导演批注摘要）===');
   lines.push('【请用户确认后再进入采购/写场景/合成音频；修改请编辑 project.json 或回复调整。】');
-  // 编剧结构方案：结构由编剧按主题独创，钩子/beats 只是可选项。
-  // V-SCP-003/004/007（beat 覆盖/钩子前置/连续 inform）已移除，不能在这里变相复活成模板。
-  lines.push('【编剧结构方案（结构独创，不套钩子/八股）】');
+  // 编剧结构方案：只描述本片讲稿实际怎么组织，不提任何预设结构词（钩子/beats/八股），
+  // 免得把「可选」在措辞上变成默认。旧 V-SCP-003/004/007 早已移除，这里也不变相复活。
+  lines.push('【编剧结构方案（按本片主题独创）】');
   if (project.script?.segments?.length) {
-    lines.push('  段落结构（段 id [功能/beat] 开头）：');
+    lines.push('  段落结构（段 id [功能] 开头）：');
     for (const seg of project.script.segments) {
       const head = seg.text.replace(/\s+/g, '').slice(0, 24);
-      lines.push(`    ${seg.id} [${seg.function}${seg.beat ? `/${seg.beat}` : ''}] ${head}`);
+      lines.push(`    ${seg.id} [${seg.function}] ${head}`);
     }
-    lines.push('  开头/展开/收束由编剧按主题定；钩子只是可选项，请确认此结构不是模板套壳。');
+    lines.push('  以上为本片实际结构，请确认它不是套模板、每段都在推进具体内容。');
   } else {
-    lines.push('  尚未写入讲稿（project.script）：结构须由编剧按主题独创——');
-    lines.push('  怎么开头/展开/收束由编剧定；钩子只是可选项，不套 beats 检查表，不套八股结构。');
+    lines.push('  尚未写入讲稿（project.script）：结构须按本片主题独创——');
+    lines.push('  怎么开头、展开、收束由编剧依据主题判断，每段都要推进具体内容，请写出后确认。');
   }
   lines.push('');
   if (project.style) {
