@@ -2,6 +2,7 @@ export { err, warn, hasError, formatIssues, type Issue, type IssueLevel } from '
 export {
   BOILERPLATE_PHRASES,
   findPeriod,
+  isKnowledgeSegment,
   topicBigrams,
   topicTerms,
   validateRhythmPeriodicity,

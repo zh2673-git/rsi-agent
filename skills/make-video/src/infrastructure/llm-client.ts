@@ -1,10 +1,11 @@
 import { mvError, ERR } from '../core/errors.js';
-import { LLM_RETRY_MAX, PLACEHOLDER_MARK } from '../core/constants.js';
+import { LLM_RETRY_MAX, PLACEHOLDER_MARK, AUDIO_PROGRESSIONS, AUDIO_TEXTURES, AUDIO_MOODS, AUDIO_SFX_PALETTES } from '../core/constants.js';
 import { pickCanvasProgram, bestTemplate, pickTemplateBySemantics } from '../domain/scene-semantics.js';
 import { MOTION_WHITELIST, CAMERA_MOVES, ACCENT_PRIMITIVES } from '../core/validators/scene.js';
 
 export type LlmTaskKind =
   | 'script'
+  | 'audio-plan'
   | 'director-notes'
   | 'storyboard'
   | 'scene'
@@ -85,7 +86,9 @@ function buildPrompt(task: LlmTask): Array<{ role: string; content: string }> {
       ? buildSceneSystemPrompt()
       : task.kind === 'script'
         ? buildScriptSystemPrompt()
-        : task.kind === 'storyboard'
+        : task.kind === 'audio-plan'
+          ? AUDIO_PLAN_SYSTEM_PROMPT
+          : task.kind === 'storyboard'
           ? STORYBOARD_SYSTEM_PROMPT
           : task.kind === 'material-plan'
             ? MATERIAL_PLAN_SYSTEM_PROMPT
@@ -128,6 +131,11 @@ export function buildSceneSystemPrompt(): string {
 硬性契约（校验器逐条把关，违反即打回）：
 1. 完整骨架：<body data-scene-id="给定的sceneId"> 内有 .stage 容器；末尾 <script src="../motion/motion-lib.js"></script> 与一个 document.addEventListener('DOMContentLoaded', ...) 注册动画。
 2. 画面必须表达本镜旁白的具体含义（人/物/数字/因果/过程），禁止通用装饰凑数，禁止出现旁白原文或导演指令文本。
+   **知识锚点硬约束（payload.knowledgeAnchor 非空时）**：
+   - mustShow 是本镜画面的**存在理由**——必须用真实几何/图形/数值变化把它画出来，主体动画直接体现这个关系（如"圆上点的纵坐标随时间画出正弦波"就要让点真的沿圆走、纵坐标真的拉出波形）；
+   - forbidden 里的画法/说法一律不许出现；
+   - **禁止用大字、标签、装饰粒子、与 mustShow 无关的 shimmer/float/pan 替代可视化证明**——写不出"这段画面怎么画出 mustShow"就是没想清楚，不许用文字糊弄过关。
+   - 一镜只服务 mustShow 这一个知识点；不相关的元素一律删。
    **屏上文字纪律**（V-SCENE-005 判 error）：旁白里任何连续 4 个汉字都不得出现在画面文字里，也不得用旁白做标题。
    若这一镜确实需要文字，只允许：① 概括成数字/专名/缩写（旁白说"同一时间"，屏上写"4 路并行"）；② 短标签（≤4 字且非旁白原文，如"取指""译码"）；③ 标签元素必须带 class="caption"（或 hint/sub），校验器会把它当字幕区跳过。标题类文字同理，只能写本镜的抽象结论，不能抄旁白。
 3. 动画原语**只有**这些（MV. 前缀，写成 MV.xxx）：${prims}。
@@ -153,6 +161,19 @@ export function buildSceneSystemPrompt(): string {
 8. 用 MV.camera('.stage', { move, zoom }) 表达运镜；move 只能取：${CAMERA_MOVES.join('/')}（拼错会静默失效）。
 9. 素材语言（payload.styleVisual）必须遵守：dimension=css3d 时至少用一个 3D 原语（MV.tilt3d/orbit/depth/card3d/spin3d），并给容器 perspective 与 transform-style:preserve-3d；dimension=2d 时禁止任何 3D 属性（perspective/rotate3d/translateZ）。motifs 是这一派允许的母题，texture 是允许的纹理层，styleVisual.note 是素材语言的一句话定义——场景必须长成这一派的样子，不能只换配色。`;
 }
+
+/** 配乐方案系统提示词：按讲稿主题与情绪弧选配乐，禁止万能 bed（docs/07 声音部 + SKILL.md 规则 9） */
+export const AUDIO_PLAN_SYSTEM_PROMPT = `你是视频编译器的声音部（配乐总监）。根据讲稿主题、每段情绪弧与导演视觉意图，为**这一支片**定一套配乐与音效方案。只输出合法 JSON，字段与取值严格如下：
+
+- rationale：一句话写清「为什么这个主题配这种乐」——必须扣住实际主题与节奏（如"三角函数从旋转到波形，逐级揭示，用清亮拨弦+缓慢展开的暖 pad 呼应'从一点长成一条波'的发现感"），不许写"好听""适合科普"这种空话。
+- mood：气质，只能是 ${AUDIO_MOODS.join(' | ')}。
+- bpm：整数 60-160，按叙事节奏定——慢思辨偏低、明快推进偏高；不确定给 84。
+- progression：和弦进行，只能是 ${AUDIO_PROGRESSIONS.join(' | ')}。按情绪底色选：好奇科普 warm-jazzy、悬疑 mysterious、上扬 bright-major、宏大 epic-minor、极简 minimal-drone、俏皮 playful-pluck、紧张 tense-sus。
+- texture：织体，只能是 ${AUDIO_TEXTURES.join(' | ')}。信息密集段用稀疏织体给旁白让位，情绪段可丰满。
+- brightness：0..1 的小数，越清亮越高；冷暗主题取低，明快主题取高。
+- sfxPalette：转场/重音音效音色，只能是 ${AUDIO_SFX_PALETTES.join(' | ')}。
+
+纪律：配乐必须随本片主题与节奏而不同，禁止所有片子都是同一首默认 bed；rationale 要能让用户一眼判断"这套乐是不是为这个内容选的"。`;
 
 /** 导演批注系统提示词（docs/04 导演部）：一段一条，讲「这镜靠什么和旁白对位」 */
 const DIRECTOR_NOTES_SYSTEM_PROMPT = `你是视频编译器的导演部。根据讲稿每段旁白与类型配方的 beat 参考，为**每一段**写一条视觉批注。只输出合法 JSON 数组，数组长度必须等于输入 segments 长度，顺序一致。
@@ -210,6 +231,11 @@ const SCRIPT_SYSTEM_PROMPT = `你是视频编译器的编剧部。根据主题�
 2. **禁止重复**：任意两段不得表达同一件事，禁止把同一句话换个说法再写一遍，禁止韵律式排比填充段数。
 3. 讲稿必须出现主题的**专有概念、专有名词或具体数据**（例如讲 CPU 流水线就要出现取指/译码/执行、数据冒险、分支预测这类词），不得只写通用叙事。
 4. **为可视化写动作**：写机制/过程时，写清「谁是主体、它在怎么变、变出什么结果」——这些具体动作是导演和画师的动作依据。画面能否丰富，取决于这里的动作是否具体：「点沿圆周转动、高度拉出正弦曲线」比「三角函数很奇妙」更能让画面动起来。
+5. **知识锚点（凡涉及知识/概念/原理/公式/数据的段必填）**：每段在讲知识时，必须给出 knowledgeAnchor 三件事——
+   - coreConcept：本段要讲透的那一个知识点（一句话）；
+   - mustShow：画面必须**真实画出**的关系/变化（如"圆上点的纵坐标随时间画出正弦波"），默认这条会交给画师逐镜落实，**禁止用大字/装饰/无关动画替代它**；
+   - forbidden：会误导观众的错误画法或说法（如"把 sin 画成任意起伏的波浪"）。
+   写不出 mustShow 的段，说明你还没想清楚这段在讲什么，回去重写。情绪/过渡段不必填。
 
 分段纪律：
 - 段数必须等于 targetSegments，一段一句话意单元。每段长度由你按主题与讲述节奏定（口播约 3-6 秒一段是常见尺度，不是硬上限——该长则长，该短则短）。
@@ -224,9 +250,9 @@ const SCRIPT_SYSTEM_PROMPT = `你是视频编译器的编剧部。根据主题�
   这些词是后续字幕高亮与镜内重音的落点——**每段都不能空**，空一段就少一路重音载体。
 - pausesMs（可选）：该段朗读的停顿位置，毫秒数组，一般 1-2 个，如 [220]。
 
-输出 schema（emphasis 必填）：
+输出 schema（emphasis 必填；讲知识的段 knowledgeAnchor 必填）：
 {"fullText":"所有段落文字按顺序拼接",
- "segments":[{"id":"seg-1","text":"该段旁白原文","function":"advance|inform|emotion","mood":"neutral|curious|tense|awe|warm|urgent","emphasis":["本段重读词1","本段重读词2"]}]}`;
+ "segments":[{"id":"seg-1","text":"该段旁白原文","function":"advance|inform|emotion","mood":"neutral|curious|tense|awe|warm|urgent","emphasis":["本段重读词1","本段重读词2"],"knowledgeAnchor":{"coreConcept":"本段知识点","mustShow":"画面必须真实画出的关系","forbidden":"会误导的画法/说法"}}]}`;
 
 export function buildScriptSystemPrompt(): string {
   return SCRIPT_SYSTEM_PROMPT;
@@ -306,6 +332,8 @@ export class TemplateLlmClient implements LlmClient {
     switch (task.kind) {
       case 'script':
         return templateScript(task.payload);
+      case 'audio-plan':
+        return templateAudioPlan(task.payload);
       case 'director-notes':
         return templateDirectorNotes(task.payload);
       case 'storyboard':
@@ -320,6 +348,20 @@ export class TemplateLlmClient implements LlmClient {
         throw mvError(ERR.LLM_SCHEMA, `template 引擎不支持的任务: ${task.kind}`);
     }
   }
+}
+
+/** 离线模板配乐方案：按题材关键字给一个非默认的变化，供无 LLM 时骨架可用（仍带占位标记由内容门拦） */
+function templateAudioPlan(payload: Record<string, unknown>): unknown {
+  const p = payload as { topic?: string; genre?: string };
+  const text = `${p.topic ?? ''} ${p.genre ?? ''}`;
+  // 离线模式没有内容能力，这里只按题材给一个可辨识的方向，不冒充"为内容精心选配"。
+  if (/悬疑|推理|真相|谜|犯|调查/.test(text)) {
+    return { rationale: '【离线占位】悬疑题材配暗色半音下行', mood: 'tense', bpm: 76, progression: 'mysterious', texture: 'sparse', brightness: 0.3, sfxPalette: 'metallic' };
+  }
+  if (/宏大|史诗|宇宙|起源|文明/.test(text)) {
+    return { rationale: '【离线占位】宏大题材配开放五度宽 pad', mood: 'epic', bpm: 72, progression: 'epic-minor', texture: 'drone-pulse', brightness: 0.55, sfxPalette: 'soft' };
+  }
+  return { rationale: '【离线占位】通用好奇科普配暖拨弦', mood: 'warm-curious', bpm: 84, progression: 'warm-jazzy', texture: 'pluck-pad', brightness: 0.6, sfxPalette: 'glassy' };
 }
 
 interface ScriptPayload {

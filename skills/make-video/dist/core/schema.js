@@ -142,6 +142,16 @@ export const ScriptSegmentSchema = z.object({
     text: z.string().min(1),
     function: SegmentFunctionSchema,
     beat: z.string().optional(),
+    // docs/03：知识锚点（内容触发——任何讲稿里涉及知识/概念/原理/数据的段落都要填）。
+    // coreConcept=本段要讲透的知识点；mustShow=画面必须真实画出的关系（不可用文字替代）；
+    // forbidden=会误导的画法/表述。由 V-SCP-009/010 校验，导演部/美术部消费 mustShow 做落实自检。
+    knowledgeAnchor: z
+        .object({
+        coreConcept: z.string().min(1),
+        mustShow: z.string().min(1),
+        forbidden: z.string().min(1),
+    })
+        .optional(),
     // docs/03：表演/剪辑联动字段（情绪基调 / 重音词 / 停顿标记 ms）
     mood: z.enum(['neutral', 'curious', 'tense', 'awe', 'warm', 'urgent']).optional(),
     emphasis: z.array(z.string()).optional(),
@@ -218,6 +228,14 @@ export const DirectorNoteSchema = z.object({
     emotionGoal: z.string(),
     referenceMood: z.string().default(''),
     counterpoint: CounterpointSchema,
+    // 知识锚点（从编剧 knowledgeAnchor 透传，不依赖 LLM 复述）：画师逐镜必须画出 mustShow。
+    knowledgeAnchor: z
+        .object({
+        coreConcept: z.string(),
+        mustShow: z.string(),
+        forbidden: z.string(),
+    })
+        .optional(),
 });
 // 覆盖（coverage）：同一场景内的换机位硬切。at 为镜头内归一化时间（0-1），
 // 由剪辑部在合成时换算成绝对毫秒并落到相机轨；scale 为相对当前机位的倍率。
@@ -244,6 +262,14 @@ export const ShotSchema = z.object({
     motivation: z.string().default(''),
     counterpoint: CounterpointSchema,
     gag: z.boolean().default(false),
+    // 知识锚点（编剧→导演→画师透传）：画师逐镜必须画出 mustShow，禁文字/装饰糊弄。
+    knowledgeAnchor: z
+        .object({
+        coreConcept: z.string(),
+        mustShow: z.string(),
+        forbidden: z.string(),
+    })
+        .optional(),
     // A5 调度表（P13 阶段1）：机位动机 + 五轨动/静决策。全可缺省 —— 旧项目零回归。
     intent: CameraIntentSchema.optional(),
     staging: StagingSchema.optional(),

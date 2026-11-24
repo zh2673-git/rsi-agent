@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AudioPlanSchema, ProjectSchema, StylePackSchema } from '../src/core/schema.js';
 import { buildConfirmation } from '../src/domain/storyboard.js';
-import { buildScriptSystemPrompt } from '../src/infrastructure/llm-client.js';
+import { buildScriptSystemPrompt, AUDIO_PLAN_SYSTEM_PROMPT, TemplateLlmClient } from '../src/infrastructure/llm-client.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -77,5 +77,25 @@ describe('audioPlan：配乐/音效差异化方案的 IR 契约', () => {
     expect(prompt).toMatch(/结构纪律/);
     expect(prompt).not.toMatch(/钩子|beats?|格子|节拍表/i);
     expect(prompt).toContain('没有预设结构');
+  });
+
+  it('audio-plan 系统提示词带完整合法枚举并显式禁万能 bed', () => {
+    expect(AUDIO_PLAN_SYSTEM_PROMPT).toContain('warm-jazzy');
+    expect(AUDIO_PLAN_SYSTEM_PROMPT).toContain('epic-minor');
+    expect(AUDIO_PLAN_SYSTEM_PROMPT).toContain('sfxPalette');
+    expect(AUDIO_PLAN_SYSTEM_PROMPT).toMatch(/禁止所有片子都是同一首默认 bed/);
+    expect(AUDIO_PLAN_SYSTEM_PROMPT).toMatch(/rationale/);
+  });
+
+  it('离线模板的 audio-plan 也按题材给出可解析的差异化方案', async () => {
+    const llm = new TemplateLlmClient();
+    const mystery = await llm.generate({ kind: 'audio-plan', payload: { topic: '悬疑推理谜案', genre: 'story-narrative' } });
+    const epic = await llm.generate({ kind: 'audio-plan', payload: { topic: '宇宙起源文明', genre: 'science-explainer' } });
+    const m = AudioPlanSchema.parse(mystery);
+    const e = AudioPlanSchema.parse(epic);
+    expect(m.progression).toBe('mysterious');
+    expect(e.progression).toBe('epic-minor');
+    expect(m.progression).not.toBe(e.progression);
+    expect(m.rationale).toContain('【离线占位】');
   });
 });

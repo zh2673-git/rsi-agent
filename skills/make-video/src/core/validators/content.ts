@@ -105,6 +105,49 @@ export function topicBigrams(topic: string): string[] {
 }
 
 /**
+ * 知识信号：命中任一即认为该段在讲知识/概念/原理/数据，必须挂知识锚点。
+ * 按内容触发而非按 recipe 类型——故事片里讲知识的段落同样受约束。
+ * 判定放宽（命中即触发、漏填只是 warn 不误杀），真正的硬约束在 V-SCP-010 的"锚点必须有实质"。
+ */
+const KNOWLEDGE_SIGNALS =
+  /(定义|意味着|原因|因为|所以|原理|机制|公式|定理|定律|等于|例如|比如|比例|关系|变化|函数|角度|弧度|周期|频率|振幅|相位|导数|斜率|积分|向量|投影|正弦|余弦|正切|sin|cos|tan|π|π\/|\d+(\.\d+)?(度|°|%|倍|赫兹|Hz|秒|米)|为什么|如何|怎么)/i;
+
+export function isKnowledgeSegment(text: string): boolean {
+  return KNOWLEDGE_SIGNALS.test(text);
+}
+
+/** V-SCP-009/010 知识锚点门。返回 issues：触发段缺锚点=warn，锚点空壳=error。 */
+function validateKnowledgeAnchors(script: Script): Issue[] {
+  const issues: Issue[] = [];
+  const triggered = script.segments.filter((s) => isKnowledgeSegment(s.text));
+  if (triggered.length === 0) return issues;
+
+  const missing = triggered.filter((s) => !s.knowledgeAnchor);
+  if (missing.length > 0) {
+    issues.push(
+      warn(
+        'V-SCP-009',
+        `知识锚点缺失：${missing.length}/${triggered.length} 个知识段未填 knowledgeAnchor（${missing.slice(0, 4).map((s) => s.id).join('/')}${missing.length > 4 ? '…' : ''}）——每段须给出 coreConcept/mustShow/forbidden，画面必须真实画出 mustShow，不能用文字或装饰糊弄`,
+      ),
+    );
+  }
+
+  const hollow = triggered.filter((s) => {
+    const a = s.knowledgeAnchor;
+    return !!a && (!a.coreConcept.trim() || !a.mustShow.trim() || !a.forbidden.trim());
+  });
+  if (hollow.length > 0) {
+    issues.push(
+      err(
+        'V-SCP-010',
+        `知识锚点空壳：${hollow.length} 段的 coreConcept/mustShow/forbidden 未填全（${hollow.slice(0, 4).map((s) => s.id).join('/')}）——填了等于没填，不构成"画面体现本质"的证据`,
+      ),
+    );
+  }
+  return issues;
+}
+
+/**
  * 讲稿内容门。topic 由项目元信息给（writeScript 时传入），
  * 用于判断讲稿是否真的在讲这个主题。
  */
@@ -204,6 +247,10 @@ export function validateScriptContent(script: Script, topic: string): Issue[] {
       }
     }
   }
+
+  // V-SCP-009/010 知识锚点：任何涉及知识/概念/原理/数据的段落都要挂锚点并填全，
+  // 画面必须真实画出 mustShow——禁止用大字/装饰/无关动画糊弄（三角函数 v2 退回根因）。
+  issues.push(...validateKnowledgeAnchors(script));
 
   // V-SCP-014 信息密度（warn）：全片零数字/零英文字符 = 没有任何具体锚点
   const hasAnchor = segs.some((s) => /\d|[A-Za-z]{2,}/.test(s.text));

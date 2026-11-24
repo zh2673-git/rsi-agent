@@ -43,6 +43,15 @@ export const MS_PER_CHAR_CN = 220;
 export const DUCK_RATIO = 0.175;
 export const SYNC_TOLERANCE_MS = 100;
 
+/**
+ * 配乐方案的合法枚举（audio-plan LLM 提示词 + 合成器兜底共用，唯一事实源）。
+ * 与 bgm_synth.py 的 PROGRESSIONS / texture / sfx 实现名对齐；values 是合成器能实现的名字。
+ */
+export const AUDIO_PROGRESSIONS = ['warm-jazzy', 'mysterious', 'bright-major', 'epic-minor', 'minimal-drone', 'playful-pluck', 'tense-sus'] as const;
+export const AUDIO_TEXTURES = ['pluck-pad', 'pad-only', 'arp-drive', 'bell-air', 'drone-pulse', 'full-band'] as const;
+export const AUDIO_MOODS = ['warm-curious', 'mysterious', 'bright-pulse', 'epic', 'calm', 'playful', 'tense'] as const;
+export const AUDIO_SFX_PALETTES = ['glassy', 'woody', 'metallic', 'soft', 'punchy'] as const;
+
 export const GENRES = [
   'science-explainer',
   'story-narrative',

@@ -127,6 +127,11 @@ export function parseScript(raw: unknown): Script {
       emotion?: string;
       assetNeed?: string;
       counterpoint?: string;
+      knowledgeAnchor?: {
+        coreConcept?: string;
+        mustShow?: string;
+        forbidden?: string;
+      };
     };
     if (!seg.text) throw mvError(ERR.LLM_SCHEMA, `第 ${i + 1} 段缺少 text`);
     // V-SCP-001：功能必填，禁止默认值架空校验（此前缺省填 inform 使校验永不触发）
@@ -156,6 +161,19 @@ export function parseScript(raw: unknown): Script {
       // 且观众失去重音提示——兜底派生而不是判死。
       emphasis: normalizeEmphasis(seg.emphasis, seg.text),
       ...(Array.isArray(seg.pausesMs) ? { pausesMs: seg.pausesMs } : {}),
+      // 只有三个字段都非空才落键：空壳交给 V-SCP-010 判 error，
+      // 不能让 String(undefined).trim() 造出 { coreConcept:'', ... } 在重载时被 schema min(1) 硬拒。
+      ...(seg.knowledgeAnchor
+        ? (() => {
+            const a = seg.knowledgeAnchor!;
+            const coreConcept = String(a.coreConcept ?? '').trim();
+            const mustShow = String(a.mustShow ?? '').trim();
+            const forbidden = String(a.forbidden ?? '').trim();
+            return coreConcept && mustShow && forbidden
+              ? { knowledgeAnchor: { coreConcept, mustShow, forbidden } }
+              : {};
+          })()
+        : {}),
       ...(seg.subtext ? { subtext: seg.subtext } : {}),
       ...(seg.emotion ? { emotion: seg.emotion } : {}),
       ...(seg.assetNeed ? { assetNeed: seg.assetNeed as NonNullable<Script['segments'][number]['assetNeed']> } : {}),

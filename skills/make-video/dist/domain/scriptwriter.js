@@ -131,6 +131,19 @@ export function parseScript(raw) {
             // 且观众失去重音提示——兜底派生而不是判死。
             emphasis: normalizeEmphasis(seg.emphasis, seg.text),
             ...(Array.isArray(seg.pausesMs) ? { pausesMs: seg.pausesMs } : {}),
+            // 只有三个字段都非空才落键：空壳交给 V-SCP-010 判 error，
+            // 不能让 String(undefined).trim() 造出 { coreConcept:'', ... } 在重载时被 schema min(1) 硬拒。
+            ...(seg.knowledgeAnchor
+                ? (() => {
+                    const a = seg.knowledgeAnchor;
+                    const coreConcept = String(a.coreConcept ?? '').trim();
+                    const mustShow = String(a.mustShow ?? '').trim();
+                    const forbidden = String(a.forbidden ?? '').trim();
+                    return coreConcept && mustShow && forbidden
+                        ? { knowledgeAnchor: { coreConcept, mustShow, forbidden } }
+                        : {};
+                })()
+                : {}),
             ...(seg.subtext ? { subtext: seg.subtext } : {}),
             ...(seg.emotion ? { emotion: seg.emotion } : {}),
             ...(seg.assetNeed ? { assetNeed: seg.assetNeed } : {}),

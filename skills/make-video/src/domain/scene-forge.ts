@@ -473,6 +473,9 @@ async function tryLlmScene(
     narration: shot.narration,
     visualIntent: shot.visual.prompt,
     counterpoint: shot.counterpoint,
+    // 知识锚点（画师硬约束）：mustShow 必须真实画出来，forbidden 禁止出现；
+    // 大字/装饰/与概念无关的动画不算落实（三角函数 v2 退回根因）。
+    knowledgeAnchor: shot.knowledgeAnchor ?? null,
     mood: seg?.mood ?? 'neutral',
     emphasis: seg?.emphasis ?? [],
     // LLM 施工路径同口径：'none' 兜底取本镜语法的机位偏好（I-05，不再一律 push-in）

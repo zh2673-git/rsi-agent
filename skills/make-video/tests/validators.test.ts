@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { V } from '../src/core/index.js';
+import { isKnowledgeSegment } from '../src/core/validators/index.js';
 import { MOTION_WHITELIST, uses3d } from '../src/core/validators/scene.js';
 import { parseScript, validateCharBudget } from '../src/domain/scriptwriter.js';
 import type { Project } from '../src/core/schema.js';
@@ -771,5 +772,55 @@ describe('V-RHY-013 场内/场间转场双规则', () => {
     // scenes 编组把两镜放进同一场 ⇒ 第二镜 intra（编组优先于 segment 口径）
     const withScene = { ...base, scenes: [{ id: 'sc1', canvas: 'c', shotIds: ['s1', 's2'], viewportWindows: [] }] } as never;
     expect(computeTimeline(withScene).shots.map((s) => s.sceneScope)).toEqual(['inter', 'intra']);
+  });
+});
+
+// ── V-SCP-009/010 知识锚点：按内容触发、不按 recipe 类型 ────────────────
+describe('知识锚点门（V-SCP-009/010，按内容触发）', () => {
+  const mk = (text: string, extra: Record<string, unknown> = {}) => ({
+    id: 'seg-1', text, function: 'inform' as const, ...extra,
+  });
+
+  it('isKnowledgeSegment：含概念/公式/数据即触发，纯叙事不触发', () => {
+    expect(isKnowledgeSegment('正弦函数等于纵坐标随时间变化')).toBe(true);
+    expect(isKnowledgeSegment('这个机制的原理是周期 2π')).toBe(true);
+    expect(isKnowledgeSegment('他转身走出了房间')).toBe(false);
+  });
+
+  it('V-SCP-009：知识段缺锚点 → warn（不误杀）', () => {
+    const issues = V.validateScriptContent(
+      { fullText: '', segments: [mk('正弦函数的定义是纵坐标随时间变化')] } as never,
+      '三角函数',
+    );
+    expect(issues.find((i) => i.id === 'V-SCP-009')?.level).toBe('warn');
+    expect(issues.some((i) => i.id === 'V-SCP-010')).toBe(false);
+  });
+
+  it('V-SCP-010：锚点字段空壳 → error', () => {
+    const issues = V.validateScriptContent(
+      { fullText: '', segments: [mk('正弦函数的定义是纵坐标随时间变化', {
+        knowledgeAnchor: { coreConcept: '正弦', mustShow: '', forbidden: '' },
+      })] } as never,
+      '三角函数',
+    );
+    expect(issues.find((i) => i.id === 'V-SCP-010')?.level).toBe('error');
+  });
+
+  it('非知识段不触发 009/010', () => {
+    const issues = V.validateScriptContent(
+      { fullText: '', segments: [mk('他转身走出了房间')] } as never,
+      '一个故事',
+    );
+    expect(issues.some((i) => i.id === 'V-SCP-009' || i.id === 'V-SCP-010')).toBe(false);
+  });
+
+  it('parseScript：空壳 anchor 不落键，避免重载时 schema min(1) 硬失败', () => {
+    const parsed = parseScript({
+      fullText: '正弦函数的定义是纵坐标随时间变化',
+      segments: [mk('正弦函数的定义是纵坐标随时间变化', {
+        knowledgeAnchor: { coreConcept: '', mustShow: '', forbidden: '' },
+      })],
+    });
+    expect((parsed.segments[0] as Record<string, unknown>).knowledgeAnchor).toBeUndefined();
   });
 });

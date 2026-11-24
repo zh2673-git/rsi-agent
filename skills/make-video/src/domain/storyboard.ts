@@ -11,7 +11,7 @@ import type {
   StyleDecision,
   VisualKind,
 } from '../core/schema.js';
-import { CAMERA_INTENTS, StagingSchema } from '../core/schema.js';
+import { CAMERA_INTENTS, StagingSchema, AudioPlanSchema } from '../core/schema.js';
 import { V } from '../core/index.js';
 import { PUSH_CAMERAS } from '../core/validators/scene.js';
 
@@ -63,22 +63,53 @@ export async function writeDirectorNotes(
       genre: recipe.id,
     },
   });
+  const byId = new Map(project.script.segments.map((s) => [s.id, s]));
   const notes = (raw as unknown[]).map((n, i) => {
     const note = n as Partial<DirectorNote>;
     if (!note.segmentId || !note.visualIntent) {
       throw mvError(ERR.LLM_SCHEMA, `导演批注第 ${i + 1} 条缺字段`);
     }
+    // 知识锚点由编剧原样透传——LLM 复述常常走样，这条不能交给它。
+    const anchor = byId.get(note.segmentId)?.knowledgeAnchor;
     return {
       segmentId: note.segmentId,
       visualIntent: note.visualIntent,
       emotionGoal: note.emotionGoal ?? '稳定推进',
       referenceMood: note.referenceMood ?? '',
       counterpoint: note.counterpoint ?? 'metaphor',
+      ...(anchor ? { knowledgeAnchor: anchor } : {}),
     } satisfies DirectorNote;
   });
   project.directorNotes = notes;
   return notes;
 }
+
+/**
+ * 按讲稿主题与情绪弧生成配乐方案（audio-plan，声音部）。
+ * 只在用户未预设 project.audioPlan 时调用——用户/开工确认门显式写的方案优先。
+ * 生成结果经 AudioPlanSchema.parse 归一（非法枚举由 schema 默认值兜底），
+ * 让「配乐随内容而不同」成为默认行为，而不是靠人记得手写。
+ */
+export async function writeAudioPlan(
+  project: Project,
+  llm: LlmClient,
+  recipe: Recipe,
+): Promise<void> {
+  if (!project.script) throw mvError(ERR.SCHEMA, '缺少讲稿，无法定配乐方案');
+  const raw = await llm.generate({
+    kind: 'audio-plan',
+    payload: {
+      topic: project.meta.topic,
+      genre: recipe.id,
+      fullText: project.script.fullText,
+      segments: project.script.segments.map((s) => ({ id: s.id, text: s.text, mood: s.mood })),
+      directorNotes: project.directorNotes.map((n) => ({ segmentId: n.segmentId, emotionGoal: n.emotionGoal })),
+      styleId: project.style?.id,
+    },
+  });
+  project.audioPlan = AudioPlanSchema.parse(raw);
+}
+
 
 export function decideMaterials(
   segments: Array<{ id: string; text: string; assetNeed?: string }>,
@@ -289,6 +320,10 @@ export async function storyboard(
   if (project.directorNotes.length === 0) {
     await writeDirectorNotes(project, llm, recipe);
   }
+  // 配乐方案：用户/开工确认门未预设时，按讲稿主题与情绪弧生成，避免退回风格包万能 bed。
+  if (!project.audioPlan) {
+    await writeAudioPlan(project, llm, recipe);
+  }
   // init --style 已经把用户指定写进 project.style；storyboard 不传 --style 时必须沿用它，
   // 否则 decideStyle 会退回 recipe 推荐，把用户在 init 时的显式选择静默覆盖掉。
   const styleDecision = decideStyle(registry, recipe, userStyleId ?? project.style?.id);
@@ -340,6 +375,10 @@ export async function storyboard(
       const beatName = recipe.beats.find((b) => b.id === seg?.beat)?.name;
       visual.params['kicker'] = visual.params['kicker'] ?? beatName ?? '';
     }
+    // 知识锚点按 segmentId 从编剧透传到镜——不靠 LLM 复述，画师据此落实 mustShow。
+    const segAnchor = project.script?.segments.find(
+      (x) => x.id === (shot.segmentId ?? project.script?.segments[i]?.id),
+    )?.knowledgeAnchor;
     return {
       id: `s${String(i + 1).padStart(2, '0')}`,
       segmentId: shot.segmentId ?? project.script?.segments[i]?.id ?? `seg-${i + 1}`,
@@ -351,6 +390,7 @@ export async function storyboard(
       motivation: shot.motivation ?? '',
       counterpoint: shot.counterpoint ?? 'metaphor',
       gag: shot.counterpoint === 'parody' ? true : false,
+      ...(segAnchor ? { knowledgeAnchor: segAnchor } : {}),
       colorTemp,
       // 导演显式给了转场就尊重；留空 = auto，交给剪辑部按切点动机裁决
       transition: shot.transition ?? stylePack.transitions[i % stylePack.transitions.length] ?? 'dissolve',
@@ -633,6 +673,10 @@ export function buildConfirmation(project: Project): string {
       `  ${shot.id} [${shot.zoom}/${shot.camera}] ${dec?.kind ?? 'code-scene'}：${dec?.reason ?? ''}`,
     );
     lines.push(`      对位=${shot.counterpoint} 批注：${note?.visualIntent ?? '-'}`);
+    if (shot.knowledgeAnchor) {
+      lines.push(`      知识锚点·必须画出：${shot.knowledgeAnchor.mustShow}`);
+      lines.push(`      禁止：${shot.knowledgeAnchor.forbidden}`);
+    }
   }
   lines.push('确认后进入采购阶段；修改请直接编辑 project.json 或重跑 storyboard。');
   return lines.join('\n');
