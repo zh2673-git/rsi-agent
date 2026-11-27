@@ -680,6 +680,29 @@ pub(crate) async fn self_update_start(stream: &mut TcpStream) -> anyhow::Result<
                             stamp(&format!("ABORT 更新包落位失败：{e}"));
                             return;
                         }
+                        // web-dist/ must travel with the exe: the spawned host serves the SPA
+                        // from current_exe().parent()/web-dist (web/mod.rs candidate 3). Without
+                        // it a released build answers K500 on /vendor/manifest.json right after
+                        // the handover, so the "update finished" page looks broken. Only the
+                        // compile-time CARGO_MANIFEST_DIR candidate hides this on a dev machine --
+                        // an installed tree has no such fallback, so it only shows up there.
+                        if let Some(w) = s.parent().map(|p| p.join("web-dist")).filter(|p| p.is_dir()) {
+                            let mut stack = vec![(w, out.join("release/web-dist"))];
+                            while let Some((sdir, ddir)) = stack.pop() {
+                                let _ = std::fs::create_dir_all(&ddir);
+                                if let Ok(rd) = std::fs::read_dir(&sdir) {
+                                    for ent in rd.flatten() {
+                                        let p = ent.path();
+                                        let t = ddir.join(ent.file_name());
+                                        if p.is_dir() {
+                                            stack.push((p, t));
+                                        } else {
+                                            let _ = std::fs::copy(&p, &t);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         stamp(&format!("step1 使用已下载的更新包 {}，跳过 cargo 构建", s.display()));
                         true
                     }

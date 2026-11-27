@@ -74,6 +74,10 @@ INCLUDE = (
 )
 WEB_DIST_SRC = "runtime/crates/host/web-dist/"
 WEB_DIST_DST = "runtime/target/release/web-dist/"
+# build-time bookkeeping, not runtime input: the host serves exactly index.html/style.css/app.js
+# plus vendor/, so shipping package.json / vite.config.js only bloats the zip (and a stray
+# .gitignore in the payload looks like an unfinished package)
+WEB_DIST_EXCLUDE = ("package.json", "vite.config.js", ".gitignore")
 EXCLUDE_DIR_PARTS = {"__pycache__", "node_modules", "data", "state", "outputs", "target", ".venv"}
 # core-patch sources: the shipped runtime/ is already patched, end users never run apply-tool-patches.py
 EXCLUDE_PREFIX = ("scripts/patches/",)
@@ -122,7 +126,8 @@ def files() -> list[str]:
 def web_files() -> list[str]:
     """Frontend assets, re-rooted to sit beside the exe (web/mod.rs candidate 3)."""
     return sorted(rel for rel in _git("ls-files", WEB_DIST_SRC).splitlines()
-                  if rel.strip() and not rel.strip().endswith(EXCLUDE_SUFFIX))
+                  if rel.strip() and not rel.strip().endswith(EXCLUDE_SUFFIX)
+                  and rel.strip()[len(WEB_DIST_SRC):] not in WEB_DIST_EXCLUDE)
 
 
 def _bin_dir(bin_dir: Path | None) -> Path:

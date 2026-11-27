@@ -1,0 +1,2 @@
+                        stamp(&format!("step1 使用已下载的更新包 {}，跳过 cargo 构建", s.display()));
+                        true

@@ -34,7 +34,8 @@ import zipfile
 from pathlib import Path
 
 REPO_SLUG = "zh2673-git/rsi-agent"
-API = f"https://api.github.com/repos/{REPO_SLUG}/releases/latest"
+# RSI_UPDATE_API lets a mirror / an offline test serve the same release JSON; unset = GitHub.
+API = os.environ.get("RSI_UPDATE_API") or f"https://api.github.com/repos/{REPO_SLUG}/releases/latest"
 UA = {"User-Agent": "rsi-agent-update-check"}
 STAGING = ".rsi/update-staging"
 EXE = "react-agent-host.exe"
@@ -182,6 +183,16 @@ def _safe_name(n: str) -> bool:
     return not (n.startswith("/") or ".." in n.split("/") or ":" in n)
 
 
+def _unlink_quiet(p: Path) -> None:
+    """Best-effort delete. A download zip can still be held by an AV scanner or a killed-but-not-yet-
+    reaped process; failing here must not mask the real error (the caller is already on an error
+    path), and a stale file is retried on the next attempt anyway."""
+    try:
+        p.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def download(ver: str, url: str) -> int:
     root = repo_root()
     st = root / STAGING
@@ -190,7 +201,7 @@ def download(ver: str, url: str) -> int:
     try:
         got = _fetch(url, zpath, timeout=180)
     except Exception as e:
-        zpath.unlink(missing_ok=True)
+        _unlink_quiet(zpath)
         sys.stderr.write(f"update_check: download failed {type(e).__name__}\n")
         return 1
     try:
@@ -200,7 +211,7 @@ def download(ver: str, url: str) -> int:
     except Exception:
         expect = ""
     if expect and got != expect:
-        zpath.unlink(missing_ok=True)
+        _unlink_quiet(zpath)
         sys.stderr.write("update_check: sha256 mismatch\n")
         return 1
     digest = got
@@ -241,7 +252,7 @@ def download(ver: str, url: str) -> int:
     if not (exe_dir / EXE).is_file():
         sys.stderr.write("update_check: exe missing in zip\n")
         return 1
-    zpath.unlink(missing_ok=True)
+    _unlink_quiet(zpath)
     ready = {"version": ver, "exe": str(exe_dir / EXE), "sha256": digest}
     (st / "ready.json").write_text(json.dumps(ready), encoding="utf-8")
     print(json.dumps({"ok": True, "version": ver, "ready": str(st / "ready.json")}))
@@ -326,7 +337,7 @@ def stage_env(info: dict | None = None) -> int:
     try:
         got = _fetch(url, zpath, timeout=600)
     except Exception as e:
-        zpath.unlink(missing_ok=True)
+        _unlink_quiet(zpath)
         sys.stderr.write(f"update_check: runtime download failed {type(e).__name__}\n")
         return 1
     try:
@@ -336,7 +347,7 @@ def stage_env(info: dict | None = None) -> int:
     except Exception:
         expect = ""
     if expect and got != expect:
-        zpath.unlink(missing_ok=True)
+        _unlink_quiet(zpath)
         sys.stderr.write("update_check: runtime sha256 mismatch\n")
         return 1
     meta_url = _asset(info, ENV_META)

@@ -1,0 +1,8 @@
+{
+  "id": "SU1-WEB-DIST",
+  "description": "misc.rs self_update_start：把 staged 更新包的 web-dist/ 一并拷进隔离输出目录。缺了它，交接后的新进程找不到 web-dist（web/mod.rs 候选 3），/vendor/manifest.json 立刻 K500——开发机靠编译期 CARGO_MANIFEST_DIR 侥幸不出事，安装树必现",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor_file": "blocks/su1-webdist-anchor.txt",
+  "patch_file": "blocks/su1-webdist-patch.txt",
+  "order": 10
+}
