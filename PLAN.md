@@ -156,3 +156,20 @@
 
 回退：删 `scripts/{fetch-runtime,build-installer,runtime-sitecustomize,apply-env-update}.*`、`runtime-env/`，`git checkout -- run.cmd scripts/update_check.py scripts/release.py`。
 
+### 2026-11-27 步 3b：更新交接后白屏修复 + 0.1.29 发布（T-20261127-11）
+
+真机复验暴露一个只在**安装树**出现的缺陷：点「立即更新」后新进程起来但页面全白，`GET /vendor/manifest.json` 返回 K500。
+
+根因：`self_update_start` 的 zip 快路径只把 `react-agent-host.exe` 与 `sandbox-run.exe` 拷进 `target-selfupdate/release/`，而新进程按 `current_exe().parent()/web-dist` 找 SPA 静态资源 → 落空。开发机上 `web/mod.rs` 有编译期 `CARGO_MANIFEST_DIR` 候选目录兜底，所以本地跑不出来。
+
+| 件 | 改动 | 验证 |
+|---|---|---|
+| `scripts/patches/su1-web-dist.json` + `blocks/su1-webdist-*.txt` | 新增补丁 `SU1-WEB-DIST`：落位成功后递归拷 `web-dist/` 到隔离输出目录（`misc.rs` +23 行）。锚点取 `stamp("step1 使用已下载的更新包 …")` + `true`（**不能**插在 `dst` 与 `create_dir_all(dst.parent())` 之间——那是 `UPD-SANDBOX-HELPER` / `UPD-ZIP-SKIPBUILD` 两条补丁的锚点交界）；`order: 10` 排在 UPD-* 之后 | `apply-tool-patches.py` 真实 apply 三条全中 |
+| `scripts/release-bundle.py` | `WEB_DIST_EXCLUDE = ("package.json","vite.config.js",".gitignore")`，`web_files()` 过滤 | zip 内 `web-dist` 54 文件、三件构建垃圾全无 |
+
+端到端复验（真实链路，本地 mirror，非模拟）：`.scratch/inst5` 静默装 0.1.29（2109 文件）→ PATH 只留 `System32;Windows` 启动 → `POST /api/self/update` 返回 202 → 日志走完 `step1 跳过 cargo / step2 孵化 / step3 就绪 / step4 交出端口 / step4 已派发 finalize 助手` → 新进程目录含 **54 个 web-dist 文件**、`/vendor/manifest.json` 返回 **0.1.30**、finalize 落位完成。
+
+发布 `v0.1.29`（commit `7757f8d`，6 文件 +81/−7）：7 件资产 —— `setup.exe` 41820192 / `win.zip` 7934803 / `runtime-env.zip` 53430632 及三份 `.sha256` / `runtime-env.json`。**运行时指纹未变**（`a1f2076672854a4c` 与 v0.1.27 相同）→ 老用户点更新只下 ~8MB app 包，不重下 53MB。
+
+回退：`git checkout -- scripts/release-bundle.py scripts/update_check.py && python scripts/apply-tool-patches.py --revert`。
+

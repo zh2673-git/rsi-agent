@@ -124,6 +124,8 @@ zip 版前置：
 
 即：**Python + Node 两套运行时必须在机器上**，其余（Rust 工具链、cargo、编译产物）由 zip 提供。首次运行仍需联网装 pip/npm 依赖。
 
+> 不想在机器上装 Python/Node？两条路：①直接用**方式 0** 的 `setup.exe`；②仍用 zip，但额外下载 `runtime-env.zip` 解包成解压目录下的 `runtime-env/`，`run.cmd` 发现它就会前置到本进程 PATH，等同方式 0 的免依赖效果。
+
 zip 用户自带更新：Web UI 顶部出现「新版本 vX 可用」横幅时点「立即更新」，会自动下载、校验 sha256、替换文件并从新 exe 重启（替换的是 host 与 `sandbox-run.exe`，其余文件直接落位）。
 
 ### 更新是怎么发的（两个包，不能混）
