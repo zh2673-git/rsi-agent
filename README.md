@@ -87,21 +87,60 @@ rsi-agent/
 
 ## 安装方式总览（先读这里）
 
-rsi-agent 是**源码发行**，不是开箱即用的独立软件。三种上手方式，前置条件依次递增：
+rsi-agent 可**源码运行**（需 Rust 工具链），也可**下载安装包直接运行**（免一切：无需 Rust / Python / Node）。四种上手方式，前置条件依次递增：
 
 | 方式 | 适合谁 | 前置依赖 | 说明 |
 |---|---|---|---|
-| A. Web 端（推荐起步） | 只想用起来 | Rust stable + Node.js 22.6+ + Python 3.10+ + npm，首次联网 | 克隆仓库 → 配 `config.json`（可选）→ 双击 `run.cmd`，自动开 `http://127.0.0.1:8710`。详见下方「快速开始」。 |
+| **0. 一键安装包（最省事）** | 只想双击装好 | **无**（不装 Python/Node/Rust，也不改系统 PATH） | Releases 下载 `rsi-agent-<版本>-setup.exe` → 双击 → 装到 `%LOCALAPPDATA%\Programs\rsi-agent`（免管理员）→ 启动。便携 Python 3.11 + Node 22 全在包内。详见下方「方式 0」。 |
+| A. Web 端（推荐起步） | 想改代码/开发 | Rust stable + Node.js 22.6+ + Python 3.10+ + npm，首次联网 | 克隆仓库 → 配 `config.json`（可选）→ 双击 `run.cmd`，自动开 `http://127.0.0.1:8710`。详见下方「快速开始」。 |
 | B. 桌面壳 exe | 想要托盘/无黑窗体验 | 同 A 全套工具链 + 整个仓库（exe 不是独立包） | 桌面壳只是薄壳，自身不含 host；它调用 `run.cmd` 拉起服务，仍需仓库与工具链。Release 附带的 exe 仅省去你自己编译壳这一步。详见「桌面壳」。 |
 | C. 交给 agent 自动装 | 想一句话装好 | 能运行本仓库 agent 的环境 | `run.cmd` 已自动化依赖检查、npm/pip 安装、网关拉起与浏览器打开；Web UI 里可完成全部模型配置。真正的"全自动 bootstrap"目前不是一键功能，需按 A/B 准备一次环境。 |
+| D. 下载 zip 包 | 不想装 Rust | Python 3.10+ + Node.js 22.6+ + npm（**不需要 Rust/cargo**） | Releases 下载 `rsi-agent-<版本>-win.zip` → 解压 → 双击 `run.cmd`。host 与 `sandbox-run.exe` 已编译好；首次仍需联网装 pip/npm 依赖。详见下方「方式 D」。 |
 
-> 重要：无论 A 还是 B，**首次运行都要联网**（cargo 拉 git 依赖、`npm install`、`pip install grpcio httpx`）。光下载一个 exe 不能直接跑，因为它依赖同仓库的 `runtime/` 与本机工具链。
+> 重要：A/B/D **首次运行都要联网**（cargo 拉 git 依赖、`npm install`、`pip install grpcio httpx`）。方式 0 装完即可离线启动，联网只在用模型时才有必要。
+
+### 方式 0. 一键安装包（免 Python / Node / Rust）
+
+从 Releases 下载 `rsi-agent-<版本>-setup.exe`（约 42MB），双击安装。**用户机器上不需要任何运行时**：
+
+- 安装位置 `%LOCALAPPDATA%\Programs\rsi-agent`，per-user，不弹 UAC、不写系统 PATH、不写系统注册表（只有 HKCU 的卸载项与安装目录）。
+- 包内自带便携 CPython 3.11（含 grpcio/protobuf/httpx）与 Node 22（单 exe），`run.cmd` 只把它们前置到**本进程** PATH，用完即弃。
+- 装完桌面/开始菜单有快捷方式，双击即启动；卸载走「应用和功能」，只删生成的目录树，`config.json` / `.rsi` / `ledger` / `outputs` 这些用户数据保留。
+
+更新也是双击级的：Web UI 顶部出现「新版本 vX 可用」时点「立即更新」，host 会自动下载新包、校验 sha256、换血重启（见下节）。
+
+### 方式 D. 下载 zip 包（免 Rust 工具链）
+
+从 Releases 下载 `rsi-agent-<版本>-win.zip`，解压到任意目录，双击 `run.cmd`。**不需要 Rust / cargo**，因为 host 与 `sandbox-run.exe` 已随包编译好。
+
+zip 版前置：
+
+| 依赖 | 要求 | 用途 |
+|---|---|---|
+| Python | 3.10+，在 PATH 里（`python` 或 `python3`） | 插件层、技能、内核 Python 绑定、`update_check.py` |
+| pip 包 | `grpcio`、`httpx` | gRPC 通信与 HTTP 工具（`run.cmd` 首次自动安装） |
+| Node.js | ≥ 22.6，在 PATH 里 | `memory` 插件（`memory_plugin.ts`）与 TypeScript 内核绑定；缺失会直接启动失败 |
+| npm | 随 Node 安装 | 首次在 `runtime/kernel/bindings/typescript` 装依赖 |
+
+即：**Python + Node 两套运行时必须在机器上**，其余（Rust 工具链、cargo、编译产物）由 zip 提供。首次运行仍需联网装 pip/npm 依赖。
+
+zip 用户自带更新：Web UI 顶部出现「新版本 vX 可用」横幅时点「立即更新」，会自动下载、校验 sha256、替换文件并从新 exe 重启（替换的是 host 与 `sandbox-run.exe`，其余文件直接落位）。
+
+### 更新是怎么发的（两个包，不能混）
+
+| 产物 | 体积 | 什么时候下发 | 谁解包 |
+|---|---|---|---|
+| `rsi-agent-<ver>-win.zip` | ~8MB | 每次发版都有 | `update_check.py download`（运行中，除 exe 外直接覆盖） |
+| `runtime-env.zip` + `runtime-env.json` | ~53MB | **只有**运行时指纹（`files.sha256`）变了才发 | `run.cmd` 下次启动时，用 `scripts/apply-env-update.ps1` 解包 |
+| `rsi-agent-<ver>-setup.exe` | ~42MB | 给新用户装 | 用户双击 |
+
+运行时包必须在「没有任何 python/node 在跑」的时刻解包，因为替换 `python.exe` / `node.exe` 时它们不能是运行中的镜像——所以更新流程是：host 发现运行时指纹变了 → 只把 zip 落到 `.rsi/update-staging/` → 用户下次双击启动时 `run.cmd` 先解包、再前置 PATH、再启动 host。app 更新不重下运行时。
 
 ## 快速开始（独立运行）
 
 本仓库已内嵌运行时快照（`runtime/`），单独克隆即可启动 agent，无需本地 react-agent / agent-kernel 检出。
 
-前置依赖：Rust stable、Node.js 22.6+、Python 3.10+、npm。
+前置依赖（源码版）：Rust stable、Node.js 22.6+、Python 3.10+、npm。**zip 版不需要 Rust/cargo**，只要 Node.js 22.6+、Python 3.10+、npm（见上方「方式 D」）。
 首次构建需要联网：cargo 拉取 agent-kernel 的 git 依赖，`run.cmd` 自动在 `runtime/kernel/bindings/typescript` 执行 `npm install`，并自动安装 Python 依赖 `grpcio httpx`。
 
 ```powershell

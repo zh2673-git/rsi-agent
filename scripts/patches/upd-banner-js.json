@@ -1,0 +1,8 @@
+{
+ "id": "UPD-BANNER-JS",
+ "description": "新建 web-dist/vendor/app-update.js：读 /vendor/manifest.json 比对 GitHub latest，有 zip 资产则显示更新横幅，按钮 POST /api/self/update",
+ "file": "runtime/crates/host/web-dist/vendor/app-update.js",
+ "create": true,
+ "content_file": "blocks/app-update-js.txt",
+ "create_marker": "rsi-update-banner"
+}

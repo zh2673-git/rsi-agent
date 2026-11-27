@@ -1,0 +1,4 @@
+                json.dump(body, f, ensure_ascii=False, indent=2)
+        except OSError as exc:
+            print(f"[llm_adapter] LLM_DEBUG 请求转储失败: {exc}", file=sys.stderr, flush=True)
+    stream_path = payload.get("stream_path")

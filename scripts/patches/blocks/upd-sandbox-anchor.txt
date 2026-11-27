@@ -1,0 +1,2 @@
+                        let dst = out.join("release/react-agent-host.exe");
+                        if let Err(e) = std::fs::create_dir_all(dst.parent().unwrap()).and_then(|_| std::fs::copy(&s, &dst)) {

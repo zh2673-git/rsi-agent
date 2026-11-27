@@ -1,0 +1,6 @@
+            print(
+                f"[llm_adapter] tool_call arguments 非法 JSON(len={len(args)}): "
+                f"{args[:80]}…{args[-40:] if len(args) > 120 else ''}",
+                flush=True,
+            )
+            return {"_raw": args}

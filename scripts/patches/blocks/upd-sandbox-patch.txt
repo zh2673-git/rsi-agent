@@ -1,0 +1,8 @@
+                        let dst = out.join("release/react-agent-host.exe");
+                        // sandbox-run.exe must sit next to the spawned host (assemble.rs resolves it via
+                        // current_exe().parent(), fail-closed without it -> bash dropped from TOOLS_ENABLED)
+                        let sandbox_src = s.parent().map(|p| p.join("sandbox-run.exe"));
+                        if let Some(sb) = sandbox_src.filter(|p| p.is_file()) {
+                            let _ = std::fs::copy(&sb, out.join("release/sandbox-run.exe"));
+                        }
+                        if let Err(e) = std::fs::create_dir_all(dst.parent().unwrap()).and_then(|_| std::fs::copy(&s, &dst)) {

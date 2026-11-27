@@ -6,6 +6,7 @@ ollama provider 复用同一实现（见 ollama.py）。
 
 import json
 import os
+import sys
 import time
 
 from .base import (
@@ -78,7 +79,7 @@ def _build_body(endpoint: dict, payload: dict) -> dict:
         try:
             body.update(json.loads(extra))
         except ValueError:
-            print(f"[llm_adapter] LLM_EXTRA_BODY 不是合法 JSON，已忽略: {extra[:100]}", flush=True)
+            print(f"[llm_adapter] LLM_EXTRA_BODY 不是合法 JSON，已忽略: {extra[:100]}", file=sys.stderr, flush=True)
     return body
 
 
@@ -97,7 +98,7 @@ def _chat_with(endpoint: dict, payload: dict, provider_label: str) -> dict:
             with open(dbg, "w", encoding="utf-8") as f:
                 json.dump(body, f, ensure_ascii=False, indent=2)
         except OSError as exc:
-            print(f"[llm_adapter] LLM_DEBUG 请求转储失败: {exc}", flush=True)
+            print(f"[llm_adapter] LLM_DEBUG 请求转储失败: {exc}", file=sys.stderr, flush=True)
     stream_path = payload.get("stream_path")
     if stream_path:
         return _chat_stream(endpoint, body, stream_path, payload.get("sid"), provider_label)
@@ -396,7 +397,7 @@ def embed(payload: dict) -> dict:
         try:
             body.update(json.loads(extra))
         except ValueError:
-            print(f"[llm_adapter] EMBEDDING_EXTRA_BODY 不是合法 JSON，已忽略: {extra[:100]}", flush=True)
+            print(f"[llm_adapter] EMBEDDING_EXTRA_BODY 不是合法 JSON，已忽略: {extra[:100]}", file=sys.stderr, flush=True)
     url = f"{ep['base_url']}/embeddings"
     try:
         resp = httpx.post(url, headers=ep["headers"], json=body, timeout=60.0)

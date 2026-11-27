@@ -35,6 +35,10 @@ runtime/target-d/
 # RSI 基线构建缓存（cargo target，实测 913MB / 1765 文件，非源码）
 runtime/target-base/
 
+# 内置运行时（fetch-runtime.py 下载的便携 Python/Node，135.7MB 构建产物；
+# 由 setup.exe / runtime-env.zip 分发，源码树不入库）
+/runtime-env/
+
 
 # Magpie 账号台账（含邮箱等 PII，仅本机）
 config/magpie-accounts.json

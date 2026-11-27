@@ -1,0 +1,7 @@
+{
+ "id": "UPD-SANDBOX-HELPER",
+ "description": "self_update zip 路径：把 staging 内的 sandbox-run.exe 一并拷到隔离输出目录（新进程 current_exe 旁需要它，否则 bash fail-closed）",
+ "file": "runtime/crates/host/src/web/api/misc.rs",
+ "anchor_file": "blocks/upd-sandbox-anchor.txt",
+ "patch_file": "blocks/upd-sandbox-patch.txt"
+}

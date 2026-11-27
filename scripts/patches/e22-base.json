@@ -1,0 +1,7 @@
+{
+  "id": "E22-BASE",
+  "description": "llm_adapter base.py：非法 JSON 诊断 print 改走 stderr（E22 guest stdout 为孤儿管道）",
+  "file": "runtime/plugins/llm_adapter/providers/base.py",
+  "anchor_file": "blocks/e22-base-anchor.txt",
+  "patch_file": "blocks/e22-base-patch.txt"
+}

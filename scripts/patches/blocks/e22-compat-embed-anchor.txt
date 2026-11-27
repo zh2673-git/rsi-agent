@@ -1,0 +1,4 @@
+            body.update(json.loads(extra))
+        except ValueError:
+            print(f"[llm_adapter] EMBEDDING_EXTRA_BODY 不是合法 JSON，已忽略: {extra[:100]}", flush=True)
+    url = f"{ep['base_url']}/embeddings"

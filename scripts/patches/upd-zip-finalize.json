@@ -1,0 +1,7 @@
+{
+  "id": "UPD-ZIP-FINALIZE",
+  "description": "misc.rs self_update_start：zip 更新路径派发 finalize 助手（等旧 pid 退出后落位 exe）",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor_file": "blocks/upd-zip-finalize-anchor.txt",
+  "patch_file": "blocks/upd-zip-finalize-patch.txt"
+}

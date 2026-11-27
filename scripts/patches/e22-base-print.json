@@ -1,0 +1,7 @@
+{
+  "id": "E22-BASE-PRINT",
+  "description": "llm_adapter base.py：as_object 非法 JSON 分支 print 加 file=sys.stderr",
+  "file": "runtime/plugins/llm_adapter/providers/base.py",
+  "anchor_file": "blocks/e22-base-print-anchor.txt",
+  "patch_file": "blocks/e22-base-print-patch.txt"
+}

@@ -644,6 +644,53 @@ pub(crate) async fn self_update_start(stream: &mut TcpStream) -> anyhow::Result<
         //    避开 Windows 运行中镜像锁；同时防止动到开发中 target 目录的构建锁。
         let rt = runtime_root(&repo);
         let out = rt.join("target-selfupdate");
+        // zip-update path (no cargo needed): scripts/update_check.py checks GitHub Releases,
+        // downloads + verifies the newer zip and leaves .rsi/update-staging/ready.json pointing
+        // at the staged exe (no-op when ready.json already exists). Copy it into the isolated
+        // output dir and skip cargo entirely. Any failure falls back to the cargo build.
+        let zip_ready = {
+            stamp("step1 查询 release 更新包（update_check.py ensure）");
+            let helper = repo.join("scripts/update_check.py");
+            let run = tokio::process::Command::new("python")
+                .arg(&helper).arg("ensure")
+                .current_dir(&repo)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::piped())
+                .output().await;
+            let ok = matches!(&run, Ok(o) if o.status.success());
+            if !ok {
+                let tail = match &run { Ok(o) => String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("").to_string(), Err(e) => e.to_string() };
+                stamp(&format!("release 更新包不可用（{tail}），回退 cargo 构建"));
+                false
+            } else {
+                let ready_json = repo.join(".rsi/update-staging/ready.json");
+                let src = std::fs::read_to_string(&ready_json).ok()
+                    .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+                    .and_then(|v| v["exe"].as_str().map(std::path::PathBuf::from));
+                match src {
+                    Some(s) if s.is_file() => {
+                        let dst = out.join("release/react-agent-host.exe");
+                        // sandbox-run.exe must sit next to the spawned host (assemble.rs resolves it via
+                        // current_exe().parent(), fail-closed without it -> bash dropped from TOOLS_ENABLED)
+                        let sandbox_src = s.parent().map(|p| p.join("sandbox-run.exe"));
+                        if let Some(sb) = sandbox_src.filter(|p| p.is_file()) {
+                            let _ = std::fs::copy(&sb, out.join("release/sandbox-run.exe"));
+                        }
+                        if let Err(e) = std::fs::create_dir_all(dst.parent().unwrap()).and_then(|_| std::fs::copy(&s, &dst)) {
+                            stamp(&format!("ABORT 更新包落位失败：{e}"));
+                            return;
+                        }
+                        stamp(&format!("step1 使用已下载的更新包 {}，跳过 cargo 构建", s.display()));
+                        true
+                    }
+                    _ => {
+                        stamp("ABORT ready.json 无效（exe 路径不存在），回退 cargo 构建");
+                        false
+                    }
+                }
+            }
+        };
+        if !zip_ready {
         stamp("step1 隔离构建开始（cargo build --release，首次可能数分钟）");
         let build = tokio::process::Command::new("cargo")
             .args(["build", "--release", "-p", "react-agent-host"])
@@ -663,6 +710,7 @@ pub(crate) async fn self_update_start(stream: &mut TcpStream) -> anyhow::Result<
             stamp(&format!("ABORT 构建失败（保留旧版本继续服务）：{tail}"));
             tracing::error!("self-update：构建失败，放弃（旧进程继续服务）");
             return;
+        }
         }
         let new_exe = out.join("release/react-agent-host.exe");
         if !new_exe.is_file() {
@@ -719,6 +767,24 @@ pub(crate) async fn self_update_start(stream: &mut TcpStream) -> anyhow::Result<
         //    然后退出——端口随即释放，新进程的下一次 bind 重试即成功（commit point）。
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         stamp("step4 旧进程退出，交出端口");
+        // zip-update path: the running exe is the staged copy under .rsi/update-staging;
+        // spawn a detached python helper that waits for THIS pid to exit, then moves the
+        // staged exe into runtime/target/release/ (cannot overwrite a running image).
+        if zip_ready {
+            let helper = repo.join("scripts/update_check.py");
+            let me = std::process::id();
+            let py = "python";
+            let _ = std::process::Command::new(py)
+                .arg(&helper)
+                .args(["finalize", "--wait", &me.to_string()])
+                .current_dir(&repo)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .map(|_| stamp("step4 已派发 finalize 助手（等旧进程退出后落位新 exe）"))
+                .map_err(|e| stamp(&format!("finalize 助手派发失败（新 exe 留在 staging，下次 run.cmd 仍可用）：{e}")));
+        }
         // P1b 自更新看门狗（接力进程）：上面这跳 exit(0) 若因外部原因未遂（镜像句柄未
         // 释放 / 收尾挂起 / 崩溃），换血失败且没有任何进程收拾残局。此处孵化一个与宿主
         // 完全解耦的普通线程进程——宿主死活不影响它：marker 被旧进程清掉（正常交接成功）

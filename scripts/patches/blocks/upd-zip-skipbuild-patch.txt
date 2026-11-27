@@ -1,0 +1,44 @@
+        let rt = runtime_root(&repo);
+        let out = rt.join("target-selfupdate");
+        // zip-update path (no cargo needed): scripts/update_check.py checks GitHub Releases,
+        // downloads + verifies the newer zip and leaves .rsi/update-staging/ready.json pointing
+        // at the staged exe (no-op when ready.json already exists). Copy it into the isolated
+        // output dir and skip cargo entirely. Any failure falls back to the cargo build.
+        let zip_ready = {
+            stamp("step1 查询 release 更新包（update_check.py ensure）");
+            let helper = repo.join("scripts/update_check.py");
+            let run = tokio::process::Command::new("python")
+                .arg(&helper).arg("ensure")
+                .current_dir(&repo)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::piped())
+                .output().await;
+            let ok = matches!(&run, Ok(o) if o.status.success());
+            if !ok {
+                let tail = match &run { Ok(o) => String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("").to_string(), Err(e) => e.to_string() };
+                stamp(&format!("release 更新包不可用（{tail}），回退 cargo 构建"));
+                false
+            } else {
+                let ready_json = repo.join(".rsi/update-staging/ready.json");
+                let src = std::fs::read_to_string(&ready_json).ok()
+                    .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+                    .and_then(|v| v["exe"].as_str().map(std::path::PathBuf::from));
+                match src {
+                    Some(s) if s.is_file() => {
+                        let dst = out.join("release/react-agent-host.exe");
+                        if let Err(e) = std::fs::create_dir_all(dst.parent().unwrap()).and_then(|_| std::fs::copy(&s, &dst)) {
+                            stamp(&format!("ABORT 更新包落位失败：{e}"));
+                            return;
+                        }
+                        stamp(&format!("step1 使用已下载的更新包 {}，跳过 cargo 构建", s.display()));
+                        true
+                    }
+                    _ => {
+                        stamp("ABORT ready.json 无效（exe 路径不存在），回退 cargo 构建");
+                        false
+                    }
+                }
+            }
+        };
+        if !zip_ready {
+        stamp("step1 隔离构建开始（cargo build --release，首次可能数分钟）");

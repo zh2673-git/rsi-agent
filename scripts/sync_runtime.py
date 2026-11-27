@@ -1,15 +1,11 @@
-"""Sync runtime/ from the sibling react-agent repo (one-way, at startup).
+"""Report (and only on request apply) changes from the sibling react-agent repo.
 
-rsi-agent's runtime/ is a vendored copy of react-agent. Without this step,
-fixes published in react-agent never reach rsi-agent until someone re-copies
-by hand (that gap was ~10 commits in Nov 2026).
+rsi-agent's runtime/ is the single source of truth since v0.1.26: edits are made
+here and NOT overwritten at startup. This script is now a pull-only tool:
 
-  1. runtime/.sync-stamp holds the react-agent HEAD we last synced from.
-  2. Same HEAD and no local drift -> exit 0 (no-op).
-  3. Otherwise copy react-agent's tracked files into runtime/, keeping the
-     rsi-agent-only trees (runtime/kernel, runtime/plugins/assets) untouched.
-  4. Re-apply rsi-agent core patches (scripts/apply-tool-patches.py).
-  5. Save the stamp.
+  1. Default / --dry-run: print what upstream still differs in, write nothing.
+  2. --force (or env RSI_SYNC_FORCE=1): actually pull upstream into runtime/,
+     keep the rsi-agent-only trees, re-apply core patches, save the stamp.
 
 A failing sync must never break startup: any error -> warn and exit 0, the
 existing runtime/ keeps working.
@@ -111,9 +107,12 @@ def apply(copies: list[tuple[Path, Path]]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="sync runtime/ from sibling react-agent")
-    ap.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
+    ap = argparse.ArgumentParser(description="pull runtime/ from sibling react-agent (only with --force)")
+    ap.add_argument("--dry-run", action="store_true", help="print the plan, write nothing (default)")
+    ap.add_argument("--force", action="store_true",
+                    help="actually copy upstream into runtime/ (default: report only)")
     ns = ap.parse_args(argv)
+    force = ns.force or os.environ.get("RSI_SYNC_FORCE") == "1"
     try:
         if not UPSTREAM.exists():
             print("[sync] sibling react-agent not found; skip")
@@ -123,11 +122,14 @@ def main(argv: list[str] | None = None) -> int:
         if head == stamp and not copies and not deletes:
             print(f"[sync] runtime/ already at react-agent {head[:7]}")
             return 0
-        print(f"[sync] react-agent {head[:7]} (was {stamp[:7] or 'never'}): "
-              f"{len(copies)} file(s) to copy, {deletes} to remove")
-        if ns.dry_run:
+        print(f"[sync] react-agent {head[:7]} (local stamp {stamp[:7] or 'never'}): "
+              f"{len(copies)} file(s) differ, {deletes} stale")
+        if ns.dry_run or not force:
             for src, dst in copies:
                 print(f"  {dst.relative_to(REPO)}")
+            if not ns.dry_run:
+                print("[sync] report only: runtime/ is the source of truth, nothing was written. "
+                      "Use --force to pull upstream.")
             return 0
         apply(copies)
         STAMP.write_text(head, encoding="utf-8")

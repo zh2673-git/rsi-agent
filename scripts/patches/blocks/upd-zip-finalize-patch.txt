@@ -1,0 +1,20 @@
+        stamp("step4 旧进程退出，交出端口");
+        // zip-update path: the running exe is the staged copy under .rsi/update-staging;
+        // spawn a detached python helper that waits for THIS pid to exit, then moves the
+        // staged exe into runtime/target/release/ (cannot overwrite a running image).
+        if zip_ready {
+            let helper = repo.join("scripts/update_check.py");
+            let me = std::process::id();
+            let py = "python";
+            let _ = std::process::Command::new(py)
+                .arg(&helper)
+                .args(["finalize", "--wait", &me.to_string()])
+                .current_dir(&repo)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .map(|_| stamp("step4 已派发 finalize 助手（等旧进程退出后落位新 exe）"))
+                .map_err(|e| stamp(&format!("finalize 助手派发失败（新 exe 留在 staging，下次 run.cmd 仍可用）：{e}")));
+        }
+        // P1b 自更新看门狗（接力进程）：上面这跳 exit(0) 若因外部原因未遂（镜像句柄未

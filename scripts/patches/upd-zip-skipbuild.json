@@ -1,0 +1,7 @@
+{
+  "id": "UPD-ZIP-SKIPBUILD",
+  "description": "misc.rs self_update_start：先跑 update_check.py ensure（查 GitHub release 有更新则下载校验），成功则拷 staging exe 跳过 cargo，失败回退 cargo",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor_file": "blocks/upd-zip-skipbuild-anchor.txt",
+  "patch_file": "blocks/upd-zip-skipbuild-patch.txt"
+}

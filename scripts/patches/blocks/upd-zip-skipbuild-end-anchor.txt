@@ -1,0 +1,2 @@
+        }
+        let new_exe = out.join("release/react-agent-host.exe");

@@ -1,0 +1,8 @@
+import json
+import os
+import re
+import sys
+import threading
+import time
+
+# ── provider 总时限（K502 雪崩修复；v0.1.10 放宽至 590s 配对 agent-loop 600s）──

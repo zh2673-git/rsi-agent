@@ -50,7 +50,7 @@
 
 - 不做进程内嵌 host（要拆 `runtime/` 核心，写保护 + 高风险，留作路径 B）。
 - 不做 Electron（重复背 Chromium，内存劣势）。
-- 不打包 python/node 环境（发行体积与维护成本另立任务）。
+- ~~不打包 python/node 环境（发行体积与维护成本另立任务）。~~ **已做**：`scripts/fetch-runtime.py` 拉便携 CPython 3.11 + Node 22 到 `runtime-env/`（135.7MB），`scripts/build-installer.py` 出 per-user NSIS 单 exe（42MB，免管理员），`run.cmd` 只把它们前置到本进程 PATH。见 PLAN.md §7 步 3。
 
 ## 8. 补丁退役 / 回灌路径
 

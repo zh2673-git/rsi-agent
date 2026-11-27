@@ -1,0 +1,7 @@
+{
+ "id": "UPD-BANNER-INDEX",
+ "description": "web-dist/index.html 挂载 app-update.js（zip 用户的 release 更新横幅）",
+ "file": "runtime/crates/host/web-dist/index.html",
+ "anchor_file": "blocks/upd-banner-index-anchor.txt",
+ "patch_file": "blocks/upd-banner-index-patch.txt"
+}

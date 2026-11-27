@@ -1,0 +1,7 @@
+{
+  "id": "UPD-ZIP-SKIPBUILD-END",
+  "description": "misc.rs self_update_start：在 let new_exe 之前关闭 zip_ready 的 if 块（new_exe 与产物检查两条路径共用）",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor_file": "blocks/upd-zip-skipbuild-end-anchor.txt",
+  "patch_file": "blocks/upd-zip-skipbuild-end-patch.txt"
+}

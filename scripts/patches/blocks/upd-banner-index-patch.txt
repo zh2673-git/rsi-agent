@@ -1,0 +1,3 @@
+<script src="/vendor/app-update.js" defer></script>
+</body>
+</html>

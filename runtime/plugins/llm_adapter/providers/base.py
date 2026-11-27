@@ -27,6 +27,7 @@
 import json
 import os
 import re
+import sys
 import threading
 import time
 
@@ -298,6 +299,7 @@ def as_object(args) -> dict:
             print(
                 f"[llm_adapter] tool_call arguments 非法 JSON(len={len(args)}): "
                 f"{args[:80]}…{args[-40:] if len(args) > 120 else ''}",
+                file=sys.stderr,  # E22: guest stdout 是孤儿管道，诊断一律走 stderr
                 flush=True,
             )
             return {"_raw": args}

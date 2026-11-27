@@ -13,6 +13,36 @@ set "CONFIG_FILE=%REPO%\config.json"
 if not defined REACT_FRONTEND set "REACT_FRONTEND=web"
 rem -- RSI_NO_BROWSER=1: skip auto browser when called by the desktop shell (WebView loads the page itself) --
 
+rem ============================================================
+rem staged runtime update: apply runtime-env.zip BEFORE anything here starts python/node.
+rem   the zip is put there by `python scripts\update_check.py stage-env` (run from the host when
+rem   it notices a changed runtime fingerprint); python.exe/node.exe cannot be replaced while the
+rem   running host still has them open, so the swap waits for this moment. Failure is a warning
+rem   only -- a broken runtime patch must never keep the app from starting.
+rem ============================================================
+if exist "%REPO%\.rsi\update-staging\runtime-env.zip" (
+  echo [rsi] Applying staged runtime update...
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%REPO%\scripts\apply-env-update.ps1" -Repo "%REPO%"
+  if errorlevel 1 echo [rsi] runtime update deferred to next start.
+)
+
+rem ============================================================
+rem bundled runtime (one-click install): runtime-env/ ships portable Python + Node, so the
+rem user needs neither installed and neither pip nor npm at run time.
+rem   runtime-env/python/python.exe   CPython 3.11 (embeddable) + grpcio/protobuf/httpx
+rem   runtime-env/node/node.exe       Node 22 (single exe; no npm/npx)
+rem PATH is prepended for THIS process only (never the global PATH). It also makes the
+rem `where node` / `where cargo` probes below and every `python ...` call resolve to the
+rem bundled copies, so a machine with no Python/Node at all still runs.
+rem The bundled python does have grpc/httpx, so it does NOT recreate the shadowing problem
+rem described further down (that note is about tools\sau\.venv).
+rem ============================================================
+set "BUNDLED_ENV="
+if exist "%REPO%\runtime-env\python\python.exe" if exist "%REPO%\runtime-env\node\node.exe" (
+  set "BUNDLED_ENV=1"
+  set "PATH=%REPO%\runtime-env\python;%REPO%\runtime-env\node;%PATH%"
+)
+
 rem -- content publishing: add the sau venv to THIS process PATH only --
 rem -- do not touch the global PATH (pip/python collisions); both host /api/publish/config and scripts/publish.py rely on sau on PATH --
 where node >nul 2>nul
@@ -21,6 +51,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
+rem -- bundled runtime: node_modules for the TS kernel SDK ships in the package and the
+rem -- bundled python already has grpc/httpx/protobuf, so neither npm nor pip runs at all.
+rem -- (On a source tree BUNDLED_ENV is unset and both steps behave exactly as before.)
+if not defined BUNDLED_ENV (
 if not exist "%AGENT_KERNEL_REPO%\bindings\typescript\node_modules" (
   echo [rsi] First run: installing TypeScript kernel dependencies...
   pushd "%AGENT_KERNEL_REPO%\bindings\typescript"
@@ -32,9 +66,14 @@ if not exist "%AGENT_KERNEL_REPO%\bindings\typescript\node_modules" (
   )
   popd
 )
+)
 
 python -c "import grpc, httpx" >nul 2>nul
 if errorlevel 1 (
+  if defined BUNDLED_ENV (
+    echo [rsi] bundled python is missing grpcio/httpx; the package is corrupt.
+    exit /b 1
+  )
   echo [rsi] Installing Python dependencies grpcio httpx...
   python -m pip install grpcio httpx
   if errorlevel 1 (
@@ -48,13 +87,9 @@ rem -- python.exe without grpc/httpx, which shadows the system python for host p
 rem -- (ModuleNotFoundError: grpc). Publish features should put sau on PATH explicitly. --
 
 rem ============================================================
-rem runtime sync: pull published fixes from the sibling react-agent repo
-rem   runtime/ is a vendored copy of react-agent; without this step upstream
-rem   fixes never arrive (gap was ~10 commits in Nov 2026). One-way, only
-rem   under runtime/, keeps runtime/kernel + plugins/assets + layout-specific
-rem   files; re-applies scripts/patches afterwards. Never fails startup.
-rem   A changed file updates its mtime -> the release stamp below sees it
-rem   and rebuilds, so no extra wiring is needed.
+rem runtime/ is the single source of truth (do NOT auto-pull from react-agent).
+rem   Reports upstream drift only; nothing is written at startup. To pull on
+rem   purpose: python scripts\sync_runtime.py --force (then re-applies patches).
 rem ============================================================
 python "%REPO%\scripts\sync_runtime.py"
 
@@ -69,6 +104,23 @@ rem ============================================================
 set "HOST_EXE=%REPO%\runtime\target\release\react-agent-host.exe"
 set "STAMP=%REPO%\runtime\target\.rsi-release-stamp"
 set "NEED_BUILD="
+rem -- no-cargo mode: zip users run the shipped release exe as-is (stamp check would force a build)
+rem -- also when runtime/Cargo.toml is absent: the zip ships prebuilt binaries without the Rust
+rem    sources, so a cargo build there can only fail -- treat it as no-cargo regardless of PATH
+set "NO_CARGO="
+where cargo >nul 2>nul
+if errorlevel 1 set "NO_CARGO=1"
+if not exist "%REPO%\runtime\Cargo.toml" set "NO_CARGO=1"
+if defined NO_CARGO (
+  if exist "%HOST_EXE%" (
+    set "NEED_BUILD="
+    goto :no_cargo
+  ) else (
+    echo [rsi] prebuilt host missing: %HOST_EXE%
+    echo [rsi] Download the prebuilt zip from https://github.com/zh2673-git/rsi-agent/releases and retry.
+    exit /b 1
+  )
+)
 if not exist "%HOST_EXE%" (
   set "NEED_BUILD=1"
 ) else (
@@ -85,6 +137,7 @@ if defined NEED_BUILD (
   )
   python "%REPO%\scripts\release_stamp.py" stamp "%REPO%" "%STAMP%"
 )
+:no_cargo
 
 rem ============================================================
 rem P0 lifecycle: gateway is managed only for instances started by run.cmd
