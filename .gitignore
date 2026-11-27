@@ -6,6 +6,8 @@ runtime/target/
 runtime/target-selfupdate/
 runtime/.stream/
 runtime/.instances/
+runtime/.sync-stamp
+runtime/.sync-manifest
 runtime/outputs/
 runtime/plugins/memory/data/
 node_modules/
@@ -53,3 +55,10 @@ skills/make-video/outputs/
 # skill 本机运行状态（版本评分/晋升时间戳），非发行资产
 skills/make-video/state.json
 
+
+# 凭证：只存本机，永不入库（AppID/AppSecret 一旦进历史，重置也救不回已推送的那份）
+config/publish.json
+config/publish.local.json
+# 技能工作区内同名凭证（wechat_draft.py 的 config_candidates() 会找 <skill>/config/publish.json）
+**/config/publish.json
+**/config/publish.local.json

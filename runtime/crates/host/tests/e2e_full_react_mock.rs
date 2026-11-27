@@ -32,6 +32,7 @@ async fn full_react_loop_with_mock_llm_and_real_guests() {
     let ws_dir = std::env::temp_dir().join(format!("react-agent-ws-{}-{}", std::process::id(), nanos()));
     std::fs::create_dir_all(&ws_dir).expect("create workspace");
 
+    isolate_turns_dir();
     let kernel = fresh_kernel();
     let ws_env = [("WORKSPACE_ROOT", ws_dir.to_string_lossy().into_owned())];
 
@@ -168,6 +169,7 @@ async fn subagent_mirrors_trace_events_to_parent() {
     let ws_dir = std::env::temp_dir().join(format!("react-agent-subws-{}-{}", std::process::id(), nanos()));
     std::fs::create_dir_all(&ws_dir).expect("create workspace");
 
+    isolate_turns_dir();
     let kernel = fresh_kernel();
 
     let mem = spawn_node_ts(

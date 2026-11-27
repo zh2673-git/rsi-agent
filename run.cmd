@@ -48,6 +48,17 @@ rem -- python.exe without grpc/httpx, which shadows the system python for host p
 rem -- (ModuleNotFoundError: grpc). Publish features should put sau on PATH explicitly. --
 
 rem ============================================================
+rem runtime sync: pull published fixes from the sibling react-agent repo
+rem   runtime/ is a vendored copy of react-agent; without this step upstream
+rem   fixes never arrive (gap was ~10 commits in Nov 2026). One-way, only
+rem   under runtime/, keeps runtime/kernel + plugins/assets + layout-specific
+rem   files; re-applies scripts/patches afterwards. Never fails startup.
+rem   A changed file updates its mtime -> the release stamp below sees it
+rem   and rebuilds, so no extra wiring is needed.
+rem ============================================================
+python "%REPO%\scripts\sync_runtime.py"
+
+rem ============================================================
 rem P0 perf: release-first startup (no debug cargo run on every start)
 rem   diagnosis: cargo run defaults to debug profile, incremental compile/link every start;
 rem     measured ~25s full rebuild on source change, 2s on agent-loop change, cargo/rustc

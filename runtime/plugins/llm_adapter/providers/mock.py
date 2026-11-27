@@ -59,7 +59,7 @@ def embed(payload: dict) -> dict:
 
     MOCK_EMBED_FAIL=1 时返回错误，供测试覆盖失败分支（不靠网络造错误）。
     """
-    from .base import norm_embed, require_inputs
+    from .base import err, norm_embed, require_inputs
 
     if os.environ.get("MOCK_EMBED_FAIL") == "1":
         return err("mock embed 失败（MOCK_EMBED_FAIL=1）")
