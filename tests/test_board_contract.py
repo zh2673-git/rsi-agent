@@ -191,6 +191,78 @@ class BoardContractTest(unittest.TestCase):
             self.assertIn(limit, py)
         for limit in ("MAX_TASKS: usize = 200", "MAX_INSP: usize = 500", "MAX_INSP_TEXT: usize = 2000"):
             self.assertIn(limit, rs)
+        # 归档键：两个写者（Python CLI 与 Rust host）都必须带出这个键，否则谁漏谁抹掉归档。
+        self.assertIn("archived_tasks", py)
+        self.assertIn("archived_tasks", rs)
+
+    def _mk(self, ws: Path, title: str, status: str = "planning") -> str:
+        pfile = ws / f"{title}.json"
+        pfile.write_text(json.dumps({"title": title, "status": status}), encoding="utf-8")
+        code, out = board_json("task-upsert", "--file", str(pfile), ws=ws)
+        self.assertEqual(code, 0, out)
+        return out["id"]
+
+    def test_archive_moves_finished_tasks_out_of_quota(self):
+        """方案 A：done/cancelled 归档后退出热区，不占上限；数据仍在，digest/show/resolve 可查。"""
+        with tempfile.TemporaryDirectory() as td:
+            ws = Path(td)
+            a = self._mk(ws, "归档用例A", "done")
+            self._mk(ws, "归档用例B", "done")
+            self._mk(ws, "归档用例C", "doing")
+            code, out = board_json("task-archive", a, ws=ws)
+            self.assertEqual(code, 0, out)
+            self.assertEqual(out["ids"], [a])
+            code, out = board_json("stats", ws=ws)
+            self.assertEqual(out["tasks"]["total"], 2)
+            self.assertEqual(out["archived"], 1)
+            code, out = board_json("list", ws=ws)
+            self.assertNotIn(a, {t["id"] for t in out["tasks"]})
+            for cmd in (("show", a), ("digest", "--status", "done"), ("resolve", f"@{a}")):
+                code, out = board_json(*cmd, ws=ws)
+                self.assertEqual(code, 0, (cmd, out))
+            code, out = board_json("show", a, ws=ws)
+            self.assertEqual(out["task"]["id"], a)
+            code, out = board_json("resolve", f"@{a}", ws=ws)
+            self.assertIn(a, {b["ref"] for b in out["refs"]})
+            # 归档后新建 ID 不与归档 ID 撞号（候选集并入归档）
+            new = self._mk(ws, "归档后新建")
+            self.assertNotIn(new, {a})
+            # 已归档 ID 的 upsert 不悄悄复活
+            pfile = ws / "revive.json"
+            pfile.write_text(json.dumps({"id": a, "title": "复活", "status": "doing"}), encoding="utf-8")
+            code, out = board_json("task-upsert", "--file", str(pfile), ws=ws)
+            self.assertEqual(code, 1)
+            self.assertEqual(out["error"]["code"], "ARCHIVED")
+            # 取回：挪回热区并重新占额度
+            code, out = board_json("task-unarchive", a, ws=ws)
+            self.assertEqual(code, 0, out)
+            code, out = board_json("stats", ws=ws)
+            self.assertEqual(out["tasks"]["total"], 4)
+            self.assertEqual(out["archived"], 0)
+
+    def test_archive_rejects_unfinished_task(self):
+        with tempfile.TemporaryDirectory() as td:
+            ws = Path(td)
+            tid = self._mk(ws, "未完结")
+            code, out = board_json("task-archive", tid, ws=ws)
+            self.assertEqual(code, 1)
+            self.assertEqual(out["error"]["code"], "NOT_FINISHED")
+            code, out = board_json("stats", ws=ws)
+            self.assertEqual(out["tasks"]["total"], 1)
+            self.assertEqual(out["archived"], 0)
+
+    def test_archive_all_done(self):
+        with tempfile.TemporaryDirectory() as td:
+            ws = Path(td)
+            self._mk(ws, "批量A", "done")
+            self._mk(ws, "批量B", "cancelled")
+            self._mk(ws, "批量C", "doing")
+            code, out = board_json("task-archive", "--all-done", ws=ws)
+            self.assertEqual(code, 0, out)
+            self.assertEqual(out["archived"], 2)
+            code, out = board_json("stats", ws=ws)
+            self.assertEqual(out["tasks"]["total"], 1)
+            self.assertEqual(out["archived"], 2)
 
     def test_workspace_relative_board_path(self):
         """无 RSI_HOME 时看板落在工作区（单窗口/独立检出的默认形态）。"""

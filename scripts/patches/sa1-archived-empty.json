@@ -1,0 +1,7 @@
+{
+ "id": "SA1-ARCHIVED-TASKS-EMPTY",
+ "description": "board.rs empty_board：带 archived_tasks 键（归档不占上限；两写者同源）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor": "    json!({\"version\": 1, \"updated_at\": now_iso(), \"tasks\": [], \"inspirations\": []})",
+ "patch": "    json!({\"version\": 1, \"updated_at\": now_iso(), \"tasks\": [], \"inspirations\": [], \"archived_tasks\": []})"
+}

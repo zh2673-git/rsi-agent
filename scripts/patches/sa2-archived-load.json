@@ -1,0 +1,7 @@
+{
+ "id": "SA2-ARCHIVED-TASKS-LOAD",
+ "description": "board.rs load_board：带出 archived_tasks（否则 host 一次写回就抹掉 Python 侧归档）",
+ "file": "runtime/crates/host/src/web/api/board.rs",
+ "anchor": "            for key in [\"tasks\", \"inspirations\"] {\n                if let Some(Value::Array(items)) = obj.get(key) {",
+ "patch": "            for key in [\"tasks\", \"inspirations\", \"archived_tasks\"] {\n                if let Some(Value::Array(items)) = obj.get(key) {"
+}

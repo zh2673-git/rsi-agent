@@ -122,7 +122,8 @@ JSON schema（task-upsert 读 ONE JSON 对象；`--file -` 从 stdin 读）
   priority      {"|".join(PRIORITIES)}；resourcing.model 取 current|cheap|strong；
                 resourcing.effort 取 {"|".join(EFFORTS)}
   checks        数组，元素 {{id, kind, name, target, timeout_secs}}；
-                kind 取 {"|".join(CHECK_KINDS)}
+                kind 取 {"|".join(CHECK_KINDS)}；grep 另接受 scope（文件或目录，缺省 "." 会扫整个工作区）
+                与 pattern（默认取 target）。
   outcomes      {{brief, pro}}，两条短句，移到 done 时写。
 
 常见拒因（实测撞过的，照着改就能过）：
@@ -243,7 +244,7 @@ def load() -> dict:
         board["corrupt"] = True
         return board
     board = empty_board()
-    for k in ("tasks", "inspirations"):
+    for k in ("tasks", "inspirations", "archived_tasks"):
         v = raw.get(k)
         if isinstance(v, list):
             board[k] = [x for x in v if isinstance(x, dict)]
@@ -252,6 +253,11 @@ def load() -> dict:
         board["layout"] = lay
     board["updated_at"] = str(raw.get("updated_at") or board["updated_at"])
     return board
+
+
+def all_tasks(board: dict) -> list[dict]:
+    """热区 + 归档。给「按 ID 找任务」「跨任务聚合」用；占额度、列表、提示词注入只用 board["tasks"]。"""
+    return list(board.get("archived_tasks") or []) + list(board["tasks"])
 
 
 def _lock_path() -> Path:
@@ -479,6 +485,14 @@ def validate_checks(raw) -> list[dict]:
         }
         if kind in ("cmd", "grep", "file"):
             item["target"] = _str(c.get("target"), f"checks[{i}].target", MAX_CMD)
+            if kind == "grep":
+                # `scope`/`pattern` 必须透传：_run_check 靠它们把扫描收窄到单文件。
+                # 丢掉的后果不是「检查变松」而是「扫整个工作区」——实测一次 eval 从
+                # 0.01s 涨到 90s+，超过插件 60s deadline 后被打死，锁还留在盘上。
+                if c.get("scope"):
+                    item["scope"] = _str(c.get("scope"), f"checks[{i}].scope", MAX_CMD)
+                if c.get("pattern"):
+                    item["pattern"] = _str(c.get("pattern"), f"checks[{i}].pattern", MAX_CMD)
             if kind == "cmd":
                 to = c.get("timeout_secs", 60)
                 if isinstance(to, bool) or not isinstance(to, int) or not (1 <= to <= 600):
@@ -707,7 +721,10 @@ def _run_check(check: dict, ws: Path) -> dict:
         hits = 0
         sample: list[str] = []
         try:
-            for f in root.rglob("*"):
+            # scope 可以是文件也可以目录。写成文件时 rglob("*") 返回空 → 检查永远 fail，
+            # 之前靠「scope 被丢掉、退化成全工作区扫描」才偶然通过（假通过）。
+            files = [root] if root.is_file() else list(root.rglob("*"))
+            for f in files:
                 if not f.is_file() or f.stat().st_size > 1_000_000:
                     continue
                 if any(part in (".git", "node_modules", "target", "target-selfupdate",
@@ -881,7 +898,7 @@ def cmd_digest(args: argparse.Namespace) -> dict:
     tasks = sorted(tasks, key=lambda t: order.get(str(t.get("status")), 99))
     tasks = tasks[: max(1, int(args.limit))]
     by_skill: dict[str, dict] = {}
-    for t in board["tasks"]:
+    for t in all_tasks(board):
         for s in ((t.get("resourcing") or {}).get("skills") or []):
             slot = by_skill.setdefault(s, {"skill": s, "total": 0, "open": 0, "done": 0})
             slot["total"] += 1
@@ -918,7 +935,7 @@ def cmd_resolve(args: argparse.Namespace) -> dict:
     for m in RESOLVE_RE.finditer(text):
         if m.group(1) not in ids:
             ids.append(m.group(1))
-    tasks = {t.get("id"): t for t in board["tasks"]}
+    tasks = {t.get("id"): t for t in all_tasks(board)}
     insps = {i.get("id"): i for i in board["inspirations"]}
     blocks, missing = [], []
     for i in ids:
@@ -1001,7 +1018,7 @@ def cmd_list(args: argparse.Namespace) -> dict:
 
 def cmd_show(args: argparse.Namespace) -> dict:
     board = load()
-    for t in board["tasks"]:
+    for t in all_tasks(board):
         if t.get("id") == args.id:
             return {"ok": True, "task": t, "path": str(board_path())}
     for i in board["inspirations"]:
@@ -1031,6 +1048,7 @@ def cmd_stats(args: argparse.Namespace) -> dict:
         "ok": True,
         "path": str(board_path()),
         "tasks": {"total": len(board["tasks"]), "by_status": counts},
+        "archived": len(board.get("archived_tasks") or []),
         "inspirations": {"total": len(board["inspirations"]), "by_status": insp},
         "by_workspace": by_ws,
         "current_workspace": workspace_tag(),
@@ -1049,15 +1067,18 @@ def cmd_task_upsert(args: argparse.Namespace) -> dict:
     board = load()
     existing = None
     if not raw.get("id"):
-        raw["id"] = _next_id(board["tasks"], "T", TASK_ID_RE)
+        raw["id"] = _next_id(all_tasks(board), "T", TASK_ID_RE)
     for t in board["tasks"]:
         if t.get("id") == raw["id"]:
             existing = t
             break
+    if existing is None and any(t.get("id") == raw["id"] for t in board.get("archived_tasks") or []):
+        raise BoardError(f"{raw['id']} 已归档：要继续它请先 task-unarchive {raw['id']}", code="ARCHIVED",
+                         field="id")
     task = validate_task(raw, existing)
     if existing is None and len(board["tasks"]) >= MAX_TASKS:
-        raise BoardError(f"任务数已达上限 {MAX_TASKS}，请先归档/清理已完成的旧任务", code="LIMIT",
-                         field="tasks")
+        raise BoardError(f"任务数已达上限 {MAX_TASKS}，请先运行 board.py task-archive --all-done "
+                         f"归档已完结任务（归档不删数据、digest 仍可查）", code="LIMIT", field="tasks")
     merged = [t for t in board["tasks"] if t.get("id") != task["id"]] + [task]
     order = {s: i for i, s in enumerate(TASK_STATUSES)}
     board["tasks"] = sorted(merged, key=lambda t: order.get(str(t.get("status")), 99))
@@ -1067,6 +1088,58 @@ def cmd_task_upsert(args: argparse.Namespace) -> dict:
     if warn:
         out["warning"] = warn
     return out
+
+
+def cmd_task_archive(args: argparse.Namespace) -> dict:
+    """看板归档（方案 A）：done/cancelled 任务挪到 archived_tasks，不占 MAX_TASKS 额度。
+
+    为什么归档而不是删除或提高上限：上限保护的是每次全量读写与提示词注入的体积，
+    「已完结」退出热区即可；数据留在同一文件里，digest/show/resolve/link 仍可查。
+    未完结任务拒绝归档——归档不是「先藏起来」。
+    """
+    board = load()
+    if args.all_done:
+        keep, moved = [], []
+        for t in board["tasks"]:
+            (moved if t.get("status") in ("done", "cancelled") else keep).append(t)
+        if not moved:
+            return {"ok": True, "archived": 0, "ids": [], "path": str(board_path()),
+                    "note": "没有可归档的已完结任务"}
+    else:
+        idx = next((n for n, t in enumerate(board["tasks"]) if t.get("id") == args.id), None)
+        if idx is None:
+            raise BoardError(f"未找到任务 {args.id}（不在热区；show 可查归档）", code="NOT_FOUND", field="id")
+        moved = [board["tasks"].pop(idx)]
+        if moved[0].get("status") not in ("done", "cancelled"):
+            raise BoardError(f"{args.id} 未完结（status={moved[0].get('status')}）：归档前请先 "
+                             f"task-status {args.id} done|cancelled", code="NOT_FINISHED", field="status")
+        keep = board["tasks"]
+    stamp = now_iso()
+    for t in moved:
+        t["archived_at"] = stamp
+    board["tasks"] = keep
+    board["archived_tasks"] = (board.get("archived_tasks") or []) + moved
+    save(board)
+    return {"ok": True, "archived": len(moved), "ids": [t.get("id") for t in moved],
+            "tasks_total": len(board["tasks"]), "path": str(board_path())}
+
+
+def cmd_task_unarchive(args: argparse.Namespace) -> dict:
+    """把归档任务挪回热区（重新占额度）。"""
+    board = load()
+    arch = board.get("archived_tasks") or []
+    idx = next((n for n, t in enumerate(arch) if t.get("id") == args.id), None)
+    if idx is None:
+        raise BoardError(f"未找到归档任务 {args.id}", code="NOT_FOUND", field="id")
+    if len(board["tasks"]) >= MAX_TASKS:
+        raise BoardError(f"任务数已达上限 {MAX_TASKS}，先归档其他任务再取回 {args.id}", code="LIMIT",
+                         field="tasks")
+    t = arch.pop(idx)
+    t.pop("archived_at", None)
+    board["tasks"] = board["tasks"] + [t]
+    board["archived_tasks"] = arch
+    save(board)
+    return {"ok": True, "id": args.id, "tasks_total": len(board["tasks"]), "path": str(board_path())}
 
 
 def cmd_task_status(args: argparse.Namespace) -> dict:
@@ -1351,6 +1424,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="未完结任务也删，不再提示")
     p.set_defaults(fn=cmd_task_rm)
 
+    p = sub.add_parser("task-archive", help="归档已完结任务（done/cancelled）到 archived_tasks，不占上限")
+    p.add_argument("id", nargs="?", default="")
+    p.add_argument("--all-done", action="store_true", help="归档全部 done/cancelled 任务")
+    p.set_defaults(fn=cmd_task_archive)
+
+    p = sub.add_parser("task-unarchive", help="把归档任务挪回热区")
+    p.add_argument("id")
+    p.set_defaults(fn=cmd_task_unarchive)
+
     p = sub.add_parser("refresh", help="补齐缺失字段（不删条目）")
     p.set_defaults(fn=cmd_refresh)
 
@@ -1418,5 +1500,7 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+if __name__ == "__main__":
+    sys.exit(main())
 if __name__ == "__main__":
     sys.exit(main())
