@@ -1,0 +1,7 @@
+{
+  "id": "k7i-main-abort",
+  "description": "main.rs 退出前 abort 看门狗",
+  "file": "runtime/crates/host/src/main.rs",
+  "anchor": "    kernel.stop();",
+  "patch": "    heal_handle.abort();\n    kernel.stop();"
+}

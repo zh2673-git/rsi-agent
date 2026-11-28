@@ -4,6 +4,7 @@
 pub mod assemble;
 pub mod config;
 pub mod frontend;
+pub mod heal;
 pub mod instances;
 pub mod manifests;
 pub mod spawn;

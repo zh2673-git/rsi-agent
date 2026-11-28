@@ -1,0 +1,7 @@
+{
+  "id": "k7j-gateway-friendly",
+  "description": "gateway：K700 错误帧改写成人话，并按冷却落一条 host 日志",
+  "file": "runtime/crates/host/src/web/gateway.rs",
+  "anchor": "    const COOLDOWN: std::time::Duration = std::time::Duration::from_secs(30);\n    let key = format!(\"{where_}|{message}\");",
+  "patch": "    const COOLDOWN: std::time::Duration = std::time::Duration::from_secs(30);\n    // K7：guest 失联（K700 / DomainUnavailable）的原文是「execution domain 'memory'\n    // not available in this build」——对用户说「这个构建里没有该执行域」，与事实相反\n    // （域在，是进程死了），用户会去怀疑安装包/版本。此处统一改写成人话。\n    let message = friendly_error(message);\n    let message: &str = &message;\n    let key = format!(\"{where_}|{message}\");"
+}

@@ -385,6 +385,11 @@ def _run_bash(args: dict) -> dict:
     # helper 定义在文件末尾——插在 `_run_bash` 之前会打断内置 P1 补丁的锚点连续性，
     # 造成两条补丁来回震荡（apply 两次即重复插入）。
     command = _strip_leading_cd(command)
+    # K7：按名杀进程拦截（与上面的 cd 剥离同一条思路——提示词写不住的护栏放执行层）。
+    # `Stop-Process -Name node` / `taskkill /IM node.exe` / `killall node` 会杀掉**本机所有**
+    # 同名进程，而 memory guest 就是 node.exe：宿主于是被自己杀死，之后每次 dispatch 都是
+    # K700（用户看到的就是「跑久了突然中断，重启才好」）。按 PID 才能只杀目标。
+    _guard_kill_by_name(command)
     timeout_ms = optional_int(args, "timeout_ms", 30_000, 1_000, _MAX_TIMEOUT_MS)
     before = _scan_zone() if _trace_enabled() else None  # 执行前快照（pre-copy 内容缓存）
     result = _run_sandboxed(command, timeout_ms) if _sandboxed() else _run_direct(command, timeout_ms)
@@ -405,6 +410,7 @@ def _description() -> str:
     return (
         "Run a shell command in the workspace (cwd = WORKSPACE_ROOT) via a restricted-token sandbox helper "
         "(reduced privileges, admin groups deny-only; fail-closed). Large output keeps head 40KB + tail 20KB. "
+        "Never kill processes by name (Stop-Process -Name node / taskkill /IM node.exe / killall node): node.exe is also this agent's own memory guest, so a by-name kill takes the host down with it - locate the PID first and kill by PID. "
         "Args: command (required), timeout_ms (default 30000, max 60000). "
         "IMPORTANT: command must be a SINGLE line - a newline makes cmd.exe /c run only the first line "
         "and silently drop the rest with exit_code=0; chain steps with && or & instead. "
@@ -421,6 +427,7 @@ def _description() -> str:
             "Run a shell command in the workspace (cwd = WORKSPACE_ROOT). "
             "Runs with full user permissions - NOT sandboxed (BASH_SANDBOX=off). "
             "Large output keeps head 40KB + tail 20KB. "
+            "Never kill processes by name (Stop-Process -Name node / taskkill /IM node.exe / killall node): node.exe is also this agent's own memory guest, so a by-name kill takes the host down with it - locate the PID first and kill by PID. "
             "Args: command (required), timeout_ms (default 30000, max 60000). "
             "IMPORTANT: command must be a SINGLE line - a newline makes cmd.exe /c run only the first line "
             "and silently drop the rest with exit_code=0; chain steps with && or & instead. "
@@ -451,6 +458,42 @@ TOOLS = {
         "run": _run_bash,
     },
 }
+
+
+def _guard_kill_by_name(command: str) -> None:
+    """拦下「按进程名通杀」：这类命令会顺手杀死本 agent 自己的 guest 进程。
+
+    为什么必须在执行层拦（而不是只写进描述）：`node.exe` / `chrome.exe` / `python.exe` 是
+    本机共享进程名，memory guest 本身就是 `node.exe`。实测事故链是——
+    `Stop-Process -Name node` → memory guest 死亡 → 内核 dispatch 对进程型 guest 返回
+    `DomainUnavailable`（Display: `[K700] execution domain 'memory' not available in this
+    build`）→ 插件状态仍是 Running，之后每次调用都 K700，只能重启宿主。按名杀是「一次
+    手滑、全场报废」，且模型看到 K700 还会以为是「这个构建不支持」，越查越远。
+
+    判据刻意宽松（只要出现按名杀的组合就拒），因为误拒的代价只是让模型改用 PID，
+    而漏放的代价是记忆服务被自己杀死。
+    """
+    low = command.lower()
+    hit = None
+    if "stop-process" in low and "-name" in low:
+        hit = "Stop-Process -Name"
+    elif "taskkill" in low and "/im" in low:
+        hit = "taskkill /IM"
+    elif "killall" in low:
+        hit = "killall"
+    elif "get-process" in low and "-name" in low:
+        hit = "Get-Process -Name"
+    if hit is None:
+        return
+    raise ToolError(
+        f"禁止按进程名通杀（命中 `{hit}`）：node.exe / chrome.exe / python.exe 都是本机共享"
+        "进程名，其中 memory guest 就是 node.exe —— 按名杀会把宿主自己的记忆服务一起杀死，"
+        "之后每次调用都返回 K700（表现为「跑久了突然中断，重启才好」）。"
+        "请先按端口或命令行定位 PID（Get-CimInstance Win32_Process / netstat -ano），"
+        "再 `Stop-Process -Id <PID>` 或 `taskkill /PID <pid> /T /F` 只杀目标。",
+        code="KILL_BY_NAME_BLOCKED",
+        field="command",
+    )
 
 
 def _strip_leading_cd(command: str) -> str:

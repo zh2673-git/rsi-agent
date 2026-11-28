@@ -1,0 +1,7 @@
+{
+  "id": "k7e-assemble-pub-sandbox",
+  "description": "assemble：apply_bash_sandbox 改 pub(crate)，供 heal 重 spawn 时复算 env",
+  "file": "runtime/crates/host/src/assemble.rs",
+  "anchor": "async fn apply_bash_sandbox(tools_env: &mut Vec<(String, String)>) {",
+  "patch": "pub(crate) async fn apply_bash_sandbox(tools_env: &mut Vec<(String, String)>) {"
+}

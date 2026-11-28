@@ -1,0 +1,7 @@
+{
+  "id": "k7l-gateway-fn",
+  "description": "gateway：新增 friendly_error（K700 → 人话）",
+  "file": "runtime/crates/host/src/web/gateway.rs",
+  "anchor": "    *last_err = Some((key, tokio::time::Instant::now()));\n    Ok(())\n}",
+  "patch": "    *last_err = Some((key, tokio::time::Instant::now()));\n    Ok(())\n}\n\n/// 把「执行域不可用」翻译成人话（K7）。\n///\n/// 原文 `[K700] execution domain 'memory' not available in this build` 会让人以为\n/// 是安装包缺组件/版本不对，实际是 memory guest 进程死了。判定按码 + 旧文案双保险。\nfn friendly_error(message: &str) -> String {\n    let unavailable = message.contains(\"K700\")\n        || message.contains(\"not available in this build\")\n        || message.contains(\"on_event rpc failed\")\n        || message.contains(\"guest exited before announcing port\");\n    if unavailable {\n        return \"记忆服务（memory guest）已失联，宿主正在自动恢复；恢复前历史事件与流式输出暂不可用。若 30 秒内未恢复，请重启 rsi-agent。\".to_string();\n    }\n    message.to_string()\n}"
+}

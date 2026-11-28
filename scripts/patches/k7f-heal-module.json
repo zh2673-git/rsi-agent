@@ -1,0 +1,8 @@
+{
+  "id": "k7f-heal-module",
+  "description": "新建 runtime/crates/host/src/heal.rs（K700 看门狗 + hot_swap 自愈）",
+  "file": "runtime/crates/host/src/heal.rs",
+  "create": true,
+  "content_file": "blocks/k7f-heal.rs.txt",
+  "create_marker": "pub fn spawn_watchdog"
+}

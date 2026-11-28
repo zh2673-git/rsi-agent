@@ -1,0 +1,7 @@
+{
+  "id": "k7a-kill-guard-call",
+  "description": "bash 工具：_run_bash 在执行前调用 _guard_kill_by_name（拦按名通杀）",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor": "    command = _strip_leading_cd(command)\n    timeout_ms = optional_int(args, \"timeout_ms\", 30_000, 1_000, _MAX_TIMEOUT_MS)",
+  "patch": "    command = _strip_leading_cd(command)\n    # K7：按名杀进程拦截（与上面的 cd 剥离同一条思路——提示词写不住的护栏放执行层）。\n    # `Stop-Process -Name node` / `taskkill /IM node.exe` / `killall node` 会杀掉**本机所有**\n    # 同名进程，而 memory guest 就是 node.exe：宿主于是被自己杀死，之后每次 dispatch 都是\n    # K700（用户看到的就是「跑久了突然中断，重启才好」）。按 PID 才能只杀目标。\n    _guard_kill_by_name(command)\n    timeout_ms = optional_int(args, \"timeout_ms\", 30_000, 1_000, _MAX_TIMEOUT_MS)"
+}

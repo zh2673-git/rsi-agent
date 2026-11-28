@@ -85,6 +85,8 @@ async fn main() -> anyhow::Result<()> {
     });
 
     react_agent_host::assemble::assemble_with(&kernel, &spec).await?;
+    // K7 自愈：guest 失联（K700）后自动重 spawn 并 hot_swap 原地替换，不必重启宿主。
+    let heal_handle = react_agent_host::heal::spawn_watchdog(kernel.clone(), spec.clone());
 
     let session = std::env::var("SESSION_ID").unwrap_or_else(|_| "default".into());
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -99,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
         frontend::from_env().run(kernel.clone(), session).await?;
     }
 
+    heal_handle.abort();
     kernel.stop();
     kernel.destroy().await;
     Ok(())

@@ -1,0 +1,7 @@
+{
+  "id": "k7m-version-bump",
+  "description": "版本号顺延 0.1.35 → 0.1.36",
+  "file": "runtime/Cargo.toml",
+  "anchor": "version = \"0.1.35\"",
+  "patch": "version = \"0.1.36\""
+}

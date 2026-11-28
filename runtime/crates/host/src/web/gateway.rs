@@ -235,12 +235,20 @@ async fn write_error_frame(
     last_err: &mut Option<(String, tokio::time::Instant)>,
 ) -> std::io::Result<()> {
     const COOLDOWN: std::time::Duration = std::time::Duration::from_secs(30);
+    // K7：guest 失联（K700 / DomainUnavailable）的原文是「execution domain 'memory'
+    // not available in this build」——对用户说「这个构建里没有该执行域」，与事实相反
+    // （域在，是进程死了），用户会去怀疑安装包/版本。此处统一改写成人话。
+    let message = friendly_error(message);
+    let message: &str = &message;
     let key = format!("{where_}|{message}");
     if let Some((prev, at)) = last_err.as_ref() {
         if prev == &key && at.elapsed() < COOLDOWN {
             return Ok(());
         }
     }
+    // memory 已死时 agent-loop 的 trace.append 全部失败（只 debug 级、被 filter 掉），
+    // 因此这条 warn 是唯一能在宿主流里看到的现场记录。受上面的冷却约束，不刷屏。
+    tracing::warn!("SSE 错误帧 [{where_}] {message}");
     let line = format!(
         "data: {}\n\n",
         json!({"type": "error", "where": where_, "message": message})
@@ -248,4 +256,19 @@ async fn write_error_frame(
     write_half.write_all(line.as_bytes()).await?;
     *last_err = Some((key, tokio::time::Instant::now()));
     Ok(())
+}
+
+/// 把「执行域不可用」翻译成人话（K7）。
+///
+/// 原文 `[K700] execution domain 'memory' not available in this build` 会让人以为
+/// 是安装包缺组件/版本不对，实际是 memory guest 进程死了。判定按码 + 旧文案双保险。
+fn friendly_error(message: &str) -> String {
+    let unavailable = message.contains("K700")
+        || message.contains("not available in this build")
+        || message.contains("on_event rpc failed")
+        || message.contains("guest exited before announcing port");
+    if unavailable {
+        return "记忆服务（memory guest）已失联，宿主正在自动恢复；恢复前历史事件与流式输出暂不可用。若 30 秒内未恢复，请重启 rsi-agent。".to_string();
+    }
+    message.to_string()
 }

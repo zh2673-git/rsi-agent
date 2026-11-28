@@ -1,0 +1,7 @@
+{
+  "id": "k7g-lib-mount",
+  "description": "lib.rs 挂载 heal 模块",
+  "file": "runtime/crates/host/src/lib.rs",
+  "anchor": "pub mod frontend;",
+  "patch": "pub mod frontend;\npub mod heal;"
+}

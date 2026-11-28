@@ -308,7 +308,7 @@ async fn warm_skill_tools(kernel: &Kernel) -> anyhow::Result<usize> {
 /// 默认 BASH_SANDBOX=on —— 探测同目录 sandbox-run 助手，通过则向 tools 传 SANDBOX_HELPER；
 /// 探测失败/助手缺失/取值非法 → 把 bash 移出 TOOLS_ENABLED（拒绝执行，绝不静默降级为无沙箱直跑）；
 /// 仅 BASH_SANDBOX=off 显式豁免时无沙箱直跑（bash 描述如实声明）。
-async fn apply_bash_sandbox(tools_env: &mut Vec<(String, String)>) {
+pub(crate) async fn apply_bash_sandbox(tools_env: &mut Vec<(String, String)>) {
     let mode = std::env::var("BASH_SANDBOX").unwrap_or_else(|_| "on".into());
     let helper = std::env::current_exe()
         .ok()

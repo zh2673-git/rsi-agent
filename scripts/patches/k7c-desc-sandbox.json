@@ -1,0 +1,7 @@
+{
+  "id": "k7c-desc-sandbox",
+  "description": "bash 工具描述（沙箱分支）：补一句禁止按名杀进程",
+  "file": "runtime/plugins/tools/tools/bash.py",
+  "anchor": "\"Run a shell command in the workspace (cwd = WORKSPACE_ROOT) via a restricted-token sandbox helper \"\n        \"(reduced privileges, admin groups deny-only; fail-closed). Large output keeps head 40KB + tail 20KB. \"",
+  "patch": "\"Run a shell command in the workspace (cwd = WORKSPACE_ROOT) via a restricted-token sandbox helper \"\n        \"(reduced privileges, admin groups deny-only; fail-closed). Large output keeps head 40KB + tail 20KB. \"\n        \"Never kill processes by name (Stop-Process -Name node / taskkill /IM node.exe / killall node): node.exe is also this agent's own memory guest, so a by-name kill takes the host down with it - locate the PID first and kill by PID. \""
+}

@@ -1,0 +1,7 @@
+{
+  "id": "k7h-main-mount",
+  "description": "main.rs 装配后启动看门狗、退出前 abort",
+  "file": "runtime/crates/host/src/main.rs",
+  "anchor": "    react_agent_host::assemble::assemble_with(&kernel, &spec).await?;",
+  "patch": "    react_agent_host::assemble::assemble_with(&kernel, &spec).await?;\n    // K7 自愈：guest 失联（K700）后自动重 spawn 并 hot_swap 原地替换，不必重启宿主。\n    let heal_handle = react_agent_host::heal::spawn_watchdog(kernel.clone(), spec.clone());"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "k7k-gateway-warn",
+  "description": "gateway：错误帧真正下发时落一条 warn（memory 已死则 trace 写不进去）",
+  "file": "runtime/crates/host/src/web/gateway.rs",
+  "anchor": "    if let Some((prev, at)) = last_err.as_ref() {\n        if prev == &key && at.elapsed() < COOLDOWN {\n            return Ok(());\n        }\n    }",
+  "patch": "    if let Some((prev, at)) = last_err.as_ref() {\n        if prev == &key && at.elapsed() < COOLDOWN {\n            return Ok(());\n        }\n    }\n    // memory 已死时 agent-loop 的 trace.append 全部失败（只 debug 级、被 filter 掉），\n    // 因此这条 warn 是唯一能在宿主流里看到的现场记录。受上面的冷却约束，不刷屏。\n    tracing::warn!(\"SSE 错误帧 [{where_}] {message}\");"
+}
