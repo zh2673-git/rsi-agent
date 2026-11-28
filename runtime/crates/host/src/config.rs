@@ -316,7 +316,8 @@ pub fn skills_dir() -> PathBuf {
 // 形状：{"llm":{...},"tools":{"enabled":[...]},"agent":{...}}
 //   agent 段（P5/E1 收编）：{"max_rounds","system_prompt","prompt","history_limit",
 //   "compact_trigger","compact_keep","tool_result_limit","budget_secs","token_budget",
-//   "retry_attempts","retry_base_ms","llm_context_tokens"} —— 键名即 agent-loop 运行参数，
+//   "retry_attempts","retry_base_ms","llm_context_tokens","no_progress_repeat_limit"}
+//   —— 键名即 agent-loop 运行参数，
 //   应用为同名 env。
 // 持久通道：启动时 apply → env（agent-loop InProcess 自读，spawn 下发复用现有机制，零改动）；
 // 热通道：PUT /api/config 转发成功后 env 热应用（下轮对话生效）+ 落盘。

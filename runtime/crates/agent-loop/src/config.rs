@@ -172,7 +172,9 @@ impl AgentLoopConfig {
             compact_keep: env_num("COMPACT_KEEP", 10usize, "压缩保留条数"),
             tool_result_limit: env_num("TOOL_RESULT_LIMIT", crate::DEFAULT_TOOL_RESULT_CHARS, "工具结果回喂上限"),
             text_attach_limit: env_num("TEXT_ATTACH_LIMIT", crate::DEFAULT_TEXT_ATTACH_CHARS, "文本附件内嵌上限"),
-            budget: secs_opt(env_num("CHAT_BUDGET_SECS", 900.0f64, "chat 墙钟预算秒")),
+            // 缺省 0 = 不设墙钟上限：agent 该不该停由「任务是否做完」决定，不由秒表决定。
+            // 需要硬上限的用户在 config.json / 设置面板显式填秒数（>0 才生效）。
+            budget: secs_opt(env_num("CHAT_BUDGET_SECS", 0.0f64, "chat 墙钟预算秒")),
             token_budget: num_opt(env_num("CHAT_TOKEN_BUDGET", 0u64, "chat token 预算")),
             // provider(openai_compat) 已有网关换号重试层；agent-loop 整轮重试默认降到 1，
             // 避免 3x5=15 次上游重试叠加把 CPU/风扇打满。LLM_RETRY_ATTEMPTS 可覆盖。
@@ -262,6 +264,28 @@ mod tests {
         match tok {
             Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
             None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+        }
+    }
+
+    /// 墙钟缺省必须是「不限」：agent 停不停由任务是否做完决定，不由秒表决定。
+    /// 曾经缺省 900s，长任务（压 64MB 安装包）必然被腰斩，用户看到的就是「一会儿就停」。
+    #[test]
+    fn budget_defaults_to_unlimited() {
+        let _g = env_lock().lock().unwrap();
+        let saved = std::env::var("CHAT_BUDGET_SECS").ok();
+
+        std::env::remove_var("CHAT_BUDGET_SECS");
+        assert!(AgentLoopConfig::from_env(8).budget.is_none(), "缺省=不限");
+
+        std::env::set_var("CHAT_BUDGET_SECS", "0");
+        assert!(AgentLoopConfig::from_env(8).budget.is_none(), "显式 0 也是不限");
+
+        std::env::set_var("CHAT_BUDGET_SECS", "3600");
+        assert_eq!(AgentLoopConfig::from_env(8).budget.map(|d| d.as_secs()), Some(3600), "正数生效");
+
+        match saved {
+            Some(v) => std::env::set_var("CHAT_BUDGET_SECS", v),
+            None => std::env::remove_var("CHAT_BUDGET_SECS"),
         }
     }
 

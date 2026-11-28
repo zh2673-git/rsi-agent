@@ -89,13 +89,15 @@
   （`:1416-1493`、`:2496-2534`）。链路 `config.json → AGENT_ENV_MAP(host/config.rs:347-366)
   → env → AgentLoopConfig::from_env` 通。断点只在根 `config.json`：`budget_secs=0`、
   `token_budget=0`、无 `no_progress_repeat_limit`（缺省 0=禁用）。
-  - 注意：`no_progress_repeat_limit` 未进 `AGENT_NUMERIC_KEYS` / `agent_config_view`
-    （host/src/web/api/config.rs:12-23,61-73），Web 设置面板不回显，只能改文件或手工 PUT。
+  - **v0.1.35 已补**：`no_progress_repeat_limit` 进 `AGENT_NUMERIC_KEYS` / `agent_config_view`
+    （host/src/web/api/config.rs）并在 Web 设置面板有输入框，不再只能改文件或手工 PUT。
   - 决策（2026-11-19，经无人值守场景再评估后定稿）：根 `config.json` agent 段——
     - `compact_trigger 40→80`、`compact_keep 30→10`：**保留**（纯省 token，不影响任务能否跑完）。
     - `no_progress_repeat_limit` 新增 `4`：**保留**（仅"同工具+完全相同参数连续 4 次"才熔断，
       不误伤换 offset/pattern/old_string 的真实探索；精准对治参数完全不变的空转）。
-    - `budget_secs`：**保持 0（禁用）**——曾试开 `900` 后撤销。原因：软收敛到点后
+    - `budget_secs`：**0（禁用）**——曾试开 `900` 后撤销；v0.1.35 起**代码缺省也是 0**
+      （agent-loop `config.rs` 与 host `web/api/config.rs` 三处缺省统一），新装用户不再
+      继承 900s/300s 的历史缺省。原因：软收敛到点后
       `chat.rs:1419-1446` 注入 wrap_up 指令、剥掉工具（`chat.rs:835`），要么模型交文本收敛、
       要么 `chat.rs:891-907` 强制交进度报告，**两者都 finish 且 turn=done，任务就地终结**；
       而全仓无"收敛后自动续做"机制（ask_user/queue/resume 均需外部再发消息，

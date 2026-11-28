@@ -20,6 +20,7 @@ const AGENT_NUMERIC_KEYS: &[&str] = &[
     "retry_attempts",
     "retry_base_ms",
     "llm_context_tokens",
+    "no_progress_repeat_limit",
 ];
 
 /// agent 段设置热应用（P5/E1）：逐键 set env（agent-loop InProcess 在本进程自读，
@@ -65,12 +66,13 @@ fn agent_config_view() -> Value {
         "compact_trigger": env_num("COMPACT_TRIGGER", 40),
         "compact_keep": env_num("COMPACT_KEEP", 10),
         "tool_result_limit": env_num("TOOL_RESULT_LIMIT", 8000),
-        "budget_secs": env_num("CHAT_BUDGET_SECS", 300),
+        "budget_secs": env_num("CHAT_BUDGET_SECS", 0),
         "token_budget": env_num("CHAT_TOKEN_BUDGET", 0),
         // 与 agent-loop 默认一致（retry_attempts=1）。
         "retry_attempts": env_num("LLM_RETRY_ATTEMPTS", 1),
         "retry_base_ms": env_num("LLM_RETRY_BASE_MS", 500),
         "llm_context_tokens": env_num("LLM_CONTEXT_TOKENS", 0),
+        "no_progress_repeat_limit": env_num("NO_PROGRESS_REPEAT_LIMIT", 0),
     })
 }
 
@@ -690,6 +692,31 @@ mod tests {
                 Some(val) => std::env::set_var(k, val),
                 None => std::env::remove_var(k),
             }
+        }
+    }
+
+    #[test]
+    fn no_progress_limit_is_writable_through_hot_channel() {
+        // v0.1.35：该键此前不在 AGENT_NUMERIC_KEYS / agent_config_view，面板无从回显、
+        // 也无法通过 PUT 落 env——「原地打转」的唯一熔断只能改文件。此测试守住这条通路。
+        let _guard = crate::config::env_lock();
+        let saved = std::env::var("NO_PROGRESS_REPEAT_LIMIT").ok();
+
+        let n = apply_agent_to_env(&serde_json::json!({"no_progress_repeat_limit": 4}))
+            .expect("合法数值键应通过校验");
+        assert_eq!(n, 1);
+        assert_eq!(std::env::var("NO_PROGRESS_REPEAT_LIMIT").unwrap(), "4");
+
+        // 面板可能以字符串提交
+        assert!(apply_agent_to_env(&serde_json::json!({"no_progress_repeat_limit": "6"})).is_ok());
+        assert_eq!(std::env::var("NO_PROGRESS_REPEAT_LIMIT").unwrap(), "6");
+
+        // 垃圾值 → 400 语义
+        assert!(apply_agent_to_env(&serde_json::json!({"no_progress_repeat_limit": "abc"})).is_err());
+
+        match saved {
+            Some(v) => std::env::set_var("NO_PROGRESS_REPEAT_LIMIT", v),
+            None => std::env::remove_var("NO_PROGRESS_REPEAT_LIMIT"),
         }
     }
 

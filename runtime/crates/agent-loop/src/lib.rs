@@ -153,8 +153,8 @@ const VERIFY_REMINDER: &str = "[policy:verify_before_final] 最终答复前请�
 /// LLM_DEADLINE=600s：深度思考模型长推理是常态（110s 时代被误伤）——单步上限放宽到
 /// 10 分钟覆盖全部商用推理模型流式思考；必须与 llm_adapter PROVIDER_DEADLINE=590s
 /// 配对（provider 先收敛 10s 报可重试 timeout，避免 gRPC abort 不中断 guest 线程导致
-/// 的涓流占坑，见 base.py 头注）；整轮预算 CHAT_BUDGET_SECS 缺省 900s 需 ≥ 单步闸，
-/// 否则长思考 + 工具轮会在轮边界被 K508 掐断。
+/// 的涓流占坑，见 base.py 头注）；整轮预算 CHAT_BUDGET_SECS 缺省 **0（不设上限）**，
+/// 需要护栏时显式给值，且必须 ≥ 本闸，否则长思考 + 工具轮会在轮边界被软收敛掐断。
 const MEM_DEADLINE: Duration = Duration::from_secs(5);
 // O3：tools 闸可配——重构建/重索引/全仓扫描类命令 60s 常不够（活体 trace 实录 K502 ×3），
 // env `TOOLS_DEADLINE_SECS` 覆盖（<30s 视为误配回退 60，语义同 llm_step_deadline）。

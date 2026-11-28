@@ -145,6 +145,7 @@ async function loadConfig() {
       ["agent-history-limit", a.history_limit], ["agent-compact-trigger", a.compact_trigger], ["agent-compact-keep", a.compact_keep],
       ["agent-tool-result-limit", a.tool_result_limit], ["agent-retry-attempts", a.retry_attempts], ["agent-retry-base-ms", a.retry_base_ms],
       ["agent-llm-context-tokens", a.llm_context_tokens],
+      ["agent-no-progress-repeat-limit", a.no_progress_repeat_limit],
     ]) $(id).value = v ?? "";
     $("agent-system-prompt").value = a.system_prompt ?? "";
     // IM 通道回显（external_channels.im）：凭据只回 key_set + key_tail，留空 = 不修改
@@ -1399,6 +1400,7 @@ $("agent-save").onclick = async () => {
     ["history_limit", "agent-history-limit"], ["compact_trigger", "agent-compact-trigger"], ["compact_keep", "agent-compact-keep"],
     ["tool_result_limit", "agent-tool-result-limit"], ["retry_attempts", "agent-retry-attempts"], ["retry_base_ms", "agent-retry-base-ms"],
     ["llm_context_tokens", "agent-llm-context-tokens"],
+    ["no_progress_repeat_limit", "agent-no-progress-repeat-limit"],
   ]) {
     const raw = $(id).value.trim();
     if (raw !== "") agent[k] = Number(raw);

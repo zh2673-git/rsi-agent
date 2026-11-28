@@ -292,6 +292,7 @@
       <div class="field"><label>retry_attempts（LLM 瞬态失败重试次数，0=不重试）</label><input id="agent-retry-attempts" type="number" min="0" max="6"></div>
       <div class="field"><label>retry_base_ms（重试退避基数毫秒，指数递增、单次封顶 8s）</label><input id="agent-retry-base-ms" type="number" min="0"></div>
       <div class="field"><label>llm_context_tokens（模型上下文窗口 token 数；0=禁用 token 闸，仅按条数管理）</label><input id="agent-llm-context-tokens" type="number" min="0"></div>
+      <div class="field"><label>no_progress_repeat_limit（同一工具 + 完全相同参数连续重复几次即熔断收尾；0=禁用，建议 4）</label><input id="agent-no-progress-repeat-limit" type="number" min="0"></div>
       <div class="row" style="margin:-8px 0 14px; justify-content:space-between">
         <span class="hint" id="ctx-hint" style="margin:0">原生窗口：未拉取模型列表（LLM 页「拉取模型」后可用）</span>
         <button type="button" class="btn ghost" id="ctx-fill" hidden style="padding:4px 12px; font-size:12px">填入原生值</button>
