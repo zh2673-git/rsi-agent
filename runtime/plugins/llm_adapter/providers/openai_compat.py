@@ -28,7 +28,7 @@ def resolve_openai() -> dict:
     return {
         "base_url": os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
         "model": os.environ.get("LLM_MODEL", "gpt-4o-mini"),
-        "headers": {"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"} if os.environ.get("OPENAI_API_KEY") else {},
+        "headers": {"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"} if os.environ.get("OPENAI_API_KEY") and os.environ["OPENAI_API_KEY"].isascii() else {},
     }
 
 

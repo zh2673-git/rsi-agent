@@ -1,0 +1,7 @@
+{
+ "id": "Q2-COMPAT-NONASCII-KEY",
+ "description": "openai_compat.py resolve_openai：OPENAI_API_KEY 含非 ASCII 字符时丢弃 Authorization 头（httpx 以 ascii 编码头，中文 key 直接 UnicodeEncodeError；回环本地网关任意令牌皆放行，丢弃即可用）",
+ "file": "runtime/plugins/llm_adapter/providers/openai_compat.py",
+ "anchor": "\"headers\": {\"Authorization\": f\"Bearer {os.environ.get('OPENAI_API_KEY', '')}\"} if os.environ.get(\"OPENAI_API_KEY\") else {},",
+ "patch": "\"headers\": {\"Authorization\": f\"Bearer {os.environ.get('OPENAI_API_KEY', '')}\"} if os.environ.get(\"OPENAI_API_KEY\") and os.environ[\"OPENAI_API_KEY\"].isascii() else {},"
+}

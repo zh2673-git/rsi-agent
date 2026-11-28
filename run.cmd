@@ -158,7 +158,12 @@ if defined NEED_MAGPIE (
     rem -- gateway not running: start one WITHOUT a console window and record its PID --
     rem -- start /b reuses the (hidden) parent console -> no flashing window on startup.
     rem -- PID lookup still works: WMI sees the same `magpie.exe serve` command line.
-    if exist "%USERPROFILE%\.local\bin\magpie.exe" (
+    rem -- packaged copy first: setup.exe ships the CLI at <INSTDIR>\bin\magpie.exe, so a clean
+    rem -- machine with no magpie.exe installed still gets a one-click gateway.
+    if exist "%REPO%\bin\magpie.exe" (
+      echo [rsi] Starting local gateway in background ...
+      start "" /b "%REPO%\bin\magpie.exe" serve
+    ) else if exist "%USERPROFILE%\.local\bin\magpie.exe" (
       echo [rsi] Starting local gateway in background ...
       start "" /b "%USERPROFILE%\.local\bin\magpie.exe" serve
     ) else (

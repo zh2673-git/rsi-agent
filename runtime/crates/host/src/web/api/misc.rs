@@ -270,6 +270,15 @@ async fn port_up(port: u16) -> bool {
 
 /// 定位 magpie CLI：MAGPIE_EXE env → %USERPROFILE%\.local\bin\magpie.exe → PATH（where/which）。
 fn find_magpie_exe() -> Option<PathBuf> {
+    // 包内副本优先：沿本 exe 的祖先目录找 bin\magpie.exe（host 在 <INSTDIR>\runtime\target\release\ 下）
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(p) = exe.ancestors().skip(1).find_map(|d| {
+            let p = d.join("bin").join("magpie.exe");
+            p.is_file().then_some(p)
+        }) {
+            return Some(p);
+        }
+    }
     if let Ok(p) = std::env::var("MAGPIE_EXE") {
         let p = PathBuf::from(p);
         if p.is_file() {

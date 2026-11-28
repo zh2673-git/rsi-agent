@@ -1,0 +1,7 @@
+{
+ "id": "Q2-PRESET-ASCII-KEY",
+ "description": "presets.py：本地网关预设 key_hint 中文改 ASCII 令牌——前端 applySite 把 key_hint 预填成 key 输入框的 value，中文保存后进 OPENAI_API_KEY，httpx 以 ascii 编码 Authorization 头直接 UnicodeEncodeError（0.1.29 真机拉取模型列表失败）",
+ "file": "runtime/plugins/llm_adapter/presets.py",
+ "anchor": "\"key_hint\": \"magpie（本地网关任意令牌）\"",
+ "patch": "\"key_hint\": \"magpie\""
+}

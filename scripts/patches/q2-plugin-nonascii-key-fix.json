@@ -1,0 +1,10 @@
+{
+ "id": "Q2-PLUGIN-NONASCII-KEY-FIX",
+ "description": "收敛修复：删掉 Q2-PLUGIN-NONASCII-KEY 首版误写的重复段（_err 无 field 参数，保存 key 时 TypeError）。首版行缺失即已收敛，幂等跳过",
+ "file": "runtime/plugins/llm_adapter/llm_plugin.py",
+ "repair": true,
+ "anchor": "            if not api_key.isascii():\n                return _err(\"api_key 含非 ASCII 字符（中文/全角），HTTP 头无法编码；本地网关请填任意 ASCII 令牌（如 magpie）\", code=\"K400\", field=\"api_key\")\n",
+ "patch": "",
+ "converge": true,
+ "applied_marker": "HTTP 头无法编码；本地网关请填任意 ASCII 令牌（如 magpie）\", code=\"K400\")"
+}

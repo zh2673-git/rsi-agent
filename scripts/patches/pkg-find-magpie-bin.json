@@ -1,0 +1,7 @@
+{
+  "id": "PKG-FIND-MAGPIE-BIN",
+  "description": "misc.rs find_magpie_exe：补「包内 bin\\magpie.exe」查找位（一键安装包把 CLI 放在 <INSTDIR>\\bin，干净机器无 %USERPROFILE%\\.local\\bin 与 PATH 副本，原先必 K404）。沿 host exe 的祖先目录逐级找 bin\\magpie.exe：安装树 <INSTDIR>\\runtime\\target\\release\\ 上四层、源码树同理，不依赖 cwd/env。",
+  "file": "runtime/crates/host/src/web/api/misc.rs",
+  "anchor": "fn find_magpie_exe() -> Option<PathBuf> {\n    if let Ok(p) = std::env::var(\"MAGPIE_EXE\") {\n        let p = PathBuf::from(p);\n        if p.is_file() {\n            return Some(p);\n        }\n    }",
+  "patch": "fn find_magpie_exe() -> Option<PathBuf> {\n    // 包内副本优先：沿本 exe 的祖先目录找 bin\\magpie.exe（host 在 <INSTDIR>\\runtime\\target\\release\\ 下）\n    if let Ok(exe) = std::env::current_exe() {\n        if let Some(p) = exe.ancestors().skip(1).find_map(|d| {\n            let p = d.join(\"bin\").join(\"magpie.exe\");\n            p.is_file().then_some(p)\n        }) {\n            return Some(p);\n        }\n    }\n    if let Ok(p) = std::env::var(\"MAGPIE_EXE\") {\n        let p = PathBuf::from(p);\n        if p.is_file() {\n            return Some(p);\n        }\n    }"
+}

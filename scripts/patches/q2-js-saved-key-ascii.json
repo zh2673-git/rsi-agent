@@ -1,0 +1,7 @@
+{
+ "id": "Q2-JS-SAVED-KEY-ASCII",
+ "description": "app-settings.js applySite：localStorage 记忆的站点 key 含非 ASCII 字符时不回填（0.1.29 中文 key_hint 已被存进浏览器记忆，仅修预设不够——回填后保存仍会把中文 key 写回 env）",
+ "file": "runtime/crates/host/web-dist/vendor/app-settings.js",
+ "anchor": "    const saved = localStorage.getItem(\"react-agent:llmkey:\" + p.id) || \"\";",
+ "patch": "    const savedRaw = localStorage.getItem(\"react-agent:llmkey:\" + p.id) || \"\";\n    const saved = /^[\\x21-\\x7e]+$/.test(savedRaw) ? savedRaw : \"\"; // 非 ASCII（旧版中文 key_hint 误存）不回填"
+}

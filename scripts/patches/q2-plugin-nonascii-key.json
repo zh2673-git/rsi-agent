@@ -1,0 +1,7 @@
+{
+ "id": "Q2-PLUGIN-NONASCII-KEY",
+ "description": "llm_plugin.py _configure：api_key 含非 ASCII 字符时字段级报错 K400（中文提示串被前端预填成 key 保存，进 env 后 httpx 编码 Authorization 头炸；与其下游炸，不如在入口挡住）",
+ "file": "runtime/plugins/llm_adapter/llm_plugin.py",
+ "anchor": "            os.environ[key_env] = api_key\n            applied[\"api_key_set\"] = True  # 明文绝不回显",
+ "patch": "            if not api_key.isascii():\n                return _err(\"api_key 含非 ASCII 字符（中文/全角），HTTP 头无法编码；本地网关请填任意 ASCII 令牌（如 magpie）\", code=\"K400\")\n            os.environ[key_env] = api_key\n            applied[\"api_key_set\"] = True  # 明文绝不回显"
+}

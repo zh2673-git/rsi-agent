@@ -173,3 +173,24 @@
 
 回退：`git checkout -- scripts/release-bundle.py scripts/update_check.py && python scripts/apply-tool-patches.py --revert`。
 
+### 2026-11-28 步 3c：桌面壳入包 + 网关 CLI 随装 + 设置面板两处合一（0.1.30，T-20261128-01）
+
+真机反馈三件事：装完双击是黑控制台而不是窗口；干净机点「一键启动网关」报 K404（CLI 不在 PATH）；设置面板「通道」有两个页签、且 JSON 保存后表单不回显新值。
+
+| 件 | 改动 | 验证 |
+|---|---|---|
+| `desktop/src/host.rs` | `repo_root()` 先看 `current_exe()` 父目录再退 `current_dir()`，各上溯 ≤6 层找 `run.cmd`——快捷方式启动时 cwd 是 `%USERPROFILE%`/System32，只查 cwd 找不到根 | `cargo build --release` 13s；装后双击壳起窗口 |
+| `scripts/build-installer.py` | ①桌面壳 `desktop/rsi-agent-desktop.exe` 入 setup payload（缺则打印回退 run.cmd 的警告）；②`app_entries(ver, bin_dir.resolve())`——makensis 以 .nsi 目录为基准解析相对 `File`，相对 `--bin-dir` 静默匹配不到；③`has_shell` 时快捷方式与 `MUI_FINISHPAGE_RUN` 指向壳；④**`Function LaunchApp` 用同一个 `launch` 变量**（定义了 `RUN_FUNCTION` 时函数覆盖 `MUI_FINISHPAGE_RUN`，硬写 run.cmd 会让完成页仍开控制台）；⑤`_find_gateway_cli()` 把 CLI 放到 `$INSTDIR\bin\` | NSI 里 `ExecShell "open" "$INSTDIR\desktop\rsi-agent-desktop.exe"`；静默装 2111 文件、`desktop/` 8,881,664 B、`bin/` 1 个 exe |
+| `runtime/crates/host/src/web/api/misc.rs` | `find_«KEY_MASKED»_exe()` 新增包内优先：沿 host exe 祖先找 `bin\«KEY_MASKED».exe`（安装树 `<INSTDIR>\runtime\target\release\` 上四层），不依赖 cwd/env | 装后网关分支走 `reusing it`，无 K404 |
+| `run.cmd` | 网关启动分支包内优先 `%REPO%\bin\<cli>.exe` → `%USERPROFILE%\.local\bin` → PATH | 同上 |
+| `runtime/crates/host/web-dist/index.html` | provider 下拉加 `本地网关（127.0.0.1:3425，免 key）`（`value=openai` + `data-site=<preset id>`）；删 `tab-channels` 独立页签，`#channels-json`/`#channels-save` 收进「通道」页的 `高级：原始 JSON` 折叠块 | 装后 `index.html` 三处断言 `True/True/False` |
+| `runtime/crates/host/web-dist/vendor/app-settings.js` | provider `change` 处理器按 `dataset.site` 自动选中预设并 `applySite`+`refreshUpstream`；`im-save`/`channels-save` 在 flash 前 `await loadConfig()`（JSON 保存后表单主动重拉，不再互覆盖） | 选「本地网关」→ base_url 自动填 → `GET /api/models?provider=openai` 200 |
+| `runtime/plugins/llm_adapter/*` | `presets.py` 的 key_hint 中文字符串会让前端把它预填成 key，`httpx` 以 ascii 编码 `Authorization` 头直接炸 → hint 改 ASCII 令牌；`llm_plugin.py` 在入口挡住非 ASCII key（K400 字段级报错）；`openai_compat.py` 丢弃非 ASCII key 的 Authorization 头 | 装树内拉取模型列表成功 |
+| `scripts/release.py` | git add 清单补 `desktop/src`、`Cargo.toml/lock`、`tauri.conf.json`、`start-desktop.ps1` | 干跑 |
+
+产物分工不变：壳 exe 与 64 MB 网关 CLI **只进 setup.exe**（运行中的壳锁自身镜像，应用内更新永远覆盖不了），app zip 保持 ~8 MB。
+
+验证：`.scratch/inst131` 静默安装 0.1.30（2111 文件）→ `manifest.json` `{0.1.30, 2108 files, git_head 415a1de}` → 装树 `run.cmd` 起在 8712、日志 `Local gateway already running; reusing it` → `llm-adapter(py, provider=openai) 探测通过` → `web 网关就绪` → `GET /api/models?provider=openai` 返回 200 与大模型列表。既有软告警 `symbols_search 未装 tree_sitter_language_pack` 与本轮无关。
+
+回退：`git checkout -- desktop/src/host.rs run.cmd scripts/build-installer.py scripts/release.py runtime/crates/host/web-dist runtime/crates/host/src/web/api/misc.rs runtime/plugins/llm_adapter && python scripts/apply-tool-patches.py --revert`。
+

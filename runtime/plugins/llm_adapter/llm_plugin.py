@@ -118,6 +118,8 @@ class LlmAdapterPlugin:
                 return _err(f"provider {effective} 不需要 api_key（如 ollama 本地）", code="K400", field="api_key")
             if not isinstance(api_key, str):
                 return _err("api_key 必须是字符串", code="K400", field="api_key")
+            if not api_key.isascii():
+                return _err("api_key 含非 ASCII 字符（中文/全角），HTTP 头无法编码；本地网关请填任意 ASCII 令牌（如 magpie）", code="K400")
             os.environ[key_env] = api_key
             applied["api_key_set"] = True  # 明文绝不回显
         return {"ok": True, "applied": applied}

@@ -21,14 +21,26 @@ pub fn addr() -> String {
 }
 
 fn repo_root() -> PathBuf {
-    // 从 exe 所在目录或 cwd 上溯到含 run.cmd 的仓库根（最多 6 层）。
-    let mut dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    for _ in 0..6 {
-        if dir.join("run.cmd").is_file() {
-            return dir;
+    // 上溯到含 run.cmd 的安装/仓库根（最多 6 层）。
+    // 必须先看 exe 所在目录：快捷方式启动时 cwd 是 %USERPROFILE% 或 System32，
+    // 不是安装目录；只看 cwd 会找不到 run.cmd 导致壳起不来。
+    let mut starts: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            starts.push(dir.to_path_buf());
         }
-        if !dir.pop() {
-            break;
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        starts.push(cwd);
+    }
+    for mut dir in starts {
+        for _ in 0..6 {
+            if dir.join("run.cmd").is_file() {
+                return dir;
+            }
+            if !dir.pop() {
+                break;
+            }
         }
     }
     PathBuf::from(".")

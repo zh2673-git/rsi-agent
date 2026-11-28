@@ -635,7 +635,13 @@ function syncModelField() {
 }
 $("llm-model").addEventListener("change", () => { syncModelField(); updateCtxHint(); });
 $("llm-model-custom").addEventListener("input", updateCtxHint);
-$("llm-provider").addEventListener("change", syncLlmFields);
+$("llm-provider").addEventListener("change", async () => {
+    syncLlmFields();
+    const guide = $("llm-provider").selectedOptions[0]?.dataset.site;
+    if (!guide) return;
+    await loadPresets();
+    if (siteById(guide)) { $("llm-site").value = guide; applySite(guide); refreshUpstream(); }
+  });
 // L6 站点预设：一键切换 OpenAI 兼容站点（数据源 /api/presets → presets.py；保存 = configure 热应用，零重启）
 let sitePresets = [];
 async function loadPresets() {
@@ -665,7 +671,8 @@ function applySite(id) {
   if (!p) { $("llm-site-key-url").hidden = true; return; }
   if (p.base_url) {
     $("llm-base").value = p.base_url;
-    const saved = localStorage.getItem("react-agent:llmkey:" + p.id) || "";
+    const savedRaw = localStorage.getItem("react-agent:llmkey:" + p.id) || "";
+    const saved = /^[\x21-\x7e]+$/.test(savedRaw) ? savedRaw : ""; // 非 ASCII（旧版中文 key_hint 误存）不回填
     if (saved) {
       $("llm-key").value = saved;
       $("llm-key").placeholder = `已记忆该站点 key（尾号 ${saved.slice(-4)}，可覆盖）`;
@@ -922,8 +929,8 @@ $("im-save").onclick = async () => {
   if (token) im.qq_token = token;                    // 留空 = 不修改
   try {
     await api("PUT", "/api/config", { external_channels: { im } });
+    await loadConfig(); // 与 JSON 入口同写 external_channels：先重拉再提示，表单/JSON 框同步到最新
     flash("im-flash", true, "已保存落盘（启动 im-gateway 后生效）");
-    loadConfig();
   } catch (e) { flash("im-flash", false, e.message); }
 };
 // LLM tab 三区折叠（与工具池 poolhead 同款交互；静态 HTML，加载时绑定一次）
@@ -1748,7 +1755,7 @@ $("channels-save").onclick = async () => {
   if (!Object.keys(ext).length) { flash("channels-flash", true, "无改动，已跳过保存"); loadConfig(); return; }
   try {
     await api("PUT", "/api/config", { external_channels: ext });
+    await loadConfig();
     flash("channels-flash", true, "已保存（消费方下次读取生效）");
-    loadConfig();
   } catch (e) { flash("channels-flash", false, e.message); }
 };
