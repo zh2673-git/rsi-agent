@@ -112,12 +112,13 @@ def main() -> int:
                  "scripts/release.py", "scripts/update_check.py", "scripts/patches",
                  "scripts/fetch-runtime.py", "scripts/build-installer.py",
                  "scripts/runtime-sitecustomize.py", "scripts/apply-env-update.ps1",
-                 "runtime/crates/host/src/web/api/misc.rs", "runtime/crates/host/web-dist",
-                 "runtime/plugins/llm_adapter/providers",
+                 "runtime/crates/host/src/web/api/misc.rs",
+                 "runtime/crates/host/src/config.rs", "runtime/crates/host/web-dist",
+                 "runtime/plugins/llm_adapter", "runtime/Cargo.toml",
                  # desktop shell sources (the built exe itself is never committed: 8.8 MB binary,
                  # and scripts/build-installer.py reads it straight from the working tree)
                  "desktop/src", "desktop/Cargo.toml", "desktop/Cargo.lock",
-                 "desktop/tauri.conf.json", "desktop/start-desktop.ps1"]
+                 "desktop/tauri.conf.json", "desktop/build.rs"]
         run([*GIT, "add", "--", *paths])
         staged = run([*GIT, "diff", "--cached", "--name-only"]).stdout.split()
         if staged:

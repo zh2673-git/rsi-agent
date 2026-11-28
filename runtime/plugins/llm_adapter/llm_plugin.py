@@ -170,6 +170,12 @@ class LlmAdapterPlugin:
         if not base:
             return {"ok": True, "up": False, "note": "未配置 base_url"}
         token = os.environ.get("OPENAI_API_KEY") or "magpie"
+        note = None
+        if not token.isascii():
+            # httpx 以 ASCII 编码请求头，非 ASCII 令牌会抛 UnicodeEncodeError，且被下方内层 except 静默吞掉 → up=False，状态灯误报“未运行”。
+            # 本地网关任意令牌皆放行，故降级为缺省令牌并把原因回传给前端展示。
+            note = "api_key 含非 ASCII 字符，探活已降级为缺省令牌"
+            token = "magpie"
         headers = {"Authorization": f"Bearer {token}"}
         try:
             import httpx
@@ -181,8 +187,8 @@ class LlmAdapterPlugin:
                     if r.status_code == 200:
                         data = r.json().get("data")
                         models = len(data) if isinstance(data, list) else None
-                except Exception:  # noqa: BLE001 - 探活失败仅影响 up 标志
-                    pass
+                except Exception as exc:  # noqa: BLE001 - 探活失败仅影响 up 标志，但原因要回传
+                    note = f"{type(exc).__name__}: {exc}"
                 up = models is not None
                 quotas = usage = None
                 if up:
@@ -196,7 +202,10 @@ class LlmAdapterPlugin:
                         usage = ru.json() if ru.status_code == 200 else None
                     except Exception:  # noqa: BLE001
                         pass
-                return {"ok": True, "up": up, "models": models, "quotas": quotas, "usage": usage}
+                out = {"ok": True, "up": up, "models": models, "quotas": quotas, "usage": usage}
+                if note:
+                    out["note"] = note
+                return out
         except Exception as exc:  # noqa: BLE001
             return {"ok": True, "up": False, "note": f"{type(exc).__name__}: {exc}"}
 

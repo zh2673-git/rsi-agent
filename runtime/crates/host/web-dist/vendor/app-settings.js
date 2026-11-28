@@ -719,7 +719,7 @@ async function refreshUpstream() {
 }
 function renderUpstream(v) {
   const st = $("upstream-state"), q = $("upstream-quotas");
-  st.textContent = v.up ? `运行中 · ${v.models ?? "?"} 个模型` : "未运行";
+  st.textContent = v.up ? `运行中 · ${v.models ?? "?"} 个模型` : (v.note ? `未运行 · ${v.note}` : "未运行");
   st.className = "up-state " + (v.up ? "up" : "down");
   $("upstream-start").hidden = !!v.up;
   // 积分行：每账户一行（provider 名 + user + 各窗口剩余百分比/额度/重置日）

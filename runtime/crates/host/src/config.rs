@@ -394,7 +394,13 @@ pub fn apply_config_file_to_env() -> usize {
             set(if anthropic { "ANTHROPIC_BASE_URL" } else { "LLM_BASE_URL" }, v.into());
         }
         if let Some(v) = llm.get("api_key").and_then(Value::as_str) {
-            set(if anthropic { "ANTHROPIC_API_KEY" } else { "OPENAI_API_KEY" }, v.into());
+            // 非 ASCII 令牌必是坏值（真实密钥全为 ASCII）：httpx 以 ASCII 编码请求头，写进 env 会让探活/对话抛 UnicodeEncodeError，再被静默吞掉伪装成“服务未运行”。
+            // 故拒绝下发并告警，留空让插件回落到缺省令牌 "magpie"。
+            if v.is_ascii() {
+                set(if anthropic { "ANTHROPIC_API_KEY" } else { "OPENAI_API_KEY" }, v.into());
+            } else {
+                eprintln!("[config] llm.api_key 含非 ASCII 字符，已忽略（请改为纯 ASCII，如 magpie）");
+            }
         }
     }
     if let Some(enabled) = cfg.get("tools").and_then(|t| t.get("enabled")).and_then(Value::as_array) {

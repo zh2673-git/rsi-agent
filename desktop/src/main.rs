@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! rsi-agent 桌面薄壳：先开窗口显示启动态，再后台拉起 host，就绪后导航到 Web UI。
 //! 不引入第二套 UI、不改 host 业务代码；编排逻辑复用根目录 run.cmd。
 mod host;

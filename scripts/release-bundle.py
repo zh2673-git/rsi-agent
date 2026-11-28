@@ -18,7 +18,6 @@ What goes into the app zip (tracked files only, read via `git ls-files` so nothi
 or machine-local slips in):
   run.cmd, release.cmd, config.example.json, README.md, scripts/   -- launcher + tooling
   runtime/plugins (code only), runtime/kernel, skills/ (code only),
-  desktop/start-desktop.ps1 + .pyw                                -- optional shell entry
   runtime/target/release/react-agent-host.exe                     -- the host binary
   runtime/target/release/sandbox-run.exe                          -- bash sandbox (fail-closed)
   runtime/target/release/web-dist/                                -- frontend, re-rooted here
@@ -70,7 +69,7 @@ KERNEL_NODE_MODULES = "runtime/kernel/bindings/typescript/node_modules/"
 INCLUDE = (
     "run.cmd", "release.cmd", "config.example.json", "README.md",
     "scripts/", "runtime/plugins/", "runtime/kernel/",
-    "skills/", "desktop/start-desktop.ps1", "desktop/start-desktop-silent.pyw",
+    "skills/",
 )
 WEB_DIST_SRC = "runtime/crates/host/web-dist/"
 WEB_DIST_DST = "runtime/target/release/web-dist/"

@@ -194,3 +194,21 @@
 
 回退：`git checkout -- desktop/src/host.rs run.cmd scripts/build-installer.py scripts/release.py runtime/crates/host/web-dist runtime/crates/host/src/web/api/misc.rs runtime/plugins/llm_adapter && python scripts/apply-tool-patches.py --revert`。
 
+
+### 2026-11-28 步 3d：桌面壳黑框 + LLM 页常显「未启动」（0.1.31，T-20261128-01）
+
+真机反馈两件事：双击桌面图标先弹一个黑色控制台窗口；LLM 设置页永远显示「未启动」，可网关进程其实活着。
+
+| 件 | 根因 | 改动 | 验证 |
+|---|---|---|---|
+| `desktop/src/main.rs` | 没有 `windows_subsystem` 属性，PE 头 `Subsystem=3`（CONSOLE），Windows 因此为进程分配控制台 | 首行加 `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]`（必须写在 `//!` 文档注释之上；已清掉重复的一处） | `desktop/target/release/rsi-agent-desktop.exe` PE 偏移 `0x144` `Subsystem=2`，8,882,688 B |
+| `runtime/plugins/llm_adapter/llm_plugin.py` | `_upstream_status()` 用 `OPENAI_API_KEY` 拼 `Authorization` 头，而配置里的 key 是非 ASCII（16 字符），httpx 编码请求头时抛 `UnicodeEncodeError`，被**内层** `except Exception: pass` 吞掉 → `models=None` → `up=False`；外层兜底从未触发，所以连 `note` 都没有，前端只能显示「未启动」 | 非 ASCII 令牌降级为缺省令牌并记 `note`；内层 except 记 `note=f"{type}: {exc}"`；返回值按需带 `note` | 装后 `/api/upstream/status` 返回 `up:true`、`models:138` |
+| `runtime/crates/host/web-dist/vendor/app-settings.js` | 前端把失败一律渲染成「未启动」，丢掉原因 | `v.note` 存在时显示 `未运行 · <note>` | 同上 |
+| `runtime/crates/host/src/config.rs` | 把任意 `llm.api_key` 直接塞进 `OPENAI_API_KEY`，非 ASCII 一路带到 httpx | 仅 ASCII 才 `set`，否则 eprintln 提示改成纯 ASCII | 装树 `config.json` 的 key 已修为 `magpie` |
+| `scripts/release.py` | git add 清单只列 `runtime/plugins/llm_adapter/providers`，本轮 `llm_plugin.py` 的修复会被**静默漏提交** | 补 `web/api/misc.rs`、`src/config.rs`、`web-dist`、`llm_adapter`、`runtime/Cargo.toml`、`desktop/src`、`desktop/Cargo.toml`、`desktop/Cargo.lock`、`desktop/tauri.conf.json`、`desktop/build.rs` | 干跑清单含全部改动 |
+| `scripts/release-bundle.py` | 两个临时启动器（`desktop/start-desktop*.ps1` / `.pyw`）指向调试路径，不该进包 | 从 `INCLUDE` 移除 | 打包清单无此二文件 |
+| `runtime/Cargo.toml`、`desktop/Cargo.toml`、`desktop/tauri.conf.json` | 版本号 | 0.1.29 / 0.1.0 → 0.1.31 | 装树 `manifest.json` |
+
+顺带查实（不改代码，仅记录结论）：更新提示是客户端网页顶部固定蓝条（`vendor/app-update.js`，`position:fixed;top:0`），触发条件是 `/vendor/manifest.json` 的版本低于 GitHub latest release 且该 release 带 `.zip` 资产；点击走 `POST /api/self/update` → 202 → 后台下载校验、在隔离目录孵化新进程、排空旧进程退出、页面自动重连，任一步失败都保留旧进程继续服务。浏览器那次 GitHub 调用是**未认证**的（60 次/时/IP），断网或代理环境下静默不弹。内置 `magpie.exe` 是二进制原样入包，账号数据在 `%USERPROFILE%\.config\magpie\`，从不入包。
+
+回退：`git checkout -- desktop/src/main.rs runtime/plugins/llm_adapter/llm_plugin.py runtime/crates/host/web-dist/vendor/app-settings.js runtime/crates/host/src/config.rs scripts/release.py scripts/release-bundle.py runtime/Cargo.toml desktop/Cargo.toml desktop/tauri.conf.json && cargo build --release --manifest-path desktop/Cargo.toml`。
