@@ -1525,6 +1525,86 @@ async fn failed_exit_paths_still_emit_chat_summary() {
 }
 
 #[tokio::test]
+async fn length_with_empty_content_resumes_once_then_answers() {
+    // 回归（用户实测：finish_reason=length + 无正文，报「模型输出被 max_tokens 截断」）：
+    // 推理模型把输出上限全花在 reasoning 上时，同输入重发必然复现——所以续写必须
+    // ① 缩短 prompt ② 明令跳过思考。此用例锁死「一次续写就救回来」这条主路径。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let saved = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    std::env::set_var("LLM_CONTEXT_TOKENS", "430"); // 让 workset_budget>0，续写才腾得出东西
+    let mem_state = Arc::new(Mutex::new(vec![]));
+    let captured: Arc<Mutex<Vec<Vec<Value>>>> = Arc::new(Mutex::new(vec![]));
+    let llm_script = vec![
+        // r1：思考吃光预算，正文为空
+        json!({"ok": true, "content": null, "tool_calls": [], "model": "mock",
+               "finish_reason": "length", "reasoning": "想了很久但一个字也没写出来"}),
+        // r2：续写轮给出正文
+        json!({"ok": true, "content": "续写后的最终答复", "tool_calls": [], "model": "mock", "finish_reason": "stop"}),
+    ];
+    let kernel = boot(vec![
+        mock_memory_traced(mem_state.clone(), Arc::new(Mutex::new(vec![]))),
+        mock_llm_capturing(llm_script, captured.clone()),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "先想一想再回答").await;
+    match saved {
+        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+    }
+    assert_eq!(r["ok"], json!(true), "截断无正文应被续写救回，而不是直接 K502: {r}");
+    assert_eq!(r["answer"], json!("续写后的最终答复"), "{r}");
+
+    let calls = captured.lock().unwrap().clone();
+    assert_eq!(calls.len(), 2, "应恰好两次 LLM 调用（原始 + 续写）: {}", calls.len());
+    // 续写请求必须带上「跳过思考」的指令——否则只是原样重发，必然再截断一次。
+    let second = serde_json::to_string(&calls[1]).unwrap();
+    assert!(second.contains("跳过所有思考"), "续写轮必须显式要求跳过思考: {second}");
+}
+
+#[tokio::test]
+async fn length_with_empty_content_converges_after_one_resume() {
+    // 续写闸的边界：二次仍截断就收敛，绝不无限续写烧钱。报错文案必须
+    // 指向真实成因（推理 token 吃光输出预算）+ 可行动旋钮，而不是断言一个
+    // 代码里根本不存在的 max_tokens 字段。
+    let _env_guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let saved = std::env::var("LLM_CONTEXT_TOKENS").ok();
+    std::env::set_var("LLM_CONTEXT_TOKENS", "430");
+    let mem_state = Arc::new(Mutex::new(vec![]));
+    let events = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let captured: Arc<Mutex<Vec<Vec<Value>>>> = Arc::new(Mutex::new(vec![]));
+    let llm_script = vec![
+        json!({"ok": true, "content": null, "tool_calls": [], "model": "mock", "finish_reason": "length"}),
+    ];
+    let kernel = boot(vec![
+        mock_memory_traced(mem_state.clone(), events.clone()),
+        mock_llm_capturing(llm_script, captured.clone()),
+        mock_tools(json!({"ok": true})),
+        agent_loop(8),
+    ])
+    .await;
+    let r = chat(&kernel, "还是想不完").await;
+    match saved {
+        Some(v) => std::env::set_var("LLM_CONTEXT_TOKENS", v),
+        None => std::env::remove_var("LLM_CONTEXT_TOKENS"),
+    }
+    assert_eq!(r["ok"], json!(false), "{r}");
+    assert_eq!(r["error"]["code"], json!("K502"), "{r}");
+    assert_eq!(r["error"]["reason"], json!("length"), "{r}");
+    let msg = r["error"]["message"].as_str().unwrap_or_default();
+    assert!(msg.contains("LLM_MAX_TOKENS"), "报错须给出可行动开关: {msg}");
+    assert!(!msg.contains("被 max_tokens 截断"), "不得再断言一个从未下发的字段: {msg}");
+    assert_eq!(captured.lock().unwrap().len(), 2, "续写只允许一次");
+
+    let evs = events.lock().unwrap().clone();
+    assert!(
+        evs.iter().any(|e| e["where"] == "length_resume"),
+        "续写动作必须留痕（用户要能看见为什么多花了一次调用）: {evs:#?}"
+    );
+}
+
+#[tokio::test]
 async fn wall_clock_budget_soft_converges_instead_of_aborting() {
     // T4 语义修正回归：墙钟到点**不得**丢弃本轮成果直接 K508。
     // 旧行为（硬中止）的后果：任务没做完、工作也没了，用户只看到「预算耗尽」错误气泡。

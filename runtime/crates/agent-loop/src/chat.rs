@@ -178,6 +178,56 @@ pub(super) fn trim_workset_by_tokens(msgs: Vec<MemoryMsg>, budget: usize) -> Vec
     out
 }
 
+/// 截断（length）续写指令：显式关掉「再想一想」，要求直接产出正文。
+///
+/// 为什么不能只是「重发一次同样的请求」：旧代码的注释判断「重试同输入大概率复现」
+/// ——那个判断是对的。推理模型（DeepSeek-R1 族等）先写 reasoning 再写正文，两者
+/// **共用同一个输出上限**；上限被思考吃光时，同输入同上限必然再吃光一次。能救回来
+/// 的唯一前提是同时改变两件事：① 腾出输出余量（缩短 prompt）；② 明令禁止继续思考。
+/// 二者缺一，续写就只是多烧一次钱。
+const LENGTH_RESUME_NUDGE: &str = "[系统] 上一轮输出预算在思考阶段就耗尽了（finish_reason=length），没有留下任何正文。\
+这通常意味着上下文太长、留给回答的余量太小。请**跳过所有思考**，直接给出最终答复：\
+不要再分析，不要再调用工具，只输出结论本身。";
+
+/// 续写后仍截断：此时才真的收敛，并把可行动的旋钮一并告诉用户。
+///
+/// 旧文案断言「被 max_tokens 截断」，但本模块与 openai_compat provider 都
+/// **从不设置 max_tokens**——指着一个不存在的字段让人去查，是误导性诊断。
+const LENGTH_EXHAUSTED_MSG: &str = "输出预算耗尽且无正文（finish_reason=length）：模型把整个输出上限花在了推理 token 上，没有留下正文。\
+已自动腾出窗口并请求直接作答一次，仍然耗尽。可行动项：\
+① 缩小本轮任务；② 清空会话历史重开；③ 设环境变量 LLM_MAX_TOKENS（如 8192）给输出一个明确上限，\
+未设时输出上限由网关按「窗口 − prompt」自定；④ 设 LLM_CONTEXT_TOKENS 让本地在发送前就收紧上下文。";
+
+/// 为续写腾出输出余量：把工作集压到 `budget` 以内，返回实际让出的 token 估算。
+///
+/// 语义纪律（与 `trim_workset_by_tokens` 一致）：只动**本轮发给模型的工作集**，
+/// 不碰持久层；system 保留唯一一条；裁掉前缘孤儿 tool 消息。
+/// 返回 0 表示没腾出东西（工作集本就很短）——此时续写仍值得一试：关掉思考本身
+/// 就能把预算还给正文，这正是续写指令存在的意义。
+fn make_room_for_resume(messages: &mut Vec<MemoryMsg>, cfg: &AgentLoopConfig, budget: usize) -> usize {
+    let before = super::context::estimate_messages(messages);
+    if before <= budget || budget == 0 {
+        return 0;
+    }
+    // 工具结果先减半再裁条数：工具结果通常是工作集里最肥的一块，而「用户在问什么」
+    // 往往在很靠前的 user 消息里，按条数硬砍会先把它砍掉。
+    if cfg.tool_result_limit > 0 {
+        let half = (cfg.tool_result_limit / 2).max(256);
+        for m in messages.iter_mut() {
+            if m.role == "tool" {
+                if let Some(c) = m.content.as_deref() {
+                    if c.chars().count() > half {
+                        m.content = Some(crate::tools_exec::truncate_chars(c, half));
+                    }
+                }
+            }
+        }
+    }
+    let tail = std::mem::take(messages);
+    *messages = trim_workset_by_tokens(tail, budget);
+    before.saturating_sub(super::context::estimate_messages(messages))
+}
+
 impl AgentLoopPlugin {
     /// 感知：拉取会话**全量**历史（不做窗口裁剪）。
     /// 窗口与压缩的顺序见 `apply_history_limit`（PLAN R3：先压缩判断，后窗口裁剪）。
@@ -770,6 +820,9 @@ whole context), so a batch of 4 independent calls is ~4x cheaper than 4 sequenti
         let mut wrap_up: Option<StopReason> = None;
         // N1 空答案自愈闸：nudge 续跑只做一次，防网络持续故障时空转烧钱。
         let mut empty_nudged = false;
+        // 截断（length）续写闸：与 empty_nudged 分开计数——空答案（瞬断）和截断（预算被思考吃光）
+        // 是两种病，允许各自自愈一次。合计最多 2 次额外 LLM 调用。
+        let mut length_resumed = false;
         // P4c 无进展熔断：记上一次工具调用的 (工具名, 参数 JSON) 与连续重复次数。
         // 只统计「同一工具 + 同参数」**连续**重复——工具或参数任一变化即清零，
         // 因此「换着参数重试」不会被误判。阈值 cfg.no_progress_repeat_limit（缺省 0=禁用）。
@@ -937,8 +990,35 @@ whole context), so a batch of 4 independent calls is ~4x cheaper than 4 sequenti
                 // wrap-up 收敛轮不介入（finish 会以进度报告兜底答案）；自愈只此
                 // 一次：续轮再空按 K502 收敛，防网络持续故障时空转烧钱。
                 if wrap_up.is_none() && resp.content.as_deref().map_or(true, |s| s.trim().is_empty()) {
+                    // 截断（length）：输出预算在思考阶段就烧完了，正文一个字符都没有。
+                    // 旧实现直接判死，但这是**唯一**一种重试真能救回来的失败：只要同时
+                    // ① 缩短 prompt ② 明令跳过思考，输出余量就回来了。所以先续写一次，
+                    // 二次才收敛（闸见 length_resumed，防同输入空转烧钱）。
                     if resp.finish_reason == "length" {
-                        let msg = "模型输出被 max_tokens 截断且无正文（finish_reason=length）。请缩小任务或清空会话历史后重试。";
+                        if !length_resumed {
+                            length_resumed = true;
+                            // 腾出余量：目标取「工作集预算的一半」——留出的那一半正是给
+                            // 正文的输出余量。工作集本就短时 freed=0，仍续写（关思考即可）。
+                            let target = cfg.workset_budget() / 2;
+                            let freed = make_room_for_resume(&mut messages, &cfg, target);
+                            let est_after = super::context::estimate_messages(&messages);
+                            self.trace(env, &req.session_id, json!({
+                                "type": "policy",
+                                "where": "length_resume",
+                                "message": format!("输出被推理 token 吃光，已腾出 {freed} tokens（剩余估算 {est_after}）并请求跳过思考直接作答"),
+                            })).await;
+                            let nudge = MemoryMsg {
+                                role: "user".into(),
+                                content: Some(LENGTH_RESUME_NUDGE.into()),
+                                tool_calls: None,
+                                tool_call_id: None,
+                                attachments: None,
+                            };
+                            self.observe(env, &req.session_id, &[nudge.clone()]).await;
+                            messages.push(nudge);
+                            continue;
+                        }
+                        let msg = LENGTH_EXHAUSTED_MSG;
                         self.trace(env, &req.session_id, json!({"type": "error", "where": "finish", "message": msg})).await;
                         self.summary_after_stop(env, &req.session_id, rounds, &steps, None, None, &usage, llm_ms, llm_calls, retries, tool_failures).await;
                         return json!({"ok": false, "error": {"code": "K502", "reason": "length", "message": msg}});
@@ -1514,11 +1594,8 @@ whole context), so a batch of 4 independent calls is ~4x cheaper than 4 sequenti
             // 路径，nudge 续跑对其无意义——进度报告兜底已先行）。截断类在此处
             // 仍可能到达（wrap-up 收敛轮），给出与主循环一致的可行动错误。
             let truncated = resp.finish_reason == "length";
-            let msg = if truncated {
-                "模型输出被 max_tokens 截断且无正文（finish_reason=length）。请缩小任务或清空会话历史后重试。"
-            } else {
-                "llm 返回了空答案"
-            };
+            // 与主循环共用同一常量：两处文案曾经各写一份，改一处漏一处。
+            let msg = if truncated { LENGTH_EXHAUSTED_MSG } else { "llm 返回了空答案" };
             self.trace(env, session_id, json!({"type": "error", "where": "finish", "message": msg})).await;
             // E7-C2：失败出口同样交画像（steps 已落地的成果数如实上报）。
             self.summary_after_stop(env, session_id, rounds, &steps, None, None, &usage, llm_ms, llm_calls, retries, tool_failures)

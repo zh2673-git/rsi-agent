@@ -2,7 +2,7 @@
 
 import os
 
-from .base import PROVIDER_DEADLINE, err_from_resp, norm, require_httpx
+from .base import PROVIDER_DEADLINE, _max_tokens, err_from_resp, norm, require_httpx
 
 
 def chat(payload: dict) -> dict:
@@ -49,7 +49,10 @@ def chat(payload: dict) -> dict:
             else:
                 messages.append({"role": role or "user", "content": content or ""})
 
-    body: dict = {"model": model, "max_tokens": 4096, "messages": messages}
+    # 4096 was a hardcoded guess: a reasoning model spends the whole cap on thinking and
+    # returns empty content. LLM_MAX_TOKENS overrides it; unset keeps 4096.
+    cap = _max_tokens(payload)
+    body: dict = {"model": model, "max_tokens": cap or 4096, "messages": messages}
     if system_parts:
         body["system"] = "\n".join(system_parts)
     tools = payload.get("tools")

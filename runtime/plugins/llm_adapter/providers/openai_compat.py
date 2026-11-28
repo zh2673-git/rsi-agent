@@ -17,6 +17,7 @@ from .base import (
     consume_abort,
     err,
     err_from_resp,
+    _max_tokens,
     map_usage,
     norm,
     require_httpx,
@@ -66,6 +67,12 @@ async_compat_chat = None  # 占位说明：同步实现，Serial 语义
 
 def _build_body(endpoint: dict, payload: dict) -> dict:
     body: dict = {"model": endpoint["model"], "messages": [to_openai_msg(m) for m in payload.get("messages", [])]}
+    # Explicit output cap. Without the field the gateway decides, and the usual rule is
+    # "window - prompt", so a long history silently starves the answer: finish_reason=
+    # length with empty content. Unset env = unchanged behaviour.
+    cap = _max_tokens(payload)
+    if cap:
+        body["max_tokens"] = cap
     tools = payload.get("tools")
     if tools:
         body["tools"] = [

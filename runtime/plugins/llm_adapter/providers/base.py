@@ -180,6 +180,23 @@ def _extract_ctx(resp_text: str) -> dict:
     return ctx
 
 
+def _max_tokens(payload: dict) -> int | None:
+    """Output cap for this request: payload field > LLM_MAX_TOKENS env > None (server default).
+
+    None is the default on purpose: an explicit value the server dislikes (a cap above the
+    model window, or a provider that renamed the field to max_completion_tokens) fails the
+    whole request, so the cap stays opt-in instead of assumed.
+    """
+    v = payload.get("max_tokens")
+    if v is None:
+        v = os.environ.get("LLM_MAX_TOKENS", "").strip()
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
 def norm(content, calls, model, finish_reason, reasoning=None, usage=None, elapsed_ms=None, http_attempts=None) -> dict:
     """归一化成功响应。
 

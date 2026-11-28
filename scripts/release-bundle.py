@@ -59,6 +59,12 @@ EXE = REPO / "runtime/target/release/react-agent-host.exe"
 # sandbox-run.exe sits next to the host binary; without it assemble.rs fail-closes and drops
 # bash from TOOLS_ENABLED entirely, so it must ship in the same zip
 SANDBOX_EXE = REPO / "runtime/target/release/sandbox-run.exe"
+
+# The desktop shell ships inside the app zip so the in-app updater can refresh it too. It is
+# untracked (built by cargo, never committed), so it is appended explicitly instead of being
+# picked up by git ls-files. A running shell holds its own image locked, hence update_check
+# .finalize() renames the old file aside before writing the new one.
+DESKTOP_SHELL = "desktop/rsi-agent-desktop.exe"
 # portable runtime produced by scripts/fetch-runtime.py (gitignored, ~136 MB on disk)
 ENV_DIR = REPO / "runtime-env"
 KERNEL_NODE_MODULES = "runtime/kernel/bindings/typescript/node_modules/"
@@ -145,6 +151,9 @@ def app_entries(ver: str, bin_dir: Path | None = None) -> list[Entry]:
     out: list[Entry] = [(REPO / rel, rel) for rel in files()]
     out.append((d / "react-agent-host.exe", "runtime/target/release/react-agent-host.exe"))
     out.append((d / "sandbox-run.exe", "runtime/target/release/sandbox-run.exe"))
+    shell = REPO / DESKTOP_SHELL
+    if shell.is_file():
+        out.append((shell, DESKTOP_SHELL))
     for rel in web_files():
         out.append((REPO / rel, WEB_DIST_DST + rel[len(WEB_DIST_SRC):]))
     return out

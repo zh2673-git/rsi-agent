@@ -42,6 +42,11 @@ EXE = "react-agent-host.exe"
 # same package as the host; assemble.rs looks for it next to current_exe() (fail-closed without it)
 SANDBOX_EXE = "sandbox-run.exe"
 
+# desktop shell: shipped inside the app zip (0.1.32+). Its image is locked while the shell
+# runs, so download() only stages it and finalize() swaps it via a rename.
+SHELL_REL = "desktop/rsi-agent-desktop.exe"
+SHELL_EXE = "rsi-agent-desktop.exe"
+
 
 def repo_root() -> Path:
     r = os.environ.get("REPO_ROOT") or os.environ.get("WORKSPACE_ROOT")
@@ -238,6 +243,13 @@ def download(ver: str, url: str) -> int:
                 exe_dir.mkdir(parents=True, exist_ok=True)
                 (exe_dir / SANDBOX_EXE).write_bytes(data)
                 continue
+            if rel == SHELL_REL:
+                # stage only: the live shell has its own image locked, and download() must not
+                # depend on finalize()'s rename trick having run yet
+                sd = st / SHELL_REL
+                sd.parent.mkdir(parents=True, exist_ok=True)
+                sd.write_bytes(data)
+                continue
             if rel.startswith("runtime/target/release/"):
                 # web-dist lives beside the exe (web/mod.rs candidate 3), so it must exist next to
                 # BOTH the staged host (used right after handoff) and the installed one
@@ -272,6 +284,44 @@ def _wait_pid_exit(pid: int, timeout: float) -> bool:
         k32.CloseHandle(h)
 
 
+def _replace_locked(dst: Path, src: Path) -> bool:
+    """Replace dst with src even when dst is a running image.
+
+    Windows locks a running exe against write/delete but NOT against rename, so the swap is:
+    try a plain copy (works when the file is not in use), else rename the old image aside and
+    write the new one. The old process keeps its handle on the renamed file, so it keeps
+    running; the rename is cleaned up on a later start. Returns False if even the rename
+    fails (e.g. an ACL problem) -- the caller degrades to "update on next reinstall".
+    """
+    import shutil
+
+    try:
+        shutil.copy2(src, dst)
+        return True
+    except OSError:
+        pass
+    if not dst.is_file():
+        return False
+    aside = dst.with_name(f"{dst.name}.old-{os.getpid()}")
+    try:
+        os.replace(dst, aside)
+    except OSError:
+        return False
+    try:
+        shutil.copy2(src, dst)
+    except OSError:
+        try:
+            os.replace(aside, dst)  # roll back, keep the old shell usable
+        except OSError:
+            pass
+        return False
+    try:
+        aside.unlink(missing_ok=True)  # fails while the old shell still runs -> retried next boot
+    except OSError:
+        pass
+    return True
+
+
 def finalize(wait_pid: int = 0) -> int:
     root = repo_root()
     st = root / STAGING
@@ -293,6 +343,17 @@ def finalize(wait_pid: int = 0) -> int:
     sandbox_src = src.parent / SANDBOX_EXE
     if sandbox_src.is_file():
         shutil.copy2(sandbox_src, dst_dir / SANDBOX_EXE)
+    # desktop shell: same handoff as the host exe, but the old image is still mapped by the
+    # running shell, so it is renamed aside rather than overwritten (see _replace_locked).
+    shell_src = st / SHELL_REL
+    if shell_src.is_file():
+        shell_dst = root / SHELL_REL
+        shell_dst.parent.mkdir(parents=True, exist_ok=True)
+        if _replace_locked(shell_dst, shell_src):
+            sys.stderr.write("update_check: desktop shell replaced\n")
+        else:
+            sys.stderr.write("update_check: desktop shell not replaced (locked); "
+                             "it will update on the next install\n")
     ready.unlink(missing_ok=True)
     # keep the staged exe dir (the staged host IS the running process until next restart, and it
     # resolves web-dist/ + sandbox-run.exe beside its own image); drop everything else --

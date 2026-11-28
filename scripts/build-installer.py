@@ -280,7 +280,9 @@ def build(out_dir: Path, ver: str, bin_dir: Path | None, with_env: bool = True) 
     # desktop shell: setup.exe only, for the same reason plus a harder one -- a running shell
     # holds its own image locked, so an in-app update could never overwrite it.
     shell = REPO / "desktop/rsi-agent-desktop.exe"
-    if shell.is_file():
+    if any(arc == "desktop/rsi-agent-desktop.exe" for _, arc in entries):
+        pass  # bundle.app_entries() already carries it (0.1.32+); do not list it twice
+    elif shell.is_file():
         entries.append((shell, "desktop/rsi-agent-desktop.exe"))
     else:
         print("[installer] desktop shell not built; shortcuts fall back to run.cmd "
