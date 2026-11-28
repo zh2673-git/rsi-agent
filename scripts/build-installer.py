@@ -73,7 +73,10 @@ def find_makensis() -> Path | None:
                  Path(r"C:\Program Files\NSIS\makensis.exe")):
         if cand.is_file():
             return cand
-    cached = sorted(TOOLS.glob(f"nsis-*/makensis.exe"))
+    # The portable zip extracts to nsis-<ver>/nsis-<ver>/makensis.exe (two levels), so the
+    # single-level glob alone never matches and every run re-extracted into a locked tree.
+    cached = (sorted(TOOLS.glob("nsis-*/makensis.exe"))
+              + sorted(TOOLS.glob("nsis-*/*/makensis.exe")))
     if cached:
         return cached[0]
     hit = shutil.which("makensis")

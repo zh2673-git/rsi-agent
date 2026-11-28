@@ -115,7 +115,7 @@ def main() -> int:
                  "runtime/crates/host/src/web/api/misc.rs",
                  "runtime/crates/host/src/config.rs", "runtime/crates/host/web-dist",
                 "runtime/crates/agent-loop",
-                 "runtime/plugins/llm_adapter", "runtime/Cargo.toml",
+                 "runtime/plugins/llm_adapter", "runtime/Cargo.toml", "runtime/Cargo.lock",
                  # desktop shell sources (the built exe itself is never committed: 8.8 MB binary,
                  # and scripts/build-installer.py reads it straight from the working tree)
                  "desktop/src", "desktop/Cargo.toml", "desktop/Cargo.lock",

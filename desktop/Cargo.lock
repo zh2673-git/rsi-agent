@@ -2666,7 +2666,7 @@ dependencies = [
 
 [[package]]
 name = "rsi-agent-desktop"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "tauri",
  "tauri-build",
