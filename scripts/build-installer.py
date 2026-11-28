@@ -121,7 +121,95 @@ def _q(p: Path) -> str:
     return '"' + str(p).replace("$", "$$") + '"'
 
 
-def _nsi(ver: str, out_exe: Path, entries: list[tuple[Path, str]], est_kb: int) -> str:
+PS_EXE = r"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe"
+
+LOCK_GUARD_PS1 = r"""
+param([Parameter(Mandatory=$true)][string]$Root, [string]$Mode = 'check')
+# exit 0 = nothing running under $Root    -> safe to write
+# exit 2 = something running, check mode  -> installer must ask
+# exit 1 = killed, nothing left           -> safe to write
+# exit 3 = killed, survivors remain       -> still locked
+#
+# Detection MUST go through WMI/CIM, not Get-Process. The installer is an x86-unicode NSIS
+# binary, so $SYSDIR resolves to SysWOW64 and this script runs under 32-bit PowerShell,
+# which cannot read .Path of 64-bit processes -- Get-Process reports nothing and the guard
+# would silently never fire. Win32_Process.ExecutablePath is bitness-agnostic.
+#
+# Prefix compare, so "D:\app" never matches "D:\app2".
+function Get-Hits {
+  $q = @()
+  try {
+    $q = @(Get-CimInstance Win32_Process -ErrorAction Stop | Select-Object ProcessId, ExecutablePath)
+  } catch {
+    $q = @(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId, ExecutablePath)
+  }
+  foreach ($p in $q) {
+    if ($p.ExecutablePath -and
+        $p.ExecutablePath.StartsWith($Root, [StringComparison]::OrdinalIgnoreCase)) { $p }
+  }
+}
+$t = @(Get-Hits)
+if ($t.Count -eq 0) { exit 0 }
+if ($Mode -ne 'kill') { exit 2 }
+foreach ($p in $t) { try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop } catch { } }
+Start-Sleep -Milliseconds 1500
+$left = @(Get-Hits).Count
+if ($left -eq 0) { exit 1 } else { exit 3 }
+"""
+
+GUARD_NSI = r"""
+Function __NAME__
+  ; A previous rsi-agent still holds runtime-env\node\node.exe and runtime-env\python\python.exe
+  ; open. NSIS then dies mid-install with "无法打开要写入的文件" and leaves a half-written tree,
+  ; so this check has to run before the first File instruction of the payload.
+  InitPluginsDir
+  SetOutPath "$PLUGINSDIR"
+  File /oname=rsi-stop.ps1 "{PS1}"
+  nsExec::ExecToStack '{PSEXE} -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\rsi-stop.ps1" -Root "$INSTDIR"'
+  Pop $0
+  Pop $1
+  StrCmp $0 "2" 0 guard_done
+  MessageBox MB_YESNOCANCEL|MB_ICONEXCLAMATION "检测到 rsi-agent 正在运行：$INSTDIR$\r$\n$\r$\n安装程序要替换 node.exe、python.exe 等文件，它们正被这些进程占用，直接继续会失败。$\r$\n$\r$\n[是] 自动结束这些进程并继续$\r$\n[否] 我先自己退出（请从托盘图标退出），然后继续$\r$\n[取消] 退出安装" /SD IDYES IDYES guard_kill IDNO guard_done
+  Quit
+  guard_kill:
+  nsExec::ExecToStack '{PSEXE} -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\rsi-stop.ps1" -Root "$INSTDIR" -Mode kill'
+  Pop $0
+  Pop $1
+  StrCmp $0 "1" guard_done
+  MessageBox MB_OK|MB_ICONSTOP "仍有 rsi-agent 进程没能退出，文件仍被占用。$\r$\n$\r$\n请从托盘图标退出 rsi-agent（或重启电脑）后再运行安装程序。" /SD IDOK
+  Quit
+  guard_done:
+FunctionEnd"""
+
+
+def _write_lock_guard(dest: Path) -> Path:
+    """Materialise the process-lock probe that the installer ships in $PLUGINSDIR.
+
+    A separate .ps1 rather than an inline command line: NSIS would have to escape quotes
+    and `$` through two layers, and -EncodedCommand cannot take the -Root argument that
+    this needs. `$SYSDIR` is used by the caller so a hostile PATH cannot pick another
+    powershell.exe.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(LOCK_GUARD_PS1, encoding="utf-8", newline="")
+    return dest
+
+
+def _guard_func(lock_ps1: Path) -> str:
+    """Render the guard twice (install + un.), with the .ps1 location baked in.
+
+    `File` needs a compile-time source path, so this cannot live in a Section.
+    """
+    ps1 = str(lock_ps1).replace("$", "$$")
+    body = GUARD_NSI.replace("{PS1}", ps1).replace("{PSEXE}", PS_EXE)
+    # NSIS allows the uninstaller to call only un.-prefixed functions, so the same guard
+    # is emitted under both names; the .ps1 payload is embedded in each (~1 KB).
+    return (body.replace("__NAME__", "GuardRunning")
+            + "\r\n" + body.replace("__NAME__", "un.GuardRunning"))
+
+
+def _nsi(ver: str, out_exe: Path, entries: list[tuple[Path, str]], est_kb: int,
+         lock_ps1: Path) -> str:
     """Render the installer script.
 
     Files are grouped by destination directory: one SetOutPath per directory, then a File
@@ -177,7 +265,9 @@ def _nsi(ver: str, out_exe: Path, entries: list[tuple[Path, str]], est_kb: int) 
         f"  ExecShell \"open\" \"{launch}\" \"\" SW_SHOWNORMAL",
         "FunctionEnd",
         "",
+        "__GUARD__",
         "Section \"Install\" SecInstall",
+        "  Call GuardRunning",
         "  SetOutPath \"$INSTDIR\"",
         "  WriteUninstaller \"$INSTDIR\\uninstall.exe\"",
     ]
@@ -210,6 +300,7 @@ def _nsi(ver: str, out_exe: Path, entries: list[tuple[Path, str]], est_kb: int) 
         "SectionEnd",
         "",
         "Section \"Uninstall\"",
+        "  Call un.GuardRunning",
         "  Delete \"$DESKTOP\\rsi-agent.lnk\"",
         "  Delete \"$SMPROGRAMS\\rsi-agent\\rsi-agent.lnk\"",
         "  RMDir \"$SMPROGRAMS\\rsi-agent\"",
@@ -234,7 +325,7 @@ def _nsi(ver: str, out_exe: Path, entries: list[tuple[Path, str]], est_kb: int) 
         "SectionEnd",
         "",
     ]
-    return "\r\n".join(lines)
+    return "\r\n".join(lines).replace("__GUARD__", _guard_func(lock_ps1))
 
 
 def _manifest_entries(ver: str, n_files: int) -> list[tuple[Path, str]]:
@@ -295,10 +386,11 @@ def build(out_dir: Path, ver: str, bin_dir: Path | None, with_env: bool = True) 
     out_exe = out_dir / f"{APP_NAME}-{ver}-setup.exe"
     WORK.mkdir(parents=True, exist_ok=True)
     nsi = WORK / f"{APP_NAME}-{ver}.nsi"
+    lock_ps1 = _write_lock_guard(WORK / "rsi-stop.ps1")
     # utf-8-sig: with `Unicode true`, makensis only accepts UTF-8 when the file starts with a
     # BOM -- without it any non-ASCII File path (Chinese skill/output names are all over this
     # repo) fails as "Bad text encoding".
-    nsi.write_text(_nsi(ver, out_exe, entries, est_kb), encoding="utf-8-sig", newline="")
+    nsi.write_text(_nsi(ver, out_exe, entries, est_kb, lock_ps1), encoding="utf-8-sig", newline="")
     makensis = ensure_makensis()
     print(f"[installer] {len(entries)} files, {est_kb / 1024:.1f} MB payload -> {out_exe.name}")
     r = subprocess.run([str(makensis), "/V2", str(nsi)], capture_output=True, text=True,
